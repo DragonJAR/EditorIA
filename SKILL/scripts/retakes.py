@@ -15,7 +15,7 @@ entre islas y se expanden con --margen (default 0.3s) para no rozar el
 inicio/fin del habla.
 
 Solo stdlib. Sin red, sin keys. La transcripción de entrada la provee
-whisper.cpp, el ASR que Jaime use, o segmentos de cualquier otra fuente.
+whisper.cpp, el ASR que uses, o segmentos de cualquier otra fuente.
 
 Ejemplos:
   python3 retakes.py transcripcion.json

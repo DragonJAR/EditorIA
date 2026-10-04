@@ -22,8 +22,14 @@ check(bool(m), "frontmatter presente")
 fm = m.group(1) if m else ""
 check("name:" in fm, "frontmatter tiene name")
 name = re.search(r"name:\s*(\S+)", fm)
-check(name and name.group(1) == os.path.basename(BASE),
-      f"name == carpeta ({name.group(1) if name else '?'})")
+if name and name.group(1) == os.path.basename(BASE):
+    check(True, f"name == carpeta ({name.group(1)})")
+elif name and os.path.basename(BASE) == "SKILL":
+    # Layout de repositorio: la skill vive en SKILL/ y se instala con su nombre.
+    print(f"AVISO name '{name.group(1)}' != carpeta 'SKILL' (layout del repo): "
+          f"al instalar, copiar como ~/.claude/skills/{name.group(1)}/")
+else:
+    check(False, f"name == carpeta ({name.group(1) if name else '?'})")
 check(name and "claude" not in name.group(1) and "anthropic" not in name.group(1),
       "name sin 'claude'/'anthropic' (reservados)")
 desc = re.search(r"description:\s*(.*)", fm)

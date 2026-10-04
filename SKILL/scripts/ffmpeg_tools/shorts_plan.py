@@ -55,7 +55,8 @@ def retimear_srt(srt_path, segmentos, tmpdir):
 
 BRAND_JSON = os.path.join(os.path.dirname(os.path.dirname(KIT)),
                          "brand", "dragonjar.json")
-FUENTE_MARCA = os.path.expanduser("~/workspace/video-dragonjar/fonts/jakarta.ttf")
+from _plataforma import resolver_fuente
+FUENTE_MARCA = resolver_fuente("Plus Jakarta Sans") or ""
 
 
 def validar(plan, dur_fuente):

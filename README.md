@@ -19,14 +19,20 @@ Todo el contenido de la skill vive en la carpeta [`SKILL/`](SKILL/):
 | `SKILL/SKILL.md` | Definición de la skill y selector de motor |
 | `SKILL/scripts/` | Motores y herramientas (render por plan, música, voz en off, QA, kit `ffmpeg_tools/`) |
 | `SKILL/references/` | Documentación de referencia (instalación, escenas, cine, montaje, sonido, etc.) |
-| `SKILL/brand/` | Brand packs (marca blanca; incluye `dragonjar.json` como ejemplo) |
-| `SKILL/film/`, `SKILL/demo/` | Recursos de ejemplo |
+| `SKILL/brand/` | Brand packs (marca blanca; incluye `dragonjar.json` como ejemplo, con sus assets en `brand/assets/`) |
+| `SKILL/assets/fonts/` | Plus Jakarta Sans y Montserrat (fuentes variables, licencia OFL en `OFL.txt`) |
+| `SKILL/film/` | Música de ejemplo para el film de marca |
+
+## Criterio de calidad
+
+Cada pieza se juzga contra una rúbrica de premios de 8 ejes (`SKILL/references/rubrica-premios.md`): idea y hook, dramaturgia, animación, composición, sistema visual, sonido, verdad y acabado técnico. Ningún eje puede quedar por debajo de 4/5. El oficio de animación (12 principios aplicados a motion graphics, motion blur de obturador 180°, cámara virtual, coreografía) está en `SKILL/references/animacion.md`.
 
 ## Instalación
 
-1. Copia o enlaza la carpeta `SKILL/` en el directorio de skills de Claude con el nombre `editoria`.
+1. Copia o enlaza la carpeta `SKILL/` en el directorio de skills de Claude con el nombre `editoria` (por ejemplo `~/.claude/skills/editoria/`).
 2. Instala las dependencias según tu sistema (Windows, macOS o Linux): ver `SKILL/references/instalacion.md`.
 3. Verifica las capacidades del entorno: `python SKILL/scripts/check_env.py`.
+4. Opcional, para voz en off y música con IA: define `ELEVENLABS_API_KEY` en tu entorno (nunca dentro de la skill).
 
 ## Uso rápido
 

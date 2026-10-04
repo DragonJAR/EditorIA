@@ -221,7 +221,7 @@
   `--skill remotion-to-hyperframes`). El render local no exige login.
 - 2026-10-04 · **HyperFrames: gate de disco en /tmp**. `render` aborta con
   ~0.5 GB libres en /tmp aunque haya 468 MB libres reales. Workaround
-  verificado: `export TMPDIR=~/workspace/tmp` + `--frames-cache-dir ./cache`
+  verificado: `export TMPDIR=$HOME/tmp-hyperframes` + `--frames-cache-dir ./cache`
   (la env var `HYPERFRAMES_EXTRACT_CACHE_DIR` sola no basta). Render
   verificado: 8s 1080x1920@30 -> 525 kB H.264 en 1m04s, captura screenshot
   por software GL (~58s), static-dedup 26%, GSAP local con timeline en
@@ -268,3 +268,6 @@
 - 2026-10-04 · **Loudness: nunca loudnorm de una pasada sobre el master final**: loudnorm single-pass (dinamico) subio el true peak de -0.9 a +0.2 dBTP y delivery_check reels dio FAIL. Patron: usar scripts/ffmpeg_tools/loudness.py (dos pasadas, lineal) con --tp -1.5; resultado -14.3 LUFS / -1.4 dBTP, PASS. Verificado en reel DragonJAR 'Ellos no duermen' 2026-10-04.
 - 2026-10-04 · **Fuentes de marca sin Google Fonts: fontsource via npm**: Con la red bloqueando github/jsdelivr, npm pack @fontsource-variable/FAMILIA trae el woff2 variable; fontTools (pip fonttools brotli) lo convierte a TTF (flavor=None) y PIL respeta el eje wght. Verificado con Plus Jakarta Sans y Montserrat 2026-10-04.
 - 2026-10-04 · **Zona segura reels: maxw de titulares 780px centrado**: Titulares con maxw 960 y reloj mono 210px invadian el margen derecho de Reels (botones) en auto_qa --safe reels; banners a H*0.80 caian bajo la UI inferior. Patron: maxw hasta 780 centrado en W/2, tarjetas de hasta 780 de ancho, nada por debajo de H*0.77. Verificado en reel DragonJAR 2026-10-04.
+- 2026-10-04 · **Motion blur por submuestreo en render_plan**: render_plan.py --blur 5 promedia 5 sub-frames en la ventana del obturador (0.5 = 180 grados); con --jobs en paralelo el demo de 30 s rinde en ~2 min. Borradores --blur 1, entrega --blur 5. Verificado con el plan demo 2026-10-04.
+- 2026-10-04 · **Zona segura automatica por escena en render_plan**: Las escenas del motor (tarjetas de 880 px, burbujas a 90 px del borde, lema sin auto-fit) se salian de la zona segura de Reels. Patron: medir el bbox del contenido opaco (alfa mayor a 110, la decoracion translucida no cuenta) en 6 instantes de la escena y escalarla con un factor FIJO por escena (no por frame: bombearia). Margenes desde _delivery.py (union reels/tiktok/shorts, laterales simetricos). Verificado con auto_qa --safe reels.
+- 2026-10-04 · **Rotulos y end cards: nada aparece de golpe ni queda congelado**: rotulo() calculaba el resorte pero dibujaba sin alfa ni elevacion (aparicion de golpe); el end card quedaba 5 s identico (auto_qa frozen). Fix: rotulo con fade + elevacion 24 px por resorte; lockup final con flotacion, halo que late en el boton y push-in de camara 3.5 por ciento; titulares asentados con micro-idle de 4-5 px. auto_qa LIMPIO tras el fix.

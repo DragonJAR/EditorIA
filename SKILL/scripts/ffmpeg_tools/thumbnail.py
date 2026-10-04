@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compone un thumbnail con identidad DragonJAR sobre una imagen base.
 
-El craft creativo (brief, tension, open loop) lo hace el agente con Jaime
+El craft creativo (brief, tension, open loop) lo hace el agente con el usuario
 (review-gate, ver references/thumbnails.md); esta herramienta ejecuta la
 composicion deterministicamente: texto <=4 palabras en Plus Jakarta Sans
 ExtraBold, blanco calido sobre banda de marca, acento rojo #C11B05, y
@@ -28,7 +28,8 @@ except ImportError:
 NEGRO = (10, 10, 10)
 ROJO = (193, 27, 5)
 BLANCO = (250, 248, 246)
-FUENTE = os.path.expanduser("~/workspace/video-dragonjar/fonts/jakarta.ttf")
+from _plataforma import resolver_fuente
+FUENTE = resolver_fuente("Plus Jakarta Sans") or ""
 
 FORMATOS = {"16:9": (1280, 720), "9:16": (1080, 1920)}
 

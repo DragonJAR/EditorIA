@@ -21,6 +21,12 @@ confirman, tú corriges. Nada llega al usuario sin pasar el loop.
     fotogramas congelados ni apariciones bruscas.
 16. **Transiciones**: el idioma de transición lo fija el brand pack o el tono
     (ver `references/brand-packs.md`); salidas anticipadas 0.5s.
+16b. **Oficio de animación** (`animacion.md`): overlapping entre capas
+    (60–120 ms), arcos en recorridos largos, anticipación en los golpes y
+    **motion blur en la entrega final** (frame en pleno movimiento
+    desenfocado, frame asentado nítido).
+16c. **Rúbrica de premios** (`rubrica-premios.md`): ocho ejes puntuados sobre
+    el render final; ningún eje bajo 4, media ≥ 4.3. Si no pasa, no se entrega.
 
 ## Base
 1. **Fuente**: cada cifra/nombre/cita verificada contra el material fuente. Nada inventado.

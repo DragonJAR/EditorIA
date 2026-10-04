@@ -74,7 +74,7 @@ fuerte (overshoot, snap); el soporte usa easing calmo. Si el movimiento hace
 la escena ocupada o desenfocada, simplificar la composición antes de añadir
 más movimiento. Los efectos nunca compensan un layout débil.
 
-**Saturación: dinámico ≠ lleno** (doctrina de Jaime, 2026-10-03):
+**Saturación: dinámico ≠ lleno** (doctrina del autor, 2026-10-03):
 dinámico no es meter muchos elementos en la pantalla. Dinámico es que los
 pocos elementos presentes estén vivos, armoniosos y coherentes entre sí.
 - **Un protagonista por plano**: cada escena tiene UN elemento focal; todo lo

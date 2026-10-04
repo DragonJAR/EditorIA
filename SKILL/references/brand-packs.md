@@ -31,13 +31,13 @@ pide una marca sin pack, pedir el pack o los assets antes de producir.
     "negro": "#0A0A0A"
   },
   "tipografias": {
-    "titulares": {"familia": "Mi Fuente Titular", "archivo": "/ruta/a/fuente.ttf", "pesos": [700, 800]},
-    "texto":     {"familia": "Mi Fuente Texto", "archivo": "/ruta/a/fuente.ttf", "pesos": [400, 600]},
-    "etiquetas_mono": {"familia": "Mi Fuente Mono", "archivo": "/ruta/a/fuente.ttf"}
+    "titulares": {"familia": "Mi Fuente Titular", "archivo": "assets/titular.ttf", "pesos": [700, 800]},
+    "texto":     {"familia": "Mi Fuente Texto", "archivo": "assets/texto.ttf", "pesos": [400, 600]},
+    "etiquetas_mono": {"familia": "Mi Fuente Mono", "archivo": "assets/mono.ttf"}
   },
   "logos": {
-    "isotipo": "/ruta/a/isotipo.png",
-    "logotipo": "/ruta/a/logotipo.png"
+    "isotipo": "assets/isotipo.png",
+    "logotipo": "assets/logotipo.png"
   },
   "voces": {"es": "Fernanda Sanmiguel", "en": "Brian"},
   "caption": {"position": "center", "size": 28, "bold": true, "karaoke": true},
@@ -48,6 +48,12 @@ pide una marca sin pack, pedir el pack o los assets antes de producir.
   }
 }
 ```
+
+Rutas de archivos (`archivo`, `isotipo`, `logotipo`): absolutas, con `~`,
+o **relativas a la carpeta del JSON** (recomendado: el pack viaja con sus
+assets, ej. `brand/assets/`). Si un archivo no existe, se intenta por
+`familia` en las fuentes del sistema y en las empaquetadas
+(`assets/fonts/`: Plus Jakarta Sans y Montserrat, OFL).
 
 Campos obligatorios: `nombre`, `colores.acento`. Todo lo demás es opcional;
 lo que falte lo decide el agente con criterio (y lo documenta en el brief).

@@ -5,7 +5,7 @@
 > `ritmo.md` — en caso de conflicto, mandan ellos (ej. sin rejillas
 > decorativas, música ~15 dB bajo la voz).
 
-Probado en `~/workspace/video-dragonjar/resumen20/v2/` (62 s, 1080×1920, 30 fps).
+Probado en un resumen real de 62 s, 1080×1920, 30 fps.
 
 ## 0. Plan antes de render (contrato intermedio)
 
@@ -23,6 +23,10 @@ La duración de cada escena = la duración real de su audio, medida con
 `ffprobe` (o el reporte de `voz_off.py`). Flujo: generar la VO primero, medir
 cada segmento, y el plan/escena se estira o recorta a esa medida — nunca se
 timan las escenas a ojo y se espera que la voz encaje.
+
+> Los tres scripts de este pipeline (`gen_bg.py`, `gen_elements.py`,
+> `build_v2.py`) son **del proyecto**: se escriben por pieza en la carpeta de
+> trabajo, siguiendo esta receta. No vienen en la skill.
 
 ## 1. Fondo animado (`gen_bg.py`)
 - 1080×1920, N fotogramas PNG (`bg_%04d.png`).

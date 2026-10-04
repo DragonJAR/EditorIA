@@ -9,8 +9,8 @@ Tinkerers, NO de DragonJAR — las técnicas se portan, los colores no.
 
 - **Aurora de ondas**: fondo vivo de ondas fluidas verde/morado sobre negro
   oscuro, con blur fuerte. Da profundidad sin distraer. Equivalente DragonJAR:
-  ondas en rojo profundo (ya implementado en
-  `~/workspace/video-dragonjar/gen_bg.py`).
+  ondas en el acento profundo del pack (punto de partida: `mundo()` en
+  `scripts/render_plan.py`).
 - **Líneas de contorno topográficas**: líneas finas claras sobre las ondas,
   como curvas de nivel. Añaden textura técnica con costo casi nulo.
 - **Viñeta + grano**: los bordes siempre más oscuros; el sujeto respira al centro.
@@ -92,7 +92,7 @@ Tinkerers, NO de DragonJAR — las técnicas se portan, los colores no.
 
 - **"Agidra" / "AgyHydra"**: ninguna de las dos formas estaba en la
   transcripción — la palabra venía de una referencia de terceros sin verificar
-  y se horneó en el badge de Jaime, donde sobrevivió 3 versiones. Lección:
+  y se horneó en el badge de un ponente, donde sobrevivió 3 versiones. Lección:
   un nombre solo es "correcto" si aparece en la fuente; si no aparece, se
   marca [PENDIENTE], no se elige la forma "menos mala". Y ningún asset se
   hereda entre versiones sin re-auditar su texto.

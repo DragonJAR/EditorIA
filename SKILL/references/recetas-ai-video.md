@@ -95,7 +95,7 @@ python3 scripts/beat_file.py --bpm 120 --duracion 30 \
 El generador de música y el código visual leen `beats.json`; nadie
 hardcodea tiempos. Verificado en lab: composición Remotion con 4 golpes
 cinéticos cayendo exactamente sobre los beats del archivo
-(`~/workspace/lab-remotion2`, composición `BeatHits`).
+(composición de prueba `BeatHits`).
 
 Relación con lo existente (no duplica):
 

@@ -30,7 +30,34 @@ def dir_temp() -> str:
     return tempfile.gettempdir()
 
 
+# Fuentes empaquetadas con la skill (OFL): assets/fonts/. Van primero.
+FUENTES_SKILL = Path(__file__).resolve().parents[2] / "assets" / "fonts"
+
+# Alias de familia -> archivo empaquetado (para resolver por nombre).
+ALIAS_SKILL = {
+    "plus jakarta sans": "PlusJakartaSans-wght.ttf",
+    "jakarta": "PlusJakartaSans-wght.ttf",
+    "jakarta.ttf": "PlusJakartaSans-wght.ttf",
+    "montserrat": "Montserrat-wght.ttf",
+    "montserrat.ttf": "Montserrat-wght.ttf",
+}
+
+
+def fuente_skill(nombre: str) -> Optional[str]:
+    """Resuelve una familia o archivo contra las fuentes empaquetadas."""
+    clave = Path(str(nombre)).name.lower()
+    archivo = ALIAS_SKILL.get(clave) or ALIAS_SKILL.get(str(nombre).lower())
+    if archivo and (FUENTES_SKILL / archivo).exists():
+        return str(FUENTES_SKILL / archivo)
+    return None
+
+
 def dirs_fuentes() -> List[Path]:
+    """Directorios de fuentes: primero los de la skill, luego los del SO."""
+    return ([FUENTES_SKILL] if FUENTES_SKILL.exists() else []) + _dirs_fuentes_so()
+
+
+def _dirs_fuentes_so() -> List[Path]:
     """Directorios de fuentes del sistema, en orden de preferencia."""
     s = platform.system()
     if s == "Windows":
@@ -98,6 +125,13 @@ def resolver_fuente(*nombres: str, generica: Optional[str] = None) -> Optional[s
        archivos típicos por SO.
     Devuelve la ruta o None si no hay coincidencia.
     """
+    for n in nombres:
+        hit = fuente_skill(n)
+        if hit:
+            return hit
+        p = Path(os.path.expanduser(str(n)))
+        if p.is_absolute() and p.exists():
+            return str(p)
     s = sistema()
     candidatos: List[str] = list(nombres)
     if generica and generica in FUENTES_GENERICAS:

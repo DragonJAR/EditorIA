@@ -52,7 +52,7 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
 - **`/tmp` y el gate de disco**: `render` aborta si `/tmp` reporta ~0.5 GB
   libres (un tmpfs de 512 MB con 468 MB libres NO pasa). Workaround
-  verificado: `export TMPDIR=~/workspace/tmp` y
+  verificado: `export TMPDIR=$HOME/tmp-hyperframes` y
   `--frames-cache-dir ./cache` (la variable
   `HYPERFRAMES_EXTRACT_CACHE_DIR` sola no basta).
 - **GSAP local + timeline registrada**: servir `gsap.min.js` como asset

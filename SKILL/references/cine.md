@@ -7,17 +7,13 @@
 Recetas reutilizables para piezas premium 16:9. Principio: el logo nunca se
 redibuja, rota ni deforma — solo escala uniforme.
 
-**Ejemplo de salida**: `film/DragonJAR_film_marca_v2_final.mp4`
-(15s, 1920×1080, 24fps, H.264+AAC) — film de marca DragonJAR construido con
-estas recetas (macro del keyhole → trazo láser → match-cuts al beat → cierre
-asimétrico). En `film/` están también las variantes y la música generada:
-`film/DragonJAR_film_marca.mp4` (v1, 114MB), `film/DragonJAR_film_marca_final.mp4`
-(v1 final, 12.7MB), `film/DragonJAR_film_marca_v2.mp4` (v2, 115MB),
-`film/DragonJAR_film_marca_v2_final.mp4` (v2 final, 13.6MB — la versión preferida),
-`film/DragonJAR_film_marca_web.mp4` (v1 web, 12.4MB),
-`film/musica_demo.mp3`, `film/musica_film.mp3`, `film/musica_film_v2.mp3`
-(música generada para el film). `film/isotipo_ref.png` es el isotipo oficial
-de referencia (ver `references/capacidades.md`); nunca redibujar el logo.
+**Ejemplo**: `python scripts/film_marca_v2.py` genera el film de marca del
+pack de ejemplo (15 s, 1920×1080, 24 fps) con estas recetas: macro del
+keyhole → trazo láser → match-cuts al beat → cierre asimétrico. Los mp4 de
+salida no vienen en el paquete (se generan). En `film/` está la música de
+ejemplo (`film/musica_demo.mp3`, `film/musica_film.mp3`, `film/musica_film_v2.mp3`). El
+isotipo oficial del pack está en `brand/assets/dragonjar-isotipo.png`;
+nunca redibujar el logo.
 
 ## Trazo láser del contorno
 

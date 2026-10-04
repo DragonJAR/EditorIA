@@ -1,7 +1,7 @@
 ---
 name: editoria
 description: EditorIA, navaja suiza de edición de video con IA. Crea, edita, resume o mejora videos (.mp4): resúmenes animados de reuniones, tipografía cinética, anuncios por plan, films cinematográficos y piezas verticales para redes, para cualquier marca o sin marca. Úsalo cuando el usuario pida "hazme un video", "resume esta reunión", "edita este anuncio", "mejora este video" o "ponle música".
-metadata: { "author": "Muse para Jaime Andrés Restrepo", "version": "1.0.0" }
+metadata: { "author": "Muse para Jaime Andrés Restrepo", "version": "1.1.0" }
 ---
 
 # EditorIA
@@ -70,6 +70,8 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
 2. **Render**: `python scripts/render_plan.py plan.json -o salida.mp4`
    (motor de fluidez: resortes, fondo vivo, transiciones según el brand pack
    o el tono; `--force` para re-renderizar, sin él retoma donde iba).
+   Borradores con `--blur 1`; **entrega final con `--blur 5`** (motion blur
+   de obturador 180°, ver `references/animacion.md`).
 3. **Voz en off** (si se pide): `python scripts/voz_off.py plan.json -o voz.mp3`
    (ElevenLabs, campo `voz` por escena). **Apartado de sonido**:
    `references/sonido.md` — dirección de voz (tags `[excited]`, `[whisper]`...),
@@ -79,7 +81,8 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
    Con voz: `mix -v video.mp4 -a voz.mp3 -m mus.mp3 -o final.mp4` (ducking
    sidechain). Sin voz: `musiconly -v video.mp4 -m mus.mp3 -o final.mp4`.
 5. **QA**: `references/checklist-qa.md` + `references/coherencia-espacial.md`.
-   Mirar frames en los tiempos clave.
+   Mirar frames en los tiempos clave. Puntuar con
+   `references/rubrica-premios.md`: ningún eje bajo 4 o no se entrega.
 6. **Iterar y documentar**: cada fix → `python scripts/registrar_aprendizaje.py`
    (protocolo en `references/auto-mejora.md`).
 
@@ -94,7 +97,8 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
 4. **Guion visual**: 6–10 momentos fuertes verificados contra la fuente.
    Elegirlos con la rúbrica de `references/scoring-shorts.md` (puntuar 8–12
    candidatos, tabla al usuario si hay que elegir).
-5. **Construir**: `references/pipeline-resumen.md`, técnicas de `references/estilos.md`
+5. **Construir**: oficio de animación en `references/animacion.md` (12
+   principios, motion blur, cámara, coreografía). `references/pipeline-resumen.md`, técnicas de `references/estilos.md`
    y `references/tecnicas-reutilizables.md`. Para elegir QUÉ técnica usar y cuándo:
    `references/tecnicas-video.md` (catálogo 2025–2026 con estado fresca/estándar/cansada).
    Dirección con métricas: `references/direccion.md`.
@@ -133,7 +137,8 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
   (cadencia, pausas, ráfagas — el render final no debe leer como PPT).
 - Lecciones de producción: `references/lecciones-produccion.md` (audio, video,
   transcripción y entrega — portadas del sistema original).
-- Archivo final en la carpeta del proyecto del usuario (ej. `~/workspace/video-dragonjar/{proyecto}/`) + entrada en memoria del proyecto.
+- Archivo final en la carpeta de salida que indique el usuario (o una carpeta
+  de proyecto junto a sus fuentes); nunca dentro de la carpeta de la skill.
 
 ## Success Criteria (definición de terminado)
 
@@ -142,15 +147,18 @@ Un video está terminado solo si cumple TODO:
 2. **Marca**: con brand pack, fidelidad total a sus colores, tipos y logos
    (sin deformar ni rotar). En modo libre, identidad diseñada con criterio
    y consistente en toda la pieza.
-3. **Fluidez**: `references/fluidez.md` — nada quieto sin propósito, ningún corte
-   accidental, resortes en las entradas.
+3. **Fluidez y animación**: `references/fluidez.md` — nada quieto sin propósito,
+   ningún corte accidental, resortes en las entradas — y `references/animacion.md`:
+   overlapping, arcos, anticipación y motion blur en la entrega final.
 4. **Coherencia espacial**: `references/coherencia-espacial.md` — alineación
    quirúrgica, sin solapes ni recortes.
 5. **Audio**: si lleva música, con cadencia acorde al ritmo visual; si lleva voz,
    ducking aplicado y niveles verificados con `scripts/medir_mezcla.py`
    (música ~15 dB bajo la voz durante el habla).
 6. **QA visual**: frames extraídos en los tiempos clave y mirados. Sin defectos.
-7. **Aprendizaje**: cada fix dejó su lección registrada según
+7. **Rúbrica de premios**: `references/rubrica-premios.md` puntuada sobre el
+   render final — ningún eje bajo 4, media ≥ 4.3.
+8. **Aprendizaje**: cada fix dejó su lección registrada según
    `references/auto-mejora.md`.
 
 ## Métricas (guía de skills de Claude)
@@ -234,7 +242,7 @@ Causa: `overlay` sincroniza por PTS. Ver regla del `setpts` en `reglas-tecnicas.
 
 **Carpetas `.frames` gigantes**
 Son caché de render (cientos de MB). Borrarlas tras entregar; se regeneran.
-Nunca dentro de `~/workspace/your_files/`.
+Nunca dentro de la carpeta de la skill ni junto a los entregables del usuario.
 
 ## Operating Rules
 
@@ -265,5 +273,8 @@ Nunca dentro de `~/workspace/your_files/`.
    y re-verificas. El usuario nunca es el que encuentra el error: lo que le
    llega es siempre la versión definitiva, profesional y terminada.
 7. Los renders largos van en segundo plano; no bloquear el chat.
-8. Mandato de Jaime (2026-10-03): mejorar este skill de forma continua hasta que sea
-   el mejor skill de edición con IA jamás creado.
+8. **Mandato del autor**: mejorar esta skill de forma continua hasta que sea
+   la mejor skill de edición de video con IA jamás creada.
+9. **El listón es de premio** (`references/rubrica-premios.md`): idea con
+   hook, arco dramático, animación con oficio (`references/animacion.md`) y
+   sonido diseñado. "Correcto" no es terminado.

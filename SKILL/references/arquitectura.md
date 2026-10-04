@@ -82,6 +82,14 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ ffmpeg ──�
 - **references/cine.md** — recetas cinematográficas (`scripts/film_marca.py`,
   `scripts/film_marca_v2.py`: v2 con coreografía del isotipo — macro → tercio →
   centro → final asimétrico — y keyhole como ancla compositiva).
+- **references/animacion.md** — el oficio del movimiento: 12 principios
+  traducidos a motion graphics, motion blur (obturador 180°), curvas de
+  easing canónicas, coreografía, cámara virtual, tipografía en movimiento.
+- **references/rubrica-premios.md** — gate de entrega: 8 ejes de 1 a 5
+  (idea, dramaturgia, animación, composición, sistema, sonido, verdad,
+  acabado); ningún eje bajo 4.
+- **assets/fonts/** — Plus Jakarta Sans y Montserrat (variables, OFL),
+  resueltas automáticamente por `_plataforma.resolver_fuente`.
 - **references/direccion.md** — el listón en números: tempo, hits/min, un sistema
   visual por video, un momento firma, copy en statements paralelos.
 - **references/scoring-shorts.md** — rúbrica de 5 dimensiones para elegir

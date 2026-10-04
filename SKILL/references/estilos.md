@@ -8,33 +8,29 @@ Tres direcciones probadas en producción. Elegir según el brief; se pueden hibr
   Plus Jakarta Sans ExtraBold blanco (instanciación con el pack DragonJAR).
   Una idea por tarjeta, cortes secos.
 - Ideal: cifras sueltas, anuncios cortos, titulares.
-  Build: `~/workspace/video-dragonjar/test1/DragonJAR_prueba1_kinetic.mp4`.
 - Ritmo: 2,5–3 s por tarjeta.
 
 ## 2. Resumen animado (nivel estudio)
-- Referencia: video de 61 s de "otro agente" sobre AI Tinkerers #20
-  (`~/workspace/user/media_library/video/30/30b25eb7c68cca4a33915edc29ddd4027dc80b2f92a4d8f51a9783154669a17c.mp4`).
+- Referencia: video de 61 s de "otro agente" sobre AI Tinkerers #20 (no incluido).
 - Estructura: intro con número de edición + grilla que se enciende → line-up numerado →
   por ponente: badge tipo lanyard (foto/inicial + nombre + tema) + 3–5 visualizaciones
   (chips, tarjetas, gauges, barras, teléfono mockup, grilla isométrica, terminal) → outro.
 - Fondo: ondas/aurora animadas en el color de acento sobre negro. Elementos entran con
   fade + elevación suave (0,35–0,45 s). Nada de motion gratuito: cada animación presenta información.
 - En DragonJAR: el lima del original se reemplaza 1:1 por rojo #C11B05.
-- Build de referencia: `~/workspace/video-dragonjar/resumen20/v2/`
-  (scripts en `~/workspace/video-dragonjar/`: `gen_bg.py` fondo,
-  `gen_elements.py` elementos, `build_v2.py` ensamblaje).
+- Arquitectura del build original (no incluido en el paquete): un script de
+  fondo, uno de elementos y uno de ensamblaje. Para el fondo vivo, partir de
+  `mundo()` en `scripts/render_plan.py`.
 - Ritmo: ~60 s para 4 bloques de ponente; 8–13 s por bloque.
 
 ## 3. Tarjeta informativa (Wapid)
 - Referencia: prueba estilo Wapid (4 s). Tarjeta oscura con `BREAKING NEWS`,
   cifra heroica y chips de contexto.
-  Build: `~/workspace/video-dragonjar/test2/DragonJAR_prueba2_moderno.mp4`.
 - Ideal: un solo dato con contexto, alertas, comunicados.
 
 ## 4. Demo de edición IA (split original/editado)
-- Referencia: Reel de pauloshimas "Claude Opus 5.5 edited 100% of this video" (55 s,
-  screen recording 480×1032):
-  `~/workspace/user/media_library/video/b7/b76703b80547a4f2ea65ba15b55fd91e09808e7ad791d543fa68b24d5e0c3bef.mp4`
+- Referencia: Reel público de un creador, "Claude Opus 5.5 edited 100% of this
+  video" (55 s, screen recording 480×1032; no incluido).
 - Formato: pantalla dividida — arriba el editado (etiqueta "CLAUDE OPUS 5.5"),
   abajo el original (etiqueta "ORIGINAL"). El formato demo ideal para probar
   que la IA edita como un pro.
@@ -58,8 +54,8 @@ Tres direcciones probadas en producción. Elegir según el brief; se pueden hibr
 - En DragonJAR: el tinte rojo del HUD ya es #C11B05; tipografía del sistema.
 
 ## 5. Demo reel EditorIA (construido 2026-10-03, técnicas propias)
-- Archivo: `~/workspace/video-dragonjar/demo-reel/EditorIA_demo.mp4` (42 s, 1080×1920).
-  Script: `~/workspace/video-dragonjar/demo_reel.py` — 1260 frames bakeados en PIL.
+- Build original de 42 s, 1080×1920, 1260 frames bakeados en PIL (no incluido;
+  las técnicas se describen abajo para reimplementarlas).
 - Técnicas implementadas y reutilizables:
   1. **Texto cromado**: degradado vertical (blanco→gris→oscuro→claro) por máscara de
      alfa del texto + sombra roja sutil. Función `chrome_word()`.

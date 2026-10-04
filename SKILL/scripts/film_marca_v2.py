@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 W,H=1920,1080; FPS=24; DUR=15.0; N=int(DUR*FPS)
 NEGRO=(10,10,10); ROJO=(193,27,5); BLANCO_H=(250,248,246)
 BASE=os.path.dirname(os.path.abspath(__file__))
-ISO_PATH=os.path.join(os.path.dirname(BASE),"film","isotipo_ref.png")
+ISO_PATH=os.path.join(os.path.dirname(BASE),"brand","assets","dragonjar-isotipo.png")
 JAKARTA = None
 def _resolver_jakarta():
     """Resuelve la fuente Plus Jakarta Sans sin rutas hardcodeadas (Windows/macOS/Linux)."""
@@ -20,9 +20,7 @@ def _resolver_jakarta():
     _sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
     try:
         from _plataforma import resolver_fuente
-        hit = resolver_fuente("Plus Jakarta Sans", "Jakarta",
-                              os.path.expanduser("~/workspace/video-dragonjar/fonts/jakarta.ttf"),
-                              generica="sans-bold")
+        hit = resolver_fuente("Plus Jakarta Sans", "Jakarta", generica="sans-bold")
         if hit:
             return hit
     except Exception:

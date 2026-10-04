@@ -63,10 +63,11 @@ except ImportError:
     rep("scipy", False, "pip install scipy — solo necesario para beat_grid.py")
 
 print("== Assets del skill ==")
-font = os.path.expanduser("~/workspace/video-dragonjar/fonts/jakarta.ttf")
-rep("fuente Plus Jakarta Sans", os.path.exists(font), font, critico=False)
-rep("isotipo DragonJAR", os.path.exists(os.path.join(BASE, "film", "isotipo_ref.png")),
-    "film/isotipo_ref.png", critico=False)
+for fam, arch in (("Plus Jakarta Sans", "PlusJakartaSans-wght.ttf"), ("Montserrat", "Montserrat-wght.ttf")):
+    p = os.path.join(BASE, "assets", "fonts", arch)
+    rep(f"fuente {fam} (empaquetada, OFL)", os.path.exists(p), f"assets/fonts/{arch}", critico=False)
+rep("isotipo del pack de ejemplo", os.path.exists(os.path.join(BASE, "brand", "assets", "dragonjar-isotipo.png")),
+    "brand/assets/dragonjar-isotipo.png", critico=False)
 
 print("== APIs ==")
 key = os.environ.get("ELEVENLABS_API_KEY")

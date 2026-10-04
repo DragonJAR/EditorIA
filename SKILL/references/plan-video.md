@@ -40,9 +40,27 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 - `"transicion": "mancha"` = barrido orgánico al entrar la escena.
 - Escenas contiguas: el `to` de una = el `from` de la siguiente (la transición
   la maneja el renderizador con la salida anticipada).
-- **Marca**: el plan puede declarar `"brand": "brand/dragonjar.json"` (o la
-  ruta a otro brand pack); el style pack hereda de ahí colores, tipografías
-  y reglas. Sin `"brand"`, modo libre.
+- **Marca**: el plan puede declarar `"brand": "brand/dragonjar.json"` (ruta
+  absoluta, relativa al directorio actual o a la carpeta de la skill); el
+  motor hereda de ahí colores, tipografías, logos y reglas. Sin `"brand"`,
+  modo libre: acento neutro y fuentes empaquetadas; el plan puede fijar su
+  propio `"acento": "#RRGGBB"`.
+- **Logos**: el isotipo/logotipo del pack solo aparece junto al nombre de su
+  propia marca (`marca` == `nombre` del pack); nunca acompaña a otro nombre.
+- **Presupuesto de "mancha"**: como máximo 2 por pieza (1 si el pack fija
+  `transiciones: corte_seco`); `"mancha_max"` lo cambia. El resto se
+  renderiza como corte seco con micro-fade de 30 ms.
+
+## Render
+
+```
+python scripts/render_plan.py plan.json -o borrador.mp4              # rápido
+python scripts/render_plan.py plan.json -o final.mp4 --blur 5 --force  # entrega
+```
+
+`--blur N`: motion blur por N sub-frames (obturador `--obturador 0.5` = 180°).
+`--jobs N`: procesos en paralelo (default núcleos−1). Sin `--force` retoma
+los frames que ya existen.
 
 ## Tipos de escena (13)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·

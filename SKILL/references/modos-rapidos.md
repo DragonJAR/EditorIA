@@ -9,8 +9,8 @@ Cada receta es un procedimiento, no un motor nuevo: usa ffmpeg + PIL +
 Una frase que entra palabra por palabra sobre fondo vivo. Ideal para claims,
 bumpers y CTAs.
 
-1. Fondo: degradado negro→acento profundo o una onda de
-   `~/workspace/video-dragonjar/gen_bg.py` (tintada al brand pack).
+1. Fondo: degradado negro→acento profundo o el fondo vivo de `mundo()` en
+   `scripts/render_plan.py` (tintado al brand pack).
 2. Texto en la tipografía de titulares del brand pack (ExtraBold; en modo libre,
    una sans geométrica de peso alto), centrado, auto-fit a ≤1000px
    (`references/reglas-tecnicas.md`).

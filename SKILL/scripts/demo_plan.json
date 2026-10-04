@@ -1,5 +1,6 @@
 {
- "_nota": "Plan demo del renderizador EditorIA: 6 escenas, ~30s, identidad DragonJAR",
+ "_nota": "Plan demo del renderizador EditorIA: 6 escenas, ~30s, con el brand pack de ejemplo (brand/dragonjar.json). Quitar \"brand\" = modo libre.",
+ "brand": "brand/dragonjar.json",
  "duracion": 30.0,
  "escenas": [
   {
@@ -62,16 +63,15 @@
    "rotulo": "Tus ideas, *un solo editor*",
    "tipo": "canales",
    "to": 9.0,
-   "transicion": "mancha",
    "voz": "Tus ideas, un solo editor. Guion, voz y música trabajando juntos."
   },
   {
    "at": {
     "rotulo": 9.3
    },
-   "cliente": "Jaime",
+   "cliente": "Ana",
    "from": 9.0,
-   "iniciales": "JR",
+   "iniciales": "AR",
    "link": {
     "at": 12.6,
     "monto": "10x más rápido",
@@ -92,7 +92,6 @@
    "rotulo": "Pregunta *y recibe*",
    "tipo": "chat",
    "to": 14.2,
-   "transicion": "mancha",
    "voz": "Pregunta y recibe. La inteligencia artificial edita mientras tú creas."
   },
   {
@@ -113,7 +112,6 @@
    ],
    "tipo": "pildoras",
    "to": 16.8,
-   "transicion": "mancha",
    "voz": "Adiós a las horas de edición."
   },
   {
@@ -150,7 +148,6 @@
    "marca": "EditorIA",
    "tipo": "final",
    "to": 30.0,
-   "transicion": "mancha",
    "voz": "EditorIA. El mejor editor con IA jamás creado."
   }
  ]

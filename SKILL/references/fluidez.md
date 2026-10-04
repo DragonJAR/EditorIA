@@ -1,4 +1,4 @@
-# Fluidez — principio supremo (mandato de Jaime, 2026-10-03)
+# Fluidez — principio supremo (mandato del autor, 2026-10-03)
 
 "Todo debe ser muy fluido." Nada en un video de EditorIA se queda quieto sin
 propósito, ningún corte es brusco o accidental, ninguna entrada es lineal.
