@@ -1,0 +1,40 @@
+# Secretos y credenciales
+.env
+.env.*
+*.secrets.env
+.secrets.env
+*.key
+*.pem
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node (Remotion / HyperFrames opcionales)
+node_modules/
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Salidas y temporales de render (generados por los scripts)
+*.log
+*.tmp
+.cache/
+out/
+renders/
+work/
+_work/
+*.mp4
+*.mov
+*.mkv
+*.wav
+voz*.mp3
+!SKILL/film/*.mp3
