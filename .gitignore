@@ -1,40 +1,17 @@
-# Secretos y credenciales
-.env
-.env.*
-*.secrets.env
-.secrets.env
-*.key
-*.pem
-credentials*.json
+# Whitelist: solo SKILL/ y los dos README van al repositorio.
+# Todo lo demás (VIDEOS/, temporales, etc.) se ignora.
+/*
+!/.gitignore
+!/SKILL/
+!/README.md
+!/README.en.md
 
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-.pytest_cache/
-
-# Node (Remotion / HyperFrames opcionales)
-node_modules/
-
-# Sistema / editores
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-
-# Salidas y temporales de render (generados por los scripts)
-*.log
-*.tmp
-.cache/
-out/
-renders/
-work/
-_work/
-*.mp4
-*.mov
-*.mkv
-*.wav
-voz*.mp3
-!SKILL/film/*.mp3
+# Dentro de SKILL/: nunca secretos ni basura generada
+SKILL/**/.env
+SKILL/**/.env.*
+SKILL/**/*.key
+SKILL/**/*.pem
+SKILL/**/__pycache__/
+SKILL/**/*.pyc
+SKILL/**/node_modules/
+SKILL/**/.DS_Store
