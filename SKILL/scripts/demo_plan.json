@@ -1,0 +1,157 @@
+{
+ "_nota": "Plan demo del renderizador EditorIA: 6 escenas, ~30s, identidad DragonJAR",
+ "duracion": 30.0,
+ "escenas": [
+  {
+   "at": {
+    "cambio": 1.6,
+    "p1": [
+     0.2,
+     0.62,
+     1.02
+    ],
+    "p2": [
+     1.6,
+     1.95,
+     2.3,
+     2.72,
+     3.05
+    ]
+   },
+   "from": 0,
+   "texto1": [
+    "¿Editar video",
+    "te toma *horas?*"
+   ],
+   "texto2": [
+    "Ahora es",
+    "*automático.*"
+   ],
+   "tipo": "apertura",
+   "to": 4.2,
+   "voz": "¿Editar video te toma horas? Ahora es automático."
+  },
+  {
+   "at": {
+    "junta": 7.3,
+    "marca": 4.7,
+    "rotulo": 7.3
+   },
+   "canales": [
+    {
+     "at": 5.3,
+     "canal": "guion",
+     "nombre": "Guion",
+     "texto": "La idea, escrita sola"
+    },
+    {
+     "at": 6.0,
+     "canal": "voz",
+     "nombre": "Voz",
+     "texto": "Locución generada"
+    },
+    {
+     "at": 6.7,
+     "canal": "musica",
+     "nombre": "Música",
+     "texto": "Golpes en el clímax"
+    }
+   ],
+   "from": 4.2,
+   "marca": "EditorIA",
+   "rotulo": "Tus ideas, *un solo editor*",
+   "tipo": "canales",
+   "to": 9.0,
+   "transicion": "mancha",
+   "voz": "Tus ideas, un solo editor. Guion, voz y música trabajando juntos."
+  },
+  {
+   "at": {
+    "rotulo": 9.3
+   },
+   "cliente": "Jaime",
+   "from": 9.0,
+   "iniciales": "JR",
+   "link": {
+    "at": 12.6,
+    "monto": "10x más rápido",
+    "titulo": "EditorIA · demo"
+   },
+   "mensajes": [
+    {
+     "at": 9.7,
+     "de": "cliente",
+     "texto": "¿Puedes hacer el resumen de la reunión?"
+    },
+    {
+     "at": 10.9,
+     "de": "ia",
+     "texto": "Listo: 62 segundos, 78 overlays, marca DragonJAR."
+    }
+   ],
+   "rotulo": "Pregunta *y recibe*",
+   "tipo": "chat",
+   "to": 14.2,
+   "transicion": "mancha",
+   "voz": "Pregunta y recibe. La inteligencia artificial edita mientras tú creas."
+  },
+  {
+   "at": {
+    "palabras": [
+     14.5,
+     14.62,
+     15.05,
+     15.2,
+     15.6,
+     15.78
+    ]
+   },
+   "from": 14.2,
+   "texto": [
+    "Adiós a las",
+    "*horas* de edición"
+   ],
+   "tipo": "pildoras",
+   "to": 16.8,
+   "transicion": "mancha",
+   "voz": "Adiós a las horas de edición."
+  },
+  {
+   "at": {
+    "gigante": 19.6,
+    "palabras": [
+     17.1,
+     17.5,
+     17.9,
+     18.3,
+     18.75,
+     19.1
+    ]
+   },
+   "from": 16.8,
+   "gigante": "10x",
+   "lineas": [
+    "¡Tú *creas!*",
+    "EditorIA *edita.*"
+   ],
+   "tipo": "remate",
+   "to": 21.5,
+   "transicion": "mancha",
+   "voz": "¡Tú creas! EditorIA edita. Diez veces más rápido."
+  },
+  {
+   "at": {
+    "boton": 23.6,
+    "lema": 22.4
+   },
+   "boton": "editoria",
+   "from": 21.5,
+   "lema": "El mejor editor con IA *jamás creado*",
+   "marca": "EditorIA",
+   "tipo": "final",
+   "to": 30.0,
+   "transicion": "mancha",
+   "voz": "EditorIA. El mejor editor con IA jamás creado."
+  }
+ ]
+}
