@@ -87,6 +87,17 @@ for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
                 quemadas.append(f)
 check(not quemadas, f"sin marcas quemadas en scripts/ ({', '.join(quemadas) or 'ninguna'})")
 
+# código limpio: sin imports ni variables muertas, sin nombres indefinidos
+# (el lint encontró aquí un ease aplicado dos veces y lógica a medio hacer)
+try:
+    from pyflakes import api as _pf, reporter as _rep
+    import io as _io
+    _out = _io.StringIO()
+    _n = _pf.checkRecursive([os.path.join(BASE, "scripts")], _rep.Reporter(_out, _out))
+    check(_n == 0, f"pyflakes limpio en scripts/ ({_n} avisos{': ' + _out.getvalue().splitlines()[0] if _n else ''})")
+except ImportError:
+    print("AVISO pyflakes no instalado: pip install pyflakes para revisar código muerto")
+
 # 2. archivos requeridos
 req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
        "references/pipeline-resumen.md", "references/checklist-qa.md",
@@ -285,6 +296,18 @@ try:
                           f"({', '.join(saltos) or 'todas suaves'})")
     R.formato(1080, 1920)
     ctx = R.Ctx()
+    # cifras tabulares: un número que cuenta no tiembla de lado (nativo y sin raqm)
+    from PIL import ImageDraw as _ID, Image as _IMG
+    _f = R.Ctx().fT(150, 800)
+    for _tnum in (R.TNUM, None):
+        _orig, R.TNUM = R.TNUM, _tnum
+        bordes = set()
+        for v_ in ("$142.332", "$141.511", "$111.111"):
+            im_ = _IMG.new("L", (1400, 300))
+            R.cifra(_ID.Draw(im_), (700, 150), v_, _f, 255, "mm")
+            bordes.add(im_.getbbox()[0])
+        R.TNUM = _orig
+        check(len(bordes) == 1, f"cifra tabular {'tnum' if _tnum else 'celdas'}: borde fijo al contar ({sorted(bordes)})")
     # cifras: los intermedios llevan los decimales del valor final (nunca 3.4999…)
     cu = [R.cuenta_up(0, 3.5, 0.3, 0), R.cuenta_up(0, 3.5, 9, 0), R.cuenta_up(0, 1500, 9, 0)]
     check(cu[1] == "3.5" and len(cu[0]) == 3 and cu[2] == "1,500", f"cuenta_up con decimales ({cu})")

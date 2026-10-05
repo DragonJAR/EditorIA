@@ -5,7 +5,7 @@ Revisa: herramientas locales (ffmpeg, python, libs), assets del skill
 puede hacer EditorIA en este entorno. Sale 0 si lo esencial está, 1 si
 falta algo crítico. Uso: python scripts/check_env.py
 """
-import os, sys, shutil, subprocess, platform
+import os, sys, subprocess, platform
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ok_critico = True

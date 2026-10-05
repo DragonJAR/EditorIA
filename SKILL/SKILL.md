@@ -238,7 +238,8 @@ El skill debe activarse con:
    retoma los frames faltantes (no re-renderiza desde 0).
 5. **Validación**: `python scripts/validate_skill.py` sale 0 (28/28 escenas
    renderizan dentro de la zona segura, scripts compilan, referencias
-   existen) y `python scripts/galeria.py -o /tmp/galeria` sale todo PASS
+   existen) y `python scripts/medir_animacion.py` no baja la nota global
+   respecto a `metricas/historial.jsonl`, y `python scripts/galeria.py -o /tmp/galeria` sale todo PASS
    (cada escena y herramienta renderizada de verdad + auto_qa; MIRAR
    `resumen.png`).
 

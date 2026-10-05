@@ -39,6 +39,15 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   films, thumbnail), pasa `auto_qa` a cada video y deja `resumen.png` +
   `galeria.json` PASS/FAIL. Modo libre por defecto; `--brand` repite la
   galería con un pack. Correrla tras tocar una escena o primitiva.
+- **scripts/medir_animacion.py** — banco de métricas OBJETIVAS de la animación
+  (el motor de la mejora recursiva): compone cada escena a fps completo en
+  9:16 y 16:9 y mide pops (algo aparece de golpe, con compensación de
+  movimiento), tirones, tiempo muerto, densidad de eventos, letra mínima
+  asentada, zona segura y costo por frame; nota 0–100 por escena y global.
+  `--historial --nota "qué cambió"` agrega la corrida a
+  `metricas/historial.jsonl`; `--ver escena:f:seg` guarda el par de frames de
+  un pop con los bloques marcados. Ciclo: medir → `--ver` la peor → corregir
+  en la primitiva (no en la escena) → re-medir → registrar.
 - **scripts/ffmpeg_tools/delivery_check.py** — compliance contra la tabla de
   `_delivery.py` (codec, aspecto, LUFS, true peak; `--end-screen` para la
   pantalla final de YouTube).

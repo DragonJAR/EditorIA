@@ -97,7 +97,7 @@ def main():
     out_meta = {"video": dict(meta["video"], hdr=hdr)}
     cmd += video_args(out_meta, crf=args.crf) + [output]
     run(cmd)
-    v = verify_output(output)
+    verify_output(output)
     modo = "SDR (tonemap)" if (args.to_sdr and meta["video"].get("hdr")) else ("HDR 10-bit" if hdr else "SDR")
     info(f"OK {output} (grade marca, intensidad {args.intensidad}, {modo})")
     emit(output, intensidad=args.intensidad, hdr=hdr,

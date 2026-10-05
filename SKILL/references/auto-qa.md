@@ -27,6 +27,20 @@ re-render → auto_qa.py → comparar → entregar
 6. **Documentar**: cada defecto real deja su lección en
    `references/reglas-tecnicas.md`.
 
+## Métricas de animación (antes de renderizar)
+
+`python scripts/medir_animacion.py` mide el catálogo sin codificar (unos
+minutos): pops, tirones, tiempo muerto, densidad, letra y zona por escena y
+formato, con nota 0–100. Es el banco de la mejora recursiva: toda mejora se
+mide contra `metricas/historial.jsonl` y se queda solo si sube la nota sin
+romper `validate_skill.py`. Un pop se diagnostica con
+`--ver escena:v|h:segundo` (par de frames con los bloques abruptos marcados).
+Causas que encontró (y su fix en la primitiva): ease aplicado dos veces
+(cursor a 85 px/frame), resorte en barras de datos (rebota por encima del
+valor), cifras proporcionales al contar (tiemblan de lado), texto que entra
+sin el alfa de su tarjeta, tamaños de letra enteros al escalar (saltos de
+1 px), odómetro de 0.25 s con ease_out (saltaba ~100 px/frame).
+
 ## Tabla de defectos → causa → fix
 
 | Defecto máquina | Causa probable | Fix |

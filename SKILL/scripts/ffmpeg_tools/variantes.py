@@ -22,9 +22,8 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import (add_common, apply_common, default_output, die, emit, info,
-                    probe, require_tool, run, verify_output, ffmpeg_base,
-                    video_args, aac_args)
+from _comun import (add_common, apply_common, die, info, probe, require_tool, run,
+                    verify_output, ffmpeg_base, video_args, aac_args)
 
 
 def expandir_hooks(args_hooks):

@@ -17,9 +17,9 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import (video_args, aac_args, add_common, apply_common, cfr_args,
-                    audio_codec_for, default_output, die, emit, ffmpeg_base, info,
-                    print_json, probe, require_tool, run, x264_args)
+from _comun import (video_args, aac_args, add_common, apply_common, cfr_args, audio_codec_for,
+                    default_output, die, emit, ffmpeg_base, info, print_json, probe,
+                    require_tool, run)
 
 SIL_RE = re.compile(r"silence_(start|end): ([0-9.]+)")
 

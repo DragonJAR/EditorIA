@@ -36,7 +36,6 @@ Ejemplos:
 import argparse
 import os
 import sys
-import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _comun import (add_common, apply_common, cfr_args, default_output, die,
@@ -253,7 +252,7 @@ def cmd_audio(a):
 def cmd_gif(a):
     if not os.path.isfile(a.video):
         die(f"no existe: {a.video}")
-    meta = probe(a.video)
+    probe(a.video)   # valida que sea un video legible
     out = a.output or default_output(a.video, "", ext=".gif")
     pal = os.path.join(dir_temp(), "editoria_pal.png")
     vf = f"fps={a.fps},scale={a.ancho}:-1:flags=lanczos"
@@ -433,7 +432,7 @@ def cmd_voltear(a):
 def cmd_bucle(a):
     if not os.path.isfile(a.video):
         die(f"no existe: {a.video}")
-    meta = probe(a.video)
+    probe(a.video)   # valida que sea un video legible
     out = a.output or default_output(a.video, "_bucle")
     cmd = ffmpeg_base() + ["-stream_loop", str(a.veces), "-i", a.video,
                            "-c", "copy", out]

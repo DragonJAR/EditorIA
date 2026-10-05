@@ -31,7 +31,6 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _comun import die, info, probe
-from _plataforma import dir_temp
 
 FPS_MUESTREO = 4          # muestras por segundo para el análisis
 ANCHO = 320               # ancho de análisis (rápido)

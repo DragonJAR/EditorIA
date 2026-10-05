@@ -213,15 +213,13 @@ def refinar_energia(audio: "np.ndarray", palabras: list[tuple[str, float, float,
         if energia > -40:
             out.append((texto, ini, fin, prob))
             continue
-        # buscar el pico de energía en una ventana mas amplia
+        # palabra en silencio (el ASR la ubicó mal): sin voz donde dice estar
         izq = max(0, int((ini - ventana) * SR))
         der = min(len(env), int((fin + ventana) * SR))
-        if der <= izq:
+        if der <= izq:   # borde del audio: no hay ventana que revisar
             out.append((texto, ini, fin, prob))
             continue
-        pico = int(env[izq:der].argmax()) + izq
-        t_pico = pico / SR
-        # anclar al vecino más cercano (no salta de palabra)
+        # anclar al vecino anterior (no salta de palabra) y bajar la confianza
         if idx > 0:
             ant = out[idx - 1]
             out.append((texto, ant[2], max(ant[2] + 0.05, fin), min(prob, 0.4)))

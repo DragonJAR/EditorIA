@@ -9,6 +9,7 @@ Adaptado de las mecánicas de ffmpeg-skill (alfred-lau): orden recomendado
 audio -> loudness -> exportacion), probe-first de los inputs, --dry-run con
 JSON, nunca sobrescribir el input, verificar el output y QA con frames.
 """
+import argparse  # noqa: F401  (anotaciones de add_common/apply_common)
 import json
 import os
 import platform
@@ -273,7 +274,6 @@ def probe(path: str, role: str = "input") -> Dict[str, Any]:
         avg_rate = _fraction(video.get("avg_frame_rate"))
         fps = float(avg_rate) if avg_rate else (float(r_rate) if r_rate else None)
         vfr = bool(r_rate and avg_rate and abs(float(r_rate) - float(avg_rate)) > 0.01)
-        pix = video.get("pix_fmt") or ""
         trc = video.get("color_transfer") or ""
         prim = video.get("color_primaries") or ""
         hdr = trc in ("smpte2084", "arib-std-b67") or prim == "bt2020"
@@ -741,7 +741,7 @@ def transcribir_medio(video: str, out_srt: str, language=None, model="base",
     Todo corre offline."""
     import shutil
     import tempfile
-    ffmpeg = require_tool("ffmpeg")
+    require_tool("ffmpeg")   # falla claro si no está
     tmpdir = tempfile.mkdtemp(prefix="editoria_asr_")
     try:
         return _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model,

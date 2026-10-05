@@ -15,7 +15,6 @@ Ejemplos:
 import argparse
 import os
 import sys
-from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _comun import (add_common, apply_common, default_output, die, emit, info,

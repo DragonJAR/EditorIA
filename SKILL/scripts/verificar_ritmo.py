@@ -80,7 +80,6 @@ def main():
     a = ap.parse_args()
 
     fps, diffs = frame_diffs(a.video)
-    dur = len(diffs) / fps
     ok = True
 
     cortes = ([float(x) for x in a.cortes.split(",")] if a.cortes

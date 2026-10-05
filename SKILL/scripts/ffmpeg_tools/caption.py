@@ -37,19 +37,16 @@ Ejemplos:
 import argparse
 import os
 import re
-import shutil
 import subprocess
 import sys
-import tempfile
 import unicodedata
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import (STATE, color_hex, load_brand, video_args, add_common,
-                    apply_common, emit, aac_args, cfr_args, default_output, die,
-                    escape_filter_path, ffmpeg_base, fmt_srt_time, fmt_smpte_time,
+from _comun import (STATE, color_hex, load_brand, video_args, add_common, apply_common, emit,
+                    aac_args, cfr_args, default_output, die, escape_filter_path, ffmpeg_base,
                     info, MissingFpsError, parse_time, parse_srt, probe, require_tool, run,
-                    transcribir_medio, write_srt, x264_args, colores_marca)
+                    transcribir_medio, write_srt, colores_marca)
 
 ALIGN = {"bottom": 2, "top": 8, "center": 5, "bottom-left": 1, "bottom-right": 3,
          "top-left": 7, "top-right": 9}
