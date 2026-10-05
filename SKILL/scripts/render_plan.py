@@ -1821,7 +1821,9 @@ def sc_demo(ctx, e, t):
     cx_, cy_ = fxp * (1 - 1 / z), fyp * (1 - 1 / z)
     vista = img.transform(img.size, Image.AFFINE, (1 / z, 0, cx_, 0, 1 / z, cy_),
                           resample=Image.BICUBIC)
-    a_v = int(255 * clamp01(kv * 1.4))
+    # una superficie clara que cubre medio cuadro (16:9) entra fundida en 1 s:
+    # con el alfa del resorte la luminancia saltaba 80 en 0.2 s (flash en auto_qa)
+    a_v = int(255 * smoothstep(clamp01((t - at.get("ventana", e["from"] + 0.2)) / 1.0)))
     if foco > 0:   # spotlight: atenuar todo menos el foco
         mask = Image.new("L", (bw, bh), int(120 * foco))
         r_f = 150 * z

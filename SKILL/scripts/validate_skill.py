@@ -267,6 +267,22 @@ try:
                 congeladas.append(f"{nombre} {dif:.2f}")
         check(not congeladas, f"{ancho}x{alto}: ningún hold congelado (umbral auto_qa "
                               f"{_QA.FROZEN_DIFF}) ({', '.join(congeladas) or 'todos vivos'})")
+        # sin destellos al entrar: una superficie clara que entra de golpe salta la
+        # luminancia (demo en 16:9 saltaba 80 en 0.2 s); mismo umbral que auto_qa
+        saltos = []
+        for nombre in R.SCENES:
+            e = dict(muestras[nombre], tipo=nombre)
+            if "imagen" in e:
+                e["imagen"] = foto
+            R._ESCALA.clear()
+            lum = [float(_np.asarray(R.componer(ctx, [e], e["to"], t, set()).convert("L")
+                                     .resize((_QA.ANCHO, int(_QA.ANCHO * alto / ancho)))).mean())
+                   for t in _np.arange(0.0, min(1.75, e["to"] - 0.6), 1 / _QA.FPS_MUESTREO)]
+            sal = max((abs(a_ - b_) for a_, b_ in zip(lum, lum[1:])), default=0)
+            if sal > _QA.FLASH_JUMP:
+                saltos.append(f"{nombre} {sal:.0f}")
+        check(not saltos, f"{ancho}x{alto}: entradas sin destello (salto ≤ {_QA.FLASH_JUMP}) "
+                          f"({', '.join(saltos) or 'todas suaves'})")
     R.formato(1080, 1920)
     ctx = R.Ctx()
     # cifras: los intermedios llevan los decimales del valor final (nunca 3.4999…)
