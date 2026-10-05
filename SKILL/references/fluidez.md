@@ -21,8 +21,7 @@ transiciones *dentro* de la escena.)
   ni líneas geométricas decorativas (ver `coherencia-espacial.md`; el brand
   pack puede habilitarlas si la marca las pide).
 - **Transiciones**: el idioma de transición lo fija el brand pack o el tono de
-  la pieza (ver `references/brand-packs.md`; ej. DragonJAR: corte seco por
-  defecto entre escenas). La transición orgánica ("mancha": un blob que crece con un
+  la pieza (ver `references/brand-packs.md`: `reglas.transiciones`). La transición orgánica ("mancha": un blob que crece con un
   agujero y barre la pantalla) es opt-in y motivada — 1 o 2 por pieza como
   máximo, nunca como costura por defecto. La fluidez manda en entradas,
   salidas y transiciones *dentro* de la escena; la costura *entre* escenas

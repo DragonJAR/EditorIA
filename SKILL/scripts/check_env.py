@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_env.py — valida las capacidades disponibles antes de trabajar.
 Revisa: herramientas locales (ffmpeg, python, libs), assets del skill
-(fuentes, isotipo), API keys (ElevenLabs) y reporta qué puede y qué no
+(fuentes, logos de los brand packs), API keys (ElevenLabs) y reporta qué puede y qué no
 puede hacer EditorIA en este entorno. Sale 0 si lo esencial está, 1 si
 falta algo crítico. Uso: python scripts/check_env.py
 """
@@ -66,8 +66,17 @@ print("== Assets del skill ==")
 for fam, arch in (("Plus Jakarta Sans", "PlusJakartaSans-wght.ttf"), ("Montserrat", "Montserrat-wght.ttf")):
     p = os.path.join(BASE, "assets", "fonts", arch)
     rep(f"fuente {fam} (empaquetada, OFL)", os.path.exists(p), f"assets/fonts/{arch}", critico=False)
-rep("isotipo del pack de ejemplo", os.path.exists(os.path.join(BASE, "brand", "assets", "dragonjar-isotipo.png")),
-    "brand/assets/dragonjar-isotipo.png", critico=False)
+import glob, json
+for pack in sorted(glob.glob(os.path.join(BASE, "brand", "*.json"))):
+    try:
+        logos = (json.load(open(pack, encoding="utf-8")).get("logos") or {})
+    except ValueError as e:
+        rep(f"pack {os.path.basename(pack)}", False, f"JSON inválido: {e}"); continue
+    rutas = [v for v in logos.values() if isinstance(v, str) and v.lower().endswith((".png", ".svg", ".jpg"))]
+    faltan = [r for r in rutas if not os.path.exists(os.path.join(os.path.dirname(pack), r))
+              and not os.path.exists(os.path.join(BASE, r))]
+    rep(f"pack {os.path.basename(pack)}", not faltan,
+        f"{len(rutas)} logo(s) OK" if not faltan else "faltan: " + ", ".join(faltan))
 
 print("== APIs ==")
 key = os.environ.get("ELEVENLABS_API_KEY")

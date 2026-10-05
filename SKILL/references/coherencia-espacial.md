@@ -6,7 +6,7 @@ Aplicar a cada escena antes de entregar.
 ## Alineación
 
 - **Centros exactos**: todo lo centrado usa W/2 (540 en 1080×1920) o H/2.
-  Verificar con `muse.visual_grounding` o midiendo píxeles, no "a ojo".
+  Verificar midiendo píxeles (o con la herramienta de visual grounding del agente), no "a ojo".
 - **Iconos en tarjetas**: centro del icono = centro vertical de la tarjeta
   (ej. tarjeta h=124 → icono centrado en y=62, no 66).
 - **Bloques de texto**: el bloque completo (todas las líneas) centrado

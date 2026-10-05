@@ -27,7 +27,12 @@
  "fonts_dir": "../assets/fonts",
  "logos": {
   "_nota": "Nunca redibujar. Usar los archivos oficiales. Rutas relativas a este JSON. El logotipo horizontal oficial no viene en el paquete: sin él, el wordmark se compone en la fuente de titulares.",
-  "isotipo": "assets/dragonjar-isotipo.png"
+  "isotipo": "assets/dragonjar-isotipo.png",
+  "ancla": [
+   559.7,
+   540.9
+  ],
+  "_nota_ancla": "Punto de interés del isotipo en px del PNG original (el ojo de la cerradura): ancla compositiva de los films."
  },
  "nombre": "DragonJAR",
  "reglas": {
@@ -35,7 +40,9 @@
   "_nota_transiciones": "Cortes editoriales secos entre escenas; crossfades solo como excepción motivada. Micro-fade de 30ms en cada corte contra pops.",
   "isotipo_con_protagonista": false,
   "rejillas_decorativas": false,
-  "transiciones": "corte_seco"
+  "transiciones": "corte_seco",
+  "efectos_glitch": false,
+  "_nota_glitch": "RGB split, shake, strobe y hue shift solo si el brief los pide: compiten con la identidad."
  },
  "tipografias": {
   "etiquetas_mono": {
@@ -65,5 +72,6 @@
   "_nota": "Voces por defecto para esta marca (ElevenLabs). Se pueden sobreescribir por proyecto.",
   "en": "Brian",
   "es": "Fernanda Sanmiguel"
- }
+ },
+ "lema": "Hackeamos tu *empresa* para que un *delincuente informático* no lo haga."
 }

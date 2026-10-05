@@ -15,7 +15,7 @@ festival de cine — cada frame intencional, nada decorativo, nada accidental.
   (~10% del plano como máximo). El resto: neutros.
 - Un solo sistema tipográfico: una familia para titulares, una para texto,
   una monoespaciada para kickers/datos. Kickers siempre en mayúsculas con
-  letterspacing. (Ej. pack DragonJAR: Plus Jakarta Sans / Montserrat.)
+  letterspacing. (Sin pack: Plus Jakarta Sans / Montserrat, empaquetadas.)
 - Un solo sistema de componentes: badges, píldoras, tarjetas con radio
   consistente, iconografía geométrica simple. No mezclar estilos dentro del
   mismo video.

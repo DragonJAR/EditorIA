@@ -3,12 +3,12 @@
 Fuente: video de 61s, 1080×1920 @60fps, hecho por otro agente para la edición
 #20 de AI Tinkerers Manizales. Catálogo de todo lo reutilizable, organizado por
 categoría. OJO: su sistema de color (lima + morado sobre negro) es de AI
-Tinkerers, NO de DragonJAR — las técnicas se portan, los colores no.
+Tinkerers — las técnicas se portan, los colores no.
 
 ## Fondo y ambiente
 
 - **Aurora de ondas**: fondo vivo de ondas fluidas verde/morado sobre negro
-  oscuro, con blur fuerte. Da profundidad sin distraer. Equivalente DragonJAR:
+  oscuro, con blur fuerte. Da profundidad sin distraer. Equivalente con pack:
   ondas en el acento profundo del pack (punto de partida: `mundo()` en
   `scripts/render_plan.py`).
 - **Líneas de contorno topográficas**: líneas finas claras sobre las ondas,
@@ -83,8 +83,7 @@ Tinkerers, NO de DragonJAR — las técnicas se portan, los colores no.
   segmento — el espectador siempre sabe quién habla.
 - **Stagger 0.12-0.2s**: grids, filas y barras nunca entran juntas.
 - **Salidas con blur**: los segmentos salen con blur + fade, no con corte
-  seco (contrasta con los cortes secos del pack DragonJAR — elegir según
-  el brand pack del video).
+  seco (elegir según `reglas.transiciones` del brand pack del video).
 - **Outro con CTA**: "#20" + chip de serie + "¡Y vamos por más!" en botón
   outline. Cierra con el próximo paso, no con el logo solo.
 
@@ -96,5 +95,5 @@ Tinkerers, NO de DragonJAR — las técnicas se portan, los colores no.
   un nombre solo es "correcto" si aparece en la fuente; si no aparece, se
   marca [PENDIENTE], no se elige la forma "menos mala". Y ningún asset se
   hereda entre versiones sin re-auditar su texto.
-- Transiciones con blur en un video cuyo brand pack fije cortes secos (ej.
-  DragonJAR) romperían la regla — adaptar la técnica al pack, no copiarla tal cual.
+- Transiciones con blur en un video cuyo brand pack fije cortes secos
+  (`reglas.transiciones: corte_seco`) romperían la regla — adaptar la técnica al pack, no copiarla tal cual.

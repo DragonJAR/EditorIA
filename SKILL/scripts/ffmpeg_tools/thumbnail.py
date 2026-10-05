@@ -3,12 +3,14 @@
 
 El craft creativo (brief, tension, open loop) lo hace el agente con el usuario
 (review-gate, ver references/thumbnails.md); esta herramienta ejecuta la
-composicion deterministicamente: texto <=4 palabras en Plus Jakarta Sans
-ExtraBold, blanco calido sobre banda de marca, acento rojo #C11B05, y
+composicion deterministicamente: texto <=4 palabras en la fuente de
+titulares (Plus Jakarta Sans ExtraBold sin pack), blanco sobre sombra, el
+acento del brand pack (--brand) o el neutro del modo libre, y
 posicionamiento en tercios (rule of thirds).
 
 Ejemplos:
   python3 thumbnail.py frame.png --texto "ASI SE HACKEA" -o thumb.png
+  python3 thumbnail.py frame.png --texto "ASI SE HACKEA" --brand brand/mi_marca.json
   python3 thumbnail.py frame.png --texto "EL DATO QUE FALTA" --resaltar "FALTA"
   python3 thumbnail.py frame.png --texto "MIRA ESTO" --formato 9:16 -o thumb_v.png
   python3 thumbnail.py frame.png --texto "MIRA ESTO" --guia -o thumb_guia.png
@@ -18,25 +20,25 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import add_common, apply_common, die, emit, info
+from _comun import add_common, apply_common, colores_marca, die, emit, fuente_marca, info
 
 try:
     from PIL import Image, ImageDraw, ImageFont, ImageFilter
 except ImportError:
     sys.exit("thumbnail.py necesita Pillow (pip install pillow)")
 
-NEGRO = (10, 10, 10)
-ACENTO = (193, 27, 5)
-BLANCO = (250, 248, 246)
-from _plataforma import resolver_fuente
-FUENTE = resolver_fuente("Plus Jakarta Sans") or ""
 
 FORMATOS = {"16:9": (1280, 720), "9:16": (1080, 1920)}
 
 
-def cargar_fuente(px):
-    if os.path.isfile(FUENTE):
-        return ImageFont.truetype(FUENTE, px)
+def cargar_fuente(px, fuente):
+    if fuente and os.path.isfile(fuente):
+        f = ImageFont.truetype(fuente, px)
+        try:
+            f.set_variation_by_axes([800])   # fuente variable: ExtraBold
+        except Exception:
+            pass
+        return f
     return ImageFont.load_default()
 
 
@@ -47,7 +49,9 @@ def main():
     ap.add_argument("--texto", required=True,
                     help="texto gancho, MAXIMO 4 palabras (regla de la skill)")
     ap.add_argument("--resaltar",
-                    help="palabra del texto a pintar en rojo de marca")
+                    help="palabra del texto a pintar en el color de acento")
+    ap.add_argument("--brand", help="brand pack (brand/*.json): acento y fuente de titulares; "
+                    "sin pack = modo libre (paleta neutra)")
     ap.add_argument("-o", "--output", help="PNG de salida (default: <input>_thumb.png)")
     ap.add_argument("--formato", choices=["16:9", "9:16"], default="16:9",
                     help="formato de salida (default 16:9)")
@@ -70,6 +74,9 @@ def main():
     if args.resaltar and args.resaltar not in palabras:
         die(f"--resaltar {args.resaltar!r} no es una palabra del texto")
 
+    pal = colores_marca(args.brand)
+    NEGRO, ACENTO, BLANCO = pal["negro"], pal["acento"], pal["blanco"]
+    fuente = fuente_marca(args.brand)
     W, H = FORMATOS[args.formato]
     base = Image.open(args.input).convert("RGB")
     # cubrir el formato: scale + crop central
@@ -97,17 +104,17 @@ def main():
     d = ImageDraw.Draw(img)
     # tamaño de fuente: que el texto ocupe ~85% del ancho
     px = 10
-    font = cargar_fuente(px)
+    font = cargar_fuente(px, fuente)
     while d.textlength(args.texto, font=font) < W * 0.85 and px < H // 3:
         px += 4
-        font = cargar_fuente(px)
+        font = cargar_fuente(px, fuente)
     # medir por palabras para pintar el resaltado
     anchos = [d.textlength(p + " ", font=font) for p in palabras]
     total_w = sum(anchos) - d.textlength(" ", font=font)
     x = (W - total_w) / 2
     y = {"arriba": H * 0.10, "centro": H * 0.42, "abajo": H * 0.72}[args.posicion]
 
-    # glow rojo sutil detras del texto (acento de marca, no fondo plano)
+    # glow sutil del acento detras del texto (acento de marca, no fondo plano)
     pad = px * 0.35
     glow = Image.new("RGB", (W, H), (0, 0, 0))
     dg = ImageDraw.Draw(glow)

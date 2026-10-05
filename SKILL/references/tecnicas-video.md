@@ -309,8 +309,8 @@ subtítulos con `caption.py` para que se entienda en mute.
 
 Para teasers con música, barras de audio en dataviz o intros de podcast:
 `showwaves`, `showspectrum`, `showfreqs` de ffmpeg. Receta base (colores del
-brand pack; ej. DragonJAR: `showwaves=s=1080x200:mode=line:colors=#C11B05`
-sobre fondo `#0A0A0A`). Presets con pack: onda en el acento, espectro en el
+brand pack o del modo libre: `showwaves=s=1080x200:mode=line:colors=0x{acento}`
+sobre el neutro oscuro). Presets con pack: onda en el acento, espectro en el
 neutro claro sobre el neutro oscuro. Puede ir standalone (teaser) o como overlay con opacidad sobre
 el video. Sincronizar la escala con el beat (ver `audio.md`).
 
@@ -346,10 +346,10 @@ yuv420p` y `setsar=1` para que el concat siga válido.
 | Dreamy glow | `gblur=sigma=8,blend=all_mode=screen,all_opacity=0.35` (vía split) |
 | Grade warm | `colorbalance=rm=.12:bm=-.08` · cool: `colorbalance=bm=.12:rm=-.06` |
 
-**Regla anti-glitch (según el brand pack; ej. DragonJAR)**: RGB split, shake, strobe y hue shift
-psicodélico son acentos de 0.1s y SOLO se usan si el brief los pide
-explícitamente. Con el pack DragonJAR, por defecto: cortes secos, punches y grades
-limpios; el glitch no decorativo compite con la identidad.
+**Regla anti-glitch**: RGB split, shake, strobe y hue shift psicodélico son
+acentos de 0.1s y SOLO se usan si el brief los pide explícitamente. Si el
+pack declara `reglas.efectos_glitch: false`, por defecto: cortes secos,
+punches y grades limpios; el glitch no decorativo compite con la identidad.
 
 Disciplina: si el espectador nota el efecto antes que la imagen, está muy fuerte.
 Capas sutiles > un efecto al máximo; un elemento visual a la vez.
@@ -694,8 +694,8 @@ ADN visual portable a PIL: cada beat es un póster collage que cobra vida.
   todos los beats — el color viaja, la textura no.
 - **Bordes rasgados**: recortes con borde irregular, nunca recto perfecto.
 - **Sombras duras**: offset sólido sin blur (el collage se pega, no flota).
-- **Color plano fuerte**: un color plano dominante por beat (con pack: neutro
-  oscuro de fondo + acento; ej. DragonJAR: negro `#0A0A0A` con rojo `#C11B05`).
+- **Color plano fuerte**: un color plano dominante por beat (con pack: su neutro
+  oscuro de fondo + su acento; sin pack, los del modo libre).
 - **Titulares recortados**: el tipo parece recorte de revista, horneado en el
   frame.
 - **Cámara flat-safe**: solo translate + scale uniformes; nada que deforme la
@@ -908,8 +908,7 @@ orquestación de agentes, despieces de producto):
 Idiomas de motion listos para adaptar a PIL/ffmpeg, cada uno con su qué/cuándo.
 
 - **Kinetic type por beat**: una palabra por beat que slamea con resorte; la
-  palabra clave en el color de acento (el acento del brand pack; ej. rojo #C11B05
-  en DragonJAR). Para
+  palabra clave en el color de acento (el del brand pack o el del modo libre). Para
   titulares, claims, hooks. Las palabras caen uno o dos frames antes del beat
   para que el golpe registre.
 - **Decode text**: el texto se revela como caracteres aleatorios que resuelven
@@ -1012,7 +1011,7 @@ fondo que llama la atención ha fallado** — lento, bajo contraste, loop perfec
   Lo más cercano a un gradiente mesh animado; en colores de marca.
 - **Gradient wash animado** (ESTÁNDAR): degradado que rota o respira lentamente.
   Lo más barato que se lee premium.
-- **Geometric motion** (CANSADA cuando el brand pack prohíbe rejillas —ej. DragonJAR): grids, líneas, formas
+- **Geometric motion** (CANSADA si el pack declara `reglas.rejillas_decorativas: false`): grids, líneas, formas
   abstractas en movimiento lento (synthwave, retículas técnicas). Prohibido
   como fondo decorativo (ver `coherencia-espacial.md`: en video se ven mucho
   más fuertes que en un frame estático); solo retículas diegéticas dentro de

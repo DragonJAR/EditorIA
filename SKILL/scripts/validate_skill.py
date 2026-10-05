@@ -7,7 +7,7 @@ sin angle brackets en frontmatter ni markdown, SKILL.md < 5000 palabras,
 TODOS los scripts compilan y las 13 escenas renderizan.
 Sale 0 si todo pasa, 1 si algo falla.
 """
-import os, sys, re, ast, subprocess, tempfile
+import os, sys, re, ast, glob, json, subprocess, tempfile
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 fails = []
@@ -52,9 +52,43 @@ check(not bad_tags, f"sin angle brackets en markdown ({len(bad_tags)} hallados)"
 for b in bad_tags[:5]:
     print("      ", b)
 check(len(sk.split()) < 5000, f"SKILL.md < 5000 palabras ({len(sk.split())})")
+# autoría única: el autor del frontmatter es el de la LICENSE; ningún archivo
+# de la skill lleva atribuciones de terceros (agentes, co-autores, "generado con")
+lic = open(os.path.join(os.path.dirname(BASE), "LICENSE"), encoding="utf-8").read() \
+    if os.path.exists(os.path.join(os.path.dirname(BASE), "LICENSE")) else ""
+autor = re.search(r'"author":\s*"([^"]+)"', fm)
+check(bool(autor) and (not lic or autor.group(1) in lic),
+      f"author del frontmatter = titular de la LICENSE ({autor.group(1) if autor else '?'})")
+ajenas = []
+for dp, dn, fn in os.walk(BASE):
+    if "__pycache__" in dp:
+        continue
+    for f in fn:
+        if f.endswith((".md", ".py", ".json")) and f != "validate_skill.py":
+            txt = open(os.path.join(dp, f), encoding="utf-8", errors="ignore").read()
+            if re.search(r"co-authored-by|generated with|generado con claude|\bmuse\b", txt, re.I):
+                ajenas.append(os.path.relpath(os.path.join(dp, f), BASE))
+check(not ajenas, f"sin atribuciones de terceros ({', '.join(ajenas) or 'ninguna'})")
+# marca blanca: ninguna marca concreta vive en el código; los packs solo en brand/
+packs = glob.glob(os.path.join(BASE, "brand", "*.json"))
+check(bool(packs), f"al menos un brand pack de ejemplo en brand/ ({len(packs)})")
+marcas = [os.path.splitext(os.path.basename(x))[0] for x in packs]
+colores = []
+for x in packs:
+    c = (json.load(open(x, encoding="utf-8")).get("colores") or {}).get("acento")
+    if isinstance(c, str):
+        colores.append(c.lstrip("#"))
+literal = re.compile("|".join(re.escape(m) for m in marcas + colores) or r"$^", re.I)
+quemadas = []
+for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
+    for f in fn:
+        if f.endswith((".py", ".json")):
+            if literal.search(open(os.path.join(dp, f), encoding="utf-8", errors="ignore").read()):
+                quemadas.append(f)
+check(not quemadas, f"sin marcas quemadas en scripts/ ({', '.join(quemadas) or 'ninguna'})")
 
 # 2. archivos requeridos
-req = ["SKILL.md", "brand/dragonjar.json", "references/brand-packs.md", "references/estilos.md",
+req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
        "references/pipeline-resumen.md", "references/checklist-qa.md",
        "references/reglas-tecnicas.md", "references/plan-video.md",
        "references/escenas.md", "references/fluidez.md",
@@ -412,21 +446,22 @@ try:
     import _comun as _C
     tmp = tempfile.mkdtemp(prefix="editoria_val_")
     # 7a. color de marca exacto tras H.264 (BT.709, no BT.601)
+    ref = _C.NEUTRO["acento"]
     for i in range(2):
-        _Img.new("RGB", (320, 180), (193, 27, 5)).save(f"{tmp}/c_{i:04d}.png")
+        _Img.new("RGB", (320, 180), ref).save(f"{tmp}/c_{i:04d}.png")
     _C.codificar_frames(f"{tmp}/c_%04d.png", 30, f"{tmp}/c.mp4")
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{tmp}/c.mp4", "-frames:v", "1",
-                          # como un player con HD: asume BT.709 (el encode viejo daba (206,41,2))
+                          # como un player con HD: asume BT.709 (el encode viejo daba (244,82,6))
                           "-vf", "scale=in_color_matrix=bt709,format=rgb24", "-f", "rawvideo", "-"],
                          capture_output=True).stdout
     px = tuple(raw[(90 * 320 + 160) * 3:(90 * 320 + 160) * 3 + 3])
-    check(all(abs(a - b) <= 4 for a, b in zip(px, (193, 27, 5))),
-          f"color de marca fiel tras encode ({px} vs (193, 27, 5))")
+    check(all(abs(a - b) <= 4 for a, b in zip(px, ref)),
+          f"color de marca fiel tras encode ({px} vs {ref})")
     # 7b. overlay con alfa: el alfa sobrevive en .webm y .mov
     for i in range(3):
         im = _Img.new("RGBA", (320, 180), (0, 0, 0, 0))
         if i == 1:
-            im.paste((193, 27, 5, 255), (20, 120, 160, 160))
+            im.paste(ref + (255,), (20, 120, 160, 160))
         im.save(f"{tmp}/a_{i:04d}.png")
     encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True,
                               text=True).stdout

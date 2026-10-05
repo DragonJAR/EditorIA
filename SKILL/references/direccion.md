@@ -15,7 +15,7 @@ de uno que se guarda y se comparte.
   (ver "Saturación: dinámico ≠ lleno" en `principios.md`).
 - **Pocos cortes duros, a veces ninguno**: una pieza puede ser una sola toma
   continua sostenida por morphs y movimientos de cámara. (Con un brand pack
-  que fije corte seco —ej. DragonJAR—, el corte seco sigue siendo el default
+  que fije corte seco (`reglas.transiciones`), el corte seco sigue siendo el default
   editorial; el one-shot es una opción de dirección, no la regla.)
 - **Copy en statements paralelos cortos**: 1–4 palabras por línea, una palabra
   de acento. Ejemplo de forma: "Corta. Resume. Publica." — la estructura, no

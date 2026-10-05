@@ -27,7 +27,8 @@ KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KIT)
 from _comun import (add_common, apply_common, die, emit, info, probe,
                     verify_output, ffmpeg_base, run, escape_filter_path,
-                    default_font_file, parse_srt, write_srt)
+                    default_font_file, parse_srt, write_srt, colores_marca,
+                    fuente_marca, resolver_pack)
 
 
 def retimear_srt(srt_path, segmentos, tmpdir):
@@ -53,10 +54,6 @@ def retimear_srt(srt_path, segmentos, tmpdir):
     write_srt(nuevas, out)
     return out, len(nuevas), len(cues)
 
-BRAND_JSON = os.path.join(os.path.dirname(os.path.dirname(KIT)),
-                         "brand", "dragonjar.json")
-from _plataforma import resolver_fuente
-FUENTE_MARCA = resolver_fuente("Plus Jakarta Sans") or ""
 
 
 def validar(plan, dur_fuente):
@@ -124,6 +121,8 @@ def main():
                     help="solo valida el plan, no renderiza")
     ap.add_argument("--saltar", default="",
                     help="pasos a saltar, separados por coma (ej. captions,musica)")
+    ap.add_argument("--brand", help="brand pack; también el campo \"brand\" del plan. "
+                    "Sin ninguno: modo libre (paleta neutra), nunca una marca por defecto")
     add_common(ap)
     args = ap.parse_args()
     apply_common(args)
@@ -134,6 +133,12 @@ def main():
     # Las rutas relativas del plan se resuelven contra el directorio del plan,
     # no contra el CWD: el plan debe funcionar igual se ejecute desde donde sea.
     base_dir = os.path.dirname(os.path.abspath(args.plan))
+    pack = args.brand or plan.get("brand")
+    if pack and not os.path.isabs(pack) and os.path.isfile(os.path.join(base_dir, pack)):
+        pack = os.path.join(base_dir, pack)
+    pack = resolver_pack(pack)   # identidad SOLO si el usuario la pidió
+    acento = "#%02X%02X%02X" % colores_marca(pack)["acento"]
+    fuente_hook = fuente_marca(pack)
 
     def _ruta(p):
         return p if os.path.isabs(p) else os.path.join(base_dir, p)
@@ -196,7 +201,7 @@ def main():
         primero = min(plan["segmentos"], key=lambda s: float(s["from"]))
         hook = primero.get("hook_overlay")
         if hook and "hook" not in saltar:
-            font = FUENTE_MARCA if os.path.isfile(FUENTE_MARCA) else (default_font_file("DejaVu Sans") or "")
+            font = fuente_hook if fuente_hook and os.path.isfile(fuente_hook) else (default_font_file("DejaVu Sans") or "")
             d_hook = min(3.0, float(primero["to"]) - float(primero["from"]))
             fp = f":fontfile={escape_filter_path(font)}" if font else ""
             # escapar caracteres especiales para drawtext (: , ' [ ])
@@ -204,7 +209,7 @@ def main():
             for ch in (":", ",", "'", "[", "]"):
                 txt = txt.replace(ch, "\\" + ch)
             dt = (f"drawtext=text='{txt}'{fp}:fontcolor=#FAF8F6:fontsize=h/14:"
-                  f"box=1:boxcolor=#C11B05@0.92:boxborderw=18:x=(w-text_w)/2:y=h*0.18:"
+                  f"box=1:boxcolor={acento}@0.92:boxborderw=18:x=(w-text_w)/2:y=h*0.18:"
                   f"enable='lte(t,{d_hook:.2f})'")
             hook_out = os.path.join(tmpdir, "hook.mp4")
             subproceso(ffmpeg_base() + ["-i", actual, "-vf", dt,
@@ -226,13 +231,14 @@ def main():
             info(f"captions re-mapeados al timeline del short ({n_ok}/{n_total})")
             cap_out = os.path.join(tmpdir, "caps.mp4")
             cmd = [sys.executable, os.path.join(KIT, "caption.py"), actual,
-                   "--srt", srt, "--brand", BRAND_JSON, "--mode", "burn",
-                   "-o", cap_out]
+                   "--srt", srt, "--mode", "burn", "-o", cap_out]
+            if pack:
+                cmd += ["--brand", pack]
             if caps.get("phrase_aware", True):
                 cmd.append("--phrase-aware")
             subproceso(cmd, dry)
             actual = cap_out
-            info("captions quemados (marca)")
+            info("captions quemados" + (" (marca del pack)" if pack else ""))
 
         # 5. Musica bajo la voz (~15 dB por regla de la skill)
         mus = plan.get("musica") or {}

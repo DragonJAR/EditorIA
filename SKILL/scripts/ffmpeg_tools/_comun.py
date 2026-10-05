@@ -361,7 +361,7 @@ def x264_args(crf: int = 18, preset: str = "medium", keep_bt709: bool = True) ->
 # Fuentes RGB (frames PNG de PIL, filtros show*) -> YUV. Sin out_color_matrix,
 # swscale convierte con la matriz BT.601 y el archivo sale sin etiqueta; los
 # players tratan todo lo HD como BT.709 y el color de marca se desplaza
-# (medido: #C11B05 (193,27,5) se veia (206,41,2)). Un solo lugar para todos.
+# (medido: el acento neutro (232,72,12) se veia (244,82,6)). Un solo lugar.
 VF_RGB_A_BT709 = "scale=out_color_matrix=bt709:out_range=tv"
 
 
@@ -555,12 +555,119 @@ def color_hex(value: str) -> str:
 
 
 def hex_a_rgb(value: str) -> Tuple[int, int, int]:
-    """Convierte '#C11B05' / 'C11B05' / '0xC11B05' a una tupla RGB (R, G, B) 0-255.
+    """Convierte '#E8480C' / 'E8480C' / '0xE8480C' a una tupla RGB (R, G, B) 0-255.
     Una sola fuente de verdad (DRY): la usan render_plan.py, thumbnail.py y resto
     del kit. Marca-blanca: la entrada sale del brand pack, no de un default quemado.
     """
     h = color_hex(value)
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+# ---------- identidad: modo libre por defecto, el brand pack solo si se pide ----------
+# Paleta NEUTRA (modo libre): la usan todas las herramientas cuando el usuario
+# no nombró una marca. Ninguna marca concreta vive en el código; sus valores
+# están solo en su brand/*.json (references/brand-packs.md).
+NEUTRO: Dict[str, Tuple[int, int, int]] = {
+    "acento": (232, 72, 12), "acento_oscuro": (150, 46, 8), "negro": (10, 10, 10),
+    "blanco": (250, 248, 246), "gris": (170, 170, 170),
+}
+SKILL_DIR = Path(__file__).resolve().parent.parent.parent
+
+
+def resolver_pack(path: Optional[str]) -> Optional[str]:
+    """Ruta de un brand pack: absoluta, relativa al cwd o a la carpeta de la
+    skill ('brand/x.json'). None si no se pidió marca."""
+    if not path:
+        return None
+    p = os.path.expanduser(str(path))
+    for cand in (p, str(SKILL_DIR / p)):
+        if os.path.isfile(cand):
+            return os.path.abspath(cand)
+    die(f"brand pack no encontrado: {path}", kind="input")
+
+
+def leer_pack(path: Optional[str]) -> Dict[str, Any]:
+    ruta = resolver_pack(path)
+    if not ruta:
+        return {}
+    try:
+        return json.loads(Path(ruta).read_text(encoding="utf-8"))
+    except ValueError as exc:
+        die(f"el brand pack {path} no es JSON valido: {exc}", kind="input")
+
+
+def colores_marca(path: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]:
+    """Paleta efectiva: la del pack pedido o la neutra. Acepta claves en
+    español (colores.acento) o inglés (colors.primary/accent)."""
+    c = dict(NEUTRO)
+    d = leer_pack(path)
+    if not d:
+        return c
+    col = dict(d.get("colors") or {})
+    col.update(d.get("colores") or {})
+    ac = col.get("acento") or col.get("primary") or col.get("accent")
+    if not ac:
+        die(f"el brand pack {path} no declara color de acento", kind="input")
+    c["acento"] = hex_a_rgb(ac)
+    c["acento_oscuro"] = (hex_a_rgb(col["acento_oscuro"]) if col.get("acento_oscuro")
+                          else tuple(max(0, int(v * 0.65)) for v in c["acento"]))
+    for k in ("negro", "blanco", "gris"):
+        if col.get(k):
+            c[k] = hex_a_rgb(col[k])
+    return c
+
+
+def ruta_de_pack(path_pack: Optional[str], valor: Optional[str]) -> Optional[str]:
+    """Asset del pack (logo, fuente): relativo al JSON, absoluto, ~ o nombre de
+    familia tipográfica instalada."""
+    if not valor:
+        return None
+    from _plataforma import resolver_fuente
+    v = os.path.expanduser(str(valor))
+    base = os.path.dirname(resolver_pack(path_pack) or "")
+    cand = v if os.path.isabs(v) else os.path.join(base, v)
+    return cand if os.path.exists(cand) else resolver_fuente(str(valor))
+
+
+def fuente_marca(path_pack: Optional[str], rol: str = "titulares",
+                 defecto: str = "Plus Jakarta Sans", generica: str = "sans-bold") -> Optional[str]:
+    """Archivo de fuente para un rol del pack (titulares | texto | etiquetas_mono);
+    sin pack o sin coincidencia, la empaquetada por defecto."""
+    from _plataforma import resolver_fuente
+    t = (leer_pack(path_pack).get("tipografias") or {}).get(rol) or {}
+    return (ruta_de_pack(path_pack, t.get("archivo")) or
+            (resolver_fuente(t["familia"]) if t.get("familia") else None) or
+            resolver_fuente(defecto, generica=generica))
+
+
+def segmentos_enfasis(texto: str) -> List[Tuple[str, bool]]:
+    """'Hola *mundo*' -> [('Hola ', False), ('mundo', True)]: la convención de
+    énfasis del kit (el énfasis va en el color de acento)."""
+    out, buf, enf = [], "", False
+    for ch in texto or "":
+        if ch == "*":
+            if buf:
+                out.append((buf, enf))
+            buf, enf = "", not enf
+        else:
+            buf += ch
+    if buf:
+        out.append((buf, enf))
+    return out
+
+
+def identidad_pieza(brand: Optional[str] = None, logo: Optional[str] = None,
+                    nombre: Optional[str] = None, lema: Optional[str] = None) -> Dict[str, Any]:
+    """Identidad de una pieza de marca (films): paleta, logo, nombre, lema y
+    fuente. Los flags mandan sobre el pack; sin pack ni flags, modo libre
+    (paleta neutra, sin logo, sin nombre: nunca una marca por defecto)."""
+    d = leer_pack(brand)
+    logos = d.get("logos") or {}
+    return {"paleta": colores_marca(brand),
+            "logo": logo or ruta_de_pack(brand, logos.get("isotipo") or logos.get("logotipo")),
+            "nombre": nombre or d.get("nombre"),
+            "lema": lema if lema is not None else d.get("lema"),
+            "fuente": fuente_marca(brand)}
 
 
 DEFAULTS: Dict[str, Any] = {

@@ -49,7 +49,7 @@ from _comun import (STATE, color_hex, load_brand, video_args, add_common,
                     apply_common, emit, aac_args, cfr_args, default_output, die,
                     escape_filter_path, ffmpeg_base, fmt_srt_time, fmt_smpte_time,
                     info, MissingFpsError, parse_time, parse_srt, probe, require_tool, run,
-                    transcribir_medio, write_srt, x264_args)
+                    transcribir_medio, write_srt, x264_args, colores_marca)
 
 ALIGN = {"bottom": 2, "top": 8, "center": 5, "bottom-left": 1, "bottom-right": 3,
          "top-left": 7, "top-right": 9}
@@ -482,7 +482,10 @@ def main():
     args.outline = args.outline if args.outline is not None else (float(bcap.get("outline", 2)) if args.brand else 2.0)
     args.position = args.position or (bcap.get("position", "bottom") if args.brand else "bottom")
     args.animate = args.animate or (bcap.get("animate", "none") if args.brand else "none")
-    args.highlight_color = color_hex(args.highlight_color or bc.get("primary", "FFD200"))
+    # el acento del pack (colores.acento o colors.primary, vía colores_marca);
+    # sin pack, el amarillo clásico de captions
+    acento_pack = ("%02X%02X%02X" % colores_marca(args.brand)["acento"]) if args.brand else None
+    args.highlight_color = color_hex(args.highlight_color or acento_pack or bc.get("primary", "FFD200"))
     if args.brand and bcap.get("bold") and not args.bold:
         args.bold = True
     if args.brand and bcap.get("karaoke") and not args.karaoke:

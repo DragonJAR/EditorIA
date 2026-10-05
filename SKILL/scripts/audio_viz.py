@@ -20,8 +20,8 @@ Uso:
   python audio_viz.py audio.mp3 -o viz.mp4 [--modo waves|spectrum|freqs]
   python audio_viz.py audio.mp3 -o viz.mp4 --overlay video.mp4
   python audio_viz.py episodio.mp3 -o clip.mp4 --modo audiograma \\
-      --titulo "Episodio 42" --subtitulo "DragonJAR Podcast" --portada cover.jpg \\
-      --inicio 754 --duracion 45 [--brand brand/dragonjar.json]
+      --titulo "Episodio 42" --subtitulo "Mi Podcast" --portada cover.jpg \\
+      --inicio 754 --duracion 45 [--brand brand/mi_marca.json]
 """
 import argparse
 import os
@@ -30,21 +30,13 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
-from _comun import VF_RGB_A_BT709, codificar_frames, die, info, load_brand, probe  # noqa: E402
-
-ACENTO_NEUTRO = "E8480C"   # el mismo acento neutro del renderer (modo libre)
+from _comun import (VF_RGB_A_BT709, codificar_frames, colores_marca, color_hex,  # noqa: E402
+                    die, info, probe)
 
 
 def acento(brand_path, color):
-    """Color del acento: --color > acento del brand pack > neutro."""
-    if color:
-        return color.lstrip("#").replace("0x", "")
-    if brand_path:
-        b = load_brand(brand_path)
-        v = (b.get("colores") or {}).get("acento") or (b.get("colors") or {}).get("primary")
-        if v:
-            return str(v).lstrip("#")
-    return ACENTO_NEUTRO
+    """Color del acento (hex sin #): --color > acento del brand pack > neutro."""
+    return color_hex(color) if color else "%02X%02X%02X" % colores_marca(brand_path)["acento"]
 
 
 def bandas_por_frame(audio, inicio, dur, fps, n):
@@ -172,7 +164,7 @@ def main():
     ap.add_argument("--modo", default="waves", choices=["waves", "spectrum", "freqs", "audiograma"],
                     help="tipo de visualización (default: waves)")
     ap.add_argument("--color", default=None,
-                    help="color hex del acento, ej. C11B05 (default: acento del --brand o neutro)")
+                    help="color hex del acento, ej. 2A6FDB (default: acento del --brand o neutro)")
     ap.add_argument("--brand", default=None, help="brand pack (brand/*.json): el color sale de su acento")
     ap.add_argument("-s", "--size", default="1080x1920", help="tamaño (default: 1080x1920)")
     ap.add_argument("-r", "--fps", default=30, type=int, help="fps (default: 30)")

@@ -9,10 +9,11 @@ import os, math, json, random, re, sys, argparse
 
 # ---------- identidad: defaults NEUTROS; el brand pack los sobreescribe ----------
 # Sin pack (modo libre) nada de marca: acento neutro y fuentes empaquetadas.
-ACENTO=(232,72,12); ACENTO_OSC=(150,46,8); NEGRO=(10,10,10); BLANCO=(250,248,246)
-GRIS=(170,170,170); PANEL=(26,26,26); PANEL2=(38,38,38)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _plataforma import resolver_fuente
+from _comun import NEUTRO, segmentos_enfasis   # paleta neutra y énfasis *...* únicos del kit
+ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
+BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
 FJ=resolver_fuente("Plus Jakarta Sans", generica="sans-bold")
 FM=resolver_fuente("Montserrat", generica="sans")
 MONO=resolver_fuente("DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
@@ -77,15 +78,7 @@ def flota(t,t0,amp=6,freq=0.45):
     return amp*math.sin(2*math.pi*freq*(t-t0))
 
 # ---------- texto con énfasis *...* ----------
-def segs(text):
-    out=[]; buf=""; emph=False; i=0
-    while i < len(text):
-        if text[i]=="*":
-            if buf: out.append((buf,emph)); buf=""
-            emph=not emph; i+=1; continue
-        buf+=text[i]; i+=1
-    if buf: out.append((buf,emph))
-    return out
+segs=segmentos_enfasis   # '*palabra*' = énfasis en acento (una sola implementación)
 def seg_width(sg,fnt):
     tmp=ImageDraw.Draw(Image.new("L",(10,10)))
     return sum(tmp.textlength(t,font=fnt) for t,_ in sg)
@@ -1759,44 +1752,27 @@ ESCENAS_HORIZONTALES={"rotulo_inferior","countdown"}
 # hex_a_rgb vive en _comun (unica fuente; DRY). Reusar aquí:
 from _comun import hex_a_rgb, info  # noqa: E402,F401  # sys.path ya apunta a ffmpeg_tools
 
-def _ruta_pack(base, valor):
-    """Ruta de un asset del pack: relativa al JSON, absoluta, ~ o nombre de familia."""
-    if not valor: return None
-    v=os.path.expanduser(str(valor))
-    cand=v if os.path.isabs(v) else os.path.join(base, v)
-    if os.path.exists(cand): return cand
-    return resolver_fuente(str(valor))
-
 def aplicar_brand(brand_path):
-    """Instala la identidad del pack: colores, tipografías, logos y reglas."""
+    """Instala la identidad del pack: colores, tipografías, logos y reglas.
+    La lectura vive en _comun (colores_marca, fuente_marca, ruta_de_pack):
+    la misma para todas las herramientas del kit."""
     global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS, FJ, FM, MONO, LOGO, ISOTIPO, MARCA_NOMBRE, TRANSICIONES
-    try:
-        d = json.load(open(os.path.expanduser(brand_path), encoding="utf-8"))
-    except (OSError, ValueError) as e:
-        sys.exit(f"ERROR: no se pudo leer el brand pack {brand_path}: {e}")
-    base=os.path.dirname(os.path.abspath(os.path.expanduser(brand_path)))
-    colores = dict(d.get("colors") or {}); colores.update(d.get("colores") or {})
-    acento = colores.get("acento") or colores.get("primary") or colores.get("accent")
-    if not acento:
-        sys.exit(f"ERROR: el brand pack {brand_path} no declara color de acento")
-    ACENTO = hex_a_rgb(acento)
-    ACENTO_OSC = hex_a_rgb(colores["acento_oscuro"]) if colores.get("acento_oscuro") else \
-        tuple(max(0, int(c * 0.65)) for c in ACENTO)
-    if colores.get("negro"): NEGRO = hex_a_rgb(colores["negro"])
-    if colores.get("blanco"): BLANCO = hex_a_rgb(colores["blanco"])
-    if colores.get("gris"): GRIS = hex_a_rgb(colores["gris"])
-    tip = d.get("tipografias") or {}
-    for clave, glob in (("titulares", "FJ"), ("texto", "FM"), ("etiquetas_mono", "MONO")):
-        t = tip.get(clave) or {}
-        hit = _ruta_pack(base, t.get("archivo")) or (resolver_fuente(t["familia"]) if t.get("familia") else None)
+    from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
+    d = leer_pack(brand_path)
+    c = colores_marca(brand_path)
+    ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS = (c["acento"], c["acento_oscuro"], c["negro"],
+                                               c["blanco"], c["gris"])
+    for rol, glob, defecto, gen in (("titulares", "FJ", "Plus Jakarta Sans", "sans-bold"),
+                                    ("texto", "FM", "Montserrat", "sans"),
+                                    ("etiquetas_mono", "MONO", "DejaVu Sans Mono", "mono")):
+        hit = fuente_marca(brand_path, rol, defecto, gen)
         if hit: globals()[glob] = hit
-        elif t: print(f"AVISO: tipografía '{clave}' del pack no encontrada; uso la empaquetada", flush=True)
     logos = d.get("logos") or {}
-    LOGO = _ruta_pack(base, logos.get("logotipo") or logos.get("fondo_oscuro"))
-    ISOTIPO = _ruta_pack(base, logos.get("isotipo"))
+    LOGO = ruta_de_pack(brand_path, logos.get("logotipo") or logos.get("fondo_oscuro"))
+    ISOTIPO = ruta_de_pack(brand_path, logos.get("isotipo"))
     MARCA_NOMBRE = d.get("nombre")
     TRANSICIONES = (d.get("reglas") or {}).get("transiciones", "libre")
-    print(f"brand pack: {d.get('nombre', brand_path)} — acento {acento}", flush=True)
+    print(f"brand pack: {d.get('nombre', brand_path)} — acento #%02X%02X%02X" % ACENTO, flush=True)
 
 _ESCALA={}
 def escala_segura(ctx,e,idx):
@@ -1944,11 +1920,9 @@ def render(plan_path,plan,out,a):
         W,H=(int(v) for v in str(a.tamano or plan.get("tamano","1080x1920")).lower().split("x"))
     except ValueError:
         sys.exit("ERROR: tamano debe ser ANCHOxALTO, ej. 1920x1080")
-    brand_path = a.brand or plan.get("brand")
+    from _comun import resolver_pack
+    brand_path = resolver_pack(a.brand or plan.get("brand"))   # marca SOLO si se pide
     if brand_path:
-        if not os.path.isabs(os.path.expanduser(brand_path)) and not os.path.exists(brand_path):
-            cand=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),brand_path)
-            if os.path.exists(cand): brand_path=cand
         aplicar_brand(brand_path)
     elif plan.get("acento"):   # modo libre: el plan puede fijar su acento
         ACENTO=hex_a_rgb(plan["acento"]); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)

@@ -1,19 +1,20 @@
-# Técnicas cinematográficas (de `scripts/film_marca.py`)
+# Técnicas cinematográficas (films de marca)
 
-> Caso de estudio con el pack DragonJAR (`brand/dragonjar.json`), no doctrina
-> general: las recetas se portan a cualquier marca cambiando el pack; los
-> valores concretos (paleta, disolves, keyhole) son de este ejemplo.
+> Recetas de los films de marca (`scripts/film_marca_v2.py`, y v1 como
+> referencia). Funcionan con cualquier brand pack: los valores concretos
+> (paleta, logo, ancla, wordmark, lema) salen del pack que se pida.
 
 Recetas reutilizables para piezas premium 16:9. Principio: el logo nunca se
-redibuja, rota ni deforma — solo escala uniforme.
+redibuja, rota ni deforma — solo escala uniforme (un logo no cuadrado se
+centra en un lienzo cuadrado transparente, no se estira).
 
-**Ejemplo**: `python scripts/film_marca_v2.py` genera el film de marca del
-pack de ejemplo (15 s, 1920×1080, 24 fps) con estas recetas: macro del
-keyhole → trazo láser → match-cuts al beat → cierre asimétrico. Los mp4 de
-salida no vienen en el paquete (se generan). En `film/` está la música de
-ejemplo (`film/musica_demo.mp3`, `film/musica_film.mp3`, `film/musica_film_v2.mp3`). El
-isotipo oficial del pack está en `brand/assets/dragonjar-isotipo.png`;
-nunca redibujar el logo.
+**Ejemplo**: `python scripts/film_marca_v2.py --brand brand/mi_marca.json -o film.mp4`
+(15 s, 1920×1080, 24 fps): macro del ancla del logo → trazo láser →
+match-cuts al beat → cierre asimétrico con wordmark y lema. Sin pack:
+`--logo logo.png --nombre "Mi marca" --lema "Frase con *énfasis*"`. Los mp4
+no vienen en el paquete (se generan). En `film/` está la música de ejemplo
+(`film/musica_demo.mp3`, `film/musica_film.mp3`, `film/musica_film_v2.mp3`).
+Nunca redibujar el logo.
 
 ## Trazo láser del contorno
 
@@ -42,7 +43,7 @@ nunca redibujar el logo.
 > renderer de planes (`render_plan.py`) el corte duro es el default y
 > `dissolve` no está implementado (ver `escenas.md`).
 
-Variaciones del logo (mono blanco, rojo plano, outline, patrón de minis)
+Variaciones del logo (mono blanco, acento plano, outline, patrón de minis)
 con el punto de interés (keyhole) clavado en el mismo píxel en cada corte.
 Dissolves de 0.25s sobre el beat. El patrón de minis: rejilla centrada en el
 punto fijo que vuelve a uno por crossfade.
@@ -52,7 +53,7 @@ punto fijo que vuelve a uno por crossfade.
 - **Push-in**: zoom 1.00→1.06 en toda la pieza con cubic-bezier(0.2,0,0,1),
   centrado en el punto de interés (= centro del frame). OJO: el zoom recorta los
   bordes — el área segura es y < 540+540/z. Diseñar el layout para el zoom final.
-- **Halo volumétrico**: radial rojo a alpha ~90, respirando ±6%.
+- **Halo volumétrico**: radial en el acento a alpha ~90, respirando ±6%.
 - **Grano**: `randint(-7,8)` por frame sobre el frame final. Sutil.
 - **Fundido a negro**: último 1.2s con `Image.blend`.
 

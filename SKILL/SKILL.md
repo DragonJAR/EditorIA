@@ -1,7 +1,7 @@
 ---
 name: editoria
 description: EditorIA, navaja suiza de edición de video con IA. Crea, edita, resume o mejora videos (.mp4): resúmenes animados de reuniones, tipografía cinética, anuncios por plan, films cinematográficos y piezas verticales para redes, para cualquier marca o sin marca. Úsalo cuando el usuario pida "hazme un video", "resume esta reunión", "edita este anuncio", "mejora este video" o "ponle música".
-metadata: { "author": "Muse para Jaime Andrés Restrepo", "version": "1.3.0" }
+metadata: { "author": "Jaime Andrés Restrepo", "version": "1.3.0" }
 ---
 
 # EditorIA
@@ -43,7 +43,7 @@ diseño libre; con pack, fidelidad total.
 | Carpeta de fotos → video | `scripts/ffmpeg_tools/montaje.py pase ./fotos -o pase.mp4` (`--bpm` para cambiar al compás) |
 | Clip de podcast/voz para redes | **Audiograma**: `scripts/audio_viz.py audio.mp3 --modo audiograma --titulo "..." --portada cover.jpg` + subtítulos con `caption.py` |
 | Resumen de reunión/transcripción | **Composición**: `references/pipeline-resumen.md` + estilos de `references/estilos.md` |
-| Film cinematográfico 16:9 | **Cine**: recetas en `references/cine.md` (con brand pack: `scripts/film_marca_v2.py` para DragonJAR) |
+| Film cinematográfico 16:9 | **Cine**: recetas en `references/cine.md` (film de marca de cualquier pack: `scripts/film_marca_v2.py --brand`) |
 | Tarjeta cinética rápida (una frase) | **Quick**: receta `quick-kinetic` en `references/modos-rapidos.md` |
 | Montaje de clips con música | **Quick**: receta `quick-montage` en `references/modos-rapidos.md` |
 | Recorte/adaptación de un video existente | **Quick**: receta `quick-cut` en `references/modos-rapidos.md` |

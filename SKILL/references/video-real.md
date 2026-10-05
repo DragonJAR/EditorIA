@@ -33,7 +33,6 @@ vestirlo sin que se note el bisturí.
 7. **Captions**: palabra por palabra, agrupación frase-consciente (nunca
    terminar en leader words), banda central.
    `scripts/ffmpeg_tools/caption.py --phrase-aware --brand brand/tu-marca.json`
-   (ej. `brand/dragonjar.json`)
    (aplica fuente, colores y posición de marca automáticamente).
 8. **Audio**: `scripts/ffmpeg_tools/loudness.py` (−14 LUFS) → cadena de mastering
    (highpass → acompressor → loudnorm → alimiter, ver `references/sonido.md`).

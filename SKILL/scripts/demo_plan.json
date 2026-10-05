@@ -1,6 +1,5 @@
 {
- "_nota": "Plan demo del renderizador EditorIA: 6 escenas, ~30s, con el brand pack de ejemplo (brand/dragonjar.json). Quitar \"brand\" = modo libre.",
- "brand": "brand/dragonjar.json",
+ "_nota": "Plan demo del renderizador EditorIA: 6 escenas, ~30s, en modo libre (paleta neutra). Para una marca: agregar \"brand\": \"brand/mi_marca.json\" o usar --brand.",
  "duracion": 30.0,
  "escenas": [
   {
@@ -86,7 +85,7 @@
     {
      "at": 10.9,
      "de": "ia",
-     "texto": "Listo: 62 segundos, 78 overlays, marca DragonJAR."
+     "texto": "Listo: 62 segundos, 78 overlays, con tu marca."
     }
    ],
    "rotulo": "Pregunta *y recibe*",

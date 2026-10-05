@@ -4,9 +4,9 @@ EditorIA diseña thumbnails como parte de la entrega de un video (YouTube 16:9,
 vertical 9:16 para shorts): craft y proceso propios. Generar con el motor de
 imagen que EditorIA tenga disponible.
 
-Paleta del brand pack (ej. DragonJAR: negro `#0A0A0A` de fondo, rojo `#C11B05`
-para marca y glow, blanco cálido `#FAF8F6` para texto; tipografía de titulares
-del pack en ExtraBold para toda la tipografía del thumbnail). En modo libre,
+Paleta del brand pack (su neutro oscuro de fondo, su acento para marca y
+glow, su blanco para texto; tipografía de titulares del pack en ExtraBold
+para toda la tipografía del thumbnail: `thumbnail.py --brand`). En modo libre,
 una paleta equivalente: neutro oscuro + un acento + neutro claro.
 
 ## Brief del thumbnail (extracción del guion)
@@ -31,8 +31,8 @@ Antes de diseñar, extraer el brief con estas reglas:
    cara, el elemento héroe y el texto van SOBRE las líneas o intersecciones.
    Default: cara en un tercio, texto gancho en otro, héroe sobre una línea.
 2. **Color y branding**: una sola paleta reutilizable en todos los thumbnails
-   (la del brand pack; ej. DragonJAR: negro + blanco + un gris medio + rojo
-   `#C11B05` como acento — nunca un segundo acento). Para que cada video se
+   (la del brand pack: neutro oscuro + blanco + un gris medio + su acento —
+   nunca un segundo acento). Para que cada video se
    sienta fresco sin salirse de marca, variar el highlight dentro de la paleta
    (un detalle en blanco, el gris medio
    en otro rol, el glow rojo con distinta intensidad).
@@ -100,12 +100,10 @@ Construir el prompt de generación en este orden:
    alto contraste, foco nítido.
 6. **Técnica tomada** de una inspiración, descrita en palabras (nunca "copia X").
 
-## Calibración (reglas del estilo ganador — ejemplo con el pack DragonJAR)
+## Calibración (reglas del estilo que ganó en producción)
 
-> Esta calibración es la del estilo que ganó en producción con el pack
-> DragonJAR. Con otro pack o en modo libre, sustituir "rojo de marca" por
-> el acento del brand pack (o del modo libre) y "fondo oscuro" por el fondo
-> correspondiente.
+> Donde dice "rojo de marca" léase el acento del brand pack (o del modo
+> libre) y "fondo oscuro", el neutro oscuro correspondiente.
 
 - Sujeto cinematográfico + thumbnail diseñado. El sujeto con calidad de cine;
   el fondo, diseñado (negro sólido/charcoal o glow radial del acento).

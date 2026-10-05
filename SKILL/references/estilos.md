@@ -4,8 +4,8 @@ Tres direcciones probadas en producción. Elegir según el brief; se pueden hibr
 
 ## 1. Cinético (Demo)
 - Referencia: video demo de tipografía cinética (7 s).
-- Negro #0A0A0A, kicker monoespaciado rojo, barra roja de acento, titular gigante
-  Plus Jakarta Sans ExtraBold blanco (instanciación con el pack DragonJAR).
+- Neutro oscuro de fondo, kicker monoespaciado en el acento, barra de acento,
+  titular gigante en la fuente de titulares (ExtraBold) en blanco.
   Una idea por tarjeta, cortes secos.
 - Ideal: cifras sueltas, anuncios cortos, titulares.
 - Ritmo: 2,5–3 s por tarjeta.
@@ -17,7 +17,7 @@ Tres direcciones probadas en producción. Elegir según el brief; se pueden hibr
   (chips, tarjetas, gauges, barras, teléfono mockup, grilla isométrica, terminal) → outro.
 - Fondo: ondas/aurora animadas en el color de acento sobre negro. Elementos entran con
   fade + elevación suave (0,35–0,45 s). Nada de motion gratuito: cada animación presenta información.
-- En DragonJAR: el lima del original se reemplaza 1:1 por rojo #C11B05.
+- El lima del original se reemplaza 1:1 por el acento del pack (o del modo libre).
 - Arquitectura del build original (no incluido en el paquete): un script de
   fondo, uno de elementos y uno de ensamblaje. Para el fondo vivo, partir de
   `mundo()` en `scripts/render_plan.py`.
@@ -51,7 +51,7 @@ Tres direcciones probadas en producción. Elegir según el brief; se pueden hibr
   7. **Transición matrix**: lluvia de código + frase "It all becomes code:
      cuts, captions, animation."
   8. **CTA final**: "COMMENT 'EDIT' FOR THE FULL GUIDE" — cierre con llamado a la acción.
-- En DragonJAR: el tinte rojo del HUD ya es #C11B05; tipografía del sistema.
+- El tinte del HUD es el acento del pack; tipografía del sistema.
 
 ## 5. Demo reel EditorIA (construido 2026-10-03, técnicas propias)
 - Build original de 42 s, 1080×1920, 1260 frames bakeados en PIL (no incluido;
@@ -110,5 +110,5 @@ la especificación visual del proyecto, no un collage de referencias.
 Regla: style pack distinto → look distinto. Un video, un pack; no mezclar dos
 packs en la misma pieza. Con brand pack, todos los packs comparten los colores,
 logos y tipografías del pack; lo que cambia es la personalidad de movimiento
-y el lenguaje gráfico (ej. con el pack DragonJAR, el rojo AI Tinkerers puede
-ser más juguetón en motion que el rojo de un film de marca).
+y el lenguaje gráfico (ej. con un mismo pack, una pieza de comunidad puede ser
+más juguetona en motion que un film de marca).

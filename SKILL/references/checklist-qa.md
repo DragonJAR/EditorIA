@@ -153,8 +153,8 @@ Números, no sensaciones:
   pantalla completa. `auto_qa.py` lo mide (defecto `fotosensible`).
 - **Sin sobresaltos**: ningún corte entra con más de +6 dB sobre el segundo
   previo (`auto_qa.py`, defecto `sobresalto`).
-- **Color de marca**: muestrear el acento — debe ser el del brand pack
-  (ej. DragonJAR: `#C11B05`), no una aproximación.
+- **Color de marca**: muestrear el acento — debe ser exactamente el del
+  brand pack (o el del modo libre), no una aproximación.
 - **Frame 0 terminado**: composición completa desde el primer frame, sin
   elementos a medio entrar. Sin colisiones de texto.
 - **Sujeto**: 60–85% del cuadro en piezas con persona.

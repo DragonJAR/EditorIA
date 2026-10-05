@@ -1,44 +1,31 @@
 #!/usr/bin/env python3
-"""Film de marca DragonJAR v2 — dirección de arte.
+"""Film de marca v2 — dirección de arte (marca del pack o de --logo/--nombre/--lema).
 15s, 16:9, 24fps. El isotipo RESPIRA por el plano (no clavado al centro):
 macro del keyhole → tercio derecho (trazo láser) → centro (variaciones con
 pulso) → final asimétrico (isotipo izquierda, texto derecha).
-El keyhole sigue siendo el ancla compositiva; el logo nunca se deforma ni rota.
+El ancla del logo (pack logos.ancla, o su centro de masa) es el ancla compositiva;
+el logo nunca se deforma ni rota.
+Uso: python film_marca_v2.py --brand brand/mi_marca.json -o film.mp4
 """
 import os, math, argparse, random
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 W,H=1920,1080; FPS=24; DUR=15.0; N=int(DUR*FPS)
-NEGRO=(10,10,10); ROJO=(193,27,5); BLANCO_H=(250,248,246)
 BASE=os.path.dirname(os.path.abspath(__file__))
-ISO_PATH=os.path.join(os.path.dirname(BASE),"brand","assets","dragonjar-isotipo.png")
-JAKARTA = None
-def _resolver_jakarta():
-    """Resuelve la fuente Plus Jakarta Sans sin rutas hardcodeadas (Windows/macOS/Linux)."""
-    import sys as _sys
-    _sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
-    try:
-        from _plataforma import resolver_fuente
-        hit = resolver_fuente("Plus Jakarta Sans", "Jakarta", generica="sans-bold")
-        if hit:
-            return hit
-    except Exception:
-        pass
-    return None
-JAKARTA = _resolver_jakarta()
-if not JAKARTA:
-    raise SystemExit("no se encontro fuente (Plus Jakarta Sans o similar)")
+import sys
+sys.path.insert(0, BASE)
+from _film import (LADO, args_identidad, clamp01, dibujar_lema, draw_glow, lerp,  # noqa: E402
+                   lineas_lema, preparar, prog, text_center, vivo)
+# Identidad: se fija en main() desde el pack pedido o los flags (_film.preparar).
+NEGRO=ROJO=BLANCO_H=BRASA=BRASA_SUAVE=CALIDO=CHISPA=None
+LOGO=None; JAKARTA=None; NOMBRE=""; LEMA=[]
+KH_SRC=None  # ancla del logo en el lienzo LADO (pack logos.ancla o centro de masa)
 
-KH_SRC=(559.7,540.9)  # keyhole en el PNG 1126
-
-def clamp01(x): return max(0.0,min(1.0,x))
-def lerp(a,b,k): return a+(b-a)*k
 def smooth(k):
     k=clamp01(k); return k*k*(3-2*k)
 def bezier_out(k):
     k=clamp01(k); return 1-pow(1-k,3) if k<1 else 1
-def prog(t,a,b): return clamp01((t-a)/max(1e-6,b-a))
 
 # coreografía: (t, size, kh_x, kh_y)
 KEYS=[(0.0,2000,960,540),(3.0,2080,960,540),(3.8,750,1150,520),
@@ -60,18 +47,18 @@ def beat_pulse(t):
 
 class Ctx:
     def __init__(self):
-        src=Image.open(ISO_PATH).convert("RGBA")
+        src=LOGO.copy()   # cuadrado LADO px, escala uniforme (_film.preparar)
         self.src=src
         self.iso1400=src.resize((1400,1400),Image.LANCZOS)
         a1400=self.iso1400.split()[3]
         self.variants={
             "color":self.iso1400,
-            "white":Image.merge("RGBA",(Image.new("L",(1400,1400),250),
-                Image.new("L",(1400,1400),248),Image.new("L",(1400,1400),246),a1400)),
-            "red":Image.merge("RGBA",(Image.new("L",(1400,1400),193),
-                Image.new("L",(1400,1400),27),Image.new("L",(1400,1400),5),a1400)),
-            "edge":Image.merge("RGBA",(Image.new("L",(1400,1400),193),
-                Image.new("L",(1400,1400),27),Image.new("L",(1400,1400),5),
+            "white":Image.merge("RGBA",(Image.new("L",(1400,1400),BLANCO_H[0]),
+                Image.new("L",(1400,1400),BLANCO_H[1]),Image.new("L",(1400,1400),BLANCO_H[2]),a1400)),
+            "red":Image.merge("RGBA",(Image.new("L",(1400,1400),ROJO[0]),
+                Image.new("L",(1400,1400),ROJO[1]),Image.new("L",(1400,1400),ROJO[2]),a1400)),
+            "edge":Image.merge("RGBA",(Image.new("L",(1400,1400),ROJO[0]),
+                Image.new("L",(1400,1400),ROJO[1]),Image.new("L",(1400,1400),ROJO[2]),
                 a1400.filter(ImageFilter.FIND_EDGES))),
         }
         self.mini=src.resize((110,110),Image.LANCZOS)
@@ -84,8 +71,8 @@ class Ctx:
         self.orbit=[(random.uniform(220,380),random.uniform(0,6.28),
                      random.uniform(0.3,0.6)*(1 if i%2 else -1),
                      random.uniform(2,4)) for i in range(24)]
-        self.haze=self._radial(700,(193,27,5,26))
-        self.ember=self._radial(160,(255,60,20,255))
+        self.haze=self._radial(700,ROJO+(26,))
+        self.ember=self._radial(160,BRASA+(255,))
 
     def _radial(self,r,color):
         s=r*2
@@ -103,8 +90,8 @@ class Ctx:
         edge=np.array(Image.fromarray(a).filter(ImageFilter.FIND_EDGES))
         ys,xs=np.nonzero(edge>40)
         pts=np.stack([xs,ys],axis=1).astype(float)
-        # a coords del PNG 1126
-        pts=pts/700*1126
+        # a coords del lienzo LADO
+        pts=pts/700*LADO
         step=max(1,len(pts)//1100); pts=pts[::step]
         order=[int(np.argmax(pts[:,1]))]
         remaining=pts.copy(); idx=np.arange(len(pts))
@@ -117,46 +104,18 @@ class Ctx:
             order.append(int(idx[bi])); cur=remaining[bi]
             m=np.ones(len(remaining),bool); m[bi]=False
             remaining=remaining[m]; idx=idx[m]
-        return pts[np.array(order)]  # locales 1126, keyhole en KH_SRC
+        return pts[np.array(order)]  # locales LADO, ancla en KH_SRC
 
     def iso_at(self,size,variant="color"):
         v=self.variants[variant]
         return v.resize((int(size),int(size)),Image.BILINEAR)
 
-def draw_glow(layer,img,cx,cy,scale,alpha):
-    w2=int(img.width*scale); h2=int(img.height*scale)
-    if w2<4: return
-    g=img.resize((w2,h2),Image.BILINEAR)
-    if alpha<255:
-        al=g.split()[3].point(lambda v:int(v*alpha/255)); g.putalpha(al)
-    layer.alpha_composite(g,(int(cx-w2/2),int(cy-h2/2)))
-
 def place_iso(layer,iso,size,khx,khy,alpha=1.0):
     """Pega el isotipo de `size` px con el keyhole en (khx,khy)."""
     if alpha<1.0:
         al=iso.split()[3].point(lambda v:int(v*alpha)); iso.putalpha(al)
-    x=int(khx-KH_SRC[0]/1126*size); y=int(khy-KH_SRC[1]/1126*size)
+    x=int(khx-KH_SRC[0]/LADO*size); y=int(khy-KH_SRC[1]/LADO*size)
     layer.alpha_composite(iso,(x,y))
-
-def text_center(d,xy,txt,font,fill,tracking=0):
-    x,y=xy
-    if tracking<=0:
-        d.text((x,y),txt,font=font,fill=fill,anchor="ma"); return
-    widths=[d.textlength(c,font=font) for c in txt]
-    total=sum(widths)+tracking*(len(txt)-1)
-    cx=x-total/2
-    for c,wc in zip(txt,widths):
-        d.text((cx,y),c,font=font,fill=fill,anchor="la")
-        cx+=wc+tracking
-
-def mixed_line(d,cx,y,segments,font):
-    widths=[d.textlength(t,font=font) for t,_ in segments]
-    gaps=[d.textlength(" ",font=font)]*(len(segments)-1)
-    total=sum(widths)+sum(gaps)
-    x=cx-total/2
-    for i,(t,col) in enumerate(segments):
-        d.text((x,y),t,font=font,fill=col,anchor="la")
-        x+=widths[i]+(gaps[i] if i<len(gaps) else 0)
 
 def render_frame(ctx,t):
     img=Image.new("RGB",(W,H),NEGRO)
@@ -175,31 +134,31 @@ def render_frame(ctx,t):
         if pk>0:
             draw_glow(layer,ctx.ember,khx,khy,0.6+1.0*pk,int(255*pk))
             r=int(12+30*pk)
-            d.ellipse([khx-r,khy-r,khx+r,khy+r],fill=(255,120,40,int(210*pk)))
+            d.ellipse([khx-r,khy-r,khx+r,khy+r],fill=CALIDO+(int(210*pk),))
         for x0,spd,ph,sz,bl in ctx.drift:
             y=(H+80-((t*spd+ph*40)%(H+240)))
             x=x0+18*math.sin(t*0.7+ph)
             a2=int(150*clamp01(1-abs(y-H/2)/(H*0.7)))
             if bl:
                 s2=Image.new("RGBA",(24,24),(0,0,0,0))
-                ImageDraw.Draw(s2).ellipse([12-sz,12-sz,12+sz,12+sz],fill=(255,70,25,a2))
+                ImageDraw.Draw(s2).ellipse([12-sz,12-sz,12+sz,12+sz],fill=BRASA+(a2,))
                 layer.alpha_composite(s2.filter(ImageFilter.GaussianBlur(2)),(int(x-12),int(y-12)))
             else:
-                d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=(255,70,25,a2))
+                d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=BRASA+(a2,))
 
     # ---- 3.4-7.4: PULLBACK + trazo láser (tercio derecho) ----
     if 3.4<=t<7.5:
         p=bezier_out(prog(t,3.9,6.9))
         n=int(p*len(ctx.trace_local))
         if n>1:
-            sc=size/1126.0
+            sc=size/LADO
             kx,ky=KH_SRC
             pts=(ctx.trace_local[:n]-np.array([kx,ky]))*sc+np.array([khx,khy])
             tl=Image.new("RGBA",(W,H),(0,0,0,0)); td=ImageDraw.Draw(tl)
             for i in range(len(pts)-1):
                 x1,y1=pts[i]; x2,y2=pts[i+1]
                 if abs(x2-x1)+abs(y2-y1)>20*sc+8: continue
-                td.line([(x1,y1),(x2,y2)],fill=(255,60,20,210),width=3)
+                td.line([(x1,y1),(x2,y2)],fill=BRASA+(210,),width=3)
             talpha=1-prog(t,6.9,7.4)
             if talpha<1:
                 al=tl.split()[3].point(lambda v:int(v*talpha)); tl.putalpha(al)
@@ -207,7 +166,7 @@ def render_frame(ctx,t):
             if n<len(ctx.trace_local) and t<6.9:
                 hx,hy=pts[-1]
                 hl=Image.new("RGBA",(W,H),(0,0,0,0))
-                ImageDraw.Draw(hl).ellipse([hx-9,hy-9,hx+9,hy+9],fill=(255,210,160,255))
+                ImageDraw.Draw(hl).ellipse([hx-9,hy-9,hx+9,hy+9],fill=CHISPA+(255,))
                 layer.alpha_composite(hl.filter(ImageFilter.GaussianBlur(5)),(0,0))
         io=prog(t,6.0,7.1)
         if io>0:
@@ -217,7 +176,7 @@ def render_frame(ctx,t):
             for rr,a0,om,sz in ctx.orbit:
                 an=a0+t*om
                 x=khx+rr*math.cos(an); y=khy+rr*math.sin(an)*0.92
-                d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=(255,80,30,int(170*oa)))
+                d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=BRASA_SUAVE+(int(170*oa),))
 
     # ---- 7.4-11.2: VARIACIONES al centro, con pulso ----
     if 7.2<=t<11.3:
@@ -257,26 +216,23 @@ def render_frame(ctx,t):
             for rr,a0,om,sz in ctx.orbit[:10]:
                 an=a0+11.4*om+(t-11.4)*om*0.12
                 x=khx+rr*math.cos(an); y=khy+rr*math.sin(an)*0.92
-                d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=(255,80,30,int(150*sa)))
+                d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=BRASA_SUAVE+(int(150*sa),))
         tx=1380  # centro del bloque de texto
-        if t>=11.9:
+        if t>=11.9 and NOMBRE:
             fnt=ImageFont.truetype(JAKARTA,50)
             wm=Image.new("RGBA",(W,110),(0,0,0,0)); dw=ImageDraw.Draw(wm)
-            text_center(dw,(tx,55),"DRAGONJAR",fnt,BLANCO_H+(255,),tracking=22)
+            text_center(dw,(tx,55),NOMBRE,fnt,BLANCO_H+(255,),tracking=22)
             sw=bezier_out(prog(t,11.9,12.7))
             if sw<1:
                 m=Image.new("L",(W,110),0)
                 ImageDraw.Draw(m).rectangle([0,0,int(W*sw),110],fill=255)
                 wm.putalpha(Image.composite(wm.split()[3],Image.new("L",(W,110),0),m))
             layer.alpha_composite(wm,(0,380))
-        if t>=12.9:
+        if t>=12.9 and LEMA:
             ka=prog(t,12.9,13.4)
             fnt2=ImageFont.truetype(JAKARTA,30)
             tg=Image.new("RGBA",(W,140),(0,0,0,0)); dt=ImageDraw.Draw(tg)
-            mixed_line(dt,tx,8,[("HACKEAMOS TU ",BLANCO_H),("EMPRESA",ROJO)],fnt2)
-            mixed_line(dt,tx,58,[("PARA QUE UN ",BLANCO_H),
-                                 ("DELINCUENTE INFORMÁTICO",ROJO),
-                                 (" NO LO HAGA.",BLANCO_H)],fnt2)
+            dibujar_lema(tg,tx,8,lineas_lema(dt,LEMA,fnt2,W*0.42)[:3],fnt2,BLANCO_H,ROJO,50)
             if ka<1:
                 al=tg.split()[3].point(lambda v:int(v*ka)); tg.putalpha(al)
             layer.alpha_composite(tg,(0,520))
@@ -294,10 +250,20 @@ def render_frame(ctx,t):
         img=Image.blend(img,Image.new("RGB",(W,H),(0,0,0)),prog(t,13.8,15.0))
     return img
 
+def configurar(a):
+    """Instala la identidad pedida (pack o flags) en los globales del film."""
+    global NEGRO, ROJO, BLANCO_H, BRASA, BRASA_SUAVE, CALIDO, CHISPA, LOGO, JAKARTA, NOMBRE, LEMA, KH_SRC
+    idt=preparar(a)
+    p=idt["paleta"]; NEGRO,ROJO,BLANCO_H=p["negro"],p["acento"],p["blanco"]
+    BRASA,BRASA_SUAVE,CALIDO,CHISPA=vivo(ROJO,0.10),vivo(ROJO,0.16),vivo(ROJO,0.30),vivo(ROJO,0.70)
+    LOGO,JAKARTA,NOMBRE,LEMA,KH_SRC=idt["logo"],idt["fuente"],idt["nombre"],idt["lema"],idt["ancla"]
+
 def main():
-    ap=argparse.ArgumentParser()
+    ap=argparse.ArgumentParser(description="Film de marca 16:9 (15 s, 24 fps) sobre el logo de la marca pedida.")
     ap.add_argument("-o","--out",required=True)
+    args_identidad(ap)
     a=ap.parse_args()
+    configurar(a)
     ctx=Ctx()
     print(f"trace: {len(ctx.trace_local)} puntos",flush=True)
     tmpd=a.out+".frames"; os.makedirs(tmpd,exist_ok=True)

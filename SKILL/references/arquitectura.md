@@ -98,6 +98,8 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
 - **references/tecnicas-reutilizables.md** — catálogo de técnicas extraídas del
   video AI Tinkerers #20 (61s): componentes, dataviz, diagramas, ritmo.
   Portar técnicas, no paletas ajenas.
+- **scripts/_film.py** — identidad y utilidades compartidas por los films
+  (logo a lienzo cuadrado sin deformar, ancla, paleta, wordmark, lema).
 - **references/cine.md** — recetas cinematográficas (`scripts/film_marca.py`,
   `scripts/film_marca_v2.py`: v2 con coreografía del isotipo — macro → tercio →
   centro → final asimétrico — y keyhole como ancla compositiva).

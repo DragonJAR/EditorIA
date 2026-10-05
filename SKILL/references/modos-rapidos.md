@@ -27,8 +27,8 @@ Varios clips unidos con ritmo, para resúmenes y reels.
    (`-vf scale=1080:1920,fps=30` para vertical).
 2. Ordenar por energía: gancho primero, cierre con CTA.
 3. Cortes al beat: marcar los beats de la música (o cada 2-4s) y cortar ahí.
-4. Transiciones: según el brand pack (ej. DragonJAR: corte seco; un pack con
-   transiciones libres: mancha/blur).
+4. Transiciones: según `reglas.transiciones` del brand pack (corte seco o
+   libres: mancha/blur); sin pack, según el tono.
 5. Música: `musica.py gen` con prompt de energía acorde + `musiconly`.
 6. Texto overlay mínimo: kicker + cifra por clip, nunca párrafos.
 

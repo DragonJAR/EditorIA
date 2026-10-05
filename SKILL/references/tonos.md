@@ -91,8 +91,8 @@ ritmo y estructura, pero conservar su dirección en el brief y el plan.
 
 ## Leyes que cruzan todos los tonos
 
-- **El brand pack manda sobre el preset; sin pack, el brief manda.** Con pack
-  (ej. DragonJAR/AI Tinkerers), las reglas de marca (cortes editoriales secos,
+- **El brand pack manda sobre el preset; sin pack, el brief manda.** Con pack,
+  las reglas de marca (cortes editoriales secos,
   sin crossfades decorativos) tienen prioridad sobre la transición preferida
   del tono. El tono aporta energía, ritmo y voz; el pack fija los límites.
 - **El hook es todo / cada frame postable.** Ver Leyes creativas en

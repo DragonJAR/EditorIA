@@ -5,7 +5,7 @@ ambos lados de un corte (ver references/modos-produccion.md: "Color como pegamen
 Marca-blanca: este modulo define SOLO la paleta base del grade (neutra,
 sutil y determinista). La tinta de marca se aplica desde el brand pack que
 recibe el script que llama (ver aplicar_brand en render_plan.py o
-load_brand en _comun). DragonJAR es un pack de ejemplo; no se asume.
+load_brand en _comun). Ningún pack se asume si no se pide.
 
 El grade es sutil: negros con cuerpo, contraste suave, calidez leve en
 sombras. La misma receta siempre da el mismo look, asi el footage y la
