@@ -183,6 +183,7 @@ check(n_py > 0, f"scripts compilados: {n_py}")
 # 5. las N escenas renderizan con su muestra realista (escenas_muestra.json)
 #    en 9:16 y 16:9, compuestas DENTRO de la zona segura (sin que escala_segura las encoja)
 try:
+    import numpy as _np
     import render_plan as R
     n_total = len(R.SCENES)
     # muestras realistas: fuente única con galeria.py (scripts/escenas_muestra.json)
@@ -219,6 +220,29 @@ try:
               f"{ancho}x{alto}: {n_total}/{n_total} escenas renderizan ({escenas_ok}/{n_total})")
         check(not fuera, f"{ancho}x{alto}: muestras caben en la zona segura sin encogerse "
                          f"bajo x0.75 ({', '.join(fuera) or 'todas'})")
+        # fondo vivo: en el hold asentado la imagen cambia lo que auto_qa exige
+        # (mismo umbral, mismo ancho de análisis): ningún plano queda congelado
+        import auto_qa as _QA
+        from PIL import Image as _Im
+        foto = os.path.join(tempfile.mkdtemp(prefix="editoria_foto_"), "foto.png")
+        _Im.linear_gradient("L").resize((1600, 1200)).convert("RGB").save(foto)
+        congeladas = []
+        for nombre in sorted(set(R.SCENES) - R.QUIETAS):
+            e = dict(muestras[nombre], tipo=nombre)
+            if "imagen" in e:
+                e["imagen"] = foto
+            R._ESCALA.clear()
+            t0, dt = e["to"] * 0.55, 1 / _QA.FPS_MUESTREO
+            difs = []
+            for ta in (t0, t0 + 2 * dt):   # dos pares: congelado = TODO el tramo quieto
+                fr = [R.componer(ctx, [e], e["to"], t, set()).convert("L")
+                      .resize((_QA.ANCHO, int(_QA.ANCHO * alto / ancho))) for t in (ta, ta + dt)]
+                difs.append(float(_np.abs(_np.asarray(fr[0], _np.int16) - _np.asarray(fr[1], _np.int16)).mean()))
+            dif = max(difs)
+            if dif < _QA.FROZEN_DIFF:
+                congeladas.append(f"{nombre} {dif:.2f}")
+        check(not congeladas, f"{ancho}x{alto}: ningún hold congelado (umbral auto_qa "
+                              f"{_QA.FROZEN_DIFF}) ({', '.join(congeladas) or 'todos vivos'})")
     R.formato(1080, 1920)
     ctx = R.Ctx()
     # cifras: los intermedios llevan los decimales del valor final (nunca 3.4999…)

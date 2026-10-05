@@ -14,12 +14,13 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 W,H=1920,1080; FPS=24; DUR=15.0; N=int(DUR*FPS)
 BASE=os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from _film import (LADO, args_identidad, clamp01, dibujar_lema, draw_glow,  # noqa: E402
-                   lineas_lema, preparar, prog, text_center, vivo)
+from _film import (LADO, args_formato, args_identidad, clamp01, dibujar_lema,  # noqa: E402
+                   draw_glow, lienzo, lineas_lema, preparar, prog, rejilla, text_center, vivo)
 # Identidad: se fija en main() desde el pack pedido o los flags (_film.preparar).
 NEGRO=ROJO=BLANCO_H=BRASA=BRASA_SUAVE=CALIDO=CHISPA=None
 LOGO=None; JAKARTA=None; NOMBRE=""; LEMA=[]
-# logo en pantalla: 700px, su ancla en el centro del frame (ISO_POS se calcula en configurar)
+# logo en pantalla: 700px, su ancla en el centro del frame (16:9) o en el
+# tercio alto (9:16, el texto debajo queda en la zona segura); en configurar
 ISO_S=700; SC=ISO_S/LADO
 KH=(960,540)
 KH_SRC=None; ISO_POS=None
@@ -61,8 +62,7 @@ class Ctx:
         self.ember=self._radial(160,BRASA+(255,))
 
     def _radial(self,r,color):
-        s=r*2; img=Image.new("RGBA",(s,s),(0,0,0,0))
-        px=img.load()
+        s=r*2
         # construido con numpy para velocidad
         yy,xx=np.mgrid[0:s,0:s]
         d=np.sqrt((xx-r)**2+(yy-r)**2)/r
@@ -207,12 +207,11 @@ def render_frame(ctx,t,state):
             k=prog(t,10.0,10.5)
             pat=Image.new("RGBA",(W,H),(0,0,0,0))
             # rejilla de minis centrada en el keyhole
-            for gy in range(-2,3):
-                for gx in range(-4,5):
-                    mx=int(KH[0]+gx*150-55); my=int(KH[1]+gy*150-55)
-                    m=ctx.iso_mini.copy()
-                    al=m.split()[3].point(lambda v:int(v*110*k)); m.putalpha(al)
-                    pat.alpha_composite(m,(mx,my))
+            for gx,gy in rejilla(W,H):
+                mx=int(KH[0]+gx*150-55); my=int(KH[1]+gy*150-55)
+                m=ctx.iso_mini.copy()
+                al=m.split()[3].point(lambda v:int(v*110*k)); m.putalpha(al)
+                pat.alpha_composite(m,(mx,my))
             layer.alpha_composite(pat,(0,0))
             if t>=10.5:
                 k2=bezier_out(prog(t,10.5,11.1))
@@ -244,7 +243,7 @@ def render_frame(ctx,t,state):
                 m=Image.new("L",(W,120),0)
                 ImageDraw.Draw(m).rectangle([0,0,int(W*sw),120],fill=255)
                 wm.putalpha(Image.composite(wm.split()[3],Image.new("L",(W,120),0),m))
-            layer.alpha_composite(wm,(0,879))
+            layer.alpha_composite(wm,(0,int(KH[1]+ISO_S*0.48)))   # bajo el logo
         # tagline en UNA línea (cabe a 34px; dos líneas no caben con el zoom)
         if t>=12.9 and LEMA:
             ka=prog(t,12.9,13.4)
@@ -254,7 +253,8 @@ def render_frame(ctx,t,state):
             dibujar_lema(tg,W/2,10,lineas_lema(dt,LEMA,fnt2,W*0.86)[:1],fnt2,BLANCO_H,ROJO,0)
             if ka<1:
                 al=tg.split()[3].point(lambda v:int(v*ka)); tg.putalpha(al)
-            layer.alpha_composite(tg,(0,989))
+            # 16:9: +110 es el máximo que deja el zoom final (y<1049); 9:16 tiene aire
+            layer.alpha_composite(tg,(0,int(KH[1]+ISO_S*0.48+(110 if W>=H else 150))))
 
     img=Image.composite(layer.convert("RGB"),img,layer.split()[3])
     # push-in lento centrado en el keyhole (= centro): 1.00→1.06 en 15s.
@@ -276,7 +276,9 @@ def render_frame(ctx,t,state):
 def configurar(a):
     """Instala la identidad pedida (pack o flags) en los globales del film."""
     global NEGRO, ROJO, BLANCO_H, BRASA, BRASA_SUAVE, CALIDO, CHISPA, LOGO, JAKARTA, NOMBRE, LEMA
-    global KH_SRC, ISO_POS
+    global KH_SRC, ISO_POS, W, H, KH
+    W,H=lienzo(a.formato)
+    KH=(W/2,H/2) if W>=H else (W/2,H*0.40)
     idt=preparar(a)
     p=idt["paleta"]; NEGRO,ROJO,BLANCO_H=p["negro"],p["acento"],p["blanco"]
     BRASA,BRASA_SUAVE,CALIDO,CHISPA=vivo(ROJO,0.10),vivo(ROJO,0.16),vivo(ROJO,0.30),vivo(ROJO,0.75)
@@ -284,9 +286,9 @@ def configurar(a):
     ISO_POS=(int(KH[0]-KH_SRC[0]*SC),int(KH[1]-KH_SRC[1]*SC))
 
 def main():
-    ap=argparse.ArgumentParser(description="Film de marca 16:9 v1 (referencia; preferir film_marca_v2.py).")
+    ap=argparse.ArgumentParser(description="Film de marca v1, 16:9 o 9:16 (referencia; preferir film_marca_v2.py).")
     ap.add_argument("-o","--out",required=True)
-    args_identidad(ap)
+    args_identidad(ap); args_formato(ap)
     a=ap.parse_args()
     configurar(a)
     ctx=Ctx()

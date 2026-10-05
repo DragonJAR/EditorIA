@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Film de marca v2 — dirección de arte (marca del pack o de --logo/--nombre/--lema).
-15s, 16:9, 24fps. El isotipo RESPIRA por el plano (no clavado al centro):
-macro del keyhole → tercio derecho (trazo láser) → centro (variaciones con
-pulso) → final asimétrico (isotipo izquierda, texto derecha).
+15s, 24fps, 16:9 o 9:16 (--formato). El isotipo RESPIRA por el plano (no clavado al centro):
+macro del keyhole → tercio (trazo láser) → centro (variaciones con pulso) →
+final: en 16:9 asimétrico (isotipo izquierda, texto derecha); en 9:16
+apilado (isotipo arriba, texto abajo, dentro de la zona segura).
 El ancla del logo (pack logos.ancla, o su centro de masa) es el ancla compositiva;
 el logo nunca se deforma ni rota.
 Uso: python film_marca_v2.py --brand brand/mi_marca.json -o film.mp4
@@ -15,8 +16,9 @@ W,H=1920,1080; FPS=24; DUR=15.0; N=int(DUR*FPS)
 BASE=os.path.dirname(os.path.abspath(__file__))
 import sys
 sys.path.insert(0, BASE)
-from _film import (LADO, args_identidad, clamp01, dibujar_lema, draw_glow, lerp,  # noqa: E402
-                   lineas_lema, preparar, prog, text_center, vivo)
+from _film import (LADO, args_formato, args_identidad, clamp01, dibujar_lema,  # noqa: E402
+                   draw_glow, lerp, lienzo, lineas_lema, preparar, prog, rejilla,
+                   text_center, vivo)
 # Identidad: se fija en main() desde el pack pedido o los flags (_film.preparar).
 NEGRO=ROJO=BLANCO_H=BRASA=BRASA_SUAVE=CALIDO=CHISPA=None
 LOGO=None; JAKARTA=None; NOMBRE=""; LEMA=[]
@@ -27,10 +29,23 @@ def smooth(k):
 def bezier_out(k):
     k=clamp01(k); return 1-pow(1-k,3) if k<1 else 1
 
-# coreografía: (t, size, kh_x, kh_y)
-KEYS=[(0.0,2000,960,540),(3.0,2080,960,540),(3.8,750,1150,520),
-      (6.8,750,1150,520),(7.4,700,960,540),(11.0,700,960,540),
-      (11.8,520,640,540),(15.0,545,640,540)]
+# coreografía: (t, size, kh_x, kh_y); se arma en configurar() según el formato
+KEYS=[]; FINAL={}
+
+def coreografia():
+    """Posiciones relativas al cuadro: el mismo film en 16:9 y 9:16."""
+    global KEYS
+    cx,cy=W/2,H/2
+    if W>=H:   # 16:9: tercio derecho → centro → final asimétrico
+        ter=(W*0.599,H*0.481); fin=(W/3,H/2)
+        FINAL.update(tx=W*0.719,y_nombre=380,y_lema=520,ancho_lema=W*0.42)
+    else:      # 9:16: tercio superior → centro → final apilado en la zona segura
+        ter=(W/2,H*0.40); fin=(W/2,H*0.36)
+        y_n=int(fin[1]+545*0.5+40)
+        FINAL.update(tx=W/2,y_nombre=y_n,y_lema=y_n+140,ancho_lema=W*0.70)
+    KEYS=[(0.0,2000,cx,cy),(3.0,2080,cx,cy),(3.8,750,*ter),
+          (6.8,750,*ter),(7.4,700,cx,cy),(11.0,700,cx,cy),
+          (11.8,520,*fin),(15.0,545,*fin)]
 def choreo(t):
     for i in range(len(KEYS)-1):
         t0,_,_,_=KEYS[i]; t1,_,_,_=KEYS[i+1]
@@ -194,11 +209,10 @@ def render_frame(ctx,t):
         if t>=10.1:
             k=prog(t,10.1,10.6)
             pat=Image.new("RGBA",(W,H),(0,0,0,0))
-            for gy in range(-2,3):
-                for gx in range(-4,5):
-                    m=ctx.mini.copy()
-                    al=m.split()[3].point(lambda v:int(v*110*k)); m.putalpha(al)
-                    pat.alpha_composite(m,(int(khx+gx*150-55),int(khy+gy*150-55)))
+            for gx,gy in rejilla(W,H):
+                m=ctx.mini.copy()
+                al=m.split()[3].point(lambda v:int(v*110*k)); m.putalpha(al)
+                pat.alpha_composite(m,(int(khx+gx*150-55),int(khy+gy*150-55)))
             layer.alpha_composite(pat,(0,0))
             if t>=10.6:
                 place_iso(layer,ctx.iso_at(s2,"red"),s2,khx,khy,
@@ -217,7 +231,7 @@ def render_frame(ctx,t):
                 an=a0+11.4*om+(t-11.4)*om*0.12
                 x=khx+rr*math.cos(an); y=khy+rr*math.sin(an)*0.92
                 d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=BRASA_SUAVE+(int(150*sa),))
-        tx=1380  # centro del bloque de texto
+        tx=FINAL["tx"]  # centro del bloque de texto
         if t>=11.9 and NOMBRE:
             fnt=ImageFont.truetype(JAKARTA,50)
             wm=Image.new("RGBA",(W,110),(0,0,0,0)); dw=ImageDraw.Draw(wm)
@@ -227,15 +241,15 @@ def render_frame(ctx,t):
                 m=Image.new("L",(W,110),0)
                 ImageDraw.Draw(m).rectangle([0,0,int(W*sw),110],fill=255)
                 wm.putalpha(Image.composite(wm.split()[3],Image.new("L",(W,110),0),m))
-            layer.alpha_composite(wm,(0,380))
+            layer.alpha_composite(wm,(0,int(FINAL["y_nombre"])))
         if t>=12.9 and LEMA:
             ka=prog(t,12.9,13.4)
             fnt2=ImageFont.truetype(JAKARTA,30)
             tg=Image.new("RGBA",(W,140),(0,0,0,0)); dt=ImageDraw.Draw(tg)
-            dibujar_lema(tg,tx,8,lineas_lema(dt,LEMA,fnt2,W*0.42)[:3],fnt2,BLANCO_H,ROJO,50)
+            dibujar_lema(tg,tx,8,lineas_lema(dt,LEMA,fnt2,FINAL["ancho_lema"])[:3],fnt2,BLANCO_H,ROJO,50)
             if ka<1:
                 al=tg.split()[3].point(lambda v:int(v*ka)); tg.putalpha(al)
-            layer.alpha_composite(tg,(0,520))
+            layer.alpha_composite(tg,(0,int(FINAL["y_lema"])))
 
     img=Image.composite(layer.convert("RGB"),img,layer.split()[3])
     # push-in global sutil 1.00→1.06
@@ -253,15 +267,17 @@ def render_frame(ctx,t):
 def configurar(a):
     """Instala la identidad pedida (pack o flags) en los globales del film."""
     global NEGRO, ROJO, BLANCO_H, BRASA, BRASA_SUAVE, CALIDO, CHISPA, LOGO, JAKARTA, NOMBRE, LEMA, KH_SRC
+    global W, H
+    W,H=lienzo(a.formato); coreografia()
     idt=preparar(a)
     p=idt["paleta"]; NEGRO,ROJO,BLANCO_H=p["negro"],p["acento"],p["blanco"]
     BRASA,BRASA_SUAVE,CALIDO,CHISPA=vivo(ROJO,0.10),vivo(ROJO,0.16),vivo(ROJO,0.30),vivo(ROJO,0.70)
     LOGO,JAKARTA,NOMBRE,LEMA,KH_SRC=idt["logo"],idt["fuente"],idt["nombre"],idt["lema"],idt["ancla"]
 
 def main():
-    ap=argparse.ArgumentParser(description="Film de marca 16:9 (15 s, 24 fps) sobre el logo de la marca pedida.")
+    ap=argparse.ArgumentParser(description="Film de marca (15 s, 24 fps, 16:9 o 9:16) sobre el logo de la marca pedida.")
     ap.add_argument("-o","--out",required=True)
-    args_identidad(ap)
+    args_identidad(ap); args_formato(ap)
     a=ap.parse_args()
     configurar(a)
     ctx=Ctx()

@@ -43,7 +43,7 @@ diseño libre; con pack, fidelidad total.
 | Carpeta de fotos → video | `scripts/ffmpeg_tools/montaje.py pase ./fotos -o pase.mp4` (`--bpm` para cambiar al compás) |
 | Clip de podcast/voz para redes | **Audiograma**: `scripts/audio_viz.py audio.mp3 --modo audiograma --titulo "..." --portada cover.jpg` + subtítulos con `caption.py` |
 | Resumen de reunión/transcripción | **Composición**: `references/pipeline-resumen.md` + estilos de `references/estilos.md` |
-| Film cinematográfico 16:9 | **Cine**: recetas en `references/cine.md` (film de marca de cualquier pack: `scripts/film_marca_v2.py --brand`) |
+| Film cinematográfico (16:9 o 9:16) | **Cine**: recetas en `references/cine.md` (film de marca de cualquier pack: `scripts/film_marca_v2.py --brand`, `--formato 9:16` para vertical) |
 | Tarjeta cinética rápida (una frase) | **Quick**: receta `quick-kinetic` en `references/modos-rapidos.md` |
 | Montaje de clips con música | **Quick**: receta `quick-montage` en `references/modos-rapidos.md` |
 | Recorte/adaptación de un video existente | **Quick**: receta `quick-cut` en `references/modos-rapidos.md` |

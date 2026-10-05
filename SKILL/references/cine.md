@@ -4,13 +4,17 @@
 > referencia). Funcionan con cualquier brand pack: los valores concretos
 > (paleta, logo, ancla, wordmark, lema) salen del pack que se pida.
 
-Recetas reutilizables para piezas premium 16:9. Principio: el logo nunca se
+Recetas reutilizables para piezas premium en 16:9 o 9:16 (`--formato`).
+Principio: el logo nunca se
 redibuja, rota ni deforma — solo escala uniforme (un logo no cuadrado se
 centra en un lienzo cuadrado transparente, no se estira).
 
 **Ejemplo**: `python scripts/film_marca_v2.py --brand brand/mi_marca.json -o film.mp4`
 (15 s, 1920×1080, 24 fps): macro del ancla del logo → trazo láser →
-match-cuts al beat → cierre asimétrico con wordmark y lema. Sin pack:
+match-cuts al beat → cierre asimétrico con wordmark y lema. `--formato 9:16`
+(1080×1920) recompone la coreografía: tercio superior, cierre apilado
+(logo arriba, texto abajo) dentro de la zona segura de Reels/TikTok/Shorts;
+el patrón de mini logos cubre el cuadro en ambos formatos. Sin pack:
 `--logo logo.png --nombre "Mi marca" --lema "Frase con *énfasis*"`. Los mp4
 no vienen en el paquete (se generan). En `film/` está la música de ejemplo
 (`film/musica_demo.mp3`, `film/musica_film.mp3`, `film/musica_film_v2.mp3`).

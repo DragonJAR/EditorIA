@@ -38,6 +38,22 @@ def args_identidad(ap):
     ap.add_argument("--lema", help="lema del cierre; *palabras* en acento (default: lema del pack)")
 
 
+def args_formato(ap):
+    ap.add_argument("--formato", choices=["16:9", "9:16"], default="16:9",
+                    help="16:9 (YouTube, web) o 9:16 (Reels, TikTok, Shorts)")
+
+
+def lienzo(formato):
+    return (1920, 1080) if formato == "16:9" else (1080, 1920)
+
+
+def rejilla(W, H, paso=150):
+    """Celdas (gx, gy) del patrón de mini logos: cubre el cuadro en cualquier
+    formato (9×5 en 16:9, 7×11 en 9:16)."""
+    nx, ny = (4, 2) if W >= H else (3, 5)
+    return [(gx, gy) for gy in range(-ny, ny + 1) for gx in range(-nx, nx + 1)]
+
+
 def preparar(args):
     """Identidad lista para animar: paleta, logo cuadrado (LADO px), ancla del
     logo en ese lienzo, wordmark, lema en segmentos y fuente de titulares."""

@@ -34,6 +34,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(AQUI)
 sys.path.insert(0, os.path.join(AQUI, "ffmpeg_tools"))
 from _comun import NEUTRO, colores_marca, probe  # noqa: E402
+sys.path.insert(0, AQUI)
+from render_plan import QUIETAS  # noqa: E402
 
 PY = sys.executable
 # una escena aislada entra desde negro y sale fundida a negro (en un plan real
@@ -49,8 +51,10 @@ def correr(cmd, log):
     return r.returncode, r.stdout + r.stderr, time.time() - t0
 
 
-def qa(video, log, extra=()):
-    """auto_qa del video → (ok, defectos, sheet)."""
+def qa(video, log, extra=(), quieta=False):
+    """auto_qa del video → (ok, defectos, sheet). `quieta`: la pieza se queda
+    quieta POR DISEÑO mientras se lee (render_plan.QUIETAS): su hold no es un
+    defecto `frozen`."""
     sheet = os.path.splitext(video)[0] + "_qa.png"
     rep = os.path.splitext(video)[0] + "_qa.json"
     correr([PY, os.path.join(AQUI, "auto_qa.py"), video, "--sheet", sheet, "--json", rep,
@@ -58,6 +62,8 @@ def qa(video, log, extra=()):
     if not os.path.isfile(rep):
         return False, [{"tipo": "error", "detalle": "auto_qa no produjo reporte"}], None
     defectos = json.load(open(rep, encoding="utf-8"))["defectos"]
+    if quieta:
+        defectos = [d for d in defectos if d["tipo"] != "frozen"]
     return not defectos, defectos, sheet
 
 
@@ -127,28 +133,36 @@ def render(plan, nombre, carpeta, log, brand=None, ext=".mp4", extra=()):
     return out, rc, txt, seg
 
 
-def escenas(a, out, log, filas):
-    muestras = json.load(open(os.path.join(AQUI, "escenas_muestra.json"),
-                              encoding="utf-8"))["escenas"]
+FORMATOS = {"v": "1080x1920", "h": "1920x1080"}   # todo se prueba en 9:16 Y 16:9
+
+
+def escenas(a, out, log, filas, muestras):
     tipos = [t for t in muestras if not a.solo or t in a.solo]
-    for tipo in tipos:
-        e = dict(muestras[tipo], tipo=tipo)
-        v, rc, txt, seg = render(plan_de([e], e["to"]), tipo, out, log, a.brand)
-        if rc or not video_ok(v):
-            filas.append(("escena", tipo, False, f"render rc={rc}: {txt.strip()[-200:]}", None, None, seg))
-            continue
-        ok, defectos, sheet = qa(v, log, QA_BORDES)
-        det = "; ".join(f"{d['tipo']} {d.get('t0', '')}-{d.get('t1', '')}s" for d in defectos)
-        filas.append(("escena", tipo, ok, det or "limpio", v, sheet, seg))
-        print(f"  {'PASS' if ok else 'FAIL'} escena {tipo:16s} {seg:5.1f}s {det}", flush=True)
-    return muestras
+    for f in a.formatos:
+        for tipo in tipos:
+            e = dict(muestras[tipo], tipo=tipo)
+            nombre = f"{tipo}_{f}"
+            v, rc, txt, seg = render(plan_de([e], e["to"]), nombre, out, log, a.brand,
+                                     extra=["--tamano", FORMATOS[f]])
+            if rc or not video_ok(v):
+                filas.append(("escena", nombre, False, f"render rc={rc}: {txt.strip()[-200:]}",
+                              None, None, seg))
+                print(f"  FAIL escena {nombre}: rc={rc}", flush=True)
+                continue
+            ok, defectos, sheet = qa(v, log, QA_BORDES, quieta=tipo in QUIETAS)
+            det = "; ".join(f"{d['tipo']} {d.get('t0', '')}-{d.get('t1', '')}s" for d in defectos)
+            escala = [ln.split("escalada ")[-1] for ln in txt.splitlines() if "zona segura: escena" in ln]
+            if escala:   # la red de seguridad actuó: dato para mirar, no un fallo
+                det = (det + "; " if det else "") + f"encogida {escala[0]}"
+            filas.append(("escena", nombre, ok, det or "limpio", v, sheet, seg))
+            print(f"  {'PASS' if ok else 'FAIL'} escena {nombre:18s} {seg:5.1f}s {det}", flush=True)
 
 
 # ---------- herramientas ----------
 def herramientas(a, out, log, filas, muestras):
     def anota(nombre, ok, det, archivo=None, seg=0.0, sheet=None):
         filas.append(("herramienta", nombre, ok, det, archivo, sheet, seg))
-        print(f"  {'PASS' if ok else 'FAIL'} {nombre:28s} {seg:5.1f}s {det}", flush=True)
+        print(f"  {'PASS' if ok else 'FAIL'} {nombre:30s} {seg:5.1f}s {det}", flush=True)
 
     def con_qa(nombre, video, rc, txt, seg, extra=QA_BORDES):
         if rc or not video_ok(video):
@@ -158,36 +172,12 @@ def herramientas(a, out, log, filas, muestras):
                                     for d in defectos) or "limpio", video, seg, sheet)
 
     m = lambda t: dict(muestras[t], tipo=t)   # noqa: E731
-    # overlay con alfa (lower third para NLE/OBS): el alfa sobrevive al códec
-    for ext in (".webm", ".mov"):
-        v, rc, txt, seg = render(plan_de([m("rotulo_inferior")], 5), "overlay_alfa", out, log,
-                                 a.brand, ext)
-        ok = rc == 0 and "alfa verificado" in txt and "AVISO overlay" not in txt
-        anota(f"overlay alfa {ext}", ok, "alfa verificado" if ok else txt.strip()[-200:], v, seg)
-    # transición mancha entre dos escenas
-    e1, e2 = m("stats"), m("quote")
-    e2 = dict(e2, transicion="mancha", **{"from": 5, "to": 11},
-              at={k: v + 5 for k, v in e2["at"].items()})
-    v, rc, txt, seg = render(plan_de([e1, e2], 11), "transicion_mancha", out, log, a.brand)
-    con_qa("transición mancha", v, rc, txt, seg)
-    # plantilla × tabla: la fila 2 sale con SUS datos
-    tabla = os.path.join(out, "ponentes.csv")
-    open(tabla, "w", encoding="utf-8").write("nombre,rol\nAna Gómez,Diseño\nLuis Peña,Ingeniería\n")
-    v, rc, txt, seg = render(plan_de([dict(m("rotulo_inferior"), nombre="{nombre}", rol="{rol}")], 5),
-                             "plantilla", out, log, a.brand, extra=["--datos", tabla, "--fila", "2"])
-    plan_fila = v + ".plan.json"
-    ok = rc == 0 and os.path.isfile(plan_fila) and \
-        "Luis Peña" in open(plan_fila, encoding="utf-8").read()
-    anota("plantilla × tabla (--datos)", ok, "fila 2 sustituida" if ok else txt.strip()[-200:], v, seg)
-    # 16:9: las escenas declaradas horizontales
-    for tipo in ("countdown", "rotulo_inferior"):
-        v, rc, txt, seg = render(plan_de([m(tipo)], muestras[tipo]["to"]), f"h_{tipo}", out, log,
-                                 a.brand, extra=["--tamano", "1920x1080"])
-        con_qa(f"16:9 {tipo}", v, rc, txt, seg)
-    # captions animados sobre un video real de la galería
-    base = os.path.join(out, "kenburns.mp4")
-    if not video_ok(base):
-        v, rc, txt, seg = render(plan_de([m("kenburns")], 5), "kenburns", out, log, a.brand)
+    marca = ["--brand", a.brand] if a.brand else []
+    # audio sintético con dinámica de voz (audiograma / ondas)
+    audio = os.path.join(out, "voz_sintetica.wav")
+    correr(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
+            "aevalsrc=0.5*sin(2*PI*180*t)*(0.55+0.45*sin(2*PI*3*t))*(0.6+0.4*sin(2*PI*0.4*t)):s=44100:d=6",
+            audio], log)
     cues = os.path.join(out, "cues.txt")
     open(cues, "w", encoding="utf-8").write("0:00.4-0:02.2 Un lugar para volver\n"
                                             "0:02.3-0:04.4 cada temporada\n")
@@ -196,53 +186,80 @@ def herramientas(a, out, log, filas, muestras):
            ("cada", 2.4, 2.8), ("temporada", 2.8, 3.8)]
     json.dump({"palabras": [{"texto": t, "inicio": i, "fin": f, "confianza": 1.0} for t, i, f in pal]},
               open(palabras, "w", encoding="utf-8"))
-    marca = ["--brand", a.brand] if a.brand else []
-    for modo, args in (("fade", ["--text", cues, "--animate", "fade"]),
-                       ("pop", ["--text", cues, "--animate", "pop"]),
-                       ("slide", ["--text", cues, "--animate", "slide"]),
-                       ("karaoke", ["--palabras", palabras, "--animate", "pop", "--karaoke"])):
-        v = os.path.join(out, f"caption_{modo}.mp4")
-        rc, txt, seg = correr([PY, os.path.join(AQUI, "ffmpeg_tools", "caption.py"), base,
-                               *args, *marca, "-o", v], log)
-        con_qa(f"caption {modo}", v, rc, txt, seg)
-    # pase de fotos (slideshow con Ken Burns distinto por foto)
     fotos = os.path.join(out, "fotos")
     os.makedirs(fotos, exist_ok=True)
     src = Image.open(os.path.join(out, "foto_muestra.png"))
     for i, caja in enumerate(((0, 0, 1200, 1400), (300, 100, 1800, 1100), (500, 300, 1300, 1400))):
         src.crop(caja).save(os.path.join(fotos, f"{i + 1:02d}.png"))
-    v = os.path.join(out, "pase.mp4")
-    rc, txt, seg = correr([PY, os.path.join(AQUI, "ffmpeg_tools", "montaje.py"), "pase", fotos,
-                           "--duracion", "3", "--transicion", "0.5", "-o", v], log)
-    con_qa("pase de fotos", v, rc, txt, seg, extra=[])
-    # audiograma y ondas (audio sintético con dinámica de voz)
-    audio = os.path.join(out, "voz_sintetica.wav")
-    correr(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
-            "aevalsrc=0.5*sin(2*PI*180*t)*(0.55+0.45*sin(2*PI*3*t))*(0.6+0.4*sin(2*PI*0.4*t)):s=44100:d=6",
-            audio], log)
-    for modo, extra in (("audiograma", ["--titulo", "Episodio 12", "--subtitulo", "Cómo empezar",
-                                        "--portada", os.path.join(out, "foto_muestra.png")]),
-                        ("waves", [])):
-        v = os.path.join(out, f"audio_{modo}.mp4")
-        rc, txt, seg = correr([PY, os.path.join(AQUI, "audio_viz.py"), audio, "-o", v,
-                               "--modo", modo, *extra, *marca], log)
-        con_qa(f"audio_viz {modo}", v, rc, txt, seg, extra=[])
-    # films de marca: con --brand el logo del pack; sin pack, un logo dado
-    ident = ["--brand", a.brand] if a.brand else \
-        ["--logo", os.path.join(out, "logo_muestra.png"), "--nombre", "Tu Marca",
-         "--lema", "Edita menos, *crea más*"]
-    for film in ("film_marca_v2", "film_marca"):
-        v = os.path.join(out, f"{film}.mp4")
-        rc, txt, seg = correr([PY, os.path.join(AQUI, f"{film}.py"), "-o", v, *ident], log)
-        con_qa(film, v, rc, txt, seg, extra=["--ignorar-inicio", "0.5", "--ignorar-fin", "0.8"])
-    # thumbnail (imagen, no video: basta que exista con el tamaño pedido)
-    for formato, tam in (("16:9", (1280, 720)), ("9:16", (1080, 1920))):
-        v = os.path.join(out, f"thumbnail_{formato.replace(':', 'x')}.png")
+
+    for f in a.formatos:
+        tam = ["--tamano", FORMATOS[f]]
+        # overlay con alfa (lower third para NLE/OBS): el alfa sobrevive al códec
+        for ext in (".webm", ".mov"):
+            v, rc, txt, seg = render(plan_de([m("rotulo_inferior")], 5), f"overlay_alfa_{f}", out, log,
+                                     a.brand, ext, extra=tam)
+            ok = rc == 0 and "alfa verificado" in txt and "AVISO overlay" not in txt
+            anota(f"overlay alfa {ext} {f}", ok, "alfa verificado" if ok else txt.strip()[-200:], v, seg)
+        # transición mancha entre dos escenas
+        e1, e2 = m("stats"), m("quote")
+        e2 = dict(e2, transicion="mancha", **{"from": 5, "to": 11},
+                  at={k: v + 5 for k, v in e2["at"].items()})
+        v, rc, txt, seg = render(plan_de([e1, e2], 11), f"transicion_mancha_{f}", out, log, a.brand,
+                                 extra=tam)
+        con_qa(f"transición mancha {f}", v, rc, txt, seg)
+        # captions animados sobre un video real de la galería
+        base = os.path.join(out, f"kenburns_{f}.mp4")
+        if not video_ok(base):
+            render(plan_de([m("kenburns")], 5), f"kenburns_{f}", out, log, a.brand, extra=tam)
+        for modo, args in (("fade", ["--text", cues, "--animate", "fade"]),
+                           ("pop", ["--text", cues, "--animate", "pop"]),
+                           ("slide", ["--text", cues, "--animate", "slide"]),
+                           ("karaoke", ["--palabras", palabras, "--animate", "pop", "--karaoke"])):
+            v = os.path.join(out, f"caption_{modo}_{f}.mp4")
+            rc, txt, seg = correr([PY, os.path.join(AQUI, "ffmpeg_tools", "caption.py"), base,
+                                   *args, *marca, "-o", v], log)
+            con_qa(f"caption {modo} {f}", v, rc, txt, seg)
+        # pase de fotos (slideshow con Ken Burns distinto por foto)
+        v = os.path.join(out, f"pase_{f}.mp4")
+        rc, txt, seg = correr([PY, os.path.join(AQUI, "ffmpeg_tools", "montaje.py"), "pase", fotos,
+                               "--duracion", "3", "--transicion", "0.5", *tam, "-o", v], log)
+        con_qa(f"pase de fotos {f}", v, rc, txt, seg, extra=[])
+        for modo, extra in (("audiograma", ["--titulo", "Episodio 12", "--subtitulo", "Cómo empezar",
+                                            "--portada", os.path.join(out, "foto_muestra.png")]),
+                            ("waves", [])):
+            v = os.path.join(out, f"audio_{modo}_{f}.mp4")
+            rc, txt, seg = correr([PY, os.path.join(AQUI, "audio_viz.py"), audio, "-o", v,
+                                   "--modo", modo, "-s", FORMATOS[f], *extra, *marca], log)
+            con_qa(f"audio_viz {modo} {f}", v, rc, txt, seg, extra=[])
+        # thumbnail (imagen: basta que exista con el tamaño del formato)
+        formato, dims = {"v": ("9:16", (1080, 1920)), "h": ("16:9", (1280, 720))}[f]
+        v = os.path.join(out, f"thumbnail_{f}.png")
         rc, txt, seg = correr([PY, os.path.join(AQUI, "ffmpeg_tools", "thumbnail.py"),
                                os.path.join(out, "foto_muestra.png"), "--texto", "UN LUGAR ÚNICO",
                                "--resaltar", "ÚNICO", "--formato", formato, *marca, "-o", v], log)
-        ok = rc == 0 and os.path.isfile(v) and Image.open(v).size == tam
+        ok = rc == 0 and os.path.isfile(v) and Image.open(v).size == dims
         anota(f"thumbnail {formato}", ok, "ok" if ok else txt.strip()[-200:], v, seg)
+
+    # plantilla × tabla: la fila 2 sale con SUS datos (lógica, no formato)
+    tabla = os.path.join(out, "ponentes.csv")
+    open(tabla, "w", encoding="utf-8").write("nombre,rol\nAna Gómez,Diseño\nLuis Peña,Ingeniería\n")
+    v, rc, txt, seg = render(plan_de([dict(m("rotulo_inferior"), nombre="{nombre}", rol="{rol}")], 5),
+                             "plantilla", out, log, a.brand, extra=["--datos", tabla, "--fila", "2"])
+    plan_fila = v + ".plan.json"
+    ok = rc == 0 and os.path.isfile(plan_fila) and \
+        "Luis Peña" in open(plan_fila, encoding="utf-8").read()
+    anota("plantilla × tabla (--datos)", ok, "fila 2 sustituida" if ok else txt.strip()[-200:], v, seg)
+    # films de marca (9:16 y 16:9): con --brand el logo del pack; sin pack, un logo dado
+    ident = ["--brand", a.brand] if a.brand else \
+        ["--logo", os.path.join(out, "logo_muestra.png"), "--nombre", "Tu Marca",
+         "--lema", "Edita menos, *crea más*"]
+    for f in a.formatos:
+        for film in ("film_marca_v2", "film_marca"):
+            v = os.path.join(out, f"{film}_{f}.mp4")
+            rc, txt, seg = correr([PY, os.path.join(AQUI, f"{film}.py"), "-o", v, *ident,
+                                   "--formato", {"v": "9:16", "h": "16:9"}[f]], log)
+            shutil.rmtree(v + ".frames", ignore_errors=True)
+            con_qa(f"{film} {f}", v, rc, txt, seg, extra=["--ignorar-inicio", "0.5", "--ignorar-fin", "0.8"])
 
 
 # ---------- resumen visual ----------
@@ -289,10 +306,13 @@ def main():
     ap.add_argument("-o", "--out", required=True, help="carpeta de la galería")
     ap.add_argument("--brand", help="brand pack: la misma galería en esa identidad")
     ap.add_argument("--solo", help="escenas separadas por coma (default: todas)")
+    ap.add_argument("--formato", choices=["v", "h", "ambos"], default="ambos",
+                    help="v = 9:16, h = 16:9 (default: ambos)")
     ap.add_argument("--sin-herramientas", action="store_true", help="solo escenas")
     ap.add_argument("--sin-escenas", action="store_true", help="solo herramientas")
     a = ap.parse_args()
     a.solo = set(a.solo.split(",")) if a.solo else None
+    a.formatos = ["v", "h"] if a.formato == "ambos" else [a.formato]
     if a.brand:
         a.brand = os.path.abspath(a.brand)
     out = os.path.abspath(a.out)
@@ -307,7 +327,7 @@ def main():
     muestras = json.load(open(os.path.join(AQUI, "escenas_muestra.json"),
                               encoding="utf-8"))["escenas"]
     if not a.sin_escenas:
-        escenas(a, out, log, filas)
+        escenas(a, out, log, filas, muestras)
     if not a.sin_herramientas:
         herramientas(a, out, log, filas, muestras)
     hoja = resumen(filas, out)

@@ -88,13 +88,26 @@ validador la renderiza en cada corrida y exige que quepa en la zona segura
 9:16 sin encogerse; `scripts/galeria.py` la renderiza de verdad y le pasa
 `auto_qa`. Toda escena nueva necesita su muestra.
 
-**Componer dentro de la zona segura**: `caja_segura()` da el rectángulo útil;
-`pie_fuente()` pone la fuente de un dato en su borde inferior;
-`fuente_que_cabe()` encoge cifras y etiquetas a su caja (el tamaño lo fija el
-valor FINAL, así no salta mientras cuenta); `columnas_grilla()` elige una
-columna en 9:16 hasta 3 tarjetas. Toda escena asentada respira con un push-in
-lento común (`respiracion()` en `componer`), salvo las que mueven su propia
-cámara o son overlay; `"respira": false` lo apaga por escena.
+**Componer en cualquier formato (9:16 y 16:9)** — primitivas de layout:
+- `caja_segura()`: el rectángulo útil de la plataforma; el contenido se
+  compone DENTRO (escala_segura es la red, no el diseño).
+- `unidad()`: lado corto del cuadro; los tamaños de letra van en ella, nunca
+  en `W` (W*0.055 son 59 px en 9:16 y 105 px en 16:9).
+- `pila(alturas, y0, y1)`: apila bloques medidos y, si no caben, encoge todo
+  junto en vez de dejar que se pisen (oferta, cita).
+- `fuente_que_cabe()`: encoge cifras y etiquetas a su caja; el tamaño lo
+  fija el valor FINAL (no salta mientras cuenta).
+- `columnas_grilla()` / `cuadricula()`: 1 columna en 9:16 hasta 3 tarjetas.
+- `pie_fuente()`: la fuente del dato en el borde inferior de la zona segura.
+- `check()`: check dibujado (el glifo ✓ no existe en todas las fuentes).
+- `COLUMNA` (chat, leads, handoff): en 16:9 se componen a 1080 px de ancho,
+  centradas — una conversación de 1920 px no se lee.
+- `A_SANGRE` (kenburns, confeti): el fondo cubre el cuadro a propósito; no
+  se encogen y su texto va en la zona segura.
+- Respiración de cámara común en `componer` (push-in 1 %/s hasta 5 % +
+  flotación de 6 px): ningún hold queda congelado. Exentas las de
+  `CAMARA_PROPIA`; `QUIETAS` (rótulo inferior) se queda quieta mientras se
+  lee; `"respira": false` la apaga por escena.
 **Marca-blanca**: el color viene del brand pack (`brand/*.json`); sin pack,
 se usa el `ACENTO` neutro del renderer.
 
