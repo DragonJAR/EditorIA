@@ -1812,7 +1812,10 @@ def sc_demo(ctx, e, t):
         zout = ease_in_out(clamp01((t - (nxt - 1.3)) / 0.7))
         s_ = zin * (1 - zout)
         if s_ > 0:
-            z = 1 + (min(2.0, p_.get("zoom", 1.6)) - 1) * s_
+            # asentado el zoom (cursor quieto), la cámara sigue entrando lento:
+            # el hold respira sin mover cámara y cursor a la vez
+            deriva = 0.04 * min(3.0, max(0.0, t - (a_ + 0.85)))
+            z = 1 + (min(2.0, p_.get("zoom", 1.6)) - 1 + deriva) * s_
             fx, fy, foco = p_.get("x", 0.5), p_.get("y", 0.5), s_
     fxp, fyp = fx * bw, fy * bh
     cx_, cy_ = fxp * (1 - 1 / z), fyp * (1 - 1 / z)

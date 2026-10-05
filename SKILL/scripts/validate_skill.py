@@ -251,13 +251,18 @@ try:
             if "imagen" in e:
                 e["imagen"] = foto
             R._ESCALA.clear()
-            t0, dt = e["to"] * 0.55, 1 / _QA.FPS_MUESTREO
-            difs = []
-            for ta in (t0, t0 + 2 * dt):   # dos pares: congelado = TODO el tramo quieto
-                fr = [R.componer(ctx, [e], e["to"], t, set()).convert("L")
-                      .resize((_QA.ANCHO, int(_QA.ANCHO * alto / ancho))) for t in (ta, ta + dt)]
-                difs.append(float(_np.abs(_np.asarray(fr[0], _np.int16) - _np.asarray(fr[1], _np.int16)).mean()))
-            dif = max(difs)
+            dt = 1 / _QA.FPS_MUESTREO
+
+            def _vivo(t0):   # dos pares: congelado = TODO el tramo quieto
+                difs = []
+                for ta in (t0, t0 + 2 * dt):
+                    fr = [R.componer(ctx, [e], e["to"], t, set()).convert("L")
+                          .resize((_QA.ANCHO, int(_QA.ANCHO * alto / ancho))) for t in (ta, ta + dt)]
+                    difs.append(float(_np.abs(_np.asarray(fr[0], _np.int16)
+                                              - _np.asarray(fr[1], _np.int16)).mean()))
+                return max(difs)
+            # a media escena y en el último hold antes de la salida (donde todo ya asentó)
+            dif = min(_vivo(e["to"] * 0.55), _vivo(e["to"] - 0.6 - 3 * dt))
             if dif < _QA.FROZEN_DIFF:
                 congeladas.append(f"{nombre} {dif:.2f}")
         check(not congeladas, f"{ancho}x{alto}: ningún hold congelado (umbral auto_qa "
