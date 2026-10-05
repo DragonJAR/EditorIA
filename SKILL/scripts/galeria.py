@@ -68,10 +68,12 @@ def qa(video, log, extra=(), quieta=False):
 
 
 def video_ok(path, dur_min=0.5):
+    if not os.path.isfile(path):   # probe() muere ante un archivo ausente: no aquí
+        return False
     try:
         m = probe(path)
         return bool(m.get("video")) and (m.get("duration") or 0) >= dur_min
-    except Exception:
+    except (Exception, SystemExit):
         return False
 
 
