@@ -18,7 +18,7 @@ Reglas del audiograma (references/tecnicas-video.md, "Visualización de audio"):
 
 Uso:
   python audio_viz.py audio.mp3 -o viz.mp4 [--modo waves|spectrum|freqs]
-  python audio_viz.py audio.mp3 -o viz.mp4 --overlay video.mp4
+  python audio_viz.py audio.mp3 -o viz.mp4 --overlay video.mp4 [--posicion centro]
   python audio_viz.py episodio.mp3 -o clip.mp4 --modo audiograma \\
       --titulo "Episodio 42" --subtitulo "Mi Podcast" --portada cover.jpg \\
       --inicio 754 --duracion 45 [--brand brand/mi_marca.json]
@@ -170,6 +170,8 @@ def main():
     ap.add_argument("-r", "--fps", default=30, type=int, help="fps (default: 30)")
     ap.add_argument("--overlay", help="video base: la banda se superpone dentro de la zona segura")
     ap.add_argument("--altura", default=240, type=int, help="altura de la banda con --overlay")
+    ap.add_argument("--posicion", default="abajo", choices=["abajo", "centro", "arriba"],
+                    help="dónde va la banda con --overlay (siempre dentro de la zona segura)")
     g = ap.add_argument_group("audiograma")
     g.add_argument("--titulo"); g.add_argument("--subtitulo")
     g.add_argument("--portada", help="imagen de portada (se recorta cuadrada)")
@@ -184,8 +186,13 @@ def main():
         return audiograma(a)
     dur = probe(a.audio).get("duration") or 0
     color = "0x" + acento(a.brand, a.color)
+    try:
+        ancho, alto = (int(v) for v in a.size.lower().split("x"))
+    except ValueError:
+        sys.exit("ERROR: --size debe ser ANCHOxALTO, ej. 1080x1920")
     if a.modo == "waves":
-        filtro = f"showwaves=s={a.size}:mode=line:colors={color}:rate={a.fps}"
+        # onda RELLENA (cline), no una línea de 1 px: se ve también en pasajes suaves
+        filtro = f"showwaves=s={a.size}:mode=cline:draw=full:scale=sqrt:colors={color}:rate={a.fps}"
     elif a.modo == "spectrum":   # showspectrum usa esquemas propios; fire es el más cercano a marca
         filtro = f"showspectrum=s={a.size}:color=fire:slide=scroll:mode=combined"
     else:
@@ -198,13 +205,30 @@ def main():
         w, h = v["width"], v["height"]
         # dentro de la zona segura: abajo en 9:16 vive la UI de la plataforma
         sm = safe_margins_px("reels" if h > w else "youtube", w, h)
+        # banda dentro de la zona segura; --posicion la saca de donde el video
+        # base ya tiene texto (abajo en 9:16 vive la UI de la plataforma)
+        y = {"abajo": f"H-{a.altura}-{sm['bottom']}", "centro": f"(H-{a.altura})/2",
+             "arriba": str(sm["top"])}[a.posicion]
         fc = (f"[0:a]{filtro},scale={w}:{a.altura}[viz];"
-              f"[1:v][viz]overlay=0:H-{a.altura}-{sm['bottom']},{VF_RGB_A_BT709},format=yuv420p[v]")
+              f"[1:v][viz]overlay=0:{y},{VF_RGB_A_BT709},format=yuv420p[v]")
         cmd = ["ffmpeg", "-y", "-v", "error", "-i", a.audio, "-i", a.overlay,
                "-filter_complex", fc, "-map", "[v]", "-map", "0:a"]
     else:
+        if a.modo == "waves":
+            # standalone: banda centrada (40 % del alto) sobre el fondo de la paleta,
+            # no una línea perdida en un cuadro negro (auto_qa la daba por negra)
+            banda = int(alto * 0.4) // 2 * 2
+            fondo = "0x%02X%02X%02X" % colores_marca(a.brand)["negro"]
+            # la onda (fondo transparente) se superpone a una capa del color de
+            # fondo: con pad el alfa se perdía y quedaba una caja negra visible
+            grafo = (f"color=c={fondo}:s={ancho}x{alto}:r={a.fps}[bg];"
+                     f"[0:a]showwaves=s={ancho}x{banda}:mode=cline:draw=full:scale=sqrt:"
+                     f"colors={color}:rate={a.fps}[w];"
+                     f"[bg][w]overlay=0:(H-h)/2:shortest=1,{VF_RGB_A_BT709},format=yuv420p[v]")
+        else:
+            grafo = f"[0:a]{filtro},{VF_RGB_A_BT709},format=yuv420p[v]"
         cmd = ["ffmpeg", "-y", "-v", "error", "-i", a.audio,
-               "-filter_complex", f"[0:a]{filtro},{VF_RGB_A_BT709},format=yuv420p[v]",
+               "-filter_complex", grafo,
                "-map", "[v]", "-map", "0:a"]
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-colorspace", "bt709",
             "-color_primaries", "bt709", "-color_trc", "bt709", "-c:a", "aac",
