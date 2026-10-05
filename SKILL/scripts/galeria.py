@@ -209,10 +209,11 @@ def herramientas(a, out, log, filas, muestras):
         v, rc, txt, seg = render(plan_de([e1, e2], 11), f"transicion_mancha_{f}", out, log, a.brand,
                                  extra=tam)
         con_qa(f"transición mancha {f}", v, rc, txt, seg)
-        # captions animados sobre un video real de la galería
-        base = os.path.join(out, f"kenburns_{f}.mp4")
+        # captions animados sobre una toma limpia (sin texto quemado que pisar)
+        base = os.path.join(out, f"base_captions_{f}.mp4")
         if not video_ok(base):
-            render(plan_de([m("kenburns")], 5), f"kenburns_{f}", out, log, a.brand, extra=tam)
+            render(plan_de([dict(m("kenburns"), titulo="", subtitulo="")], 5), f"base_captions_{f}",
+                   out, log, a.brand, extra=tam)
         for modo, args in (("fade", ["--text", cues, "--animate", "fade"]),
                            ("pop", ["--text", cues, "--animate", "pop"]),
                            ("slide", ["--text", cues, "--animate", "slide"]),

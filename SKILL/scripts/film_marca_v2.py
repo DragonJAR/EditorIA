@@ -233,18 +233,19 @@ def render_frame(ctx,t):
                 d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=BRASA_SUAVE+(int(150*sa),))
         tx=FINAL["tx"]  # centro del bloque de texto
         if t>=11.9 and NOMBRE:
-            fnt=ImageFont.truetype(JAKARTA,50)
-            wm=Image.new("RGBA",(W,110),(0,0,0,0)); dw=ImageDraw.Draw(wm)
+            fnt=ImageFont.truetype(JAKARTA,50 if W>=H else 64)   # 9:16 se lee en un teléfono
+            hs=max(110,55+int(fnt.size*1.3))   # la franja crece con la letra (nunca la corta)
+            wm=Image.new("RGBA",(W,hs),(0,0,0,0)); dw=ImageDraw.Draw(wm)
             text_center(dw,(tx,55),NOMBRE,fnt,BLANCO_H+(255,),tracking=22)
             sw=bezier_out(prog(t,11.9,12.7))
             if sw<1:
-                m=Image.new("L",(W,110),0)
-                ImageDraw.Draw(m).rectangle([0,0,int(W*sw),110],fill=255)
-                wm.putalpha(Image.composite(wm.split()[3],Image.new("L",(W,110),0),m))
+                m=Image.new("L",(W,hs),0)
+                ImageDraw.Draw(m).rectangle([0,0,int(W*sw),hs],fill=255)
+                wm.putalpha(Image.composite(wm.split()[3],Image.new("L",(W,hs),0),m))
             layer.alpha_composite(wm,(0,int(FINAL["y_nombre"])))
         if t>=12.9 and LEMA:
             ka=prog(t,12.9,13.4)
-            fnt2=ImageFont.truetype(JAKARTA,30)
+            fnt2=ImageFont.truetype(JAKARTA,30 if W>=H else 38)
             tg=Image.new("RGBA",(W,140),(0,0,0,0)); dt=ImageDraw.Draw(tg)
             dibujar_lema(tg,tx,8,lineas_lema(dt,LEMA,fnt2,FINAL["ancho_lema"])[:3],fnt2,BLANCO_H,ROJO,50)
             if ka<1:

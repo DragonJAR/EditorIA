@@ -235,19 +235,20 @@ def render_frame(ctx,t,state):
                 d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=BRASA_SUAVE+(int(150*sa),))
         # wordmark: barrido izquierda→derecha (y=820, sin solaparse con el tagline)
         if t>=11.8 and NOMBRE:
-            fnt=ImageFont.truetype(JAKARTA,56)
-            wm=Image.new("RGBA",(W,120),(0,0,0,0)); dw=ImageDraw.Draw(wm)
+            fnt=ImageFont.truetype(JAKARTA,56 if W>=H else 68)   # 9:16 se lee en un teléfono
+            hs=max(120,60+int(fnt.size*1.3))   # la franja crece con la letra (nunca la corta)
+            wm=Image.new("RGBA",(W,hs),(0,0,0,0)); dw=ImageDraw.Draw(wm)
             text_center(dw,(W/2,60),NOMBRE,fnt,BLANCO_H+(255,),tracking=26)
             sw=bezier_out(prog(t,11.8,12.6))
             if sw<1:
-                m=Image.new("L",(W,120),0)
-                ImageDraw.Draw(m).rectangle([0,0,int(W*sw),120],fill=255)
-                wm.putalpha(Image.composite(wm.split()[3],Image.new("L",(W,120),0),m))
+                m=Image.new("L",(W,hs),0)
+                ImageDraw.Draw(m).rectangle([0,0,int(W*sw),hs],fill=255)
+                wm.putalpha(Image.composite(wm.split()[3],Image.new("L",(W,hs),0),m))
             layer.alpha_composite(wm,(0,int(KH[1]+ISO_S*0.48)))   # bajo el logo
         # tagline en UNA línea (cabe a 34px; dos líneas no caben con el zoom)
         if t>=12.9 and LEMA:
             ka=prog(t,12.9,13.4)
-            fnt2=ImageFont.truetype(JAKARTA,34)
+            fnt2=ImageFont.truetype(JAKARTA,34 if W>=H else 40)
             tg=Image.new("RGBA",(W,80),(0,0,0,0)); dt=ImageDraw.Draw(tg)
             # una sola línea (con el zoom final dos líneas no caben)
             dibujar_lema(tg,W/2,10,lineas_lema(dt,LEMA,fnt2,W*0.86)[:1],fnt2,BLANCO_H,ROJO,0)
