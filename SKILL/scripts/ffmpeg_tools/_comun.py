@@ -490,6 +490,15 @@ def color_hex(value: str) -> str:
     return v.upper()
 
 
+def hex_a_rgb(value: str) -> Tuple[int, int, int]:
+    """Convierte '#C11B05' / 'C11B05' / '0xC11B05' a una tupla RGB (R, G, B) 0-255.
+    Una sola fuente de verdad (DRY): la usan render_plan.py, thumbnail.py y resto
+    del kit. Marca-blanca: la entrada sale del brand pack, no de un default quemado.
+    """
+    h = color_hex(value)
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
 DEFAULTS: Dict[str, Any] = {
     "font": "DejaVu Sans",
     "font_file": None,

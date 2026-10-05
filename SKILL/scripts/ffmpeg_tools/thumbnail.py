@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compone un thumbnail con identidad DragonJAR sobre una imagen base.
+"""Compone un thumbnail con identidad de marca (brand pack opcional) sobre una imagen base.
 
 El craft creativo (brief, tension, open loop) lo hace el agente con el usuario
 (review-gate, ver references/thumbnails.md); esta herramienta ejecuta la
@@ -26,7 +26,7 @@ except ImportError:
     sys.exit("thumbnail.py necesita Pillow (pip install pillow)")
 
 NEGRO = (10, 10, 10)
-ROJO = (193, 27, 5)
+ACENTO = (193, 27, 5)
 BLANCO = (250, 248, 246)
 from _plataforma import resolver_fuente
 FUENTE = resolver_fuente("Plus Jakarta Sans") or ""
@@ -112,14 +112,14 @@ def main():
     glow = Image.new("RGB", (W, H), (0, 0, 0))
     dg = ImageDraw.Draw(glow)
     dg.rectangle([x - pad, y - pad * 0.5, x + total_w + pad, y + px + pad * 0.5],
-                 fill=ROJO)
+                 fill=ACENTO)
     glow = glow.filter(ImageFilter.GaussianBlur(px * 0.5))
     img = Image.blend(img, Image.composite(glow, img,
                                            Image.new("L", (W, H), 60)), 0.35)
     d = ImageDraw.Draw(img)
 
     for p, w in zip(palabras, anchos):
-        color = ROJO if p == args.resaltar else BLANCO
+        color = ACENTO if p == args.resaltar else BLANCO
         # contorno negro para legibilidad
         for ox, oy in [(-2, 0), (2, 0), (0, -2), (0, 2), (-1, -1), (1, 1)]:
             d.text((x + ox, y + oy), p, font=font, fill=NEGRO)
@@ -128,8 +128,8 @@ def main():
 
     if args.guia:
         for i in (1, 2):
-            d.line([W * i / 3, 0, W * i / 3, H], fill=ROJO, width=2)
-            d.line([0, H * i / 3, W, H * i / 3], fill=ROJO, width=2)
+            d.line([W * i / 3, 0, W * i / 3, H], fill=ACENTO, width=2)
+            d.line([0, H * i / 3, W, H * i / 3], fill=ACENTO, width=2)
 
     output = args.output or os.path.splitext(args.input)[0] + "_thumb.png"
     img.save(output)

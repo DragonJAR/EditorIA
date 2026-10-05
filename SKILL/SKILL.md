@@ -76,7 +76,11 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
    (ElevenLabs, campo `voz` por escena). **Apartado de sonido**:
    `references/sonido.md` — dirección de voz (tags `[excited]`, `[whisper]`...),
    voces por idioma (la voz por defecto es el idioma en que hable el usuario),
-   música y SFX.
+   música y SFX. **Alineación palabra-a-palabra** (opcional, para escenas con
+    `at:` por palabra): `python scripts/alinear.py voz.mp3 guion.txt -o
+    voz.palabras.json` (whisper local + emparejamiento + refinamiento por
+    energía; el plan.json lee los tiempos para anclar animaciones a la palabra
+    exacta que se oye).
 4. **Música**: `python scripts/musica.py gen --prompt "..." --dur 30 -o mus.mp3`.
    Con voz: `mix -v video.mp4 -a voz.mp3 -m mus.mp3 -o final.mp4` (ducking
    sidechain). Sin voz: `musiconly -v video.mp4 -m mus.mp3 -o final.mp4`.

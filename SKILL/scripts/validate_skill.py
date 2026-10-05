@@ -146,11 +146,13 @@ for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
             check(False, f"compila {rel}: {e}")
 check(n_py > 0, f"scripts compilados: {n_py}")
 
-# 5. las 13 escenas renderizan (smoke test con params mínimos)
+# 5. las N escenas renderizan (smoke test con params mínimos;
+#    cada escena del catalogo recibe defaults para que no lance KeyError)
 try:
     import render_plan as R
     ctx = R.Ctx()
     escenas_ok = 0
+    n_total = len(R.SCENES)
     ats = {"apertura": {"cambio": 2, "p1": [0.5, 1], "p2": [2.5, 3]},
            "canales": {"marca": 0.5, "junta": 2, "rotulo": 3},
            "chat": {"rotulo": 0.5},
@@ -163,16 +165,53 @@ try:
            "recupera": {"rotulo": 1, "cursor": 2, "recupera": 3, "pagado": 4},
            "remate": {"palabras": [1], "gigante": 3},
            "final": {"lema": 1, "boton": 2},
-           "medianoche": {}}
+           "medianoche": {},
+           # Catalog unificado (ver references/scene-patterns-from-internet.md)
+           "bars": {"rotulo": 0.5, "bar0": 1.0, "fuente": 4.5},
+           "gauge": {"rotulo": 0.5, "gauge": 1.0, "etiqueta": 2.5},
+           "ranking": {"rotulo": 0.5, "item0": 1.0, "item1": 1.4, "fuente": 4.5},
+           "stats": {"rotulo": 0.5, "card0": 1.0, "card1": 1.2, "card2": 1.4, "fuente": 4.5},
+           "timeline": {"rotulo": 0.5, "item0": 1.0, "item1": 1.5, "item2": 2.0},
+           "quote": {"card": 0.3, "texto": 1.0, "autor": 2.5, "fuente": 3.5},
+           "versus": {"rotulo": 0.5, "izq": 1.0, "der": 1.5},
+           "confetti": {"particulas": 0.0, "texto": 0.5, "subtexto": 1.0},
+           # Ronda 2: reactvideoeditor/remotion-templates
+           "typewriter": {"rotulo": 0.5, "cursor": 1.0, "fuente": 4.5},
+           "kenburns": {"rotulo": 0.5, "kenburns": 0.2, "texto": 1.0, "subtitulo": 2.0},
+           "pasos": {"rotulo": 0.5, "item0": 1.0, "item1": 1.4, "item2": 1.8}}
     for nombre, fn in R.SCENES.items():
+        # Defaults que cubren TODAS las escenas (existentes + catalog unificado).
+        # Si añades una escena nueva con campos propios, agregala aquí — el
+        # check captura la regresión en cuanto la omites.
         e = {"tipo": nombre, "from": 0, "to": 5, "at": ats.get(nombre, {}),
-             "marca": "T", "rotulo": "R", "texto1": ["A"], "texto2": ["B"],
-             "texto": "¡Listo!" if nombre == "listo" else ["A"],
+             # marca / rotulo / texto
+             "marca": "T", "rotulo": "R",
+             "texto1": ["A"], "texto2": ["B"],
+             "texto": "¡Listo!" if nombre == "listo" else "Texto de prueba",
              "lineas": ["A"], "gigante": "1", "lema": "L",
+             # cliente / contexto
              "boton": "B", "cliente": "C", "iniciales": "AB", "monto": "$1",
              "detalle": "D", "resumen": "R", "hace": "hace 1 h", "nota": "N",
              "temp": "Caliente", "total": "1", "fecha": "hoy", "cuenta": 1,
              "hora": "12:00",
+             # catalog extendido
+             "titulo": "T", "valor": 75, "max": 100, "etiqueta": "etiqueta",
+             "fuente": "fuente",
+             "barras": [{"etiqueta": "A", "valor": 70, "max": 100, "acento": True},
+                        {"etiqueta": "B", "valor": 30, "max": 100}],
+             "items": [{"etiqueta": "Item 1", "valor": 80, "fecha": "2024"},
+                       {"etiqueta": "Item 2", "valor": 50, "fecha": "2025"}],
+             "cards": [{"valor": 100, "etiqueta": "metric A", "acento": True},
+                       {"valor": 50, "etiqueta": "metric B"}],
+             "izquierda": {"etiqueta": "Izq", "items": ["a", "b", "c"]},
+             "derecha": {"etiqueta": "Der", "items": ["x", "y", "z"]},
+             "subtexto": "Sub",
+             # Ronda 2
+             "items_pasos": [{"titulo": "Paso 1", "texto": "desc 1", "at": 1.0},
+                              {"titulo": "Paso 2", "texto": "desc 2", "at": 1.5},
+                              {"titulo": "Paso 3", "texto": "desc 3", "at": 2.0}],
+             "tam": 80, "zoom_from": 1.0, "zoom_to": 1.15, "pan_x": 0.0, "pan_y": 0.0, "dur_kb": 4.0,
+             # originales
              "canales": [{"canal": "whatsapp", "nombre": "N",
                           "texto": "T", "at": 1}],
              "notificaciones": [{"canal": "w", "titulo": "T",
@@ -190,7 +229,7 @@ try:
             escenas_ok += 1
         except Exception as ex:
             check(False, f"escena {nombre}: {type(ex).__name__}: {ex}")
-    check(escenas_ok == 13, f"13/13 escenas renderizan ({escenas_ok}/13)")
+    check(escenas_ok == n_total, f"{n_total}/{n_total} escenas renderizan ({escenas_ok}/{n_total})")
 except Exception as ex:
     check(False, f"smoke test escenas: {ex}")
 

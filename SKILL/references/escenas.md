@@ -71,11 +71,78 @@ Barrido orgánico: un blob con borde ondulado que crece desde un punto
 (`transicionX/Y`) con un agujero central, cubre la escena anterior y revela la
 nueva. Implementación: polígono de 72 puntos con radio modulado por senos.
 
+## Catálogo unificado de escenas (24 tipos del plan)
+
+A partir de 2026-10-04, el catálogo integra las 13 escenas originales más 11
+escenas de datos/UI/tipo/cinemática validadas externamente (ver
+`references/scene-patterns-from-internet.md`). Cada nueva escena se compone
+con las primitivas DRY de `render_plan.py` (`barra_h`, `cuenta_up`, `arco`,
+`particulas`, `cuadricula`, `linewrap`, `text_reveal`, `kenburns`).
+**Marca-blanca**: el color viene del brand pack (`brand/*.json`); sin pack,
+se usa el `ACENTO` neutro del renderer.
+
+### 14-21. Catálogo extendido (DataAnimations + UI + Theme)
+
+Fuentes: `lifeprompt-team/remotion-scenes` (DataAnimations, Theme, ListAnimations)
+y `ali-abassi/remotion-templates` (Charts & Data, Stat Counter, Quote Card).
+
+**`bars`** — Barras verticales de comparación. `barras[{etiqueta, valor, max, acento?}]`,
+`at{rotulo, bar0..n, fuente}`. Toda cifra lleva su `fuente` en pantalla.
+Fuente: `DataBarChart` de `lifeprompt-team/remotion-scenes` (MIT).
+
+**`gauge`** — Indicador circular (270°) con cuenta animada al centro.
+`valor`, `max`, `etiqueta`, `at{rotulo, gauge, etiqueta}`.
+Fuente: `DataGauge` (MIT).
+
+**`ranking`** — Ranking horizontal con barras proporcionales, #1 lleva acento.
+`items[{etiqueta, valor, fecha?}]`, `at{rotulo, item0..n, fuente}`.
+Fuente: `DataRanking` (MIT).
+
+**`stats`** — Grid de stat cards (cifra grande + etiqueta). `cards[{valor, etiqueta, acento?}]`,
+`at{rotulo, card0..n, fuente}`. Auto-layout cols según `n`.
+Fuente: `DataStatsCards` (MIT).
+
+**`timeline`** — Timeline horizontal con puntos pulsantes. `items[{etiqueta, fecha?}]`,
+`at{rotulo, item0..n}`.
+Fuente: `DataTimeline` (MIT).
+
+**`quote`** — Quote card con autor y fuente. `texto`, `autor`, `fuente`,
+`at{card, texto, autor, fuente}`. Word-wrap automático.
+Fuente: `ThemeAnimations › quote` (MIT).
+
+**`versus`** — Comparación lado a lado. `izquierda{etiqueta, items[]}`,
+`derecha{etiqueta, items[]}`, `at{rotulo, izq, der}`.
+Fuente: `ListAnimations › versus` (MIT).
+
+**`confetti`** — Celebración con confeti determinista (seed) + texto.
+`texto`, `subtexto?`, `at{particulas, texto, subtexto, timestamp_seed?}`.
+Fuente: `ParticleAnimations` (MIT).
+
+### 22-24. Ronda 2 — Texto, Cinemática y Pasos (reactvideoeditor/remotion-templates, MIT)
+
+**`typewriter`** — Texto que aparece carácter a carácter con cursor parpadeante.
+`texto`, `tam?` (auto-fit), `at{rotulo, cursor, fuente}`. Útil para hooks, intros
+y subtítulos animados. Fuente: `typewriter-subtitle.tsx` (MIT).
+
+**`kenburns`** — Ken Burns sobre una imagen: zoom + paneo progresivo. Ideal para
+galerías, openings sobre foto, documentales. `imagen` (ruta), `titulo`,
+`subtitulo?`, `zoom_from?` (1.0), `zoom_to?` (1.15), `pan_x?`, `pan_y?`,
+`dur_kb?` (4.0s), `at{rotulo, kenburns, texto, subtitulo}`.
+Fuente: `ken-burns.tsx` (MIT).
+
+**`pasos`** — Ruta de N pasos (1-5) en fila (16:9) o columna (9:16), con el
+paso activo brillando y los demás atenuados. `titulo?`, `items[{titulo, texto, at}]`,
+`at{rotulo, item0..n}`. Fuente: `progress-steps.tsx` (MIT).
+
 ## Ideas de escenas futuras (NO implementadas — no usar como `tipo`)
 
 ⚠️ Estos nombres **no existen** en `SCENES` (`scripts/render_plan.py`): usar uno
 en `plan.json` produce `KeyError`. Son ideas para implementar, no tipos válidos.
-`orbOpen` · `lineup` · `revealStat` (cifra + fuente obligatoria) · `rise` ·
-`orbChips` · `dissolve` · `outro` · `bars` (barras + fuente) · `broll` ·
-`callout` · `lowerThird` · `tituloDetras` · `index` · `subscribe` ·
-`notificacion` · `buscador` · `pasos` · `comentario`
+`orbOpen` · `lineup` · `rise` · `orbChips` · `dissolve` · `outro` · `broll` ·
+`callout` · `lowerThird` · `tituloDetras` (requiere Robust Video Matting) ·
+`index` · `subscribe` · `notificacion` · `buscador` · `comentario`
+
+Para añadir una nueva escena: composer con las primitivas DRY (`barra_h`,
+`cuenta_up`, `arco`, `cuadricula`, `linewrap`, `particulas`, `text_reveal`,
+`kenburns`) — NO duplicar lógica. Ver `references/scene-patterns-from-internet.md`
+para portar escenas validadas de las fuentes MIT documentadas allí.
