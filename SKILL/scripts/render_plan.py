@@ -1183,7 +1183,8 @@ def sc_timeline(ctx, e, t):
         al = int(255 * clamp01(k * 1.4))
         radio = 18 * min(1.0, k)
         d.ellipse([x - radio, y - radio, x + radio, y + radio], fill=ACENTO + (al,))
-        d.ellipse([x - radio + 5, y - radio + 5, x + radio - 5, y + radio - 5], fill=BLANCO + (al,))
+        if radio > 6:   # el punto nace de radio 0: el centro blanco solo si cabe
+            d.ellipse([x - radio + 5, y - radio + 5, x + radio - 5, y + radio - 5], fill=BLANCO + (al,))
         lineas = linewrap(it.get("etiqueta", ""), fnt, ancho_max)
         if vertical:
             for li, ln in enumerate(lineas):

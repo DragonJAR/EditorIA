@@ -202,7 +202,26 @@ try:
         for nombre, fn in R.SCENES.items():
             e = dict(muestras.get(nombre, {"from": 0, "to": 5, "at": {}}), tipo=nombre)
             try:
-                for t in [0.5, e["to"] / 2, e["to"] - 0.3]:
+                # además de 3 instantes, CADA entrada del plan (at + 0/16/33/100 ms):
+                # ahí los resortes son diminutos y nacen las geometrías inválidas
+                ats = []
+                def _ats(nodo, clave=""):
+                    if isinstance(nodo, dict):
+                        for k_, v_ in nodo.items():
+                            _ats(v_, k_)
+                    elif isinstance(nodo, list):
+                        for v_ in nodo:
+                            _ats(v_, clave)
+                    elif isinstance(nodo, (int, float)) and clave in ("at", "palabras") or \
+                            (isinstance(nodo, (int, float)) and clave.startswith(("item", "bar", "card"))):
+                        ats.append(float(nodo))
+                _ats(e.get("at", {}), "at")
+                _ats([m_.get("at") for m_ in (e.get("mensajes", []) + e.get("pasos", []) + e.get("items", [])
+                                              + e.get("canales", []) + e.get("notificaciones", []))
+                      if isinstance(m_, dict) and m_.get("at") is not None], "at")
+                tiempos = {0.5, e["to"] / 2, e["to"] - 0.3}
+                tiempos |= {a_ + d_ for a_ in ats for d_ in (0.0, 0.016, 0.033, 0.1) if 0 <= a_ + d_ < e["to"]}
+                for t in sorted(tiempos):
                     fn(ctx, e, t)
                 if nombre == "chat":   # sin `at`: tiempos derivados + escribiendo
                     fn(ctx, dict(e, mensajes=[{"de": "cliente", "texto": "Hola"},
