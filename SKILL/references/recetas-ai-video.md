@@ -125,7 +125,26 @@ no placeholders. Receta:
 En EditorIA esto es la regla "verificar antes de afirmar" llevada a
 producción: si el asset no es real, el video no sale.
 
-## 5. Pre-flight para video por código
+## 5. Assets generados por IA para animar: piezas sueltas, no una imagen
+
+Un modelo de imagen entrega UNA ilustración plana sin capas: no se puede
+animar un brazo dentro de ella. Animarla entera parece diapositiva;
+"animar" sus trazos por proximidad se ve inquietante.
+
+1. **Generar cada elemento por separado**, aislado sobre fondo liso, con el
+   sujeto nombrado con precisión ("una amapola elegante de tallo largo y
+   curvo", no "una flor"): lo específico se ve diseñado, lo genérico no.
+2. **Siempre `no text`**: el texto lo pone el motor, exacto y editable
+   (`thumbnails.md` ya lo exige para portadas).
+3. Recortar el fondo → sprite transparente; el código mueve cada pieza entera.
+4. **La metáfora sale del concepto**, nunca del recurso por defecto: si
+   "algo que crece" aparece por segunda vez en conceptos distintos, buscar
+   cómo se ve ESE concepto (interés compuesto = un punto que se duplica hasta
+   llenar la pantalla, no un árbol).
+5. Cierre: la acción termina, un beat quieto, y recién entonces la frase
+   final; nunca la conclusión mientras algo sigue moviéndose.
+
+## 6. Pre-flight para video por código
 
 Antes de pedirle a un modelo que genere video por código (HyperFrames,
 Remotion o el motor Python), checklist mínimo:

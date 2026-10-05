@@ -28,6 +28,7 @@ que esa palabra abra el siguiente caption. Tambien limpia puntuacion
 Ejemplos:
   python3 caption.py video.mp4 --srt subs.srt
   python3 caption.py video.mp4 --text cues.txt --animate pop --karaoke
+  python3 caption.py video.mp4 --palabras voz.palabras.json --animate pop --karaoke
   python3 caption.py video.mp4 --srt subs.srt --font "DejaVu Sans" --size 28 --position top
   python3 caption.py --text cues.txt --write-srt cues.srt
   python3 caption.py --text cues.txt --write-srt cues.srt --phrase-aware --phrase-words 5
@@ -113,6 +114,14 @@ def phrase_aware(cues, max_words=6):
             words.append([w, w0, w1])
     if not words:
         return cues
+    return [c[:3] for c in agrupar_palabras(words, max_words)]
+
+
+def agrupar_palabras(words, max_words=6):
+    """[[palabra, inicio, fin]] -> cues frase-conscientes (inicio, fin, texto,
+    duraciones_cs): ningun cue termina en leader word y los tiempos quedan
+    monotonos. duraciones_cs = tiempo de cada palabra hasta la siguiente (el
+    \\kf del karaoke), asi el resaltado cae en la silaba real."""
     chunks, i, n = [], 0, len(words)
     while i < n:
         j = min(i + max_words, n)
@@ -124,9 +133,29 @@ def phrase_aware(cues, max_words=6):
     for ch in chunks:
         s = max(ch[0][1], prev_end + 0.001)
         e = max(ch[-1][2], s + 0.3)
-        out.append((round(s, 3), round(e, 3), " ".join(w for w, _, _ in ch)))
+        inicios = [max(s, w[1]) for w in ch] + [e]
+        durs = [max(1, int(round((inicios[k + 1] - inicios[k]) * 100))) for k in range(len(ch))]
+        out.append((round(s, 3), round(e, 3), " ".join(w for w, _, _ in ch), durs))
         prev_end = e
     return out
+
+
+def cues_desde_palabras(path, max_words=6):
+    """Tiempos REALES por palabra (palabras.json de scripts/alinear.py, o una
+    lista [{texto|text|word, inicio|start, fin|end}]) -> cues con karaoke
+    exacto. Nunca se reparte un cue a partes iguales si hay tiempos reales."""
+    import json
+    data = json.load(open(path, encoding="utf-8"))
+    items = data.get("palabras") or data.get("words") if isinstance(data, dict) else data
+    words = []
+    for it in items or []:
+        w = clean_word(str(it.get("texto") or it.get("text") or it.get("word") or "").strip())
+        a, b = it.get("inicio", it.get("start")), it.get("fin", it.get("end"))
+        if w and a is not None and b is not None:
+            words.append([w, float(a), max(float(b), float(a) + 0.05)])
+    if not words:
+        die(f"{path}: no trae palabras con inicio/fin")
+    return agrupar_palabras(sorted(words, key=lambda x: x[1]), max_words)
 
 
 def parse_text_cues(path, auto_seconds, gap, fps=None):
@@ -301,7 +330,9 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     lines = []
-    for start, end, text in cues:
+    for cue in cues:
+        start, end, text = cue[:3]
+        reales = cue[3] if len(cue) > 3 else None
         cue_size = size
         if font_file:
             cue_size, encogido = _fit_cue_size(
@@ -324,7 +355,9 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
             dur_cs = max(1, int(round((end - start) * 100)))
             segments = body.split("\\N")
             words = [w for seg in segments for w in seg.split(" ") if w]
-            if getattr(args, "karaoke_timing", "even") == "energy" and video:
+            if reales and len(reales) == len(words):
+                durs = reales
+            elif getattr(args, "karaoke_timing", "even") == "energy" and video:
                 durs = word_durations_from_audio(video, start, end, len(words),
                                                 getattr(args, "audio_stream", 0))
             else:
@@ -373,6 +406,8 @@ def main():
     src.add_argument("--srt", help="archivo SRT a quemar")
     src.add_argument("--ass", help="archivo ASS a quemar (se usan los estilos del archivo)")
     src.add_argument("--text", help="archivo de texto con cues para convertir a SRT (formato arriba)")
+    src.add_argument("--palabras", help="JSON de tiempos por palabra (scripts/alinear.py): "
+                     "cues frase-conscientes y karaoke con el tiempo REAL de cada palabra")
     src.add_argument("--transcribe", action="store_true",
                      help="genera el SRT desde el audio con un motor local de voz-a-texto si hay uno "
                           "instalado (whisper-cli / whisper / faster-whisper); nunca es requerido")
@@ -453,8 +488,8 @@ def main():
     if args.brand and bcap.get("karaoke") and not args.karaoke:
         args.karaoke = True
 
-    if not (args.srt or args.ass or args.text or args.transcribe):
-        die("da una fuente: --srt, --ass, --text o --transcribe")
+    if not (args.srt or args.ass or args.text or args.transcribe or args.palabras):
+        die("da una fuente: --srt, --ass, --text, --palabras o --transcribe")
     if args.mode == "mux":
         if args.ass:
             die("--mode mux toma --srt (o --text/--transcribe), no --ass -- "
@@ -484,9 +519,13 @@ def main():
         cues = transcribir_medio(args.input, srt_path, args.language, args.model, args.audio_stream)
         info(f"escribi {srt_path} ({len(cues)} cues)")
         args.text = None
-    if args.text:
-        cues = parse_text_cues(args.text, args.auto_seconds, args.gap, fps_for_tc)
-        if args.phrase_aware:
+    if args.text or args.palabras:
+        if args.palabras:
+            cues = cues_desde_palabras(args.palabras, args.phrase_words)
+            info(f"{len(cues)} cues desde tiempos reales por palabra")
+        else:
+            cues = parse_text_cues(args.text, args.auto_seconds, args.gap, fps_for_tc)
+        if args.phrase_aware and not args.palabras:
             cues = phrase_aware(cues, max_words=args.phrase_words)
             info(f"reagrupados a {len(cues)} cues frase-conscientes "
                  f"(max {args.phrase_words} palabras)")
@@ -496,9 +535,9 @@ def main():
             out_guess = args.output or default_output(args.input, "captioned")
             srt_path = os.path.splitext(out_guess)[0] + ".srt"
         else:
-            srt_path = os.path.splitext(args.text)[0] + ".srt"
+            srt_path = os.path.splitext(args.text or args.palabras)[0] + ".srt"
         if not STATE.dry_run:
-            write_srt(cues, srt_path)
+            write_srt([c[:3] for c in cues], srt_path)
         info(f"escribi {srt_path} ({len(cues)} cues)")
         if not args.input:
             print(f"OK {srt_path}")
@@ -539,8 +578,8 @@ def main():
 
     fit_n = 0
     if (args.animate != "none" or args.karaoke) and not args.ass:
-        cues_for_ass = cues if args.text else parse_srt(srt_path)
-        if args.phrase_aware and not args.text:
+        cues_for_ass = cues if (args.text or args.palabras) else parse_srt(srt_path)
+        if args.phrase_aware and not (args.text or args.palabras):
             cues_for_ass = phrase_aware(cues_for_ass, max_words=args.phrase_words)
         ass_path = args.write_ass or os.path.splitext(output)[0] + ".ass"
         w, h = meta["video"]["width"], meta["video"]["height"]

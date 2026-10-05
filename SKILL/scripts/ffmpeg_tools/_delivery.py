@@ -18,7 +18,7 @@ ffmpeg-skill, medidos de la guia de diseno publicada de cada plataforma.
 Las safe zones son deliberadamente generosas: un caption 2% mas alto se lee,
 uno bajo el boton de compartir no.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 _SAFE_5 = {"top": 0.05, "bottom": 0.05, "left": 0.05, "right": 0.05}
 _NO_SAFE = {"top": 0.0, "bottom": 0.0, "left": 0.0, "right": 0.0}
@@ -144,6 +144,28 @@ PLATFORMS: Dict[str, Dict[str, Any]] = {
                    "ar": 48000, "movflags": "+faststart"},
     },
 }
+
+# Pantalla final de YouTube (end screen): solo en los ultimos 5-20 s y en
+# videos de >= 25 s; hasta 4 elementos. Tamanos nativos en 1920x1080
+# (x, y, w, h). La marca propia va en el tercio IZQUIERDO; los dos tercios
+# derechos quedan quietos para los elementos clicables; abajo ~12% libre
+# (barra de progreso movil). Fuente: iart-ai/youtube-video-skills.
+END_SCREEN_YOUTUBE: Dict[str, Any] = {
+    "min_video": 25.0, "min_seg": 5.0, "max_seg": 20.0, "max_elementos": 4,
+    "ref": (1920, 1080),
+    "zonas": {"video": (1215, 110, 615, 345),        # siguiente video (derecha:90, arriba:110)
+              "suscribirse": (1376, 636, 294, 294),  # circulo (derecha:250, abajo:150)
+              "marca": (0, 0, 640, 950)},            # tercio izquierdo: logo, nombre, CTA
+}
+
+
+def end_screen_px(width: int, height: int) -> Dict[str, Tuple[int, int, int, int]]:
+    """Zonas de la pantalla final escaladas al tamano del video."""
+    rw, rh = END_SCREEN_YOUTUBE["ref"]
+    return {k: (round(x * width / rw), round(y * height / rh),
+                round(w * width / rw), round(h * height / rh))
+            for k, (x, y, w, h) in END_SCREEN_YOUTUBE["zonas"].items()}
+
 
 PLATFORM_NAMES: List[str] = sorted(PLATFORMS)
 ALIASES: Dict[str, str] = {"youtube-shorts": "shorts", "yt-shorts": "shorts",

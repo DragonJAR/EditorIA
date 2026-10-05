@@ -18,7 +18,7 @@ y convertir clips existentes.
 | Quitar el audio | `audio quitar v.mp4 -o out.mp4` |
 | Cambiar el audio | `audio reemplazar v.mp4 --fuente nuevo.m4a -o out.mp4` |
 | GIF animado | `gif v.mp4 --fps 12 --ancho 480 -o anim.gif` |
-| Fotos → video | `pase ./fotos --duracion 3 --zoom -o pase.mp4` |
+| Fotos → video | `pase ./fotos -o pase.mp4` (`--bpm 120` = una foto por compás) |
 | Rotar / voltear | `rotar v.mp4 --grados 90` · `voltear v.mp4 --eje horizontal` |
 | Repetir | `bucle v.mp4 --veces 2 -o loop.mp4` |
 | Llevar a 1080×1920 | `escala v.mp4 --tamano 1080x1920 -o vert.mp4` |
@@ -37,4 +37,10 @@ y convertir clips existentes.
 - `transicion --tipo`: fade, dissolve, wipeleft, wiperight, wipeup, wipedown,
   circlecrop, radial, smoothleft, etc. (cualquiera de `ffmpeg -h filter=xfade`).
 - `pip --hasta T`: el overlay solo aparece hasta el segundo T.
-- `pase`: la carpeta se ordena alfabéticamente; `--zoom` agrega Ken Burns sutil.
+- `pase`: orden natural (foto2 antes que foto10); cada foto con un Ken Burns
+  distinto al de la anterior (`--semilla`, reproducible; `--sin-movimiento`
+  lo apaga); fotos de otra proporción con fondo desenfocado (`--ajuste blur`,
+  o `cubrir`/`contener`); fundido de `--transicion 0.5` s centrado en cada
+  cambio (`0` = corte) y duración total exacta = fotos × duración.
+  `--bpm B --beats-por-foto 4` cuadra cada cambio con la música; luego
+  `scripts/musica.py musiconly` pone la pista.

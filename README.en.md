@@ -8,7 +8,7 @@ Create, edit, summarize and improve videos (`.mp4`): animated meeting summaries,
 
 ## Version
 
-`v1.0.0` — first release.
+`v1.3.0` — 28 scenes (new: `oferta` sale spot, product `demo`, `countdown`, `rotulo_inferior` lower third), alpha-channel overlays for Premiere/Resolve/OBS, template × table (one video per row), audiograms, karaoke from real word timings, exact brand color (BT.709) and photosensitivity/startle QA.
 
 ## Structure
 

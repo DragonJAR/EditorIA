@@ -67,6 +67,30 @@ de uno que se guarda y se comparte.
   enérgica debe estar en los rangos de arriba; una calmada más abajo, pero un
   frame quieto fuera del end card es un bug.
 
+## Feedback vago → palancas concretas
+
+"Dale vida", "más premium", "no me convence": nunca tocar el render con una
+nota vaga. Traducir a ejes concretos de EditorIA, proponer UNA opción A/B
+acotada y preguntar solo si de verdad hay dos lecturas. Tres preguntas
+resuelven casi cualquier nota: **¿dónde?** (segundo o escena) · **¿qué eje?**
+(color, ritmo, tipo, escala, sonido, mensaje) · **¿comparado con qué?** (un
+momento del mismo video que ya funcione, o una referencia).
+
+| Dice | Palancas en EditorIA |
+|---|---|
+| "más dinámico", "dale vida", "está soso" | cortes más cortos en la apertura (`ritmo.md`), un registro más alto de `fluidez.md` (overshoot, resortes), punch-ins en beats, SFX en hits (`sfx.md`) |
+| "más premium", "más elegante" | registro calmo de `fluidez.md` (sin overshoot), más aire, holds largos, un solo acento, grano sutil (`artesanal.py`), transición = corte seco |
+| "que resalte", "más punch" | escala del héroe, contraste, el número/frase clave como momento firma (`direccion.md`), subir la mezcla del impacto |
+| "muy cargado", "no se entiende" | menos elementos por escena (`principios.md`: saturación), una idea por escena, más tiempo de lectura (`ritmo.md`) |
+| "no se ve de marca" | revisar pack: colores, tipos y logo exactos; idioma de transición del pack |
+| "se ve barato" | tipografía y espaciado (`coherencia-espacial.md`), easing lineal por accidente, demasiados efectos a la vez |
+| "más cinematográfico" | 16:9 / 24 fps (`cine.md`), push-ins lentos, grade y grano, silencio antes del momento firma |
+
+Todo tono lleva su "pero no": "dinámico pero no caótico", "premium pero no
+frío". Si el usuario no lo da, proponerlo con la opción A/B. Las notas que
+nombran el problema ("la intro se arrastra") se resuelven mejor que las que
+dictan la solución ("hazla más rápida"): preferir corregir el problema.
+
 ## Reglas de cámara y luz
 
 1. **La cámara sirve a la historia** — nunca se mueve por lucirse. Cada

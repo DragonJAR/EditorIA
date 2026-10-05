@@ -101,7 +101,11 @@ Antes de timar escenas: la duración de la escena se deriva de la VO, no al rev�
   pasajes técnicos.
 - **Duración de escena**: `segundos = palabras / ritmo + 0.4` (el 0.4 es aire
   de respiro). Una escena sin VO (beat puramente visual) necesita ≥1.0s para
-  registrar.
+  registrar. **La narración manda el reloj**: `auditar_plan.py` estima con
+  esta fórmula si cada voz cabe en su escena antes de pagar TTS, y
+  `voz_off.py` mide la voz real y falla si una pisa a la siguiente (dirá
+  cuántos segundos alargar). Si la voz no cabe, se alarga la escena o se
+  recorta el texto; nunca se acelera la voz.
 - **Budgets de palabras** (ritmo 2.3): 30s ≈ 69 palabras · 60s ≈ 138 palabras
   · 90s ≈ 207 palabras.
 - **Fórmula de guion** (reparto del runtime): problema 20% → solución 15% →

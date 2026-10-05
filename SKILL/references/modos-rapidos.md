@@ -137,6 +137,11 @@ Un `plan.json` parametrizado × tabla de datos → N videos personalizados.
 - Una tabla de datos (CSV/TSV): una fila = un video.
 - Un beat por fila de datos: el render itera la tabla y produce un video por
   fila. Para recaps anuales, resúmenes por ponente, versiones por cliente.
+- Implementado: `render_plan.py plan.json --datos tabla.csv -o "recap_{id}.mp4"`
+  (verificar primero una fila con `--fila 1`; ver `plan-video.md`).
+- Arco del recap: de la cifra más chica a la más grande (nunca abrir con la
+  cifra héroe: no queda a dónde subir); todo en segunda persona ("Escuchaste
+  412 artistas"); cierre = un póster quieto ≥2 s que den ganas de compartir.
 
 ## Hook×body batch (A/B de hooks)
 

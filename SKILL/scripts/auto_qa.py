@@ -7,6 +7,9 @@ Detecta sin visión (métricas sobre frames decodificados):
   - frozen: imagen idéntica >1s (viola "fondo vivo"; ver checklist-qa.md)
   - flash: salto brusco de luminancia entre muestras (glitch/pop)
   - silencio largo / clipping en el audio (si lo hay)
+  - fotosensible: >3 destellos en 1 s (WCAG 2.3.1), medido a fps completo
+  - sobresalto: el audio salta >6 dB al entrar un corte (asusta, no edita)
+  - loop (--loop): el último frame no empalma con el primero
 
 Salida: JSON con defectos (t0, t1, detalle) + contact sheet PNG con los
 momentos marcados, listo para que el agente los mire y confirme.
@@ -39,6 +42,18 @@ FROZEN_MAX = 1.0          # segundos congelados permitidos (ver checklist-qa.md)
 FLASH_JUMP = 50.0         # salto de luminancia entre muestras = posible glitch
 SILENCIO_DB = -45         # umbral de silencio
 SILENCIO_MIN = 1.5        # segundos de silencio para reportar
+# Fotosensibilidad (WCAG 2.3.1, "tres destellos"): un destello es un par de
+# cambios opuestos de luminancia relativa >=10% con el lado oscuro <0.80;
+# mas de 3 en cualquier segundo es un defecto (en pantalla completa o en un
+# cuadrante = 25% del cuadro). Se mide a fps COMPLETO: a 4 fps no se ve.
+FLASH_DELTA = 0.10
+FLASH_OSCURO = 0.80
+FLASH_MAX_SEG = 3
+# Sobresalto: salto de sonoridad al entrar en un corte vs el segundo previo.
+# Medido con usuarios: +7..+10 dB asusta; +3..+5 con cambio armonico = limpio.
+SOBRESALTO_DB = 6.0
+CORTE_DIFF = 28.0         # diff media (0-255, a 64px) que cuenta como corte
+LOOP_DIFF = 6.0           # frame 0 vs ultimo: por encima, el loop se nota
 
 
 def muestras_video(video):
@@ -99,6 +114,97 @@ def detectar(muestras, dur, ignorar_inicio=0.0, ignorar_fin=0.0):
     return sorted(defectos, key=lambda x: x["t0"])
 
 
+def frames_finos(video):
+    """Todos los frames a 64x36 en gris: (fps, array N x 36 x 64)."""
+    import numpy as np
+    meta = probe(video)
+    fps = meta["video"].get("fps") or 30.0
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vf", "scale=64:36",
+                        "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True)
+    arr = np.frombuffer(r.stdout, dtype=np.uint8)
+    return fps, arr[: len(arr) // 2304 * 2304].reshape(-1, 36, 64).astype(np.float32)
+
+
+def destellos(fr, fps):
+    """Ventanas de 1 s con mas de FLASH_MAX_SEG destellos (pantalla o cuadrante)."""
+    import numpy as np
+    lin = lambda g: np.where(g <= 0.04045, g / 12.92, ((g + 0.055) / 1.055) ** 2.4)
+    L = lin(fr / 255.0)
+    regiones = [L.mean(axis=(1, 2))] + [L[:, a:a + 18, b:b + 32].mean(axis=(1, 2))
+                                        for a in (0, 18) for b in (0, 32)]
+    malos = []
+    for serie in regiones:
+        trans, ext, sube = [], serie[0], None   # transiciones entre extremos
+        for i in range(1, len(serie)):
+            v = serie[i]
+            if sube is not None and ((sube and v > ext) or (not sube and v < ext)):
+                ext = v                     # sigue en la misma direccion: el extremo avanza
+            elif abs(v - ext) >= FLASH_DELTA and min(v, ext) < FLASH_OSCURO:
+                trans.append(i / fps)
+                sube, ext = v > ext, v
+        for k in range(len(trans)):
+            j = k
+            while j < len(trans) and trans[j] - trans[k] < 1.0:
+                j += 1
+            if (j - k) / 2 > FLASH_MAX_SEG:
+                malos.append((trans[k], trans[j - 1], (j - k) / 2))
+    return malos
+
+
+def cortes(fr, fps):
+    import numpy as np
+    d = np.abs(np.diff(fr, axis=0)).mean(axis=(1, 2))
+    return [(i + 1) / fps for i in np.nonzero(d > CORTE_DIFF)[0]]
+
+
+def sobresaltos(video, tiempos, dur):
+    """Cortes donde el audio salta mas de SOBRESALTO_DB sobre el segundo previo."""
+    import numpy as np
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vn", "-ac", "1", "-ar", "8000",
+                        "-f", "s16le", "-"], capture_output=True)
+    x = np.frombuffer(r.stdout, dtype=np.int16).astype(np.float32) / 32768
+    if len(x) < 8000:
+        return []
+    def db(a, b):
+        seg = x[int(a * 8000):int(b * 8000)]
+        return 20 * np.log10(np.sqrt((seg ** 2).mean()) + 1e-9) if len(seg) else -120
+    out = []
+    for t in tiempos:
+        if t < 1.0 or t > dur - 1.0:      # sin "antes" que comparar / fade final
+            continue
+        antes, despues = db(t - 1.0, t - 0.05), db(t, t + 0.3)
+        if despues > -40 and despues - antes > SOBRESALTO_DB:
+            out.append((t, despues - antes))
+    return out
+
+
+def analisis_fino(video, dur, loop=False, con_audio=True):
+    defectos = []
+    fps, fr = frames_finos(video)
+    if len(fr) < 2:
+        return defectos
+    tramos = []   # ventanas solapadas (y de varias regiones) = un solo tramo
+    for t0, t1, n in sorted(destellos(fr, fps)):
+        if tramos and t0 <= tramos[-1][1] + 0.05:
+            tramos[-1] = [tramos[-1][0], max(tramos[-1][1], t1), max(tramos[-1][2], n)]
+        else:
+            tramos.append([t0, t1, n])
+    for t0, t1, n in tramos:
+        defectos.append({"tipo": "fotosensible", "t0": round(t0, 2), "t1": round(t1, 2),
+                         "detalle": f"hasta {n:.0f} destellos por segundo (máx {FLASH_MAX_SEG}, "
+                                    "WCAG 2.3.1): espaciar a ≥1/3 s o bajar el contraste"})
+    if con_audio:
+        for t, salto in sobresaltos(video, cortes(fr, fps), dur):
+            defectos.append({"tipo": "sobresalto", "t0": round(t, 2), "t1": round(t, 2),
+                             "detalle": f"+{salto:.1f} dB al entrar el corte (máx +{SOBRESALTO_DB:.0f})"})
+    if loop:
+        dif = float(abs(fr[0] - fr[-1]).mean())
+        if dif > LOOP_DIFF:
+            defectos.append({"tipo": "loop", "t0": 0.0, "t1": round(dur, 2),
+                             "detalle": f"último frame ≠ primero (diff {dif:.1f}): la costura se nota"})
+    return defectos
+
+
 def analizar_audio(video, dur):
     defectos = []
     # silencios largos
@@ -127,7 +233,7 @@ def analizar_audio(video, dur):
 
 
 def contact_sheet(video, defectos, dur, salida, n_muestras=12, safe=None,
-                  video_w=None, video_h=None):
+                  video_w=None, video_h=None, end_screen=None):
     """Sheet PIL: muestras uniformes + un tile por defecto (borde rojo).
 
     Con safe="<plataforma>", dibuja la zona segura en cada tile (amarillo)
@@ -141,8 +247,13 @@ def contact_sheet(video, defectos, dur, salida, n_muestras=12, safe=None,
     tmpd = tempfile.mkdtemp(prefix="qa_")
     tiempos = sorted(set(
         [round(dur * (i + 0.5) / n_muestras, 2) for i in range(n_muestras)] +
-        [d["t0"] for d in defectos]
+        [d["t0"] for d in defectos] +
+        ([round(dur - end_screen / 2, 2), round(dur - 0.5, 2)] if end_screen else [])
     ))
+    zonas_es = None
+    if end_screen and video_w and video_h:
+        from _delivery import end_screen_px
+        zonas_es = end_screen_px(video_w, video_h)
     tiles = []
     for t in tiempos:
         fp = os.path.join(tmpd, f"f_{t:.2f}.png")
@@ -177,6 +288,12 @@ def contact_sheet(video, defectos, dur, salida, n_muestras=12, safe=None,
             dr.rectangle([safe_rect[0] + x, safe_rect[1] + y,
                           safe_rect[2] + x, safe_rect[3] + y],
                          outline=(255, 200, 0), width=2)
+        if zonas_es and t >= dur - end_screen:   # elementos de YouTube: deben caer en zona quieta
+            sx, sy = tw / video_w, th / video_h
+            for nombre, (zx, zy, zw, zh) in zonas_es.items():
+                col = (80, 200, 255) if nombre != "marca" else (120, 255, 120)
+                dr.rectangle([x + zx * sx, y + zy * sy, x + (zx + zw) * sx, y + (zy + zh) * sy],
+                             outline=col, width=2)
         dr.text((x + 6, y + th + 4), f"{t:.2f}s", fill=(255, 255, 255))
     sheet.save(salida)
     return salida
@@ -192,6 +309,10 @@ def main():
                     help="segundos iniciales a ignorar (fade-in intencional)")
     ap.add_argument("--ignorar-fin", type=float, default=0.0,
                     help="segundos finales a ignorar (fade-out intencional)")
+    ap.add_argument("--end-screen", type=float, metavar="SEG",
+                    help="dibuja las zonas de la pantalla final de YouTube en los últimos SEG s")
+    ap.add_argument("--loop", action="store_true",
+                    help="la pieza es un loop: el último frame debe empalmar con el primero")
     ap.add_argument("--safe", metavar="PLATAFORMA",
                     help="dibuja la zona segura de la plataforma en cada tile "
                          "(reels, tiktok, shorts, youtube, x, linkedin, facebook)")
@@ -209,13 +330,14 @@ def main():
     defectos = detectar(muestras, dur, a.ignorar_inicio, a.ignorar_fin)
     if meta.get("audio"):
         defectos += analizar_audio(a.video, dur)
+    defectos += analisis_fino(a.video, dur, loop=a.loop, con_audio=bool(meta.get("audio")))
     defectos = sorted(defectos, key=lambda x: x["t0"])
 
     sheet = a.sheet or os.path.splitext(a.video)[0] + "_qa.png"
     vw = meta["video"].get("width") or 0
     vh = meta["video"].get("height") or 0
     contact_sheet(a.video, defectos, dur, sheet, safe=a.safe,
-                  video_w=vw, video_h=vh)
+                  video_w=vw, video_h=vh, end_screen=a.end_screen)
 
     reporte = {"video": a.video, "duracion": round(dur, 2),
                "defectos": defectos,

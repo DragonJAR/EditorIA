@@ -4,25 +4,45 @@ Uso: python auditar_plan.py plan.json [--json] [--tol 0.05]
 Verifica: solapes de tiempos entre escenas, duraciones negativas o cero,
 escenas vacías (sin texto ni voz), campos "voz" presentes pero vacíos,
 desorden temporal (from > to, escenas fuera de orden), escena final muy
-corta (< 2s) y coherencia con plan["duracion"]. Reporta cada hallazgo con
-su timestamp. Solo stdlib.
+corta (< 2s), coherencia con plan["duracion"] y que cada voz quepa en su
+escena sin pisar la siguiente (2.3 palabras/s, references/sonido.md).
+Reporta cada hallazgo con su timestamp. Solo stdlib.
 """
-import argparse, json, sys
+import argparse, json, os, re, sys
 
-TIPOS_VALIDOS = {"apertura", "canales", "medianoche", "chat", "leads",
-                 "handoff", "pago", "listo", "pildoras", "hoy", "recupera",
-                 "remate", "final"}
+# Ritmo de narración de references/sonido.md: segundos = palabras/2.3 + 0.4
+RITMO_VOZ = 2.3     # palabras por segundo
+AIRE_VOZ = 0.4      # voz_off.py coloca cada segmento en from + 0.4
+
+
+def tipos_validos():
+    """Los tipos salen del dict SCENES de render_plan.py (fuente única): una
+    lista copiada aquí quedaba vieja en cuanto se añadía una escena."""
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "render_plan.py"),
+               encoding="utf-8").read()
+    bloque = re.search(r"^SCENES\s*=\s*\{(.*?)\}\s*$", src, re.S | re.M).group(1)
+    return set(re.findall(r'"(\w+)"\s*:\s*sc_', bloque))
+
+
+TIPOS_VALIDOS = tipos_validos()
+
+
+def palabras_voz(texto):
+    """Palabras habladas: sin audio tags de dirección ([excited], [long pause]...)."""
+    return len(re.sub(r"\[[^\]]*\]", " ", texto or "").split())
 
 def es_vacia(e):
-    for k in ("texto1", "texto2", "voz"):
-        v = e.get(k)
+    """Sin contenido propio: ningún campo (texto, datos, imagen, voz) más allá
+    del tipo, los tiempos y la transición. Cada escena usa campos distintos."""
+    for k, v in e.items():
+        if k in ("tipo", "from", "to", "transicion", "transicionX", "transicionY"):
+            continue
         if isinstance(v, str) and v.strip():
             return False
-        if isinstance(v, list) and any(str(x).strip() for x in v):
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
             return False
-    at = e.get("at")
-    if isinstance(at, dict) and at:
-        return False
+        if isinstance(v, (list, dict)) and v:
+            return False
     return True
 
 def at_fuera(at, fr, to):
@@ -99,6 +119,28 @@ def main():
             elif fr - prev_to > 1.0:
                 add("AVISO", prev_to, f"hueco de {fr-prev_to:.2f}s entre escena "
                                       f"{ordenadas[i-1][0]} y {idx}")
+
+    # La narración manda el reloj: la voz estimada debe caber en su escena y,
+    # sobre todo, no pisar la voz siguiente (voz_off mezcla con amix: dos
+    # voces a la vez). Estimación antes de pagar TTS; voz_off mide la real.
+    con_voz = [(idx, e) for idx, e in ordenadas
+               if isinstance(e.get("voz"), str) and e["voz"].strip()
+               and isinstance(e.get("from"), (int, float))]
+    for k, (idx, e) in enumerate(con_voz):
+        n = palabras_voz(e["voz"])
+        fin = e["from"] + AIRE_VOZ + n / RITMO_VOZ
+        sig = con_voz[k + 1][1]["from"] + AIRE_VOZ if k + 1 < len(con_voz) else None
+        # la estimación tiene ±0.3s de error: por debajo es aviso, no error
+        if sig is not None and fin > sig + 0.3:
+            add("ERROR", e["from"], f"escena {idx}: la voz ({n} palabras ≈ "
+                f"{n / RITMO_VOZ:.1f}s) pisaría la voz siguiente en {fin - sig:.1f}s — "
+                f"alargar la escena o recortar el texto")
+        elif sig is not None and fin > sig:
+            add("AVISO", e["from"], f"escena {idx}: la voz ({n} palabras ≈ "
+                f"{n / RITMO_VOZ:.1f}s) roza la voz siguiente — verificar con voz_off.py")
+        elif isinstance(e.get("to"), (int, float)) and fin > e["to"]:
+            add("AVISO", e["from"], f"escena {idx}: la voz ({n} palabras ≈ "
+                f"{n / RITMO_VOZ:.1f}s) se sale de la escena en {fin - e['to']:.1f}s")
 
     if ordenadas:
         idx, e = ordenadas[-1]

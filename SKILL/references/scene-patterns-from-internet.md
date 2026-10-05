@@ -34,6 +34,36 @@ Intro & Outro, Image & Media). MIT-licensed. El README trae descripciones
 claras por template — ideal para que el modelo encuentre patrones
 específicos por intención (typewriter, ken burns, progress steps, etc.).
 
+### 4. [iart-ai/motion-skills](https://github.com/iart-ai/motion-skills) — 54 skills en 17 packs
+
+Colección de skills de motion graphics para agentes (Remotion, canvas, web),
+cada una con su bucle "renderizar → mirar → verificar". Se analizó línea por
+línea, skill por skill (2026-10-05). Casi toda la doctrina ya estaba en
+`tecnicas-video.md`; lo que se portó es lo que faltaba de verdad:
+
+| Skill iart | Qué aportó a EditorIA |
+|---|---|
+| countdown-video | escena `countdown` + primitiva `odometro` |
+| promo-video | escena `oferta` (precios calculados, fail-loud) |
+| product-demo-video | escena `demo` + primitivas `cursor`/`onda_clic`/`smoothstep` |
+| testimonial-video | `quote`: líneas en orden de lectura, énfasis, `estrellas` |
+| text-message-animation | `chat`: "escribiendo", auto-scroll, cola, tiempos derivados |
+| lower-thirds (×2) | escena `rotulo_inferior` + overlays con alfa (`.mov`/`.webm`) |
+| wrapped-video / ad-creative | `render_plan.py --datos`: plantilla × tabla |
+| caption-animation | `caption.py --palabras`: karaoke con tiempo real por palabra |
+| photo-slideshow | `montaje.py pase` reescrito (movimiento distinto por foto) |
+| audiogram | `audio_viz.py --modo audiograma` |
+| presentation-video | la narración manda el reloj (`auditar_plan`, `voz_off`) |
+| color-motion | encode BT.709 exacto de frames RGB (`_comun.codificar_frames`) |
+| accessible-animation, soundtrack | `auto_qa.py`: fotosensible y sobresalto |
+| youtube-intro-outro | zonas de pantalla final (`_delivery.py`, `--end-screen`) |
+
+Lo que NO se portó (y por qué): reduced-motion, GSAP, Lottie, glass y
+transiciones de página (web, no video renderizado); Three.js/GLSL/Manim
+(otro stack; `remotion.md` y `hyperframes.md` cubren los motores opcionales);
+precios de freelance (cotizar no es editar); `layout-check` por `claim()`
+(exigiría instrumentar cada dibujo del renderer).
+
 ## Cómo se mapean a EditorIA (DRY)
 
 Cada escena del catálogo extendido se compone a partir de **primitivas DRY**
@@ -48,7 +78,12 @@ que viven en `scripts/render_plan.py`:
 | `cuadricula(x0, y0, ancho, alto, cols, n)` | layout en grilla | `stats`, `lineup` (futuro) |
 | `linewrap(text, fnt, max_width, tmp)` | word-wrap con medida real | `quote`, `versus`, `stats` |
 | `text_reveal(d, text, fnt, x, y, t, t0, dur, color)` | typewriter (carácter a carácter) | `typewriter` |
-| `kenburns(img, t, t0, dur, zoom_from, zoom_to, pan_x, pan_y)` | zoom + paneo progresivo | `kenburns` |
+| `kenburns(img, t, t0, dur, zoom_from, zoom_to, pan_x, pan_y)` | zoom + paneo progresivo (afín sub-píxel: no tiembla) | `kenburns`, `demo` |
+| `smoothstep(p)` | curva del cursor: arranca y frena como una mano | `demo` |
+| `cursor(d, x, y, escala)` · `onda_clic(d, x, y, t, t_clic)` | puntero + onda del clic (devuelve el pulso) | `pago`, `demo` |
+| `odometro(layer, texto, texto_prev, rodar, cx, cy, fnt, color)` | dígitos tabulares que ruedan al cambiar | `countdown` |
+| `estrellas(layer, cx, cy, valor, maximo, k)` | puntaje con relleno fraccional exacto | `quote` |
+| `imagen_ajustada(ruta, ancho, alto)` | carga + cubrir + recorte, cacheado por proceso | `kenburns`, `demo` |
 
 **Regla de oro**: al añadir una escena nueva, **componer** con estas primitivas.
 NO duplicar lógica de animación, NO hardcodear color (usar `ACENTO`, que el
@@ -70,6 +105,10 @@ determinista para que el render sea reproducible).
 | `typewriter` | `typewriter-subtitle.tsx` | Text (reactvideoeditor) |
 | `kenburns` | `ken-burns.tsx` | Cinematic (reactvideoeditor) |
 | `pasos` | `progress-steps.tsx` | Content Animation (reactvideoeditor) |
+| `countdown` | countdown-video | tiktok-video-skills (iart) |
+| `oferta` | promo-video | ecommerce-video-skills (iart) |
+| `demo` | product-demo-video | ecommerce-video-skills (iart) |
+| `rotulo_inferior` | lower-thirds | lower-thirds-skills (iart) |
 
 ## Cómo portar una escena nueva (procedimiento)
 
@@ -144,12 +183,16 @@ def sc_pie(ctx, e, t):
   (Remotion) se documentan como recetas para cuando el usuario ya trabaja en
   React/Node (ver `references/remotion.md`).
 
+**Trampa de PIL**: `ImageDraw` con alfa < 255 reemplaza píxeles, no mezcla
+(ver `reglas-tecnicas.md`, "ImageDraw con alfa reemplaza pixeles").
+
 ## Resumen ejecutivo
 
 - 8 escenas del catálogo extendido vienen de `lifeprompt-team/remotion-scenes` (MIT).
 - 3 escenas de la ronda 2 vienen de `reactvideoeditor/remotion-templates` (MIT, 81 templates).
+- 4 escenas de la ronda 3 (+ mejoras a `chat` y `quote`) vienen de `iart-ai/motion-skills` (MIT).
 - Estan implementadas en `render_plan.py` (PIL/ffmpeg, sin Node).
-- Compuestas con 8 primitivas DRY (no hay logica de animacion duplicada).
+- Compuestas con 14 primitivas DRY (no hay logica de animacion duplicada).
 - Defensivas: el smoke test pasa con defaults genericos.
 - Marca-blanca: el color sale del brand pack o del `ACENTO` neutro.
 - Reproducibles: las particulas usan semilla determinista (no `random()` en runtime).

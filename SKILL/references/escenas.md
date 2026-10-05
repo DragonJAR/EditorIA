@@ -21,9 +21,15 @@ con fecha/hora y notificaciones que caen con resorte y empujan a las anteriores.
 - Params: `rotulo`, `hora`, `fecha`, `notificaciones[{canal, titulo, texto, at}]`
 
 ## 4. `chat` — conversación con IA
-Burbujas de chat (cliente izq, IA der) que aparecen con resorte; la IA "escribe"
-(puntos suspensivos) antes de responder. Link de pago como tarjeta final.
-- Params: `rotulo`, `cliente`, `iniciales`, `mensajes[{de, texto, at}]`, `link{titulo, monto, at}`
+Burbujas de chat (cliente izq, IA der) que aparecen con resorte, un mensaje a
+la vez; la IA "escribe" (tres puntos que laten) antes de responder. La última
+burbuja de cada racha lleva cola. Hilos largos hacen auto-scroll con resorte:
+lo nuevo queda sobre la banda segura y lo viejo se desvanece bajo el rótulo.
+Link de pago como tarjeta final.
+- Params: `rotulo`, `mensajes[{de, texto, at?, pausa?, escribe?}]`, `link{titulo, monto, at}`
+- Sin `at`, el tiempo se deriva del mensaje anterior: `pausa` de lectura
+  (0.6 s) + `escribe` (0.7 s en la IA). Ritmo: respuestas ágiles 0.3–0.5 s de
+  pausa; antes del remate, `escribe` 1.5–2.5 s (el suspenso vende el remate).
 
 ## 5. `leads` — tabla priorizada
 Filas de tabla que entran en cascada; resaltado por temperatura (Caliente/Tibio/Frío)
@@ -71,13 +77,13 @@ Barrido orgánico: un blob con borde ondulado que crece desde un punto
 (`transicionX/Y`) con un agujero central, cubre la escena anterior y revela la
 nueva. Implementación: polígono de 72 puntos con radio modulado por senos.
 
-## Catálogo unificado de escenas (24 tipos del plan)
+## Catálogo unificado de escenas (28 tipos del plan)
 
-A partir de 2026-10-04, el catálogo integra las 13 escenas originales más 11
-escenas de datos/UI/tipo/cinemática validadas externamente (ver
-`references/scene-patterns-from-internet.md`). Cada nueva escena se compone
-con las primitivas DRY de `render_plan.py` (`barra_h`, `cuenta_up`, `arco`,
-`particulas`, `cuadricula`, `linewrap`, `text_reveal`, `kenburns`).
+El catálogo integra las 13 escenas originales más 15 escenas de
+datos/UI/tipo/cinemática/oferta validadas externamente (ver
+`references/scene-patterns-from-internet.md`). Cada escena nueva se compone
+con las primitivas DRY de `render_plan.py` (lista al final de este archivo).
+El validador renderiza las 28 con datos mínimos en cada corrida.
 **Marca-blanca**: el color viene del brand pack (`brand/*.json`); sin pack,
 se usa el `ACENTO` neutro del renderer.
 
@@ -106,9 +112,14 @@ Fuente: `DataStatsCards` (MIT).
 `at{rotulo, item0..n}`.
 Fuente: `DataTimeline` (MIT).
 
-**`quote`** — Quote card con autor y fuente. `texto`, `autor`, `fuente`,
-`at{card, texto, autor, fuente}`. Word-wrap automático.
-Fuente: `ThemeAnimations › quote` (MIT).
+**`quote`** — Testimonio / cita: la confianza antes que el movimiento. Las
+líneas entran en orden de lectura (0.22 s entre líneas); la frase clave va
+entre `*asteriscos*` (UNA por cita) y su marcador barre DESPUÉS de que su línea
+asienta; `estrellas` se llenan al puntaje real (4.5 se ve 4.5) después de la
+cita; el autor firma último y queda quieto. `texto` (verbatim, nunca
+parafrasear), `autor`, `rol?`, `estrellas?`, `estrellas_max?` (5), `fuente?`,
+`at{card, texto, enfasis, estrellas, autor, fuente}`.
+Fuente: `ThemeAnimations › quote` (MIT) + testimonial-video (iart-ai, MIT).
 
 **`versus`** — Comparación lado a lado. `izquierda{etiqueta, items[]}`,
 `derecha{etiqueta, items[]}`, `at{rotulo, izq, der}`.
@@ -134,15 +145,54 @@ Fuente: `ken-burns.tsx` (MIT).
 paso activo brillando y los demás atenuados. `titulo?`, `items[{titulo, texto, at}]`,
 `at{rotulo, item0..n}`. Fuente: `progress-steps.tsx` (MIT).
 
+### 25-28. Ronda 3 — Ofertas, demos, cuentas y rótulos (iart-ai/motion-skills, MIT)
+
+**`countdown`** — Cuenta regresiva exacta: el número es función del tiempo
+(nunca un contador acumulado) y marca `00` en el frame exacto
+`at.inicio + segundos`. Dígitos de ancho fijo que ruedan tipo odómetro en el
+último cuarto de su segundo. `segundos`, `formato?` (ss | mm:ss | hh:mm:ss;
+default según duración), `rotulo?`, `final?` ("¡EN VIVO!"), `at{rotulo, inicio}`.
+Para "empezamos en 5 min" de streams, lanzamientos y ofertas con plazo real.
+
+**`oferta`** — UN descuento, un código, un CTA. `ahora` y el % se CALCULAN
+de `antes` (dar `ahora` o `descuento`, no ambos): un precio incoherente rompe
+el render antes de mentir en pantalla. Orden: el descuento aterriza (lo más
+grande) → se tacha el precio viejo → DESPUÉS el nuevo cuenta hacia abajo →
+código quieto (chip punteado, se lee y se captura) → vencimiento → CTA.
+`antes`, `ahora|descuento`, `moneda` ($), `moneda_despues?`, `decimales?`,
+`miles?`/`decimal?`, `mostrar?` (porcentaje | monto; default monto si el
+ahorro es < 10), `codigo?`, `vence?` (solo una fecha REAL), `cta?`, `rotulo?`,
+`at{rotulo, descuento, tachado, precio, codigo, vence, cta}`.
+
+**`demo`** — Demo de producto desde capturas, sin grabar pantalla: ventana con
+barra y URL; el cursor viaja con smoothstep al objetivo; la onda del clic y
+el cambio de pantalla caen en el MISMO frame; zoom al foco (≤2×) con
+spotlight y un beneficio por paso (frase nominal: "Exporta con un clic").
+Cámara O cursor, nunca los dos a la vez. `captura` (idealmente a 2× para que
+el zoom quede nítido), `url?`, `rotulo?`, `aspecto?`,
+`pasos[{x, y (0..1 sobre la captura), at (clic), zoom?, texto?, captura?}]`,
+`at{rotulo, ventana}`. Ritmo: 15 s = 3–4 pasos; 30 s = 5–7. Para acelerar,
+quitar pasos, nunca acortar los holds de lectura.
+
+**`rotulo_inferior`** — Lower third: nombre + rol sobre panel, anclado a la
+izquierda (o `lado: der`) dentro del title-safe y elevado sobre la banda de
+UI en 9:16. Entra barra → nombre → rol (máscara que barre, stagger 0.12 s),
+queda quieto mientras se lee (3–5 s) y sale más rápido de lo que entró; el
+primer y el último frame quedan vacíos. Un nombre largo se encoge, nunca se
+sale del panel. `nombre`, `rol?`, `lado?`, `at{entra}`. Con `-o rotulo.mov`
+(o `.webm`) sale como overlay con alfa para el NLE u OBS; con `--datos` se
+renderiza uno por ponente (ver `plan-video.md`).
+
 ## Ideas de escenas futuras (NO implementadas — no usar como `tipo`)
 
 ⚠️ Estos nombres **no existen** en `SCENES` (`scripts/render_plan.py`): usar uno
 en `plan.json` produce `KeyError`. Son ideas para implementar, no tipos válidos.
 `orbOpen` · `lineup` · `rise` · `orbChips` · `dissolve` · `outro` · `broll` ·
-`callout` · `lowerThird` · `tituloDetras` (requiere Robust Video Matting) ·
+`callout` · `tituloDetras` (requiere Robust Video Matting) ·
 `index` · `subscribe` · `notificacion` · `buscador` · `comentario`
 
-Para añadir una nueva escena: composer con las primitivas DRY (`barra_h`,
+Para añadir una nueva escena: componer con las primitivas DRY (`barra_h`,
 `cuenta_up`, `arco`, `cuadricula`, `linewrap`, `particulas`, `text_reveal`,
-`kenburns`) — NO duplicar lógica. Ver `references/scene-patterns-from-internet.md`
+`kenburns`, `cursor`, `onda_clic`, `smoothstep`, `odometro`, `estrellas`,
+`imagen_ajustada`) — NO duplicar lógica. Ver `references/scene-patterns-from-internet.md`
 para portar escenas validadas de las fuentes MIT documentadas allí.

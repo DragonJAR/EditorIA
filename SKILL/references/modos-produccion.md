@@ -48,6 +48,25 @@ explica. La integración debe ser coherente, confiable y orgánica.
 - Annotation pins sobre producto/pantalla que la persona muestra.
 - Subrayados y círculos dibujados (draw-on) sobre el footage para señalar.
 
+### Overlays con alfa (entregar capas al editor)
+
+Cuando el footage lo edita otra persona (o vive en OBS), el gráfico se entrega
+como capa transparente, no quemado: `render_plan.py plan.json -o capa.mov`
+(ProRes 4444) o `-o capa.webm` (VP9). La escena `rotulo_inferior` es el caso
+típico; con `--datos` sale uno por ponente.
+
+| Herramienta | Archivo | Detalle |
+|---|---|---|
+| Premiere Pro | `.mov` | no lee el alfa de WebM: lo transparente entraría negro |
+| DaVinci Resolve | `.mov` | si los bordes se ven oscuros: Clip Attributes → Alpha Mode → Straight |
+| Final Cut Pro | `.mov` | clip conectado sobre el footage |
+| OBS Studio | `.webm` | Media Source, sin "Loop", con "Restart playback when source becomes active"; a 0,0 sin escalar |
+| Web | `.webm` | Chrome/Edge leen el alfa; Safari solo HEVC con alfa (`hevc_videotoolbox`, solo macOS) |
+| Editor sin alfa | `.mp4` sobre verde | chroma key en el editor; el texto fino puede orlar |
+
+El archivo es de cuadro completo con el gráfico ya en su sitio: se coloca a
+0,0 sin escalar. Empieza y termina vacío para no aparecer ni cortarse de golpe.
+
 ### Beats animados entre segmentos reales (saliendo del plano)
 
 - Un beat animado por idea: dato, proceso, contraste, payoff. Nunca dos beats

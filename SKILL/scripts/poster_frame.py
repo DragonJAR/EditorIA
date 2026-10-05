@@ -22,6 +22,10 @@ Uso:
 import argparse
 import os
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import VF_RGB_A_BT709, x264_args  # noqa: E402
 
 
 def run(cmd):
@@ -46,7 +50,9 @@ def main():
     # 1. extraer el poster del momento asentado
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
          "-ss", str(args.t), "-i", args.video,
-         "-frames:v", "1", "-q:v", "2", jpg])
+         # via RGB: decodifica con la matriz del video (BT.709) y el JPG queda
+         # fiel; directo yuv->yuvj desplaza el color de marca
+         "-frames:v", "1", "-vf", "format=rgb24", "-q:v", "2", jpg])
     print(f"poster extraido en t={args.t}s -> {jpg}")
 
     # 2. hornear como frame 0 (mismos pixeles de dimension: sale del mismo render)
@@ -62,10 +68,12 @@ def main():
 
     run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-y",
          "-i", src, "-i", jpg,
-         "-filter_complex", "[0:v][1:v]overlay=0:0:enable='eq(n,0)'[v]",
-         "-map", "[v]", "-map", "0:a?", "-c:v", "libx264", "-crf", "18",
-         "-preset", "slow", "-pix_fmt", "yuv420p", "-c:a", "copy",
-         "-movflags", "+faststart", out])
+         # el JPG pasa por RGB y se convierte a BT.709 antes del overlay: si
+         # no, el frame 0 sale con otro color que el resto del video
+         "-filter_complex", f"[1:v]format=rgb24,{VF_RGB_A_BT709}[p];"
+                            "[0:v][p]overlay=0:0:enable='eq(n,0)'[v]",
+         "-map", "[v]", "-map", "0:a?", *x264_args(18, "slow"),
+         "-c:a", "copy", out])
     print(f"OK frame 0 = poster -> {out} (duracion y audio intactos)")
 
 

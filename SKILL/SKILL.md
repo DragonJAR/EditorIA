@@ -1,7 +1,7 @@
 ---
 name: editoria
 description: EditorIA, navaja suiza de edición de video con IA. Crea, edita, resume o mejora videos (.mp4): resúmenes animados de reuniones, tipografía cinética, anuncios por plan, films cinematográficos y piezas verticales para redes, para cualquier marca o sin marca. Úsalo cuando el usuario pida "hazme un video", "resume esta reunión", "edita este anuncio", "mejora este video" o "ponle música".
-metadata: { "author": "Muse para Jaime Andrés Restrepo", "version": "1.1.0" }
+metadata: { "author": "Muse para Jaime Andrés Restrepo", "version": "1.3.0" }
 ---
 
 # EditorIA
@@ -37,7 +37,11 @@ diseño libre; con pack, fidelidad total.
 
 | Brief | Motor |
 |---|---|
-| Anuncio con escenas y narración | **Plan**: `plan.json` + `scripts/render_plan.py` (13 escenas en `references/escenas.md`; conceptos extendidos portables en `references/escenas-extendidas.md`) |
+| Anuncio con escenas y narración | **Plan**: `plan.json` + `scripts/render_plan.py` (28 escenas en `references/escenas.md`, incl. `oferta`, `demo`, `countdown`, `quote`; conceptos extendidos portables en `references/escenas-extendidas.md`) |
+| El mismo video para N personas/productos/variantes | **Plantilla × tabla**: `render_plan.py plan.json --datos tabla.csv -o "x_{id}.mp4"` (verificar una con `--fila 1`; `references/plan-video.md`) |
+| Rótulos, títulos o gráficos para el editor / OBS (sin fondo) | **Overlay con alfa**: `render_plan.py plan.json -o capa.mov` (ProRes 4444) o `.webm` (VP9); escena `rotulo_inferior`; uso por herramienta en `references/modos-produccion.md` |
+| Carpeta de fotos → video | `scripts/ffmpeg_tools/montaje.py pase ./fotos -o pase.mp4` (`--bpm` para cambiar al compás) |
+| Clip de podcast/voz para redes | **Audiograma**: `scripts/audio_viz.py audio.mp3 --modo audiograma --titulo "..." --portada cover.jpg` + subtítulos con `caption.py` |
 | Resumen de reunión/transcripción | **Composición**: `references/pipeline-resumen.md` + estilos de `references/estilos.md` |
 | Film cinematográfico 16:9 | **Cine**: recetas en `references/cine.md` (con brand pack: `scripts/film_marca_v2.py` para DragonJAR) |
 | Tarjeta cinética rápida (una frase) | **Quick**: receta `quick-kinetic` en `references/modos-rapidos.md` |
@@ -73,7 +77,8 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
    Borradores con `--blur 1`; **entrega final con `--blur 5`** (motion blur
    de obturador 180°, ver `references/animacion.md`).
 3. **Voz en off** (si se pide): `python scripts/voz_off.py plan.json -o voz.mp3`
-   (ElevenLabs, campo `voz` por escena). **Apartado de sonido**:
+   (ElevenLabs, campo `voz` por escena; la narración manda el reloj: falla si
+   una voz pisa a la siguiente — `auditar_plan.py` lo estima antes de pagar). **Apartado de sonido**:
    `references/sonido.md` — dirección de voz (tags `[excited]`, `[whisper]`...),
    voces por idioma (la voz por defecto es el idioma en que hable el usuario),
    música y SFX. **Alineación palabra-a-palabra** (opcional, para escenas con
@@ -85,7 +90,8 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
    Con voz: `mix -v video.mp4 -a voz.mp3 -m mus.mp3 -o final.mp4` (ducking
    sidechain). Sin voz: `musiconly -v video.mp4 -m mus.mp3 -o final.mp4`.
 5. **QA**: `references/checklist-qa.md` + `references/coherencia-espacial.md`.
-   Mirar frames en los tiempos clave. Puntuar con
+   Mirar frames en los tiempos clave (`scripts/auto_qa.py`: también
+   fotosensibilidad y sobresaltos). Puntuar con
    `references/rubrica-premios.md`: ningún eje bajo 4 o no se entrega.
 6. **Iterar y documentar**: cada fix → `python scripts/registrar_aprendizaje.py`
    (protocolo en `references/auto-mejora.md`).
@@ -111,7 +117,10 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
 ## Output Contract
 
 - 1080×1920 @30fps para vertical; 1920×1080 @30fps para horizontal (24fps en
-  piezas de cine). H.264, yuv420p, CRF 18–22.
+  piezas de cine). H.264, yuv420p, CRF 18–22, **BT.709 convertido y
+  etiquetado** (todo frame RGB pasa por `_comun.codificar_frames`: sin eso el
+  color de marca se desplaza en navegadores y players). Overlays: `.mov`
+  ProRes 4444 / `.webm` VP9 con alfa verificado.
 - Audio: voz en off (`scripts/voz_off.py`) y música (`scripts/musica.py`) cuando se pidan;
   con voz siempre hay ducking; sin voz, `musiconly` con fade de salida.
   La API key sale de `$ELEVENLABS_API_KEY` (`~/.secrets.env`) — nunca en el skill,
@@ -172,7 +181,7 @@ Un video está terminado solo si cumple TODO:
 - **Ejecución**: 0 llamadas API fallidas por workflow; el workflow completa sin
   que el usuario tenga que corregir el rumbo a mitad de camino.
 - **Consistencia**: el mismo brief produce la misma estructura y calidad entre
-  sesiones (ver `scripts/validate_skill.py`: 13/13 escenas renderizan siempre).
+  sesiones (ver `scripts/validate_skill.py`: 28/28 escenas renderizan siempre).
 
 ## Ejemplos
 
@@ -227,7 +236,7 @@ El skill debe activarse con:
    sin voz.
 4. **Resume**: interrumpir `render_plan.py` a mitad y re-ejecutar sin `--force`
    retoma los frames faltantes (no re-renderiza desde 0).
-5. **Validación**: `python scripts/validate_skill.py` sale 0 (13/13 escenas
+5. **Validación**: `python scripts/validate_skill.py` sale 0 (28/28 escenas
    renderizan, scripts compilan, referencias existen).
 
 ## Troubleshooting

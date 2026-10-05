@@ -7,7 +7,7 @@ SUPERSEDED: usar `film_marca_v2.py` (dirección de arte preferida por el autor).
 Este v1 se conserva solo como referencia histórica.
 Uso: python film_marca.py -o film.mp4
 """
-import os, sys, math, argparse, subprocess, random
+import os, sys, math, argparse, random
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -334,10 +334,10 @@ def main():
         t=fi/FPS
         render_frame(ctx,t,state).save(f"{tmpd}/f_{fi:04d}.png")
         if fi%48==0: print(f"  {fi}/{N}  t={t:.1f}s",flush=True)
-    subprocess.run(["ffmpeg","-y","-v","error","-framerate",str(FPS),
-                    "-i",f"{tmpd}/f_%04d.png","-c:v","libx264","-preset","medium",
-                    "-crf","18","-pix_fmt","yuv420p","-movflags","+faststart",a.out],
-                   check=True)
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(BASE, "ffmpeg_tools"))
+    from _comun import codificar_frames   # H.264 BT.709 exacto (color de marca fiel)
+    codificar_frames(f"{tmpd}/f_%04d.png", FPS, a.out, crf=18)
     print("OK",a.out)
 
 if __name__=="__main__": main()

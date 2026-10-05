@@ -1,10 +1,10 @@
 # Arquitectura EditorIA
 
 ```
-plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ ffmpeg ──▶ video.mp4
-     │                │
+plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_frames ──▶ .mp4 (BT.709)
+     │  (+ tabla --datos)│                              └─▶ .mov/.webm (overlay con alfa)
      │                ├── motor de fluidez (resortes, easings, transiciones según pack/tono)
-     │                ├── 13 escenas (references/escenas.md)
+     │                ├── 28 escenas (references/escenas.md)
      │                └── identidad: del brand pack (o modo libre)
      │
      └── formato en references/plan-video.md (tiempos absolutos, at:{})
@@ -14,7 +14,10 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ ffmpeg ──�
 - **scripts/render_plan.py** — renderizador de referencia. Lee un plan.json,
   renderiza cada escena con física de resortes, fondo vivo continuo,
   transiciones según el brand pack o el tono (mancha opt-in por escena) y
-  salidas anticipadas. 1080×1920, 30fps.
+  salidas anticipadas. 1080×1920 @30fps (o `tamano` 1920×1080). La extensión
+  de `-o` decide el entregable: `.mp4` con fondo, `.mov`/`.webm` overlay con
+  alfa verificado. `--datos tabla.csv` = plantilla × tabla (un video por
+  fila, placeholders `{columna}` fail-loud; `--fila N` para verificar una).
 - **scripts/demo_plan.json** — plan demo de 6 escenas (~30s) sobre EditorIA.
 - **scripts/voz_off.py** — voz en off con ElevenLabs: lee el campo "voz" de cada
   escena del plan, genera un segmento por escena y los mezcla en sus tiempos.
@@ -22,7 +25,16 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ ffmpeg ──�
   `[slowly]`, `[long pause]`...). Voces por defecto según el idioma del usuario:
   español → Fernanda Sanmiguel, inglés → Brian (`--voz`/`--idioma` para cambiar).
   La API key sale de `$ELEVENLABS_API_KEY` (ver `~/.secrets.env`, nunca en el skill).
-  Dirección completa en `references/sonido.md`.
+  Dirección completa en `references/sonido.md`. La narración manda el reloj:
+  mide cada segmento y falla antes de mezclar si una voz pisa a la siguiente.
+- **scripts/auto_qa.py** — ojos máquina sobre el render: negros, congelados,
+  flashes, silencios, clipping, fotosensibilidad (≤3 destellos/s a fps
+  completo), sobresaltos (+6 dB al entrar un corte), costura de loop
+  (`--loop`) y contact sheet con zona segura (`--safe`) o zonas de pantalla
+  final de YouTube (`--end-screen`). Ver `references/auto-qa.md`.
+- **scripts/ffmpeg_tools/delivery_check.py** — compliance contra la tabla de
+  `_delivery.py` (codec, aspecto, LUFS, true peak; `--end-screen` para la
+  pantalla final de YouTube).
 - **scripts/ffmpeg_tools/** — kit ffmpeg portado (stdlib-only):
   `scripts/ffmpeg_tools/silence.py` (jump-cuts por silencios),
   `scripts/ffmpeg_tools/loudness.py` (normalización LUFS),
@@ -30,7 +42,8 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ ffmpeg ──�
   `scripts/ffmpeg_tools/speedramp.py` (rampas de velocidad),
   `scripts/ffmpeg_tools/look.py` (contact sheets para QA visual),
   `scripts/ffmpeg_tools/caption.py` (subtítulos burn/mux, `--phrase-aware`,
-  `--brand` con brand pack, fit-size `--max-lines`/`--min-size`),
+  `--brand` con brand pack, fit-size `--max-lines`/`--min-size`,
+  `--palabras` = karaoke con el tiempo real de cada palabra de `alinear.py`),
   `scripts/ffmpeg_tools/transcribir.py` (ASR local → SRT + JSON de segmentos),
   `scripts/ffmpeg_tools/aplicar_edl.py` (aplica un EDL: corta y re-ensambla),
   `scripts/ffmpeg_tools/shorts_plan.py` (valida y ejecuta un shorts-plan.json),
@@ -43,10 +56,13 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ ffmpeg ──�
   `scripts/ffmpeg_tools/montaje.py` (navaja suiza de edición: unir, cortar,
   fundido, transicion, pip, marca-agua, audio, gif, pase, rotar, voltear,
   bucle, escala, color, velocidad, reversa, limpiar-audio, chroma
-  — ver `references/montaje.md`),
+  — ver `references/montaje.md`; `pase` = fotos → video con un Ken Burns
+  distinto por foto, fondo desenfocado, fundidos y cambios al compás),
   `scripts/ffmpeg_tools/variantes.py` (batch hook×body para A/B),
   `scripts/ffmpeg_tools/_comun.py` (utilidades compartidas: probe, runners,
-  puente ASR `transcribir_medio`).
+  puente ASR `transcribir_medio`; `codificar_frames` = ÚNICO encoder de
+  frames RGB(A): H.264 BT.709 exacto o alfa ProRes 4444/VP9 con
+  `verificar_alfa`; `VF_RGB_A_BT709` para cadenas de filtros).
 - **scripts/beat_grid.py** — estima BPM, fase y energía por compás de un MP3
   (para cortes al beat). **scripts/beat_sync.py** — ajusta tiempos de corte
   o bordes de EDL a la rejilla de beats. **scripts/medir_mezcla.py** — QA
@@ -57,10 +73,13 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ ffmpeg ──�
   transcritos (regla "la última toma gana", fillers ES/EN, margen 0.3s, nunca
   corta dentro de una palabra). Completa el quick-cut v2 con `silence.py`.
 - **scripts/auditar_plan.py** — audita un plan.json (solapes, duraciones,
-  escenas vacías, voz sin texto, huecos, coherencia con `duracion`).
-  Correr antes de renders largos.
+  escenas vacías, voz sin texto, huecos, coherencia con `duracion`, tipos
+  leídos de `SCENES` de render_plan y que cada voz quepa en su escena sin
+  pisar la siguiente). Correr antes de renders largos y antes de pagar TTS.
 - **scripts/audio_viz.py** — visualización de audio (waves/spectrum/freqs,
-  overlay sobre video) en rojo de marca.
+  overlay dentro de la zona segura) y `--modo audiograma` (portada, título,
+  barras espejadas precalculadas por frame, progreso, banda para subtítulos)
+  en el acento del pack o el neutro.
 - **scripts/musica.py** — música de fondo (ElevenLabs Music `gen`) y mezcla
   profesional (`mix`): ducking sidechain para que la música baje bajo la voz.
   Lecciones ffmpeg: duración explícita del video (nunca `-shortest`), `asplit`

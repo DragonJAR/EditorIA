@@ -9,6 +9,8 @@ Dirección: el texto admite audio tags de eleven_v3 ([excited], [whisper],
 [slowly], [dramatic tone], [long pause]...) y puntuación como ingeniería
 (ver references/sonido.md).
 Voces por defecto: español -> Fernanda Sanmiguel; inglés -> Brian.
+La narración manda el reloj: mide cada segmento y falla si una voz pisa a la
+siguiente (antes de mezclar). Pre-TTS, auditar_plan.py estima lo mismo.
 La API key sale de $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
 import os, sys, json, argparse, subprocess, hashlib, requests
@@ -49,6 +51,29 @@ def tts(texto, out, voz_id, model):
     r.raise_for_status()
     open(out, "wb").write(r.content)
 
+def duracion(path):
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                        "-of", "csv=p=0", path], capture_output=True, text=True)
+    return float(r.stdout.strip() or 0)
+
+def verificar_reloj(segs):
+    """La narración manda el reloj: mide cada segmento real. Si una voz pisa
+    a la siguiente, amix las sumaría (dos voces a la vez): se falla ANTES de
+    mezclar, diciendo cuánto alargar. Los segmentos quedan en caché (no se
+    re-pagan al re-ejecutar tras corregir el plan)."""
+    errores = []
+    for k, (f, dl, e) in enumerate(segs):
+        fin = dl / 1000 + duracion(f)
+        if k + 1 < len(segs) and fin > segs[k + 1][1] / 1000:
+            errores.append(f"escena {e['tipo']}@{e['from']}s: la voz dura hasta {fin:.2f}s y "
+                           f"pisa la siguiente ({segs[k+1][1]/1000:.2f}s) — alargar la escena "
+                           f"{fin - segs[k+1][1]/1000 + 0.2:.2f}s o recortar el texto")
+        elif fin > e.get("to", fin):
+            print(f"AVISO escena {e['tipo']}@{e['from']}s: la voz termina {fin - e['to']:.2f}s "
+                  f"después de la escena (cae sobre la siguiente imagen)", flush=True)
+    if errores:
+        sys.exit("ERROR voces solapadas:\n  " + "\n  ".join(errores))
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("plan"); ap.add_argument("-o", "--out", required=True)
@@ -73,11 +98,12 @@ def main():
             print(f"TTS escena {i} ({e['tipo']}): {vox[:50]}…",flush=True)
             tts(vox, f, voz_id, a.model)
         delay_ms=int((e["from"]+0.4)*1000)
-        segs.append((f,delay_ms))
+        segs.append((f,delay_ms,e))
     if not segs: sys.exit("El plan no tiene campos 'voz'")
+    verificar_reloj(segs)
     # mezcla con delays
     fc=[]; amix=[]
-    for i,(f,dl) in enumerate(segs):
+    for i,(f,dl,_) in enumerate(segs):
         fc+=["-i",f]; amix.append(f"[{i}:a]adelay={dl}|{dl}[a{i}]")
     amix.append("".join(f"[a{i}]" for i in range(len(segs)))+
                 f"amix=inputs={len(segs)}:normalize=0[aout]")

@@ -25,8 +25,8 @@ from fractions import Fraction
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _comun import (add_common, apply_common, die, emit, probe)
-from _delivery import (ALIASES, PLATFORMS, PLATFORM_CHOICES, resolve,
-                       spec_of, title_of)
+from _delivery import (ALIASES, END_SCREEN_YOUTUBE, PLATFORMS, PLATFORM_CHOICES,
+                       resolve, spec_of, title_of)
 from loudness import measure as measure_loudness
 
 
@@ -38,7 +38,7 @@ def aspect_of(w, h):
         return "?"
 
 
-def check_file(path, platform, lufs=None, tp=None):
+def check_file(path, platform, lufs=None, tp=None, end_screen=None):
     name = resolve(platform)
     if name not in PLATFORMS:
         die(f"plataforma desconocida: {platform} "
@@ -63,6 +63,20 @@ def check_file(path, platform, lufs=None, tp=None):
     else:
         row("duracion", "PASS", f"{dur:.1f}s" if dur else "?",
             f"<= {spec['max_duration']}s" if spec["max_duration"] else "sin limite")
+
+    # --- pantalla final de YouTube (solo si se planea) ---
+    if end_screen is not None:
+        es = END_SCREEN_YOUTUBE
+        if dur is not None and dur < es["min_video"]:
+            row("end screen", "FAIL", f"video de {dur:.1f}s", f">= {es['min_video']:.0f}s",
+                fix="alargar el video o renunciar a la pantalla final",
+                reason="YouTube solo permite elementos de pantalla final en videos de 25 s o mas")
+        elif not es["min_seg"] <= end_screen <= es["max_seg"]:
+            row("end screen", "FAIL", f"{end_screen:.0f}s", f"{es['min_seg']:.0f}-{es['max_seg']:.0f}s",
+                fix="ajustar el tramo final", reason="fuera de ese rango YouTube no la acepta")
+        else:
+            row("end screen", "PASS", f"ultimos {end_screen:.0f}s",
+                "tercio der. quieto; revisar zonas con auto_qa.py --end-screen")
 
     # --- video ---
     if v and spec["aspects"] is not None:
@@ -172,6 +186,8 @@ def main():
                     help="objetivo LUFS (default: el de la plataforma; -16 para piezas calmas)")
     ap.add_argument("--tp", type=float, default=None,
                     help="techo de true peak en dBTP (default: el de la plataforma)")
+    ap.add_argument("--end-screen", type=float, metavar="SEG",
+                    help="segundos finales reservados a la pantalla final de YouTube (5-20)")
     ap.add_argument("--list-platforms", action="store_true",
                     help="lista los destinos y sus specs, sin verificar nada")
     add_common(ap)
@@ -188,7 +204,7 @@ def main():
         return 0
     if not args.input:
         die("falta el archivo a verificar", kind="input")
-    res = check_file(args.input, args.platform, args.lufs, args.tp)
+    res = check_file(args.input, args.platform, args.lufs, args.tp, args.end_screen)
     if getattr(args, "json", False):
         emit(None, platform=res["platform"], title=res["title"],
              rows=res["rows"], verdict=res["verdict"],

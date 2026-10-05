@@ -62,9 +62,52 @@ python scripts/render_plan.py plan.json -o final.mp4 --blur 5 --force  # entrega
 `--jobs N`: procesos en paralelo (default núcleos−1). Sin `--force` retoma
 los frames que ya existen.
 
-## Tipos de escena (13)
+**Tamaño**: `"tamano": "1920x1080"` en el plan (o `--tamano`) para 16:9; la
+zona segura pasa a la de YouTube. Default 1080×1920.
+
+**Color**: el MP4 sale en BT.709 exacto y etiquetado (el acento del pack se
+decodifica tal cual en navegadores y players; ver `reglas-tecnicas.md`).
+
+### Overlay con alfa (lower thirds, títulos, bugs para el editor)
+
+La extensión decide el entregable:
+
+| `-o` | Qué sale | Para |
+|---|---|---|
+| `.mp4` | H.264 BT.709, con fondo vivo | redes, web |
+| `.mov` | ProRes 4444 con alfa, sin fondo | Premiere, DaVinci Resolve, Final Cut |
+| `.webm` | VP9 con alfa, sin fondo | OBS (Media Source), Chrome |
+
+Con alfa no hay fondo vivo y el cierre se va por transparencia, no a negro.
+Antes de codificar se revisan los frames (vacíos al inicio y al final, nada
+pinta el cuadro entero, todo dentro del title-safe 5%) y después se decodifica
+un frame del medio para confirmar que el alfa sobrevivió. Uso en cada
+herramienta: `modos-produccion.md` ("Overlays con alfa").
+
+### Plantilla × tabla: un plan, N videos (`--datos`)
+
+El plan lleva `{columna}` en cualquier texto; la tabla (CSV, TSV o JSON) trae
+una fila por video:
+
+```
+python scripts/render_plan.py plan.json --datos ponentes.csv --fila 1 -o "lt_{archivo}.mov"   # verificar UNA
+python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mov"            # el lote
+```
+
+- Un texto que es solo `"{valor}"` toma el valor tipado: un número sigue siendo
+  número (y cuenta con `cuenta_up`).
+- Fail-loud: si el plan usa una columna que la tabla no tiene, sale con error
+  ANTES de renderizar nada (nunca `{nombre}` literal en pantalla).
+- `-o` admite `{columna}` para nombrar; si no, se numera `_001`, `_002`…
+- El plan resuelto de cada fila queda junto a su video (`*.plan.json`).
+- Una variante por variable: en tests A/B, la tabla cambia UNA columna.
+
+## Tipos de escena (28)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·
-`listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final`
+`listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final` · `bars` ·
+`gauge` · `ranking` · `stats` · `timeline` · `quote` · `versus` · `confetti` ·
+`typewriter` · `kenburns` · `pasos` · `countdown` · `oferta` · `demo` ·
+`rotulo_inferior`
 
 Ver `references/escenas.md` para los parámetros de cada una.
 Ver `scripts/render_plan.py` para el renderizador de referencia.

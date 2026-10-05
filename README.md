@@ -8,7 +8,7 @@ Crea, edita, resume y mejora videos (`.mp4`): resúmenes animados de reuniones, 
 
 ## Versión
 
-`v1.0.0` — primera versión.
+`v1.3.0` — 28 escenas (nuevas: `oferta`, `demo` de producto, `countdown`, `rotulo_inferior`), overlays con canal alfa para Premiere/Resolve/OBS, plantilla × tabla (un video por fila), audiogramas, karaoke con tiempo real por palabra, color de marca exacto (BT.709) y QA de fotosensibilidad y sobresaltos.
 
 ## Estructura
 

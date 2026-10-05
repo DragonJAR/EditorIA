@@ -17,7 +17,7 @@ import subprocess
 import sys
 from fractions import Fraction
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 INSTALL_HINTS = {
     "Linux": "  Debian/Ubuntu: sudo apt install ffmpeg\n  Fedora:        sudo dnf install ffmpeg",
@@ -356,6 +356,70 @@ def x264_args(crf: int = 18, preset: str = "medium", keep_bt709: bool = True) ->
     if keep_bt709:
         args += ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]
     return args
+
+
+# Fuentes RGB (frames PNG de PIL, filtros show*) -> YUV. Sin out_color_matrix,
+# swscale convierte con la matriz BT.601 y el archivo sale sin etiqueta; los
+# players tratan todo lo HD como BT.709 y el color de marca se desplaza
+# (medido: #C11B05 (193,27,5) se veia (206,41,2)). Un solo lugar para todos.
+VF_RGB_A_BT709 = "scale=out_color_matrix=bt709:out_range=tv"
+
+
+def h264_desde_rgb(crf: int = 20, preset: str = "medium") -> List[str]:
+    """Args de encode para frames RGB: conversion BT.709 exacta + etiquetas."""
+    return ["-vf", f"{VF_RGB_A_BT709},format=yuv420p"] + x264_args(crf, preset)
+
+
+# Entregables con canal alfa (overlays para NLE/OBS/web). H.264 no tiene alfa.
+ALFA_ENC = {
+    ".webm": ["-c:v", "libvpx-vp9", "-pix_fmt", "yuva420p", "-auto-alt-ref", "0",
+              "-crf", "20", "-b:v", "0", "-row-mt", "1"],
+    ".mov": ["-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le",
+             "-vendor", "apl0"],
+}
+
+
+def verificar_alfa(path: str, frame: Optional[int] = None) -> float:
+    """Confirma que el archivo LLEVA alfa: etiqueta del stream (WebM alpha_mode=1,
+    ProRes pix_fmt yuva*) y un frame decodificado mayormente transparente.
+    El decoder nativo de ffmpeg para VP9 descarta el alfa: hay que forzar
+    libvpx-vp9 al leer. Devuelve la fraccion transparente del frame."""
+    ext = os.path.splitext(path)[1].lower()
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                        "stream=pix_fmt,nb_frames:stream_tags=alpha_mode,ALPHA_MODE",
+                        "-of", "default=nw=1", path], capture_output=True, text=True)
+    tags = r.stdout.lower()
+    if not ("alpha_mode=1" in tags if ext == ".webm" else "pix_fmt=yuva" in tags):
+        die(f"{path} se escribio SIN canal alfa ({tags.strip()}); el build de ffmpeg "
+            "no soporta alfa en este codec", kind="verification")
+    if frame is None:   # el centro del clip: el hold, no el frame 0 (vacio)
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                            "-count_packets", "-show_entries", "stream=nb_read_packets",
+                            "-of", "csv=p=0", path], capture_output=True, text=True)
+        frame = int(r.stdout.strip() or 0) // 2
+    dec = ["-c:v", "libvpx-vp9"] if ext == ".webm" else []
+    raw = subprocess.run(["ffmpeg", "-v", "error", *dec, "-i", path, "-vf",
+                          f"select=eq(n\\,{frame})", "-frames:v", "1", "-f", "rawvideo",
+                          "-pix_fmt", "rgba", "-"], capture_output=True).stdout
+    if not raw:
+        die(f"no se pudo decodificar el frame {frame} de {path}", kind="verification")
+    claros = sum(1 for i in range(3, len(raw), 4) if raw[i] == 0)
+    return claros / (len(raw) / 4)
+
+
+def codificar_frames(patron: str, fps: float, salida: str, crf: int = 20,
+                     preset: str = "medium") -> Dict[str, Any]:
+    """Frames RGB(A) numerados -> video. La extension decide el entregable:
+    .mp4 = H.264 BT.709 exacto (sin alfa); .webm = VP9 con alfa (OBS, Chrome);
+    .mov = ProRes 4444 con alfa (Premiere, Resolve, Final Cut)."""
+    ext = os.path.splitext(salida)[1].lower()
+    enc = ALFA_ENC.get(ext) or h264_desde_rgb(crf, preset)
+    run(ffmpeg_base() + ["-framerate", str(fps), "-i", patron, *enc, "-an", salida],
+        quiet=True)
+    res: Dict[str, Any] = {"salida": salida, "alfa": ext in ALFA_ENC}
+    if ext in ALFA_ENC:
+        res["transparente"] = round(verificar_alfa(salida), 3)
+    return res
 
 
 def video_args(meta: Optional[Dict[str, Any]], crf: int = 18, preset: str = "medium") -> List[str]:

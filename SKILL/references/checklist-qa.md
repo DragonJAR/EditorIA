@@ -149,6 +149,10 @@ Números, no sensaciones:
 - **Loudness**: −14 LUFS (enérgico) / −16 LUFS (calmo), TP −1.5 dB (tolerancia hasta −1), LRA 11 objetivo (mínimo ~3 LU).
   SFX −18…−12 dB bajo la voz, nunca por encima de la narración.
 - **Contraste de texto**: WCAG AA en todo texto sobre video.
+- **Fotosensibilidad**: ≤3 destellos por segundo (WCAG 2.3.1); sin strobe de
+  pantalla completa. `auto_qa.py` lo mide (defecto `fotosensible`).
+- **Sin sobresaltos**: ningún corte entra con más de +6 dB sobre el segundo
+  previo (`auto_qa.py`, defecto `sobresalto`).
 - **Color de marca**: muestrear el acento — debe ser el del brand pack
   (ej. DragonJAR: `#C11B05`), no una aproximación.
 - **Frame 0 terminado**: composición completa desde el primer frame, sin

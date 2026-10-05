@@ -227,7 +227,13 @@ acento de marca) + barra o panel contenedor.
 
 Presupuestos de frames: enter 12–18f, hold 90–150f, exit 8–12f.
 Reveals: slide+fade, wipe de barra, mask reveal. El lower third nunca tapa
-la cara ni los captions.
+la cara ni los captions. Implementado como escena `rotulo_inferior` (también
+como overlay con alfa para el editor: `plan-video.md`).
+
+**Fuentes con números**: muchas serifas (Cormorant, EB Garamond, Playfair
+Display) dibujan numerales old-style que bajan de la línea; si el texto lleva
+dígitos ("Episodio 12", "Salmo 1:3"), elegir una fuente con numerales lining
+y revisarlo en el frame.
 
 ## Ritmo (pacing)
 
@@ -294,6 +300,13 @@ vuelva ilegible el texto.
 
 ### Visualización de audio
 
+**Audiograma** (clip de podcast/voz para redes): `scripts/audio_viz.py
+--modo audiograma` — portada + título arriba, barras espejadas al centro
+(graves al medio), barra de progreso y banda libre abajo para subtítulos.
+Cada barra es función del frame (energía precalculada offline, nunca un
+analizador en tiempo real); recortar al fragmento (≤90 s); luego quemar
+subtítulos con `caption.py` para que se entienda en mute.
+
 Para teasers con música, barras de audio en dataviz o intros de podcast:
 `showwaves`, `showspectrum`, `showfreqs` de ffmpeg. Receta base (colores del
 brand pack; ej. DragonJAR: `showwaves=s=1080x200:mode=line:colors=#C11B05`
@@ -329,7 +342,7 @@ yuv420p` y `setsar=1` para que el concat siga válido.
 | RGB split / glitch | `rgbashift=rh=6:bh=-6` |
 | Speed ramp | `setpts=0.5*PTS` (2x) · `setpts=2*PTS` (media velocidad; sumar `minterpolate` para suavidad) |
 | Shake | `crop=iw-20:ih-20:'10+8*sin(t*40)':'10+8*cos(t*37)'` |
-| Strobe invert | `negate=enable='lt(mod(t,0.25),0.04)'` |
+| Strobe invert | `negate=enable='lt(mod(t,0.4),0.04)'` (periodo ≥ 1/3 s: ver fotosensibilidad) |
 | Dreamy glow | `gblur=sigma=8,blend=all_mode=screen,all_opacity=0.35` (vía split) |
 | Grade warm | `colorbalance=rm=.12:bm=-.08` · cool: `colorbalance=bm=.12:rm=-.06` |
 
@@ -340,6 +353,12 @@ limpios; el glitch no decorativo compite con la identidad.
 
 Disciplina: si el espectador nota el efecto antes que la imagen, está muy fuerte.
 Capas sutiles > un efecto al máximo; un elemento visual a la vez.
+
+**Fotosensibilidad (no negociable)**: nunca más de 3 destellos por segundo
+(WCAG 2.3.1), ni strobe de pantalla completa en alto contraste. Un destello =
+un par de cambios opuestos de luminancia ≥10%. Aplica a flash cuts, strobe,
+white flashes en ráfaga y al tono `caos`. `scripts/auto_qa.py` lo mide a fps
+completo (defecto `fotosensible`).
 
 ## Dataviz animada — sección profunda ⭐
 
@@ -555,6 +574,22 @@ el movimiento. Anatomía de quote card: cita breve + nombre + credencial;
 staggered line reveal por línea; énfasis cinético solo en la frase clave.
 Nunca animar tanto que la credibilidad se pierda.
 
+**Espina central**: hook, producto, cifra y CTA dentro del cuadrado central
+1:1 (1080×1080 en un master 16:9): así sobreviven al recorte a 9:16, 4:5 y
+1:1. Fondo y movimiento de apoyo pueden vivir en el área ancha.
+
+### Intro y pantalla final de YouTube
+
+- **Intro de canal**: 3–5 s; el logo legible al ~2 s. El logo aterriza en el
+  MISMO frame que el transitorio más fuerte del sting (overshoot 1.18→1 +
+  flash blanco que decae en ~6 frames): unos frames de desfase se ven baratos.
+- **Pantalla final**: solo en los últimos 5–20 s y en videos de ≥25 s; hasta
+  4 elementos. La marca propia en el tercio IZQUIERDO; los dos tercios
+  derechos quietos para las tarjetas de YouTube; abajo ~12% libre. Zonas como
+  dato en `scripts/ffmpeg_tools/_delivery.py` (`END_SCREEN_YOUTUBE`);
+  verificar con `delivery_check.py --platform youtube --end-screen 20` y
+  mirar el sheet de `auto_qa.py --end-screen 20`.
+
 **Reacción ON/después del punchline**: el corte de reacción (cara, meme,
 gráfica) cae sobre o justo después del remate — nunca antes. Adelantarlo
 mata el chiste.
@@ -755,6 +790,11 @@ plana: o se mueve, o se construye, o revela.
   (humo, agua, luz). Hipnótico para headers, loops y pausas elegantes.
 - **Zoom-through** (FRESCA): la cámara "entra" a la foto (zoom agresivo con blur)
   y emerge en la siguiente escena. Transición premium entre foto y video.
+- **Pase de fotos** (`montaje.py pase`): ninguna foto se mueve igual que la
+  anterior (movimiento sembrado por índice: reproducible), fotos de otra
+  proporción con fondo desenfocado (nunca estiradas ni con barras), 3–6 s por
+  foto (menos de 2.5 s se siente apurado), una foto por compás si hay música
+  (cada beat es frenético).
 - **Polaroid stack** (ESTÁNDAR): pila de fotos que se barajan/rotan con física.
   Para recaps, memorias, "lo que pasó". Con captions manuscritas = nostalgia.
 - **Photo grid assembly** (FRESCA): mosaico de fotos que se arma pieza por pieza
@@ -845,6 +885,8 @@ gráficas y logos (ver Patrones de escena): aquí la "mano" dibuja.
 - La mano se levanta entre trazos (el trazo siguiente no sale del final del
   anterior).
 - Un solo wipe consistente entre secciones, siempre el mismo gesto.
+- **Boil** (línea dibujada a mano que "hierve"): re-sembrar el temblor cada 4
+  frames (~7.5 cambios/s), no en cada frame — cada frame se lee como ruido.
 
 ### Isométrico 2.5D
 

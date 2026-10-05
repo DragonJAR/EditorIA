@@ -5,7 +5,7 @@ macro del keyhole → tercio derecho (trazo láser) → centro (variaciones con
 pulso) → final asimétrico (isotipo izquierda, texto derecha).
 El keyhole sigue siendo el ancla compositiva; el logo nunca se deforma ni rota.
 """
-import os, math, argparse, subprocess, random
+import os, math, argparse, random
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -305,10 +305,10 @@ def main():
         t=fi/FPS
         render_frame(ctx,t).save(f"{tmpd}/f_{fi:04d}.png")
         if fi%48==0: print(f"  {fi}/{N}  t={t:.1f}s",flush=True)
-    subprocess.run(["ffmpeg","-y","-v","error","-framerate",str(FPS),
-                    "-i",f"{tmpd}/f_%04d.png","-c:v","libx264","-preset","medium",
-                    "-crf","18","-pix_fmt","yuv420p","-movflags","+faststart",a.out],
-                   check=True)
+    import sys as _sys
+    _sys.path.insert(0, os.path.join(BASE, "ffmpeg_tools"))
+    from _comun import codificar_frames   # H.264 BT.709 exacto (color de marca fiel)
+    codificar_frames(f"{tmpd}/f_%04d.png", FPS, a.out, crf=18)
     print("OK",a.out)
 
 if __name__=="__main__": main()

@@ -275,34 +275,118 @@ def cmd_gif(a):
     emit(out)
 
 
+# Vocabulario Ken Burns: (zoom inicial, zoom final, ancla x ini/fin, ancla y ini/fin).
+# Las anclas (0..1) reparten el sobrante del zoom: 0 = borde izq/arriba.
+# Ningun movimiento empieza en zoom < 1.05 si panea (no se ve borde vacio).
+MOVIMIENTOS_KB = [
+    (1.00, 1.12, .5, .5, .5, .5),   # acercar al centro
+    (1.12, 1.00, .5, .5, .5, .5),   # alejar
+    (1.08, 1.08, 0., 1., .5, .5),   # paneo izq -> der
+    (1.08, 1.08, 1., 0., .5, .5),   # paneo der -> izq
+    (1.08, 1.08, .5, .5, 1., 0.),   # sube
+    (1.08, 1.08, .5, .5, 0., 1.),   # baja
+    (1.05, 1.14, .3, .6, .4, .5),   # acercar con deriva
+    (1.14, 1.05, .7, .4, .5, .4),   # alejar con deriva
+]
+
+
+def _orden_natural(nombre):
+    """img2 antes que img10 (el orden alfabetico los invierte)."""
+    import re
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", nombre)]
+
+
+def _movimientos(n, semilla):
+    """Un movimiento por foto, determinista y sin repetir el anterior:
+    que dos fotos seguidas hagan lo mismo es el delator del pase amateur."""
+    import random
+    rng = random.Random(semilla)
+    out = []
+    for _ in range(n):
+        opciones = [m for m in MOVIMIENTOS_KB if not out or m != out[-1]]
+        out.append(rng.choice(opciones))
+    return out
+
+
+def _filtro_foto(i, W, H, frames, fps, mov, ajuste):
+    """Una foto (un solo frame de entrada) -> clip de `frames` con Ken Burns."""
+    from _comun import VF_RGB_A_BT709
+    z0, z1, ax0, ax1, ay0, ay1 = mov
+    if ajuste == "cubrir":
+        base = f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}"
+    elif ajuste == "contener":
+        base = (f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=decrease,"
+                f"pad={W}:{H}:(ow-iw)/2:(oh-ih)/2")
+    else:   # blur: la misma foto ampliada y desenfocada llena el cuadro, sin barras
+        base = (f"[{i}:v]split[f{i}a][f{i}b];"
+                f"[f{i}a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                f"boxblur=40:3,eq=brightness=-0.08[bg{i}];"
+                f"[f{i}b]scale={W}:{H}:force_original_aspect_ratio=decrease[fg{i}];"
+                f"[bg{i}][fg{i}]overlay=(W-w)/2:(H-h)/2")
+    e = f"(1-cos(PI*on/{max(1, frames - 1)}))/2"          # seno: sin tirones
+    z = f"({z0}+({z1 - z0})*{e})"
+    x = f"(iw-iw/zoom)*({ax0}+({ax1 - ax0})*{e})"
+    y = f"(ih-ih/zoom)*({ay0}+({ay1 - ay0})*{e})"
+    # x2 antes del zoompan: el recorte cae en sub-pixel y el paneo no tiembla
+    return (f"{base},scale={W * 2}:{H * 2},zoompan=z='{z}':x='{x}':y='{y}':d={frames}:"
+            f"s={W}x{H}:fps={fps},{VF_RGB_A_BT709},format=yuv420p,setsar=1[v{i}]")
+
+
 def cmd_pase(a):
     if not os.path.isdir(a.carpeta):
         die(f"no existe la carpeta: {a.carpeta}")
-    imgs = sorted(f for f in os.listdir(a.carpeta)
-                  if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")))
+    imgs = sorted((f for f in os.listdir(a.carpeta)
+                   if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))),
+                  key=_orden_natural)
     if not imgs:
         die("la carpeta no tiene imágenes")
-    lst = os.path.join(dir_temp(), "editoria_pase.txt")
-    with open(lst, "w", encoding="utf-8") as f:
-        for im in imgs:
-            f.write(f"file '{os.path.join(os.path.abspath(a.carpeta), im)}'\n")
-            f.write(f"duration {a.duracion}\n")
-        f.write(f"file '{os.path.join(os.path.abspath(a.carpeta), imgs[-1])}'\n")
+    try:
+        W, H = (int(v) for v in a.tamano.lower().split("x"))
+    except ValueError:
+        die("--tamano debe ser ANCHOxALTO, ej. 1080x1920")
+    fps = a.fps
+    d = 60.0 / a.bpm * a.beats_por_foto if a.bpm else a.duracion
+    tr = min(max(0.0, a.transicion), d * 0.5)
+    if d < 2.5:
+        info(f"aviso: {d:.2f}s por foto se siente apurado (una foto pide 3–6s)")
+    n = len(imgs)
+    movs = _movimientos(n, a.semilla) if a.movimiento else [(1, 1, .5, .5, .5, .5)] * n
+    # En frames enteros, con la transicion CENTRADA en cada cambio (k*d): el
+    # cambio cae en la rejilla (beat) y el total es exactamente n*d.
+    df, tf = round(d * fps), round(tr * fps)
+    mitad = tf // 2
+    largos = [df + tf] * n
+    if n > 1 and tf > 0:
+        largos[0], largos[-1] = df + tf - mitad, df + mitad
+    else:
+        largos, tf = [df] * n, 0
+    cmd = ffmpeg_base()
+    for im in imgs:
+        cmd += ["-i", os.path.join(a.carpeta, im)]
+    partes = [_filtro_foto(i, W, H, max(1, largos[i]), fps, movs[i], a.ajuste)
+              for i in range(n)]
+    if n == 1:
+        final = "[v0]"
+    elif tf > 0:
+        prev = "[v0]"
+        for k in range(1, n):
+            out = f"[x{k}]"
+            partes.append(f"{prev}[v{k}]xfade=transition=fade:duration={tf / fps:.4f}:"
+                          f"offset={(k * df - mitad) / fps:.4f}{out}")
+            prev = out
+        final = prev
+    else:
+        partes.append("".join(f"[v{k}]" for k in range(n)) + f"concat=n={n}:v=1:a=0[xc]")
+        final = "[xc]"
     out = a.output or os.path.join(os.path.abspath(a.carpeta), "pase.mp4")
-    vf = (f"scale=1080:1920:force_original_aspect_ratio=decrease,"
-          f"pad=1080:1920:(ow-iw)/2:(oh-ih)/2,fps=30")
-    if a.zoom:
-        vf += (",zoompan=z='min(zoom+0.0008,1.15)':d=90:x='iw/2-(iw/zoom/2)':"
-               "y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30")
-    cmd = (ffmpeg_base() + ["-f", "concat", "-safe", "0", "-i", lst,
-                            "-vf", vf, "-an",
-                            "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p",
-                            "-movflags", "+faststart", out])
+    from _comun import x264_args
+    cmd += ["-filter_complex", ";".join(partes), "-map", final, "-an",
+            *x264_args(a.crf), out]
     run(cmd)
-    os.remove(lst)
     verify_output(out)
-    info(f"OK {out} ({len(imgs)} imágenes x {a.duracion}s)")
-    emit(out, imagenes=len(imgs))
+    info(f"OK {out} ({n} imágenes x {df / fps:.2f}s, transición {tf / fps:.2f}s, "
+         f"total {n * df / fps:.2f}s)")
+    emit(out, imagenes=n, duracion=round(n * df / fps, 3))
 
 
 def cmd_rotar(a):
@@ -572,8 +656,22 @@ def main():
 
     p = sub.add_parser("pase", help="slideshow desde carpeta de imágenes")
     p.add_argument("carpeta")
-    p.add_argument("--duracion", type=float, default=3.0, help="segundos por imagen")
-    p.add_argument("--zoom", action="store_true", help="efecto Ken Burns sutil")
+    p.add_argument("--duracion", type=float, default=3.5, help="segundos por imagen (3–6)")
+    p.add_argument("--bpm", type=float, help="tempo de la música: cada foto dura --beats-por-foto beats")
+    p.add_argument("--beats-por-foto", type=int, default=4,
+                   help="beats por foto con --bpm (default 4 = un compás; cada beat es frenético)")
+    p.add_argument("--transicion", type=float, default=0.5,
+                   help="fundido entre fotos en s, centrado en el cambio (0 = corte)")
+    p.add_argument("--ajuste", choices=["blur", "cubrir", "contener"], default="blur",
+                   help="fotos de otra proporción: blur = fondo desenfocado (default), "
+                        "cubrir = recorta, contener = barras")
+    p.add_argument("--sin-movimiento", dest="movimiento", action="store_false",
+                   help="sin Ken Burns (por defecto cada foto se mueve distinto)")
+    p.add_argument("--zoom", action="store_true", help=argparse.SUPPRESS)  # compat: ya es default
+    p.add_argument("--semilla", type=int, default=7, help="semilla de los movimientos (reproducible)")
+    p.add_argument("--tamano", default="1080x1920", help="ANCHOxALTO (default 1080x1920)")
+    p.add_argument("--fps", type=int, default=30)
+    p.add_argument("--crf", type=int, default=18)
     p.add_argument("-o", "--output")
 
     p = sub.add_parser("rotar", help="rota el video")

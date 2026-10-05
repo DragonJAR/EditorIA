@@ -5,7 +5,7 @@ sin pack, usa los defaults neutros del renderer.
 Uso: python render_plan.py plan.json -o salida.mp4 [--fps 30] [--brand brand/otro.json]
 """
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import os, math, json, random, subprocess, sys, argparse
+import os, math, json, random, re, sys, argparse
 
 # ---------- identidad: defaults NEUTROS; el brand pack los sobreescribe ----------
 # Sin pack (modo libre) nada de marca: acento neutro y fuentes empaquetadas.
@@ -18,6 +18,7 @@ FM=resolver_fuente("Montserrat", generica="sans")
 MONO=resolver_fuente("DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
 LOGO=None; ISOTIPO=None; MARCA_NOMBRE=None
 TRANSICIONES="libre"   # idioma de transición; el pack puede fijar "corte_seco"
+ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida por alfa)
 
 W,H=1080,1920
 MARGEN=151   # margen lateral seguro simétrico (unión Reels/TikTok/Shorts, ver _delivery.py)
@@ -363,24 +364,99 @@ def text_reveal(d, text, fnt, x, y, t, t0, dur, color, fill=None, anchor="la"):
 
 
 def kenburns(img, t, t0, dur, zoom_from=1.0, zoom_to=1.15, pan_x=0.0, pan_y=0.0):
-    """Aplica un zoom + pan progresivo a una imagen. Devuelve una copia escalada.
-    `zoom_from=1.0, zoom_to=1.15` simula el efecto Ken Burns clasico.
-    `pan_x` y `pan_y` ∈ [-1, 1] controlan la dirección del paneo.
+    """Zoom + paneo progresivo sobre una imagen (devuelve una imagen del mismo tamaño).
+    `pan_x`, `pan_y` ∈ [-1, 1] dirigen el paneo. Transformación afín en coma
+    flotante: un recorte con offsets enteros hace temblar los paneos lentos.
 
-    DRY: lo usan `sc_kenburns` y futuros overlays sobre imagen.
+    DRY: lo usan `sc_kenburns`, `sc_demo` y futuros overlays sobre imagen.
     """
-    if t < t0:
-        return img
-    p = clamp01((t - t0) / max(dur, 1e-6))
-    p = ease_in_out(p)
-    z = lerp(zoom_from, zoom_to, p)
+    p = ease_in_out(clamp01((t - t0) / max(dur, 1e-6))) if t >= t0 else 0.0
+    z = max(1e-3, lerp(zoom_from, zoom_to, p))
     W2, H2 = img.size
-    nw, nh = int(W2 * z), int(H2 * z)
-    scaled = img.resize((nw, nh), Image.LANCZOS)
-    # paneo: centro + offset
-    offx = int((nw - W2) * 0.5 + pan_x * (nw - W2) * 0.3)
-    offy = int((nh - H2) * 0.5 + pan_y * (nh - H2) * 0.3)
-    return scaled.crop((offx, offy, offx + W2, offy + H2))
+    ox = W2 * (z - 1) / z * (0.5 + pan_x * 0.3)
+    oy = H2 * (z - 1) / z * (0.5 + pan_y * 0.3)
+    return img.transform(img.size, Image.AFFINE, (1 / z, 0, ox, 0, 1 / z, oy),
+                         resample=Image.BICUBIC)
+
+
+def smoothstep(p):
+    """Acelera desde reposo y frena en el destino: el cursor que se lee humano."""
+    p = clamp01(p)
+    return p * p * (3 - 2 * p)
+
+
+def cursor(d, x, y, escala=1.0, color=None):
+    """Flecha de puntero con la punta en (x, y). DRY: `pago`, `demo`."""
+    s = 54 * escala
+    d.polygon([(x, y), (x, y + s * 1.4), (x + s * 0.45, y + s), (x + s * 0.7, y + s * 1.5),
+               (x + s * 0.9, y + s * 1.35), (x + s * 0.65, y + s * 0.85), (x + s, y + s)],
+              fill=(color or BLANCO) + (255,), outline=(0, 0, 0, 160))
+
+
+def onda_clic(d, x, y, t, t_clic, radio=90, dur=0.5):
+    """Onda del clic: nace en `t_clic` y se disipa. Devuelve el pulso (1 al
+    tocar, 0 al terminar) para escalar el cursor en el mismo frame."""
+    if t < t_clic:
+        return 0.0
+    pk = clamp01((t - t_clic) / dur)
+    if pk < 1:
+        r = radio * pk
+        d.ellipse([x - r, y - r, x + r, y + r], outline=ACENTO + (int(220 * (1 - pk)),), width=5)
+    return 1 - pk
+
+
+def ancho_tabular(ctx_font):
+    """Ancho fijo de dígito (el del dígito más ancho): números que no tiemblan."""
+    tmp = ImageDraw.Draw(Image.new("L", (10, 10)))
+    return max(tmp.textlength(c, font=ctx_font) for c in "0123456789")
+
+
+def odometro(layer, texto, texto_prev, rodar, cx, cy, fnt, color):
+    """Cifras tipo odómetro centradas en (cx, cy): cada dígito que cambia rueda
+    de `texto_prev` a `texto` según `rodar` ∈ [0, 1]; los demás quedan quietos.
+    Celdas de ancho fijo (tabular). DRY: `countdown` y contadores de rollo."""
+    tmp = ImageDraw.Draw(Image.new("L", (10, 10)))
+    dw = ancho_tabular(fnt)
+    anchos = [dw if c.isdigit() else tmp.textlength(c, font=fnt) for c in texto]
+    x = cx - sum(anchos) / 2
+    alto = int(fnt.size * 1.25)
+    for i, c in enumerate(texto):
+        pc = texto_prev[i] if i < len(texto_prev) else c
+        celda = Image.new("RGBA", (int(anchos[i]) + 2, alto), (0, 0, 0, 0))
+        dc = ImageDraw.Draw(celda)
+        if c != pc and rodar > 0:
+            off = alto * ease_out(rodar)
+            dc.text((anchos[i] / 2, alto / 2 - off), pc, font=fnt, fill=color, anchor="mm")
+            dc.text((anchos[i] / 2, alto / 2 + alto - off), c, font=fnt, fill=color, anchor="mm")
+        else:
+            dc.text((anchos[i] / 2, alto / 2), pc if rodar <= 0 else c, font=fnt, fill=color,
+                    anchor="mm")
+        layer.alpha_composite(celda, (int(x), int(cy - alto / 2)))
+        x += anchos[i]
+
+
+def estrellas(layer, cx, cy, valor, maximo=5, tam=46, k=1.0, color=None):
+    """Fila de estrellas con relleno fraccional EXACTO (4.5 se ve 4.5): pista
+    tenue + relleno barrido de izquierda a derecha hasta valor/maximo * k."""
+    gap = tam * 0.35
+    total = maximo * tam + (maximo - 1) * gap
+    x0 = cx - total / 2
+    def estrella(x, y, r):
+        return [(x + (r if j % 2 == 0 else r * 0.45) * math.cos(-math.pi / 2 + j * math.pi / 5),
+                 y + (r if j % 2 == 0 else r * 0.45) * math.sin(-math.pi / 2 + j * math.pi / 5))
+                for j in range(10)]
+    d = ImageDraw.Draw(layer)
+    capa = Image.new("L", (W, H), 0); dm = ImageDraw.Draw(capa)
+    for i in range(maximo):
+        pts = estrella(x0 + i * (tam + gap) + tam / 2, cy, tam / 2)
+        d.polygon(pts, fill=(255, 255, 255, 40))
+        dm.polygon(pts, fill=255)
+    lleno = clamp01(valor / max(1, maximo)) * clamp01(k)
+    corte = Image.new("L", (W, H), 0)
+    ImageDraw.Draw(corte).rectangle([0, 0, x0 + total * lleno, H], fill=255)
+    from PIL import ImageChops
+    mascara = ImageChops.multiply(capa, corte)
+    layer.paste(Image.new("RGBA", (W, H), (color or ACENTO) + (255,)), (0, 0), mascara)
 
 
 # ================= ESCENAS =================
@@ -493,34 +569,77 @@ def wrap(text,fnt,maxw,tmp):
     return lines
 
 def sc_chat(ctx,e,t):
+    """Conversación cliente (izquierda) / IA (derecha), un mensaje a la vez.
+    Mensaje: `de` ("cliente" o cualquier otro = IA), `texto`, `at` opcional:
+    sin `at` se deriva del anterior (`pausa` de lectura 0.6 s + `escribe`).
+    La IA muestra puntos de "escribiendo" `escribe` s antes de responder
+    (default 0.7). La última burbuja de cada racha lleva cola. Hilos largos
+    hacen auto-scroll con resorte: lo nuevo queda sobre la banda segura y lo
+    viejo se desvanece bajo el rótulo."""
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
-    rotulo(ctx,layer,t,e["rotulo"],e["at"]["rotulo"],y=H*0.20)
-    y=H*0.42
-    for m in e["mensajes"]:
-        k=spring(t,m["at"],140,15)
-        if k<=0: continue
-        fnt=ctx.fX(32,400)
-        maxw=680
-        blines=wrap(m["texto"],fnt,maxw,ctx.tmp)
-        tw=max(ctx.tmp.textlength(l,font=fnt) for l in blines)+70
-        hh=len(blines)*52+44
-        if m["de"]=="cliente":
-            x=90; col=PANEL2
-        else:
-            x=W-90-tw; col=tuple(int(c*0.30) for c in ACENTO)
-        yy=y+(1-min(1,k))*-60+flota(t,m["at"]+1.0,4,0.5)
-        al=int(255*clamp01(k*1.4))
-        d.rounded_rectangle([x,yy,x+tw,yy+hh],radius=30,fill=col+(al,))
-        for bi,bl in enumerate(blines):
-            d.text((x+34,yy+22+bi*52),bl,font=fnt,fill=BLANCO+(al,))
-        y+=hh+36
+    at=e.get("at",{}); t_rot=at.get("rotulo",e["from"])
+    rotulo(ctx,layer,t,e.get("rotulo",""),t_rot,y=H*0.20)
+    fnt=ctx.fX(32,400); GAP=36; ALTO_ESC=84
+    msgs=[]; reloj=t_rot+0.4
+    for m in e.get("mensajes",[]):
+        ia=m.get("de")!="cliente"
+        esc=m.get("escribe",0.7 if ia else 0.0)
+        tm=m["at"] if "at" in m else reloj+m.get("pausa",0.6)+esc
+        lineas=wrap(m.get("texto",""),fnt,680,ctx.tmp)
+        tw=max(ctx.tmp.textlength(l,font=fnt) for l in lineas)+70
+        msgs.append({"ia":ia,"at":tm,"esc":esc,"lineas":lineas,"tw":tw,
+                     "hh":len(lineas)*52+44})
+        reloj=tm
+    for i,mm in enumerate(msgs):
+        mm["cola"]=i==len(msgs)-1 or msgs[i+1]["ia"]!=mm["ia"]
+    def escribiendo(mm):
+        return mm["esc"]>0 and mm["at"]-mm["esc"]<=t
+    # altura de la pila: cada burbuja suma con su resorte (el scroll se desliza solo)
+    y0=H*0.42; alto=0.0
+    for mm in msgs:
+        k=spring(t,mm["at"],140,15)
+        if escribiendo(mm):
+            ke=spring(t,mm["at"]-mm["esc"],160,16)
+            alto+=(ALTO_ESC+GAP)*min(1,ke)*(1-min(1,k))
+        alto+=(mm["hh"]+GAP)*min(1,max(0,k))
     lk=e.get("link")
-    if lk and t>=lk["at"]:
+    limite=H*0.70 if lk and t>=lk.get("at",1e9)-0.4 else H-SAFE["bottom"]-20
+    y=y0-max(0.0,y0+alto-limite)
+    for mm in msgs:
+        k=spring(t,mm["at"],140,15)
+        lado_x=lambda w_: 90 if not mm["ia"] else W-90-w_
+        visible=clamp01((y-H*0.24)/80)          # se desvanece bajo el rótulo
+        if escribiendo(mm) and k<1:
+            ke=min(1,spring(t,mm["at"]-mm["esc"],160,16))*(1-min(1,k))
+            if ke>0.02:
+                bw=150; x=lado_x(bw); a=int(255*ke*visible)
+                d.rounded_rectangle([x,y,x+bw,y+ALTO_ESC],radius=30,fill=PANEL2+(a,))
+                for j in range(3):
+                    pul=0.4+0.6*(0.5+0.5*math.sin(t*7.5-j*0.9))
+                    cxp=x+45+j*30
+                    d.ellipse([cxp-8,y+34,cxp+8,y+50],fill=GRIS+(int(a*pul),))
+                y+=(ALTO_ESC+GAP)*ke
+        if k<=0: continue
+        x=lado_x(mm["tw"]); hh=mm["hh"]
+        col=tuple(int(c*0.30) for c in ACENTO) if mm["ia"] else PANEL2
+        yy=y+(1-min(1,k))*24
+        al=int(255*clamp01(k*1.4)*visible)
+        d.rounded_rectangle([x,yy,x+mm["tw"],yy+hh],radius=30,fill=col+(al,))
+        if mm["cola"]:
+            if mm["ia"]:
+                xe=x+mm["tw"]
+                d.polygon([(xe-40,yy+hh-4),(xe+12,yy+hh+6),(xe-16,yy+hh-24)],fill=col+(al,))
+            else:
+                d.polygon([(x+40,yy+hh-4),(x-12,yy+hh+6),(x+16,yy+hh-24)],fill=col+(al,))
+        for bi,bl in enumerate(mm["lineas"]):
+            d.text((x+34,yy+22+bi*52),bl,font=fnt,fill=BLANCO+(al,))
+        y+=(hh+GAP)*min(1,k)
+    if lk and t>=lk.get("at",1e9):
         k=spring(t,lk["at"],120,14)
         cw,chh=760,150; x=(W-cw)/2; yy=H*0.72
         d.rounded_rectangle([x,yy,x+cw,yy+chh],radius=28,fill=ACENTO+(int(235*min(1,k)),))
-        d.text((x+40,yy+34),lk["titulo"],font=ctx.fX(34,800),fill=BLANCO)
-        d.text((x+40,yy+84),lk["monto"],font=ctx.fT(44,800),fill=BLANCO)
+        d.text((x+40,yy+34),lk.get("titulo",""),font=ctx.fX(34,800),fill=BLANCO)
+        d.text((x+40,yy+84),lk.get("monto",""),font=ctx.fT(44,800),fill=BLANCO)
     return capa_salida(layer,t,e["to"])
 
 def sc_leads(ctx,e,t):
@@ -587,16 +706,8 @@ def sc_pago(ctx,e,t):
         # cursor que se mueve y pulsa
         ck=prog(t,at["cursor"],at["toque"])
         cx=lerp(W*0.3,W*0.62,ease_in_out(ck)); cy=lerp(H*0.85,H*0.62,ease_in_out(ck))
-        if t>=at["toque"]:
-            pk=prog(t,at["toque"],at["toque"]+0.5)
-            d.ellipse([cx-90*pk,cy-90*pk,cx+90*pk,cy+90*pk],
-                      outline=ACENTO+(int(220*(1-pk)),),width=5)
-            pulse=1+0.25*math.sin((t-at["toque"])*20)* (1-pk)
-        else: pulse=1
-        s=int(54*pulse)
-        d.polygon([(cx,cy),(cx,cy+s*1.4),(cx+s*0.45,cy+s),(cx+s*0.7,cy+s*1.5),
-                   (cx+s*0.9,cy+s*1.35),(cx+s*0.65,cy+s*0.85),(cx+s,cy+s)],
-                  fill=BLANCO+(255,))
+        pk=onda_clic(d,cx,cy,t,at["toque"])
+        cursor(d,cx,cy,1+0.25*math.sin((t-at["toque"])*20)*pk)
     return capa_salida(layer,t,e["to"])
 
 def sc_listo(ctx,e,t):
@@ -957,12 +1068,17 @@ def sc_timeline(ctx, e, t):
 
 
 def sc_quote(ctx, e, t):
-    """Quote card con autor y fuente. Params: `texto`, `autor`, `fuente`,
-    `at{card, texto, autor, fuente}`. Si cabe en una línea no se rompe.
+    """Testimonio / cita: la confianza antes que el movimiento.
+    Params: `texto` (verbatim; la frase clave entre *asteriscos*, UNA), `autor`,
+    `rol?`, `estrellas?` (puntaje real, admite 4.5), `estrellas_max?` (5),
+    `fuente?`, `at{card, texto, enfasis, estrellas, autor, fuente}`.
+    Las líneas entran en orden de lectura (0.22 s entre líneas); el énfasis
+    llega DESPUÉS de que su línea asienta; las estrellas se llenan después de
+    la cita; el autor firma al final y se queda quieto.
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    at = e["at"]
+    at = e.get("at", {})
     t_card = at.get("card", e["from"])
     k = spring(t, t_card, 110, 14)
     if k <= 0:
@@ -971,30 +1087,61 @@ def sc_quote(ctx, e, t):
     cx, cy, cw, ch = W * 0.10, H * 0.22, W * 0.80, H * 0.62
     tarjeta(ctx, layer, int(cx + (1 - s) * cw / 2), int(cy + (1 - s) * ch / 2),
             int(cw * s), int(ch * s))
-    # comillas decorativas
-    fnt_q = ctx.fT(int(W * 0.22), 800)
-    d.text((cx + 40, cy + 30), "\u201C", font=fnt_q, fill=ACENTO, anchor="lt")
-    # texto de la cita (con wrap)
+    d.text((cx + 40, cy + 30), "\u201C", font=ctx.fT(int(W * 0.22), 800), fill=ACENTO, anchor="lt")
+    # palabras con su marca de énfasis, envueltas con medida real
+    fnt = ctx.fX(int(W * 0.055), 600)
+    palabras = [(w_, em) for seg, em in segs(e.get("texto", "")) for w_ in seg.split()]
+    esp = ctx.tmp.textlength(" ", font=fnt)
+    lineas, ln, ancho = [], [], 0.0
+    for w_, em in palabras:
+        ww = ctx.tmp.textlength(w_, font=fnt)
+        if ln and ancho + esp + ww > cw - 120:
+            lineas.append(ln); ln, ancho = [], 0.0
+        ln.append((w_, em, ww)); ancho += (esp if len(ln) > 1 else 0) + ww
+    if ln:
+        lineas.append(ln)
     t_texto = at.get("texto", t_card + 0.2)
-    k_texto = spring(t, t_texto, 110, 14)
-    if k_texto > 0:
-        fnt = ctx.fX(int(W * 0.055), 600)
-        lineas = linewrap(e.get("texto", ""), fnt, cw - 120)
-        n = len(lineas)
-        al = int(255 * clamp01(k_texto))
-        for li, ln in enumerate(lineas):
-            y = cy + ch * 0.32 + (li - (n - 1) / 2) * (fnt.size * 1.25)
-            d.text((cx + cw / 2, y), ln, font=fnt, fill=BLANCO + (al,), anchor="mm")
-    # autor
-    if e.get("autor") and t >= at.get("autor", t_texto + 0.4):
-        fnt_a = ctx.fX(int(W * 0.038), 700)
-        d.text((cx + cw / 2, cy + ch * 0.85), f"— {e.get('autor', '')}",
-               font=fnt_a, fill=BLANCO, anchor="mm")
-    # fuente
-    if e.get("fuente") and t >= at.get("fuente", at.get("autor", t_texto + 0.6) + 0.2):
-        fnt_f = ctx.fX(20, 400)
-        d.text((cx + cw / 2, cy + ch * 0.92), f"Fuente: {e.get('fuente', '')}",
-               font=fnt_f, fill=GRIS, anchor="mm")
+    n = len(lineas)
+    lh = fnt.size * 1.25
+    y_ult = cy + ch * 0.36
+    for li, ln in enumerate(lineas):
+        t_li = t_texto + li * 0.22
+        kl = spring(t, t_li, 130, 16)
+        if kl <= 0:
+            continue
+        al = int(255 * clamp01(kl * 1.4))
+        y = cy + ch * 0.36 + (li - (n - 1) / 2) * lh + (1 - min(1, kl)) * 14
+        y_ult = y
+        x = cx + cw / 2 - (sum(w_[2] for w_ in ln) + esp * (len(ln) - 1)) / 2
+        t_em = at.get("enfasis", t_li + 0.35)
+        ke = clamp01((t - t_em) / 0.35)
+        for w_, em, ww in ln:
+            if em and ke > 0:   # marcador que barre detrás de la frase clave
+                d.rectangle([x - 4, y - fnt.size * 0.05, x + (ww + esp) * ease_out(ke),
+                             y + fnt.size * 0.62],
+                            fill=tuple(int(lerp(p_, a_, 0.35 * ke)) for p_, a_ in zip(PANEL, ACENTO)) + (255,))
+            col = ACENTO if (em and ke >= 1) else BLANCO
+            d.text((x, y), w_, font=fnt, fill=col + (al,), anchor="lm")
+            x += ww + esp
+    t_fin = t_texto + n * 0.22 + 0.4
+    if e.get("estrellas") is not None:
+        t_es = at.get("estrellas", t_fin)
+        if t >= t_es:
+            estrellas(layer, cx + cw / 2, y_ult + lh * 1.3, float(e["estrellas"]),
+                      int(e.get("estrellas_max", 5)), k=ease_out(clamp01((t - t_es) / 0.6)))
+        t_fin = t_es + 0.7
+    t_au = at.get("autor", t_fin)
+    if e.get("autor") and t >= t_au:
+        ka = spring(t, t_au, 130, 16)
+        al = int(255 * clamp01(ka * 1.4)); dy = (1 - min(1, ka)) * 20
+        d.text((cx + cw / 2, cy + ch * 0.80 + dy), e["autor"],
+               font=ctx.fX(int(W * 0.040), 800), fill=BLANCO + (al,), anchor="mm")
+        if e.get("rol"):
+            d.text((cx + cw / 2, cy + ch * 0.86 + dy), e["rol"],
+                   font=ctx.fX(int(W * 0.028), 500), fill=GRIS + (al,), anchor="mm")
+    if e.get("fuente") and t >= at.get("fuente", t_au + 0.2):
+        d.text((cx + cw / 2, cy + ch * 0.93), f"Fuente: {e.get('fuente', '')}",
+               font=ctx.fX(20, 400), fill=GRIS, anchor="mm")
     return capa_salida(layer, t, e["to"])
 
 
@@ -1137,28 +1284,20 @@ def sc_kenburns(ctx, e, t):
     at = e["at"]
     # fondo negro por si la imagen no carga
     d.rectangle([0, 0, W, H], fill=(0, 0, 0, 255))
-    img_path = e.get("imagen")
-    if img_path and os.path.isfile(os.path.expanduser(img_path)):
-        try:
-            base = Image.open(os.path.expanduser(img_path)).convert("RGB")
-            # letterbox a 9:16 manteniendo aspect ratio
-            scale = max(W / base.width, H / base.height)
-            nw, nh = int(base.width * scale), int(base.height * scale)
-            base = base.resize((nw, nh), Image.LANCZOS)
-            x0 = (W - nw) // 2
-            y0 = (H - nh) // 2
-            base = base.crop((max(0, x0), max(0, y0), max(0, x0) + W, max(0, y0) + H))
-            t_kb = at.get("kenburns", e["from"] + 0.2)
-            kb = kenburns(base, t, t_kb, dur=e.get("dur_kb", 4.0),
-                          zoom_from=e.get("zoom_from", 1.0),
-                          zoom_to=e.get("zoom_to", 1.15),
-                          pan_x=e.get("pan_x", 0.0),
-                          pan_y=e.get("pan_y", 0.0))
-            layer.alpha_composite(kb)
-        except Exception as ex:
-            info(f"kenburns: no se pudo cargar {img_path}: {ex}")
+    # imagen cubriendo el 9:16, cargada una vez por proceso (imagen_ajustada)
+    base = imagen_ajustada(e.get("imagen"), W, H)
+    if base is not None:
+        t_kb = at.get("kenburns", e["from"] + 0.2)
+        layer.alpha_composite(kenburns(base, t, t_kb, dur=e.get("dur_kb", 4.0),
+                                       zoom_from=e.get("zoom_from", 1.0),
+                                       zoom_to=e.get("zoom_to", 1.15),
+                                       pan_x=e.get("pan_x", 0.0),
+                                       pan_y=e.get("pan_y", 0.0)))
     # oscurecer para que el texto lea
-    d.rectangle([0, H * 0.65, W, H], fill=(0, 0, 0, 130))
+    # (componer, no dibujar: ImageDraw con alfa REEMPLAZA píxeles y borraba la foto)
+    velo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(velo).rectangle([0, H * 0.65, W, H], fill=(0, 0, 0, 130))
+    layer.alpha_composite(velo)
     # texto
     if e.get("titulo") and t >= at.get("texto", e["from"] + 0.5):
         fnt = ctx.fT(80, 800)
@@ -1244,6 +1383,361 @@ def sc_pasos(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+# ───────── Ronda 3: iart-ai/motion-skills (MIT) — ver references/scene-patterns-from-internet.md ─────────
+
+def _fmt_tiempo(seg, formato):
+    h, r = divmod(int(seg), 3600); m, s_ = divmod(r, 60)
+    if formato == "ss":
+        return f"{int(seg):02d}"
+    if formato == "hh:mm:ss":
+        return f"{h:02d}:{m:02d}:{s_:02d}"
+    return f"{h * 60 + m:02d}:{s_:02d}"
+
+
+def sc_countdown(ctx, e, t):
+    """Cuenta regresiva exacta. El número es función pura del tiempo (nunca un
+    contador acumulado): marca 00 en el frame exacto `at.inicio + segundos`.
+    Cada dígito que cambia rueda tipo odómetro en el último cuarto de su
+    segundo; dígitos de ancho fijo (no tiemblan).
+    Params: `segundos` (default: hasta 1 s antes del fin de la escena),
+    `formato` (ss | mm:ss | hh:mm:ss; default según la duración), `rotulo?`,
+    `final?` (texto al llegar a cero, ej. "¡EN VIVO!"), `at{rotulo, inicio}`.
+    Fuente: countdown-video (iart-ai/tiktok-video-skills).
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at", {})
+    t0 = at.get("inicio", e["from"] + 0.3)
+    if e.get("rotulo"):
+        rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", e["from"]), y=H * 0.28)
+    total = float(e.get("segundos", max(1.0, e["to"] - t0 - 1.0)))
+    formato = e.get("formato") or ("ss" if total < 60 else "mm:ss" if total < 3600 else "hh:mm:ss")
+    restante = total - max(0.0, t - t0)
+    mostrado = max(0, math.ceil(restante - 1e-9))
+    rodar = clamp01((0.25 - (restante - (mostrado - 1))) / 0.25) if mostrado > 0 else 0.0
+    actual, siguiente = _fmt_tiempo(mostrado, formato), _fmt_tiempo(max(0, mostrado - 1), formato)
+    tam = 300
+    while tam > 80:
+        fnt = ctx.fT(tam, 800)
+        if ancho_tabular(fnt) * len(actual) <= W - 2 * MARGEN:
+            break
+        tam -= 10
+    k = spring(t, t0 - 0.3, 130, 15)
+    t_fin = t0 + total
+    kf = spring(t, t_fin, 150, 13) if e.get("final") else 0.0
+    alfa = int(255 * clamp01(k * 1.4) * (1 - 0.75 * min(1, kf)))
+    if alfa > 0:
+        odometro(layer, siguiente, actual, rodar, W / 2, H * 0.45, fnt, BLANCO + (alfa,))
+    if kf > 0:
+        sc = 1 + 0.2 * (1 - min(1, kf))
+        d.text((W / 2, H * 0.45 + tam * 0.75), e["final"], font=ctx.fT(int(tam * 0.55 * sc), 800),
+               fill=ACENTO + (int(255 * clamp01(kf * 1.4)),), anchor="mm")
+    return capa_salida(layer, t, e["to"])
+
+
+def _fmt_precio(v, e):
+    dec = e.get("decimales")
+    if dec is None:   # mismos decimales en todos los precios de la oferta
+        dec = 0 if all(float(x).is_integer() for x in precios_oferta(e)[:2]) else 2
+    txt = f"{v:,.{dec}f}"
+    if (e.get("miles", ","), e.get("decimal", ".")) != (",", "."):
+        txt = txt.replace(",", "\0").replace(".", e.get("decimal", ".")).replace("\0", e.get("miles", ","))
+    m = e.get("moneda", "$")
+    return f"{txt} {m}" if e.get("moneda_despues") else f"{m}{txt}"
+
+
+def precios_oferta(e):
+    """`ahora` y el % se CALCULAN de `antes` (nunca escritos dos veces).
+    Fail-loud: un precio incoherente rompe el render antes de mentir en pantalla."""
+    antes = float(e.get("antes", 0))
+    if "ahora" in e:
+        ahora = float(e["ahora"])
+    elif "descuento" in e:
+        ahora = round(antes * (1 - float(e["descuento"]) / 100), 2)
+    else:
+        raise ValueError("oferta: falta `ahora` o `descuento`")
+    if not 0 < ahora < antes:
+        raise ValueError(f"oferta: precios incoherentes (antes={antes}, ahora={ahora}): "
+                         "`ahora` debe ser positivo y menor que `antes`")
+    pct = (1 - ahora / antes) * 100
+    if "ahora" in e and "descuento" in e and abs(pct - float(e["descuento"])) > 0.5:
+        raise ValueError(f"oferta: `descuento`={e['descuento']}% no coincide con "
+                         f"antes/ahora ({pct:.1f}%): dar solo uno de los dos")
+    return antes, ahora, round(pct)
+
+
+def sc_oferta(ctx, e, t):
+    """Oferta: UN descuento, un código, un CTA. El número es el mensaje.
+    Orden: el descuento aterriza (lo más grande) → se TACHA el precio viejo →
+    DESPUÉS el nuevo cuenta hacia abajo hasta su valor → código quieto (≥2 s,
+    se lee y se captura) → vencimiento real → CTA.
+    Params: `antes`, `ahora` o `descuento` (uno de los dos), `moneda` ($),
+    `decimales?`, `miles?`/`decimal?` (separadores), `mostrar?`
+    (porcentaje | monto; default: monto si el ahorro es < 10), `codigo?`,
+    `vence?`, `cta?`, `rotulo?`,
+    `at{rotulo, descuento, tachado, precio, codigo, vence, cta}`.
+    Fuente: promo-video (iart-ai/ecommerce-video-skills).
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at", {})
+    fr = e["from"]
+    antes, ahora, pct = precios_oferta(e)
+    if e.get("rotulo"):
+        rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", fr), y=H * 0.15, tam=52)
+    mostrar = e.get("mostrar") or ("monto" if antes - ahora < 10 else "porcentaje")
+    badge = f"-{pct}%" if mostrar == "porcentaje" else f"-{_fmt_precio(antes - ahora, e)}"
+    t_d = at.get("descuento", fr + 0.4)
+    kd = spring(t, t_d, 170, 12)
+    if kd > 0:
+        tam = 300
+        while tam > 90 and ctx.tmp.textlength(badge, font=ctx.fT(tam, 800)) > W - 2 * MARGEN:
+            tam -= 10
+        sc = 1 + 0.25 * (1 - min(1, kd))
+        d.text((W / 2, H * 0.29), badge, font=ctx.fT(int(tam * sc), 800),
+               fill=ACENTO + (int(255 * clamp01(kd * 1.5)),), anchor="mm")
+    t_t = at.get("tachado", fr + 1.3)
+    ka = spring(t, t_t - 0.35, 130, 16)
+    if ka > 0:
+        txt = _fmt_precio(antes, e); fnt = ctx.fT(92, 700)
+        tw_ = ctx.tmp.textlength(txt, font=fnt); y = H * 0.43
+        d.text((W / 2, y), txt, font=fnt, fill=GRIS + (int(255 * clamp01(ka * 1.4)),), anchor="mm")
+        kt = ease_out(clamp01((t - t_t) / 0.35))
+        if kt > 0:
+            x0 = W / 2 - tw_ / 2 - 12
+            d.line([(x0, y + 6), (x0 + (tw_ + 24) * kt, y - 6)], fill=ACENTO + (255,), width=10)
+    t_p = at.get("precio", t_t + 0.5)
+    if t >= t_p:
+        kp = spring(t, t_p, 140, 14)
+        v = antes + (ahora - antes) * ease_out(clamp01((t - t_p) / 0.9))
+        sc = 1 + 0.06 * max(0, 1 - abs((t - t_p - 0.9) / 0.15)) if t > t_p + 0.75 else 1
+        d.text((W / 2, H * 0.52), _fmt_precio(v, e), font=ctx.fT(int(150 * sc), 800),
+               fill=BLANCO + (int(255 * clamp01(kp * 1.5)),), anchor="mm")
+    if e.get("codigo"):
+        t_c = at.get("codigo", t_p + 1.2)
+        kc = spring(t, t_c, 130, 16)
+        if kc > 0:
+            fnt = ctx.fM(56, 700); txt = e["codigo"]
+            cw_ = ctx.tmp.textlength(txt, font=fnt) + 90; chh = 104
+            x0, y0 = W / 2 - cw_ / 2, H * 0.60 + (1 - min(1, kc)) * 20
+            al = int(255 * clamp01(kc * 1.4))
+            d.rounded_rectangle([x0, y0, x0 + cw_, y0 + chh], radius=22, fill=PANEL2 + (al,))
+            paso = 22   # borde punteado: lee como "código para copiar"
+            for xx in range(int(x0 + 18), int(x0 + cw_ - 18), paso):
+                for yy_ in (y0, y0 + chh):
+                    d.line([(xx, yy_), (min(xx + 11, x0 + cw_ - 18), yy_)], fill=ACENTO + (al,), width=3)
+            d.text((W / 2, y0 + chh / 2), txt, font=fnt, fill=BLANCO + (al,), anchor="mm")
+    if e.get("vence"):
+        t_v = at.get("vence", at.get("codigo", t_p + 1.2) + 0.3)
+        kv = spring(t, t_v, 130, 16)
+        if kv > 0:
+            d.text((W / 2, H * 0.695), e["vence"], font=ctx.fX(38, 600),
+                   fill=GRIS + (int(255 * clamp01(kv * 1.4)),), anchor="mm")
+    if e.get("cta"):
+        t_b = at.get("cta", at.get("vence", t_p + 1.5) + 0.5)
+        kb = spring(t, t_b, 150, 13)
+        if kb > 0:
+            fnt = ctx.fT(48, 800)
+            bw_ = ctx.tmp.textlength(e["cta"], font=fnt) + 120; bh_ = 110
+            s_ = 0.9 + 0.1 * min(1.08, kb)
+            x0, y0 = W / 2 - bw_ * s_ / 2, H * 0.74
+            al = int(255 * clamp01(kb * 1.4))
+            d.rounded_rectangle([x0, y0, x0 + bw_ * s_, y0 + bh_ * s_], radius=int(bh_ * s_ / 2),
+                                fill=ACENTO + (al,))
+            d.text((W / 2, y0 + bh_ * s_ / 2), e["cta"], font=fnt, fill=BLANCO + (al,), anchor="mm")
+    return capa_salida(layer, t, e["to"])
+
+
+_IMG_CACHE = {}
+
+
+def imagen_ajustada(ruta, ancho, alto):
+    """Imagen escalada a (ancho, alto) con cubrir+recorte, cacheada por proceso
+    (cargar y redimensionar en cada frame es lo que hace lento un render)."""
+    clave = (ruta, int(ancho), int(alto))
+    if clave not in _IMG_CACHE:
+        img = None
+        if ruta and os.path.isfile(os.path.expanduser(ruta)):
+            try:
+                base = Image.open(os.path.expanduser(ruta)).convert("RGBA")
+                f = max(ancho / base.width, alto / base.height)
+                base = base.resize((max(1, int(base.width * f)), max(1, int(base.height * f))),
+                                   Image.LANCZOS)
+                x0, y0 = (base.width - int(ancho)) // 2, (base.height - int(alto)) // 2
+                img = base.crop((x0, y0, x0 + int(ancho), y0 + int(alto)))
+            except Exception as ex:
+                info(f"no se pudo cargar {ruta}: {ex}")
+        _IMG_CACHE[clave] = img
+    return _IMG_CACHE[clave]
+
+
+def sc_demo(ctx, e, t):
+    """Demo de producto desde capturas (sin grabar pantalla): ventana con barra
+    y URL, cursor que viaja con smoothstep al objetivo, onda del clic y cambio
+    de pantalla en el MISMO frame, zoom al foco (≤2×) con spotlight y un
+    beneficio por paso. Cámara O cursor, nunca los dos a la vez.
+    Params: `captura` (PNG/JPG, idealmente capturada a 2×), `url?`, `rotulo?`,
+    `aspecto?` (alto/ancho de la captura si no hay archivo; default 0.625),
+    `pasos[{x, y (0..1 sobre la captura), at (clic), zoom? (≤2, default 1.6),
+    texto?, captura? (pantalla que aparece con el clic)}]`, `at{rotulo, ventana}`.
+    Ritmo: 15 s = 3–4 pasos; 30 s = 5–7 (acortar pasos, nunca los holds de lectura).
+    Fuente: product-demo-video (iart-ai/ecommerce-video-skills).
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at", {})
+    if e.get("rotulo"):
+        rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", e["from"]), y=H * 0.16)
+    kv = spring(t, at.get("ventana", e["from"] + 0.2), 110, 15)
+    if kv <= 0:
+        return capa_salida(layer, t, e["to"])
+    bw = int(W * 0.86)
+    ruta = e.get("captura")
+    asp = e.get("aspecto", 0.625)
+    if ruta and os.path.isfile(os.path.expanduser(ruta)):
+        try:
+            with Image.open(os.path.expanduser(ruta)) as im_:
+                asp = im_.height / im_.width
+        except Exception:
+            pass
+    bh = int(min(H * 0.48, bw * asp))
+    barra = 48
+    x0 = (W - bw) // 2
+    y0 = int(H * 0.44 - (bh + barra) / 2 + (1 - min(1, kv)) * 40)
+    pasos = sorted(e.get("pasos", []), key=lambda p_: p_.get("at", 0))
+    # pantalla vigente: la del último clic ya ocurrido que traiga `captura`
+    pantalla = ruta
+    for p_ in pasos:
+        if p_.get("captura") and t >= p_.get("at", 0):
+            pantalla = p_["captura"]
+    img = imagen_ajustada(pantalla, bw, bh)
+    if img is None:   # sin captura: maqueta neutra (nunca un hueco negro)
+        img = Image.new("RGBA", (bw, bh), PANEL2 + (255,))
+        dm = ImageDraw.Draw(img)
+        for r_ in range(6):
+            dm.rounded_rectangle([40, 40 + r_ * bh // 7, bw * (0.45 + 0.08 * (r_ % 3)),
+                                  40 + r_ * bh // 7 + bh // 14], radius=10, fill=(70, 70, 70, 255))
+    # cámara: zoom al foco del paso vigente, sale antes de que viaje el cursor
+    z, fx, fy, foco = 1.0, 0.5, 0.5, 0.0
+    for i, p_ in enumerate(pasos):
+        a_ = p_.get("at", 0)
+        nxt = pasos[i + 1].get("at", 1e9) if i + 1 < len(pasos) else 1e9
+        zin = ease_in_out(clamp01((t - (a_ + 0.15)) / 0.7))
+        zout = ease_in_out(clamp01((t - (nxt - 1.3)) / 0.7))
+        s_ = zin * (1 - zout)
+        if s_ > 0:
+            z = 1 + (min(2.0, p_.get("zoom", 1.6)) - 1) * s_
+            fx, fy, foco = p_.get("x", 0.5), p_.get("y", 0.5), s_
+    fxp, fyp = fx * bw, fy * bh
+    cx_, cy_ = fxp * (1 - 1 / z), fyp * (1 - 1 / z)
+    vista = img.transform(img.size, Image.AFFINE, (1 / z, 0, cx_, 0, 1 / z, cy_),
+                          resample=Image.BICUBIC)
+    a_v = int(255 * clamp01(kv * 1.4))
+    if foco > 0:   # spotlight: atenuar todo menos el foco
+        mask = Image.new("L", (bw, bh), int(120 * foco))
+        r_f = 150 * z
+        ImageDraw.Draw(mask).ellipse([(fxp - cx_) * z - r_f, (fyp - cy_) * z - r_f,
+                                      (fxp - cx_) * z + r_f, (fyp - cy_) * z + r_f], fill=0)
+        vista.paste(Image.new("RGBA", (bw, bh), (0, 0, 0, 255)), (0, 0),
+                    mask.filter(ImageFilter.GaussianBlur(30)))
+    marco = Image.new("RGBA", (bw, bh + barra), (0, 0, 0, 0))
+    dm = ImageDraw.Draw(marco)
+    dm.rounded_rectangle([0, 0, bw, bh + barra], radius=22, fill=PANEL + (255,))
+    for k_ in range(3):
+        dm.ellipse([22 + k_ * 26, 17, 36 + k_ * 26, 31], fill=(90, 90, 90, 255))
+    if e.get("url"):
+        dm.rounded_rectangle([120, 9, bw - 30, 39], radius=15, fill=PANEL2 + (255,))
+        dm.text((140, 24), e["url"], font=ctx.fX(20, 500), fill=GRIS, anchor="lm")
+    marco.paste(vista, (0, barra))
+    if a_v < 255:
+        marco.putalpha(marco.split()[3].point(lambda v: int(v * a_v / 255)))
+    layer.alpha_composite(marco, (x0, y0))
+    # cursor: viaja del objetivo anterior al actual en [at-0.6, at]; luego clic
+    prev = (0.85, 0.92)
+    pos = None
+    for p_ in pasos:
+        a_ = p_.get("at", 0)
+        if t < a_ - 0.6:
+            break
+        k_ = smoothstep((t - (a_ - 0.6)) / 0.6)
+        pos = (lerp(prev[0], p_.get("x", .5), k_), lerp(prev[1], p_.get("y", .5), k_), a_, p_)
+        prev = (p_.get("x", .5), p_.get("y", .5))
+    if pos:
+        px = x0 + (pos[0] * bw - cx_) * z
+        py = y0 + barra + (pos[1] * bh - cy_) * z
+        pul = onda_clic(d, px, py, t, pos[2])
+        cursor(d, px, py, 0.8 * (1 - 0.15 * pul))
+        p_ = pos[3]
+        if p_.get("texto") and t >= pos[2] + 0.15:
+            kt = spring(t, pos[2] + 0.15, 140, 16)
+            nxt_ = [q.get("at", 0) for q in pasos if q.get("at", 0) > pos[2]]
+            fuera = clamp01((t - (nxt_[0] - 1.3)) / 0.4) if nxt_ else 0
+            al = int(255 * clamp01(kt * 1.4) * (1 - fuera))
+            if al > 0:
+                fnt = ctx.fT(44, 800)
+                tw_ = ctx.tmp.textlength(p_["texto"], font=fnt) + 80
+                yb = y0 + barra + bh + 60
+                d.rounded_rectangle([W / 2 - tw_ / 2, yb, W / 2 + tw_ / 2, yb + 92], radius=46,
+                                    fill=ACENTO + (al,))
+                d.text((W / 2, yb + 46), p_["texto"], font=fnt, fill=BLANCO + (al,), anchor="mm")
+    return capa_salida(layer, t, e["to"])
+
+
+def sc_rotulo_inferior(ctx, e, t):
+    """Rótulo inferior (lower third): nombre + rol sobre panel, anclado a la
+    izquierda dentro del title-safe y elevado sobre la banda de UI en 9:16.
+    Entra barra → nombre → rol (stagger 0.12 s, entrada ~0.45 s), se QUEDA
+    quieto mientras se lee y sale más rápido de lo que entró; el primer y el
+    último frame quedan vacíos (no aparece ni se corta de golpe en el NLE).
+    Ideal como overlay con alfa: `-o rotulo.mov` (ProRes 4444) o `.webm`.
+    Params: `nombre`, `rol?`, `lado?` (izq | der), `at{entra}`.
+    Fuente: lower-thirds (iart-ai/lower-thirds-skills, tiktok-video-skills).
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    at = e.get("at", {})
+    t_in = at.get("entra", e["from"] + 0.15)
+    t_out = e["to"] - 0.4
+    if t < t_in:
+        return layer
+    base = int(min(W, H) * 0.06)
+    margen = max(SAFE["left"], int(W * 0.06))
+    ancho_max = W - 2 * margen - 70
+    tam = base
+    while tam > 24:   # fit: un nombre largo se encoge, nunca se sale del panel
+        fn, fr_ = ctx.fT(tam, 800), ctx.fX(int(tam * 0.55), 600)
+        wn = ctx.tmp.textlength(e.get("nombre", ""), font=fn)
+        wr = ctx.tmp.textlength(e.get("rol", ""), font=fr_) if e.get("rol") else 0
+        if max(wn, wr) <= ancho_max:
+            break
+        tam -= 2
+    pad = int(tam * 0.55)
+    bw = int(max(wn, wr) + 2 * pad + 12)
+    bh = int(tam * 1.25 + (tam * 0.55 * 1.5 if e.get("rol") else 0) + pad * 1.2)
+    y0 = int(H - SAFE["bottom"] - bh - H * 0.03)
+    x0 = margen if e.get("lado", "izq") != "der" else W - margen - bw
+    k_panel = ease_out(clamp01((t - t_in) / 0.45)) * (1 - ease_in_out(clamp01((t - t_out - 0.1) / 0.25)))
+    k_txt = 1 - clamp01((t - t_out) / 0.15)
+    if k_panel <= 0:
+        return layer
+    d = ImageDraw.Draw(layer)
+    d.rounded_rectangle([x0, y0, x0 + max(12, bw * k_panel), y0 + bh], radius=14,
+                        fill=PANEL + (232,))
+    d.rectangle([x0, y0, x0 + 10, y0 + bh], fill=ACENTO + (255,))
+    for txt, fnt, col, dt, yy in ((e.get("nombre", ""), fn, BLANCO, 0.12, y0 + pad * 0.6),
+                                  (e.get("rol", ""), fr_, ACENTO, 0.24, y0 + pad * 0.6 + tam * 1.25)):
+        if not txt:
+            continue
+        kr = ease_out(clamp01((t - t_in - dt) / 0.4)) * k_txt
+        if kr <= 0:
+            continue
+        tw_ = int(ctx.tmp.textlength(txt, font=fnt)) + 4
+        img = Image.new("RGBA", (tw_, int(fnt.size * 1.4)), (0, 0, 0, 0))
+        ImageDraw.Draw(img).text((0, 0), txt, font=fnt, fill=col + (255,))
+        vis = img.crop((0, 0, max(1, int(tw_ * kr)), img.height))   # máscara: barre, no se mueve
+        layer.alpha_composite(vis, (int(x0 + pad + 12), int(yy)))
+    return layer
+
+
 SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "chat":sc_chat,"leads":sc_leads,"handoff":sc_handoff,"pago":sc_pago,
         "listo":sc_listo,"pildoras":sc_pildoras,"hoy":sc_hoy,"recupera":sc_recupera,
@@ -1252,11 +1746,14 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "bars":sc_bars,"gauge":sc_gauge,"ranking":sc_ranking,"stats":sc_stats,
         "timeline":sc_timeline,"quote":sc_quote,"versus":sc_versus,"confetti":sc_confetti,
         # Ronda 2: reactvideoeditor/remotion-templates (81 templates MIT)
-        "typewriter":sc_typewriter,"kenburns":sc_kenburns,"pasos":sc_pasos}
+        "typewriter":sc_typewriter,"kenburns":sc_kenburns,"pasos":sc_pasos,
+        # Ronda 3: iart-ai/motion-skills (MIT)
+        "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
+        "rotulo_inferior":sc_rotulo_inferior}
 
 # ================= MAIN =================
 # hex_a_rgb vive en _comun (unica fuente; DRY). Reusar aquí:
-from _comun import hex_a_rgb  # noqa: E402,F401  # sys.path ya apunta a ffmpeg_tools
+from _comun import hex_a_rgb, info  # noqa: E402,F401  # sys.path ya apunta a ffmpeg_tools
 
 def _ruta_pack(base, valor):
     """Ruta de un asset del pack: relativa al JSON, absoluta, ~ o nombre de familia."""
@@ -1335,7 +1832,7 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     for i,e in enumerate(escenas):
         if e["from"]<=t<e["to"]: s=e; si=i; break
     if s is None: s=escenas[-1]; si=len(escenas)-1
-    bg=mundo(ctx,t,seed=si+1)
+    bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=si+1)
     layer=encajar(SCENES[s["tipo"]](ctx,s,t).copy(),escala_segura(ctx,s,si))
     if si in manchas_ok and t-s["from"]<0.9:
         prev=encajar(SCENES[escenas[si-1]["tipo"]](ctx,escenas[si-1],t),escala_segura(ctx,escenas[si-1],si-1))
@@ -1350,9 +1847,12 @@ def componer(ctx,escenas,dur,t,manchas_ok):
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)
     if dur-t<0.8:
-        f2=Image.new("RGBA",(W,H),(0,0,0,int(255*clamp01((0.8-(dur-t))/0.8))))
-        bg.alpha_composite(f2)
-    return bg.convert("RGB")
+        k=clamp01((0.8-(dur-t))/0.8)
+        if ALFA:   # un overlay se va por transparencia, no a negro
+            bg.putalpha(bg.split()[3].point(lambda v:int(v*(1-k))))
+        else:
+            bg.alpha_composite(Image.new("RGBA",(W,H),(0,0,0,int(255*k))))
+    return bg if ALFA else bg.convert("RGB")
 
 def capa_entrada(layer,t,t0,dur=0.03):
     k=clamp01((t-t0)/dur)
@@ -1368,8 +1868,14 @@ def frame_con_blur(ctx,escenas,dur,t,fps,n,obturador,manchas_ok):
     for k in range(n):
         tk=t+ventana*((k+0.5)/n-0.5)
         a=np.asarray(componer(ctx,escenas,dur,tk,manchas_ok),dtype=np.float32)
+        if ALFA:   # promediar premultiplicado: si no, los bordes se oscurecen
+            a=np.concatenate([a[...,:3]*a[...,3:4]/255,a[...,3:4]],axis=2)
         acc=a if acc is None else acc+a
-    return Image.fromarray(np.clip(acc/n+0.5,0,255).astype("uint8"))
+    acc/=n
+    if ALFA:
+        al=acc[...,3:4]
+        acc[...,:3]=np.where(al>0,acc[...,:3]*255/np.maximum(al,1e-6),0)
+    return Image.fromarray(np.clip(acc+0.5,0,255).astype("uint8"))
 
 def presupuesto_manchas(escenas,maximo,avisar=True):
     """La 'mancha' es opt-in y motivada: como máximo `maximo` por pieza
@@ -1383,9 +1889,11 @@ def presupuesto_manchas(escenas,maximo,avisar=True):
     return set(ok)
 
 _W={}
-def _init_worker(brand_path,acento,plan_path,maximo_cfg,safe=None,escalas=None):
+def _init_worker(brand_path,acento,plan_path,maximo_cfg,safe=None,escalas=None,alfa=False,
+                 geo=(1080,1920,151)):
     """Inicializa un proceso de render (portable: también con 'spawn' en Windows/macOS)."""
-    global ACENTO, ACENTO_OSC
+    global ACENTO, ACENTO_OSC, ALFA, W, H, MARGEN
+    ALFA=alfa; W,H,MARGEN=geo
     if brand_path:
         import io, contextlib
         with contextlib.redirect_stdout(io.StringIO()): aplicar_brand(brand_path)
@@ -1403,9 +1911,117 @@ def _render_worker(job):
     frame_con_blur(_W["ctx"],_W["esc"],_W["dur"],fi/fps,fps,blur,obt,_W["ok"]).save(fp)
     return fi
 
+def revisar_overlay(tmpd,n,fps):
+    """Chequeos de un overlay transparente (lower third, título, bug):
+    empieza y termina vacío (no aparece de golpe ni se corta en el NLE),
+    nada pinta el cuadro entero (perdería la transparencia) y todo queda
+    dentro del title-safe 5%. Devuelve la lista de avisos."""
+    avisos=[]; caja=None
+    def alfa(fi):
+        return Image.open(f"{tmpd}/f_{fi:04d}.png").split()[3].point(lambda v:255 if v>12 else 0)
+    if alfa(0).getbbox(): avisos.append("el primer frame no está vacío: el overlay aparece de golpe")
+    if alfa(n-1).getbbox(): avisos.append("el último frame no está vacío: el overlay se corta de golpe")
+    for fi in range(0,n,max(1,int(fps/3))):
+        a=alfa(fi); bb=a.getbbox()
+        if not bb: continue
+        if sum(a.histogram()[255:])>0.97*W*H:
+            avisos.append(f"t={fi/fps:.2f}s: algo pinta todo el cuadro (el archivo dejaría de ser transparente)")
+            break
+        caja=bb if caja is None else (min(caja[0],bb[0]),min(caja[1],bb[1]),max(caja[2],bb[2]),max(caja[3],bb[3]))
+    if caja and (caja[0]<W*0.05 or caja[1]<H*0.05 or caja[2]>W*0.95 or caja[3]>H*0.95):
+        avisos.append(f"el gráfico invade el 5% exterior (title-safe): caja {caja}")
+    return avisos
+
+def render(plan_path,plan,out,a):
+    """Renderiza un plan ya cargado a `out` (.mp4; .webm/.mov = con alfa)."""
+    global ACENTO, ACENTO_OSC, ALFA, W, H, MARGEN
+    ALFA=os.path.splitext(out)[1].lower() in (".webm",".mov")
+    try:
+        W,H=(int(v) for v in str(a.tamano or plan.get("tamano","1080x1920")).lower().split("x"))
+    except ValueError:
+        sys.exit("ERROR: tamano debe ser ANCHOxALTO, ej. 1920x1080")
+    brand_path = a.brand or plan.get("brand")
+    if brand_path:
+        if not os.path.isabs(os.path.expanduser(brand_path)) and not os.path.exists(brand_path):
+            cand=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),brand_path)
+            if os.path.exists(cand): brand_path=cand
+        aplicar_brand(brand_path)
+    elif plan.get("acento"):   # modo libre: el plan puede fijar su acento
+        ACENTO=hex_a_rgb(plan["acento"]); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
+    plataforma=a.plataforma or plan.get("plataforma","vertical" if H>W else "youtube")
+    if plataforma!="ninguna": SAFE.update(zona_segura(plataforma))
+    else: SAFE.update({"top":0,"bottom":0,"left":0,"right":0})
+    MARGEN=max(SAFE["left"],int(W*0.05))
+    _ESCALA.clear()
+    ctx=Ctx(); fps=a.fps
+    dur=plan["duracion"]; n=int(dur*fps)
+    escenas=sorted(plan["escenas"],key=lambda s:s["from"])
+    maximo=plan.get("mancha_max", 1 if TRANSICIONES=="corte_seco" else 2)
+    manchas_ok=presupuesto_manchas(escenas,maximo)
+    for i,e in enumerate(escenas): escala_segura(ctx,e,i)   # una vez, antes del render
+    tmpd=f"{out}.frames"; os.makedirs(tmpd,exist_ok=True)
+    print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}"+(" · overlay con alfa" if ALFA else ""),flush=True)
+    pend=[fi for fi in range(n) if a.force or not os.path.exists(f"{tmpd}/f_{fi:04d}.png")]
+    if len(pend)<n: print(f"  retoma: {n-len(pend)} frames ya existen",flush=True)
+    jobs=[(fi,f"{tmpd}/f_{fi:04d}.png",fps,a.blur,a.obturador) for fi in pend]
+    if a.jobs<=1:
+        for i,j in enumerate(jobs):
+            frame_con_blur(ctx,escenas,dur,j[0]/fps,fps,a.blur,a.obturador,manchas_ok).save(j[1])
+            if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
+    else:
+        from multiprocessing import Pool
+        init=(brand_path if brand_path else None, None if brand_path else plan.get("acento"),
+              plan_path, plan.get("mancha_max"), dict(SAFE), dict(_ESCALA), ALFA, (W,H,MARGEN))
+        with Pool(a.jobs,initializer=_init_worker,initargs=init) as pool:
+            for i,_ in enumerate(pool.imap_unordered(_render_worker,jobs,chunksize=4)):
+                if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
+    if ALFA:
+        for av in revisar_overlay(tmpd,n,fps): print("AVISO overlay:",av,flush=True)
+    print("frames ok, codificando…",flush=True)
+    from _comun import codificar_frames   # BT.709 exacto; .webm/.mov = con alfa
+    res=codificar_frames(f"{tmpd}/f_%04d.png", fps, out, crf=20)
+    if res.get("alfa"):
+        print(f"  alfa verificado: el frame central decodifica {res['transparente']:.0%} transparente",flush=True)
+    print("OK",out)
+
+# ---------- plantilla × tabla: un plan, N videos ----------
+_PH=re.compile(r"\{([A-Za-z_]\w*)\}")
+
+def _numero(v):
+    if isinstance(v,(int,float)) or not isinstance(v,str): return v
+    try: return int(v)
+    except ValueError:
+        try: return float(v)
+        except ValueError: return v
+
+def sustituir(nodo,fila,faltan):
+    """Reemplaza {campo} en todo string del plan con la fila. Un string que es
+    SOLO "{campo}" toma el valor tipado (un número sigue siendo número y
+    cuenta). Los campos sin columna se acumulan en `faltan` (fail-loud)."""
+    if isinstance(nodo,dict): return {k:sustituir(v,fila,faltan) for k,v in nodo.items()}
+    if isinstance(nodo,list): return [sustituir(v,fila,faltan) for v in nodo]
+    if not isinstance(nodo,str): return nodo
+    for c in _PH.findall(nodo):
+        if c not in fila: faltan.add(c)
+    m=_PH.fullmatch(nodo)
+    if m and m.group(1) in fila: return _numero(fila[m.group(1)])
+    return _PH.sub(lambda mm:str(fila.get(mm.group(1),mm.group(0))),nodo)
+
+def leer_tabla(ruta):
+    if ruta.lower().endswith(".json"):
+        filas=json.load(open(ruta,encoding="utf-8"))
+        if isinstance(filas,dict): filas=filas.get("filas",[])
+        return filas
+    import csv
+    with open(ruta,encoding="utf-8-sig",newline="") as f:
+        muestra=f.read(4096); f.seek(0)
+        dialecto=csv.Sniffer().sniff(muestra,delimiters=",;\t") if muestra else csv.excel
+        return [dict(r) for r in csv.DictReader(f,dialect=dialecto)]
+
 def main():
     ap=argparse.ArgumentParser()
-    ap.add_argument("plan"); ap.add_argument("-o","--out",required=True)
+    ap.add_argument("plan"); ap.add_argument("-o","--out",required=True,
+                    help="salida .mp4 (o .webm/.mov = overlay con alfa); con --datos admite {campo}")
     ap.add_argument("--fps",type=int,default=30)
     ap.add_argument("--brand", default=None,
                     help="brand pack (brand/*.json); el plan también acepta campo \"brand\"")
@@ -1419,47 +2035,38 @@ def main():
                     help="zona segura: vertical (Reels+TikTok+Shorts, default), reels, tiktok, shorts, ninguna")
     ap.add_argument("--force",action="store_true",
                     help="re-renderiza todos los frames aunque ya existan")
+    ap.add_argument("--tamano",default=None,
+                    help="ANCHOxALTO (default 1080x1920 o el campo \"tamano\" del plan; 1920x1080 para 16:9)")
+    ap.add_argument("--datos",help="tabla CSV/TSV/JSON: un video por fila; el plan usa {columna}")
+    ap.add_argument("--fila",type=int,help="con --datos: renderizar solo esta fila (1 = primera) "
+                    "para verificarla antes del lote")
     a=ap.parse_args()
     plan=json.load(open(a.plan, encoding="utf-8"))
-    brand_path = a.brand or plan.get("brand")
-    if brand_path:
-        if not os.path.isabs(os.path.expanduser(brand_path)) and not os.path.exists(brand_path):
-            cand=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),brand_path)
-            if os.path.exists(cand): brand_path=cand
-        aplicar_brand(brand_path)
-    elif plan.get("acento"):   # modo libre: el plan puede fijar su acento
-        global ACENTO, ACENTO_OSC
-        ACENTO=hex_a_rgb(plan["acento"]); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
-    plataforma=a.plataforma or plan.get("plataforma","vertical")
-    if plataforma!="ninguna": SAFE.update(zona_segura(plataforma))
-    else: SAFE.update({"top":0,"bottom":0,"left":0,"right":0})
-    ctx=Ctx(); fps=a.fps
-    dur=plan["duracion"]; n=int(dur*fps)
-    escenas=sorted(plan["escenas"],key=lambda s:s["from"])
-    maximo=plan.get("mancha_max", 1 if TRANSICIONES=="corte_seco" else 2)
-    manchas_ok=presupuesto_manchas(escenas,maximo)
-    for i,e in enumerate(escenas): escala_segura(ctx,e,i)   # una vez, antes del render
-    tmpd=f"{a.out}.frames"; os.makedirs(tmpd,exist_ok=True)
-    print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}",flush=True)
-    pend=[fi for fi in range(n) if a.force or not os.path.exists(f"{tmpd}/f_{fi:04d}.png")]
-    if len(pend)<n: print(f"  retoma: {n-len(pend)} frames ya existen",flush=True)
-    jobs=[(fi,f"{tmpd}/f_{fi:04d}.png",fps,a.blur,a.obturador) for fi in pend]
-    if a.jobs<=1:
-        for i,j in enumerate(jobs):
-            frame_con_blur(ctx,escenas,dur,j[0]/fps,fps,a.blur,a.obturador,manchas_ok).save(j[1])
-            if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
+    if not a.datos:
+        return render(a.plan,plan,a.out,a)
+    filas=leer_tabla(a.datos)
+    if not filas: sys.exit(f"ERROR: {a.datos} no tiene filas")
+    if a.fila:
+        if not 1<=a.fila<=len(filas): sys.exit(f"ERROR: --fila {a.fila} fuera de 1..{len(filas)}")
+        sel=[(a.fila,filas[a.fila-1])]
     else:
-        from multiprocessing import Pool
-        init=(brand_path if brand_path else None, None if brand_path else plan.get("acento"),
-              a.plan, plan.get("mancha_max"), dict(SAFE), dict(_ESCALA))
-        with Pool(a.jobs,initializer=_init_worker,initargs=init) as pool:
-            for i,_ in enumerate(pool.imap_unordered(_render_worker,jobs,chunksize=4)):
-                if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
-    print("frames ok, codificando…",flush=True)
-    subprocess.run(["ffmpeg","-y","-v","error","-framerate",str(fps),
-                    "-i",f"{tmpd}/f_%04d.png","-c:v","libx264","-preset","medium",
-                    "-crf","20","-pix_fmt","yuv420p","-movflags","+faststart",a.out],
-                   check=True)
-    print("OK",a.out)
+        sel=list(enumerate(filas,1))
+    # validar TODAS las filas antes de renderizar nada (nunca "{nombre}" en pantalla)
+    trabajos=[]
+    for n_,fila in sel:
+        faltan=set(); p_=sustituir(plan,fila,faltan)
+        out=sustituir(a.out,fila,faltan)
+        if faltan:
+            sys.exit(f"ERROR fila {n_}: el plan usa {{{', '.join(sorted(faltan))}}} y la tabla "
+                     f"no tiene esa(s) columna(s): {', '.join(fila)}")
+        if out==a.out and len(sel)>1:
+            b,ext=os.path.splitext(a.out); out=f"{b}_{n_:03d}{ext}"
+        trabajos.append((n_,p_,out))
+    print(f"plantilla × {len(trabajos)} fila(s) de {a.datos}",flush=True)
+    for n_,p_,out in trabajos:
+        ruta=f"{out}.plan.json"   # el plan resuelto queda junto al video (reproducible)
+        json.dump(p_,open(ruta,"w",encoding="utf-8"),ensure_ascii=False,indent=1)
+        print(f"— fila {n_}: {out}",flush=True)
+        render(ruta,p_,out,a)
 
 if __name__=="__main__": main()

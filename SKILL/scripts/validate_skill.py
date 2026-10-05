@@ -178,7 +178,12 @@ try:
            # Ronda 2: reactvideoeditor/remotion-templates
            "typewriter": {"rotulo": 0.5, "cursor": 1.0, "fuente": 4.5},
            "kenburns": {"rotulo": 0.5, "kenburns": 0.2, "texto": 1.0, "subtitulo": 2.0},
-           "pasos": {"rotulo": 0.5, "item0": 1.0, "item1": 1.4, "item2": 1.8}}
+           "pasos": {"rotulo": 0.5, "item0": 1.0, "item1": 1.4, "item2": 1.8},
+           # Ronda 3: iart-ai/motion-skills
+           "countdown": {"rotulo": 0.2, "inicio": 0.5},
+           "oferta": {"descuento": 0.4, "tachado": 1.0, "precio": 1.5, "codigo": 2.5, "cta": 3.5},
+           "demo": {"rotulo": 0.2, "ventana": 0.3},
+           "rotulo_inferior": {"entra": 0.3}}
     for nombre, fn in R.SCENES.items():
         # Defaults que cubren TODAS las escenas (existentes + catalog unificado).
         # Si añades una escena nueva con campos propios, agregala aquí — el
@@ -210,6 +215,11 @@ try:
              "items_pasos": [{"titulo": "Paso 1", "texto": "desc 1", "at": 1.0},
                               {"titulo": "Paso 2", "texto": "desc 2", "at": 1.5},
                               {"titulo": "Paso 3", "texto": "desc 3", "at": 2.0}],
+             # Ronda 3
+             "segundos": 3, "final": "YA", "antes": 100, "descuento": 30, "codigo": "COD30",
+             "vence": "hoy", "cta": "Ir", "estrellas": 4.5, "rol": "rol", "nombre": "Nombre",
+             "pasos": [{"x": 0.7, "y": 0.2, "at": 1.5, "texto": "Clic"},
+                       {"x": 0.3, "y": 0.6, "at": 3.5}],
              "tam": 80, "zoom_from": 1.0, "zoom_to": 1.15, "pan_x": 0.0, "pan_y": 0.0, "dur_kb": 4.0,
              # originales
              "canales": [{"canal": "whatsapp", "nombre": "N",
@@ -226,6 +236,9 @@ try:
         try:
             for t in [0.5, 2.5, 4.5]:
                 fn(ctx, e, t)
+            if nombre == "chat":   # sin `at`: tiempos derivados + escribiendo
+                fn(ctx, dict(e, mensajes=[{"de": "cliente", "texto": "Hola"},
+                                          {"de": "ia", "texto": "Listo"}] * 4), 4.0)
             escenas_ok += 1
         except Exception as ex:
             check(False, f"escena {nombre}: {type(ex).__name__}: {ex}")
@@ -389,6 +402,77 @@ for cli in ["scripts/beat_sync.py", "scripts/chapters.py",
     r = subprocess.run([sys.executable, os.path.join(BASE, cli), "--help"],
                        capture_output=True, timeout=30)
     check(r.returncode == 0, f"--help {cli}")
+
+# 7. regresiones de la ronda iart (cada una reprodujo un bug real; ver reglas-tecnicas.md)
+try:
+    import json as _json
+    import numpy as _np
+    from PIL import Image as _Img
+    sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
+    import _comun as _C
+    tmp = tempfile.mkdtemp(prefix="editoria_val_")
+    # 7a. color de marca exacto tras H.264 (BT.709, no BT.601)
+    for i in range(2):
+        _Img.new("RGB", (320, 180), (193, 27, 5)).save(f"{tmp}/c_{i:04d}.png")
+    _C.codificar_frames(f"{tmp}/c_%04d.png", 30, f"{tmp}/c.mp4")
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{tmp}/c.mp4", "-frames:v", "1",
+                          # como un player con HD: asume BT.709 (el encode viejo daba (206,41,2))
+                          "-vf", "scale=in_color_matrix=bt709,format=rgb24", "-f", "rawvideo", "-"],
+                         capture_output=True).stdout
+    px = tuple(raw[(90 * 320 + 160) * 3:(90 * 320 + 160) * 3 + 3])
+    check(all(abs(a - b) <= 4 for a, b in zip(px, (193, 27, 5))),
+          f"color de marca fiel tras encode ({px} vs (193, 27, 5))")
+    # 7b. overlay con alfa: el alfa sobrevive en .webm y .mov
+    for i in range(3):
+        im = _Img.new("RGBA", (320, 180), (0, 0, 0, 0))
+        if i == 1:
+            im.paste((193, 27, 5, 255), (20, 120, 160, 160))
+        im.save(f"{tmp}/a_{i:04d}.png")
+    for ext in (".webm", ".mov"):
+        r = _C.codificar_frames(f"{tmp}/a_%04d.png", 30, f"{tmp}/a{ext}")
+        check(r.get("transparente", 0) > 0.5, f"alfa verificado en {ext} ({r.get('transparente')})")
+    # 7c. kenburns muestra la imagen real (antes salía negra en silencio)
+    _Img.new("RGB", (400, 300), (40, 160, 90)).save(f"{tmp}/foto.png")
+    kb = R.sc_kenburns(ctx, {"tipo": "kenburns", "from": 0, "to": 5, "imagen": f"{tmp}/foto.png",
+                             "at": {"kenburns": 0}}, 1.0)
+    check(kb.getpixel((R.W // 2, R.H // 3))[1] > 120, "kenburns compone la imagen (no negro)")
+    # 7d. pase: duración exacta (zoompan por imagen, no por stream)
+    os.makedirs(f"{tmp}/fotos")
+    for i in (1, 2, 10):
+        _Img.new("RGB", (480, 360), (30 * i, 90, 140)).save(f"{tmp}/fotos/f{i}.jpg")
+    subprocess.run([sys.executable, os.path.join(BASE, "scripts/ffmpeg_tools/montaje.py"), "pase",
+                    f"{tmp}/fotos", "--duracion", "1", "--transicion", "0.4", "--tamano", "320x568",
+                    "-o", f"{tmp}/pase.mp4"], capture_output=True, timeout=120)
+    d_ = _C.probe(f"{tmp}/pase.mp4").get("duration") if os.path.exists(f"{tmp}/pase.mp4") else None
+    check(d_ is not None and abs(d_ - 3.0) < 0.05, f"pase: 3 fotos x 1 s = 3.0 s ({d_})")
+    # 7e. plantilla × tabla: tipado y fail-loud
+    falt = set()
+    p_ = R.sustituir({"a": "{n}", "b": "Hola {nombre}", "c": "{x}"}, {"n": "42", "nombre": "Ana"}, falt)
+    check(p_["a"] == 42 and p_["b"] == "Hola Ana" and falt == {"x"},
+          "plantilla: número tipado, texto sustituido y columna faltante detectada")
+    # 7f. fotosensibilidad: 4 Hz falla, 1 Hz pasa
+    import auto_qa as _Q
+    t_ = _np.arange(90) / 30
+    def tren(hz):
+        on = ((t_ * hz) % 1) < 0.15
+        return _np.repeat(_np.where(on, 235, 16)[:, None, None], 36 * 64, axis=1).reshape(-1, 36, 64).astype(_np.float32)
+    check(bool(_Q.destellos(tren(4), 30)) and not _Q.destellos(tren(1), 30),
+          "fotosensibilidad: 4 destellos/s se marca, 1/s no")
+    # 7g. karaoke con tiempo real por palabra
+    import caption as _K
+    cues = _K.agrupar_palabras([["Hoy", 0.1, 0.35], ["vamos", 0.4, 0.7], ["a", 0.72, 0.78],
+                                ["hackear", 0.8, 1.4]], 4)
+    check(cues and cues[0][3] == [30, 32, 8, 60], f"karaoke: duraciones reales por palabra ({cues[0][3] if cues else '-'})")
+    # 7h. la voz que no cabe se detecta antes de pagar TTS
+    plan_v = {"duracion": 6, "escenas": [
+        {"tipo": "quote", "from": 0, "to": 2, "voz": " ".join(["palabra"] * 20)},
+        {"tipo": "quote", "from": 2, "to": 6, "voz": "fin"}]}
+    _json.dump(plan_v, open(f"{tmp}/pv.json", "w"))
+    r = subprocess.run([sys.executable, os.path.join(BASE, "scripts/auditar_plan.py"), f"{tmp}/pv.json"],
+                       capture_output=True, text=True)
+    check(r.returncode == 1 and "pisaría" in r.stdout, "auditar_plan: voz que pisa a la siguiente = ERROR")
+except Exception as ex:
+    check(False, f"regresiones ronda iart: {type(ex).__name__}: {ex}")
 
 print()
 if fails:

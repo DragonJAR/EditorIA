@@ -36,6 +36,13 @@ re-render → auto_qa.py → comparar → entregar
 | `flash` | pop de audio con corte visual; glitch de render | micro-fade 30ms en el corte; re-renderizar el tramo |
 | `silencio` | música que no arranca; gap entre segmentos de voz | revisar mezcla; fundidos en `musica.py` |
 | `clipping` | mezcla caliente | bajar master; re-medir con `medir_mezcla.py` |
+| `fotosensible` | más de 3 destellos en 1 s (WCAG 2.3.1; medido a fps completo, en pantalla o en un cuadrante) | espaciar los flashes a ≥1/3 s, bajar el contraste del destello o achicar su área |
+| `sobresalto` | el audio salta >6 dB al entrar un corte (asusta, no edita) | entrar las capas de a una o dos por compás; marcar el corte con armonía, no con volumen |
+| `loop` (con `--loop`) | el último frame no empalma con el primero | igualar composición, posición y color del cierre al frame 0 |
+
+Con `--end-screen 15` el sheet dibuja, en los últimos 15 s, las zonas de la
+pantalla final de YouTube (marca en el tercio izquierdo, tarjetas a la
+derecha): nada propio debe caer bajo las tarjetas.
 
 ## Defectos que solo el ojo ve (checklist visual del sheet)
 
