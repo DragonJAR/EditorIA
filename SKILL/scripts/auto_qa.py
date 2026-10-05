@@ -115,23 +115,33 @@ def detectar(muestras, dur, ignorar_inicio=0.0, ignorar_fin=0.0):
 
 
 def frames_finos(video):
-    """Todos los frames a 64x36 en gris: (fps, array N x 36 x 64)."""
+    """Todos los frames a 64x36 en gris (uint8: 1 h de video = ~250 MB, no 1 GB)."""
     import numpy as np
     meta = probe(video)
     fps = meta["video"].get("fps") or 30.0
     r = subprocess.run(["ffmpeg", "-v", "error", "-i", video, "-vf", "scale=64:36",
                         "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True)
     arr = np.frombuffer(r.stdout, dtype=np.uint8)
-    return fps, arr[: len(arr) // 2304 * 2304].reshape(-1, 36, 64).astype(np.float32)
+    return fps, arr[: len(arr) // 2304 * 2304].reshape(-1, 36, 64)
+
+
+def _por_bloques(fr, fn, bloque=4096):
+    """Aplica fn a bloques de frames y concatena: memoria acotada en videos largos."""
+    import numpy as np
+    return np.concatenate([fn(fr[i:i + bloque]) for i in range(0, len(fr), bloque)])
 
 
 def destellos(fr, fps):
     """Ventanas de 1 s con mas de FLASH_MAX_SEG destellos (pantalla o cuadrante)."""
     import numpy as np
-    lin = lambda g: np.where(g <= 0.04045, g / 12.92, ((g + 0.055) / 1.055) ** 2.4)
-    L = lin(fr / 255.0)
-    regiones = [L.mean(axis=(1, 2))] + [L[:, a:a + 18, b:b + 32].mean(axis=(1, 2))
-                                        for a in (0, 18) for b in (0, 32)]
+    fr = np.asarray(fr)
+    if fr.dtype != np.uint8:
+        fr = np.clip(fr, 0, 255).astype(np.uint8)
+    g = np.arange(256, dtype=np.float32) / 255     # luminancia relativa (sRGB lineal)
+    lut = np.where(g <= 0.04045, g / 12.92, ((g + 0.055) / 1.055) ** 2.4).astype(np.float32)
+    cuadrantes = [_por_bloques(fr[:, a:a + 18, b:b + 32], lambda q: lut[q].mean(axis=(1, 2)))
+                  for a in (0, 18) for b in (0, 32)]
+    regiones = [sum(cuadrantes) / 4] + cuadrantes   # pantalla completa = media de los 4
     malos = []
     for serie in regiones:
         trans, ext, sube = [], serie[0], None   # transiciones entre extremos
@@ -153,7 +163,8 @@ def destellos(fr, fps):
 
 def cortes(fr, fps):
     import numpy as np
-    d = np.abs(np.diff(fr, axis=0)).mean(axis=(1, 2))
+    d = _por_bloques(np.arange(1, len(fr)), lambda ix: np.abs(
+        fr[ix].astype(np.int16) - fr[ix - 1].astype(np.int16)).mean(axis=(1, 2)))
     return [(i + 1) / fps for i in np.nonzero(d > CORTE_DIFF)[0]]
 
 
@@ -198,7 +209,7 @@ def analisis_fino(video, dur, loop=False, con_audio=True):
             defectos.append({"tipo": "sobresalto", "t0": round(t, 2), "t1": round(t, 2),
                              "detalle": f"+{salto:.1f} dB al entrar el corte (máx +{SOBRESALTO_DB:.0f})"})
     if loop:
-        dif = float(abs(fr[0] - fr[-1]).mean())
+        dif = float(abs(fr[0].astype(float) - fr[-1].astype(float)).mean())
         if dif > LOOP_DIFF:
             defectos.append({"tipo": "loop", "t0": 0.0, "t1": round(dur, 2),
                              "detalle": f"último frame ≠ primero (diff {dif:.1f}): la costura se nota"})

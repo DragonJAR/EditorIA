@@ -428,7 +428,12 @@ try:
         if i == 1:
             im.paste((193, 27, 5, 255), (20, 120, 160, 160))
         im.save(f"{tmp}/a_{i:04d}.png")
-    for ext in (".webm", ".mov"):
+    encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True,
+                              text=True).stdout
+    for ext, enc in ((".webm", "libvpx-vp9"), (".mov", "prores_ks")):
+        if enc not in encoders:   # build de ffmpeg sin ese codec: no es un defecto de la skill
+            print(f"AVISO ffmpeg sin {enc}: overlays {ext} no disponibles en este equipo")
+            continue
         r = _C.codificar_frames(f"{tmp}/a_%04d.png", 30, f"{tmp}/a{ext}")
         check(r.get("transparente", 0) > 0.5, f"alfa verificado en {ext} ({r.get('transparente')})")
     # 7c. kenburns muestra la imagen real (antes salía negra en silencio)

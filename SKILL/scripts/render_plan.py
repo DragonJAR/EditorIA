@@ -1416,7 +1416,7 @@ def sc_countdown(ctx, e, t):
     mostrado = max(0, math.ceil(restante - 1e-9))
     rodar = clamp01((0.25 - (restante - (mostrado - 1))) / 0.25) if mostrado > 0 else 0.0
     actual, siguiente = _fmt_tiempo(mostrado, formato), _fmt_tiempo(max(0, mostrado - 1), formato)
-    tam = 300
+    tam = int(min(300, H * 0.20))   # en 16:9 el alto manda: aire bajo el rótulo
     while tam > 80:
         fnt = ctx.fT(tam, 800)
         if ancho_tabular(fnt) * len(actual) <= W - 2 * MARGEN:
@@ -1751,6 +1751,10 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior}
 
+# Escenas cuya composición está verificada también en horizontal (W > H).
+# El resto se diseñó para 9:16: en 16:9 se solapan (verificado en frames).
+ESCENAS_HORIZONTALES={"rotulo_inferior","countdown"}
+
 # ================= MAIN =================
 # hex_a_rgb vive en _comun (unica fuente; DRY). Reusar aquí:
 from _comun import hex_a_rgb, info  # noqa: E402,F401  # sys.path ya apunta a ffmpeg_tools
@@ -1958,6 +1962,11 @@ def render(plan_path,plan,out,a):
     escenas=sorted(plan["escenas"],key=lambda s:s["from"])
     maximo=plan.get("mancha_max", 1 if TRANSICIONES=="corte_seco" else 2)
     manchas_ok=presupuesto_manchas(escenas,maximo)
+    if W>H:
+        solo_v=sorted({e["tipo"] for e in escenas}-ESCENAS_HORIZONTALES)
+        if solo_v:
+            print(f"AVISO: escenas compuestas para 9:16 ({', '.join(solo_v)}); en {W}x{H} "
+                  f"pueden solaparse — mirar frames antes de entregar (references/plan-video.md)",flush=True)
     for i,e in enumerate(escenas): escala_segura(ctx,e,i)   # una vez, antes del render
     tmpd=f"{out}.frames"; os.makedirs(tmpd,exist_ok=True)
     print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}"+(" · overlay con alfa" if ALFA else ""),flush=True)
@@ -2015,7 +2024,8 @@ def leer_tabla(ruta):
     import csv
     with open(ruta,encoding="utf-8-sig",newline="") as f:
         muestra=f.read(4096); f.seek(0)
-        dialecto=csv.Sniffer().sniff(muestra,delimiters=",;\t") if muestra else csv.excel
+        try: dialecto=csv.Sniffer().sniff(muestra,delimiters=",;\t")
+        except csv.Error: dialecto=csv.excel   # una sola columna: no hay separador que adivinar
         return [dict(r) for r in csv.DictReader(f,dialect=dialecto)]
 
 def main():

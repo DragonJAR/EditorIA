@@ -63,7 +63,10 @@ python scripts/render_plan.py plan.json -o final.mp4 --blur 5 --force  # entrega
 los frames que ya existen.
 
 **Tamaño**: `"tamano": "1920x1080"` en el plan (o `--tamano`) para 16:9; la
-zona segura pasa a la de YouTube. Default 1080×1920.
+zona segura pasa a la de YouTube. Default 1080×1920. En horizontal solo
+`rotulo_inferior` y `countdown` tienen composición verificada
+(`ESCENAS_HORIZONTALES` en `render_plan.py`); el resto se diseñó para 9:16 y
+el render avisa si se usan en 16:9. Para piezas 16:9 completas: `cine.md`.
 
 **Color**: el MP4 sale en BT.709 exacto y etiquetado (el acento del pack se
 decodifica tal cual en navegadores y players; ver `reglas-tecnicas.md`).
