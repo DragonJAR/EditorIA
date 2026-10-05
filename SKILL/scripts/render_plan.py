@@ -382,10 +382,14 @@ def largo(texto, font, tabular=False):
     return sum(celda if c.isdigit() else tmp.textlength(c, font=font) for c in texto)
 
 
-def cifra(d, xy, texto, font, fill, anchor="mm"):
+def cifra(d, xy, texto, font, fill, anchor="mm", final=None):
     """Número con cifras TABULARES: mientras cuenta, su ancho no cambia y no
     tiembla de lado (con dígitos proporcionales "141" es más angosto que
-    "142" y el número se re-centra en cada frame). Sin libraqm, celdas fijas."""
+    "142" y el número se re-centra en cada frame). Sin libraqm, celdas fijas.
+    `final`: el valor al terminar; se reserva su ancho con espacios de cifra
+    (U+2007) para que pasar de "8" a "11" no corra el número ni lo re-centre."""
+    if final and len(final) > len(texto):
+        texto = "\u2007" * (len(final) - len(texto)) + texto
     if TNUM:
         d.text(xy, texto, font=font, fill=fill, anchor=anchor, features=TNUM)
         return
@@ -436,28 +440,29 @@ def linewrap(text, fnt, max_width, tmp=None):
     return lineas
 
 
-def text_reveal(d, text, fnt, x, y, t, t0, dur, color, fill=None, anchor="la"):
-    """Dibuja `text` carácter a carácter (typewriter). `t-t0` controla cuántos
-    caracteres ya están "escritos". Si el cursor se quiere visible al final,
-    pasar `cursor="|"` y dibujarlo fuera.
-
-    DRY: la usan `sc_typewriter`, `sc_callout` (futuro) y `pildoras` (futuro).
+def text_reveal(d, text, fnt, x, y, t, t0, dur, color, fill=None, anchor="la", fundido=0.06):
+    """Dibuja `text` carácter a carácter (typewriter) a ritmo CONSTANTE (una
+    máquina de escribir no acelera: antes usaba ease_out y tecleaba rápido al
+    principio). Cada carácter nace con un fundido corto (`fundido` s), no de
+    golpe; el prefijo ya escrito se dibuja de una vez (conserva el kerning).
+    Devuelve cuántos caracteres hay a la vista. DRY: `sc_typewriter`.
     """
-    if t < t0:
-        return 0  # aún no aparece
-    p = clamp01((t - t0) / max(dur, 1e-6))
-    p = ease_out(p)
-    n_visible = int(math.ceil(len(text) * p))
-    visible = text[:n_visible]
-    if not visible:
+    if t < t0 or not text:
         return 0
-    # dibujar los caracteres visibles uno a uno (cada uno con leve delay natural)
-    tmp = ImageDraw.Draw(Image.new("L", (10, 10)))
-    cursor_x = x
-    for ch in visible:
-        d.text((cursor_x, y), ch, font=fnt, fill=fill or color, anchor=anchor)
-        cursor_x += tmp.textlength(ch, font=fnt)
-    return n_visible
+    paso = max(dur, 1e-6) / len(text)
+    nacidos = min(len(text), int((t - t0) / paso) + 1)    # caracteres que ya empezaron a aparecer
+    col = fill or color
+    base = col[:3]
+    a0 = col[3] if len(col) > 3 else 255
+    llenos = [c for c in range(nacidos) if t - (t0 + c * paso) >= fundido]
+    n_llenos = len(llenos)
+    if n_llenos:
+        d.text((x, y), text[:n_llenos], font=fnt, fill=base + (a0,), anchor=anchor)
+    for c in range(n_llenos, nacidos):   # el/los que están naciendo
+        a = clamp01((t - (t0 + c * paso)) / fundido)
+        cx = x + d.textlength(text[:c], font=fnt)
+        d.text((cx, y), text[c], font=fnt, fill=base + (int(a0 * a),), anchor=anchor)
+    return nacidos
 
 
 def kenburns(img, t, t0, dur, zoom_from=1.0, zoom_to=1.15, pan_x=0.0, pan_y=0.0):
@@ -491,6 +496,38 @@ def cursor(d, x, y, escala=1.0, color=None, alpha=255):
               fill=(color or BLANCO) + (int(alpha),), outline=(0, 0, 0, int(160 * alpha / 255)))
 
 
+def perspectiva_y(img, grados, focal=2.6):
+    """Gira `img` sobre su eje vertical con perspectiva real (rotateY de CSS):
+    el borde que se aleja se encoge, el que se acerca crece. `focal` en
+    anchos de imagen (más chico = perspectiva más marcada). Se resuelven los
+    8 coeficientes de la homografía salida→entrada que pide PIL."""
+    if abs(grados) < 0.05:
+        return img
+    w, h = img.size
+    th = math.radians(grados)
+    f = focal * w
+    dst = []
+    for x, y in ((0, 0), (w, 0), (w, h), (0, h)):
+        xc, yc = x - w / 2, y - h / 2
+        z = xc * math.sin(th)
+        k = f / (f + z)
+        dst.append((w / 2 + xc * math.cos(th) * k, h / 2 + yc * k))
+    xs = [p[0] for p in dst]
+    ys = [p[1] for p in dst]
+    ox, oy = min(xs), min(ys)
+    ow, oh = int(math.ceil(max(xs) - ox)), int(math.ceil(max(ys) - oy))
+    src = ((0, 0), (w, 0), (w, h), (0, h))
+    A, B = [], []
+    for (X, Y), (x, y) in zip(dst, src):   # salida (X,Y) -> entrada (x,y)
+        X -= ox
+        Y -= oy
+        A.append([X, Y, 1, 0, 0, 0, -x * X, -x * Y]); B.append(x)
+        A.append([0, 0, 0, X, Y, 1, -y * X, -y * Y]); B.append(y)
+    coef = np.linalg.solve(np.array(A, float), np.array(B, float))
+    return img.transform((max(1, ow), max(1, oh)), Image.PERSPECTIVE, tuple(coef),
+                         resample=Image.BICUBIC)
+
+
 def grupo():
     """Capa vacía para dibujar UN elemento compuesto (un paso, una fila) y
     hacerlo entrar entero con fundir()."""
@@ -506,7 +543,11 @@ def fundir(layer, sub, k, dy=24):
     a = clamp01(k * 1.4)
     if a < 1:
         sub.putalpha(sub.split()[3].point(lambda v: int(v * a)))
-    layer.alpha_composite(sub, (0, int((1 - min(1, k)) * dy)))
+    oy = int((1 - min(1, k)) * dy)
+    if oy < 0:   # entra desde arriba: recortar en vez de un destino negativo
+        sub = sub.crop((0, -oy, W, H))
+        oy = 0
+    layer.alpha_composite(sub, (0, oy))
 
 
 def check(d, cx, cy, s, color, grosor=None):
@@ -676,7 +717,9 @@ def sc_medianoche(ctx,e,t):
     rotulo(ctx,layer,t,e["rotulo"],e["from"]+0.1,y=H*0.20)
     k=spring(t,e["from"],110,13)
     if k>0:
-        tw,th=560,1140; sc=0.82*(0.8+0.2*min(1,k))
+        tw,th=560,1140
+        _,_,_,zy1=caja_segura(); arriba=H*0.20+80          # bajo el rótulo, sobre la UI
+        sc=min(0.82,(zy1-arriba)*0.96/th)*(0.8+0.2*min(1,k)); cy_tel=(arriba+zy1)/2
         ph=Image.new("RGBA",(tw,th),(0,0,0,0)); dp=ImageDraw.Draw(ph)
         dp.rounded_rectangle([0,0,tw,th],radius=86,fill=(12,12,12,255))
         dp.rounded_rectangle([18,18,tw-18,th-18],radius=70,fill=(16,22,34,255))
@@ -687,7 +730,9 @@ def sc_medianoche(ctx,e,t):
         for i,n in enumerate(nots):
             kn=spring(t,n["at"],120,16)
             if kn<=0: continue
-            despues=sum(1 for m in nots[i+1:] if t>=m["at"])
+            # cada notificación nueva EMPUJA a las anteriores con resorte (antes
+            # saltaban 170 px en un frame: el conteo era un escalón)
+            despues=sum(min(1.0,spring(t,m["at"],120,16)) for m in nots[i+1:])
             ny=500+despues*170+(1-min(1,kn))*-90
             nw=Image.new("RGBA",(tw-44,140),(0,0,0,0)); dn=ImageDraw.Draw(nw)
             dn.rounded_rectangle([0,0,tw-44,140],radius=30,fill=(255,255,255,36))
@@ -698,8 +743,11 @@ def sc_medianoche(ctx,e,t):
             a=nw.split()[3].point(lambda v:int(v*clamp01(kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((int(tw*sc),int(th*sc)),Image.LANCZOS)
-        # inclinación 3D aproximada con shear
-        layer.alpha_composite(ph,(int(W/2-ph.width/2),int(H*0.62-ph.height/2)))
+        # giro 3D real al entrar: rotateY de -70° a -12° con el resorte (perspectiva)
+        ph=perspectiva_y(ph,lerp(-70,-12,min(1.0,k)))
+        al=clamp01(k*1.6)   # entra fundido, no de golpe en el primer frame
+        if al<1: ph.putalpha(ph.split()[3].point(lambda v:int(v*al)))
+        layer.alpha_composite(ph,(int(W/2-ph.width/2),int(cy_tel-ph.height/2)))
     return capa_salida(layer,t,e["to"])
 
 def wrap(text,fnt,maxw,tmp):
@@ -788,28 +836,31 @@ def sc_chat(ctx,e,t):
 def sc_leads(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
-    rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
-    d.text((W/2,H*0.24),e["total"],font=ctx.fM(36,700),fill=ACENTO,anchor="ma")
+    kr=rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
+    if kr>0:   # el total entra con su rótulo
+        d.text((W/2,H*0.24),e["total"],font=ctx.fM(36,700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
     y0=H*0.32
     colores_temp={"Caliente":ACENTO,"Tibio":(200,140,40),"Frío":(90,140,200)}
     for i,f in enumerate(e["filas"]):
         k=spring(t,e["from"]+0.4+i*0.35,130,15)
         if k<=0: continue
-        yy=y0+i*128+(1-min(1,k))*-50
-        hl=f["temp"] in at and t>=at[f["temp"]]
-        tarjeta(ctx,layer,90,yy,W-180,112,alpha=int(255*clamp01(k*1.5)))
-        if hl:
-            d.rounded_rectangle([90,yy,W-90,yy+112],radius=28,
-                                outline=colores_temp[f["temp"]]+(255,),width=4)
-        d.ellipse([120,yy+24,184,yy+88],fill=colores_temp[f["temp"]]+(255,))
-        d.text((152,yy+56),f["nombre"][0],font=ctx.fT(36,800),fill=BLANCO,anchor="mm")
-        d.text((210,yy+24),f["nombre"],font=ctx.fX(32,800),fill=BLANCO)
-        d.text((210,yy+62),f["etapa"],font=ctx.fX(26,400),fill=GRIS)
-        # barra de puntaje
+        sub,ds=grupo()   # la fila entera entra junta (tarjeta, avatar, textos, barra)
+        yy=y0+i*128
+        tarjeta(ctx,sub,90,yy,W-180,112)
+        if f["temp"] in at and t>=at[f["temp"]]:   # el resaltado se enciende fundido, no de golpe
+            ah=int(255*smoothstep(clamp01((t-at[f["temp"]])/0.2)))
+            ds.rounded_rectangle([90,yy,W-90,yy+112],radius=28,outline=colores_temp[f["temp"]]+(ah,),width=4)
+        ds.ellipse([120,yy+24,184,yy+88],fill=colores_temp[f["temp"]]+(255,))
+        ds.text((152,yy+56),f["nombre"][0],font=ctx.fT(36,800),fill=BLANCO,anchor="mm")
+        ds.text((210,yy+24),f["nombre"],font=ctx.fX(32,800),fill=BLANCO)
+        ds.text((210,yy+62),f["etapa"],font=ctx.fX(26,400),fill=GRIS)
+        # barra de puntaje: crece sin rebote (un dato no se pasa de su valor)
         bw=(f["puntaje"]/130)*260
-        d.rounded_rectangle([W-420,yy+44,W-160,yy+68],radius=12,fill=(60,60,60,255))
-        d.rounded_rectangle([W-420,yy+44,W-420+bw*min(1,k),yy+68],radius=12,
-                            fill=colores_temp[f["temp"]]+(255,))
+        ds.rounded_rectangle([W-420,yy+44,W-160,yy+68],radius=12,fill=(60,60,60,255))
+        g_=smoothstep(clamp01((t-(e["from"]+0.4+i*0.35))/0.8))
+        if bw*g_>=24:
+            ds.rounded_rectangle([W-420,yy+44,W-420+bw*g_,yy+68],radius=12,fill=colores_temp[f["temp"]]+(255,))
+        fundir(layer,sub,k,dy=-50)
     return capa_salida(layer,t,e["to"])
 
 def sc_handoff(ctx,e,t):
@@ -817,20 +868,23 @@ def sc_handoff(ctx,e,t):
     at=e["at"]
     rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
     k=spring(t,at["persona"],120,14)
-    if k>0:
-        tarjeta(ctx,layer,110,H*0.30,W-220,220,alpha=int(255*min(1,k)))
-        d.ellipse([160,H*0.30+60,260,H*0.30+160],fill=ACENTO+(255,))
-        d.text((210,H*0.30+110),e["iniciales"],font=ctx.fT(44,800),fill=BLANCO,anchor="mm")
-        d.text((300,H*0.30+52),e["cliente"],font=ctx.fX(40,800),fill=BLANCO)
-        d.text((300,H*0.30+102),e["temp"],font=ctx.fM(30,700),fill=(200,140,40))
-        d.text((300,H*0.30+142),e["nota"],font=ctx.fX(28,400),fill=GRIS)
+    if k>0:   # la ficha entera entra junta
+        sub,ds=grupo()
+        tarjeta(ctx,sub,110,H*0.30,W-220,220)
+        ds.ellipse([160,H*0.30+60,260,H*0.30+160],fill=ACENTO+(255,))
+        ds.text((210,H*0.30+110),e["iniciales"],font=ctx.fT(44,800),fill=BLANCO,anchor="mm")
+        ds.text((300,H*0.30+52),e["cliente"],font=ctx.fX(40,800),fill=BLANCO)
+        ds.text((300,H*0.30+102),e["temp"],font=ctx.fM(30,700),fill=(200,140,40))
+        ds.text((300,H*0.30+142),e["nota"],font=ctx.fX(28,400),fill=GRIS)
+        fundir(layer,sub,k)
     y=H*0.30+270
     for i,c in enumerate(e["contexto"]):
         kc=spring(t,at["contexto"]+i*0.4,130,15)
         if kc<=0: continue
         yy=y+i*96+(1-min(1,kc))*-40
-        d.text((140,yy),c["k"],font=ctx.fM(30,700),fill=ACENTO)
-        d.text((140,yy+40),c["v"][:44],font=ctx.fX(30,400),fill=BLANCO)
+        al=int(255*clamp01(kc*1.4))
+        d.text((140,yy),c["k"],font=ctx.fM(30,700),fill=ACENTO+(al,))
+        d.text((140,yy+40),c["v"][:44],font=ctx.fX(30,400),fill=BLANCO+(al,))
     return capa_salida(layer,t,e["to"])
 
 def sc_pago(ctx,e,t):
@@ -939,16 +993,18 @@ def sc_hoy(ctx,e,t):
         tj=tarjetas[i]
         k=spring(t,e["from"]+0.6+i*0.3,130,15)
         if k<=0: continue
-        yy=yb+(1-min(1,k))*-50
-        tarjeta(ctx,layer,x,yy,cw,160,alpha=int(255*min(1,k)))
+        sub,ds=grupo()   # la tarjeta entera (borde, insignia, textos) entra junta
+        yy=yb
+        tarjeta(ctx,sub,x,yy,cw,160)
         if tj.get("alerta"):
-            d.rounded_rectangle([x,yy,x+cw,yy+160],radius=28,outline=ACENTO+(255,),width=4)
+            ds.rounded_rectangle([x,yy,x+cw,yy+160],radius=28,outline=ACENTO+(255,),width=4)
         ancho_txt=cw-(110 if tj.get("n") else 50)
-        d.text((x+30,yy+28),tj["titulo"],font=fuente_que_cabe(ctx.fX,tj["titulo"],30,ancho_txt,800),fill=BLANCO)
-        d.text((x+30,yy+70),tj["detalle"],font=fuente_que_cabe(ctx.fX,tj["detalle"],26,ancho_txt,400),fill=GRIS)
+        ds.text((x+30,yy+28),tj["titulo"],font=fuente_que_cabe(ctx.fX,tj["titulo"],30,ancho_txt,800),fill=BLANCO)
+        ds.text((x+30,yy+70),tj["detalle"],font=fuente_que_cabe(ctx.fX,tj["detalle"],26,ancho_txt,400),fill=GRIS)
         if tj.get("n"):
-            d.ellipse([x+cw-90,yy+28,x+cw-30,yy+88],fill=ACENTO+(255,))
-            d.text((x+cw-60,yy+58),str(tj["n"]),font=ctx.fT(32,800),fill=BLANCO,anchor="mm")
+            ds.ellipse([x+cw-90,yy+28,x+cw-30,yy+88],fill=ACENTO+(255,))
+            ds.text((x+cw-60,yy+58),str(tj["n"]),font=ctx.fT(32,800),fill=BLANCO,anchor="mm")
+        fundir(layer,sub,k,dy=-50)
     return capa_salida(layer,t,e["to"])
 
 def sc_recupera(ctx,e,t):
@@ -1117,23 +1173,31 @@ def sc_gauge(ctx, e, t):
     d = ImageDraw.Draw(layer)
     at = e["at"]
     rotulo(ctx, layer, t, e.get("titulo", ""), at.get("rotulo", e["from"]), y=H*0.18)
-    cx, cy, r = W / 2, H * 0.52, W * 0.34
+    # el arco cabe entre el rótulo y el borde seguro (en 16:9 tapaba el título)
+    _, _, _, zy1 = caja_segura()
+    arriba, abajo = H * 0.18 + 80, zy1 - 150          # abajo: etiqueta bajo el arco
+    r = min(unidad() * 0.34, (abajo - arriba) / 1.707)  # 270°: arriba r, abajo r·sin45°
+    cx, cy = W / 2, arriba + r
     grosor = 26
     t_in = at.get("gauge", e["from"] + 0.3)
-    k = spring(t, t_in, 110, 14)
-    # track 270° (de -135° a 135° = 270° barrido)
-    arco(d, cx, cy, r, 135, 135 + 270, (255, 255, 255, 32), grosor)
-    if k >= 0:
-        fraccion = clamp01(e.get("valor", 0) / max(1, e.get("max", 100)))
-        ang_fin = 135 + 270 * fraccion * k
-        arco(d, cx, cy, r, 135, ang_fin, ACENTO, grosor)
-    # número al centro (cuenta animada)
-    val = cuenta_up(0, e.get("valor", 0), t, t_in, dur=0.9, fmt="{:,}")
-    fnt = ctx.fT(int(unidad() * 0.18), 800)
-    cifra(d, (cx, cy - 8), val, fnt, BLANCO, anchor="mm")
-    if "etiqueta" in e and t >= at.get("etiqueta", t_in + 0.7):
-        fnt2 = ctx.fX(36, 600)
-        d.text((cx, cy + 90), e.get("etiqueta", ""), font=fnt2, fill=GRIS, anchor="mt")
+    ka = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))   # la pista entra fundida
+    arco(d, cx, cy, r, 135, 135 + 270, (255, 255, 255, int(32 * ka)), grosor)
+    # el arco llena con smoothstep (sin rebote: un dato no se pasa de su valor)
+    # y la cifra dice exactamente lo que marca el arco
+    g_ = smoothstep(clamp01((t - t_in) / 1.1))
+    if g_ > 0:
+        fraccion = clamp01(e.get("valor", 0) / max(1e-9, e.get("max", 100)))
+        arco(d, cx, cy, r, 135, 135 + 270 * fraccion * g_, ACENTO, grosor)
+    val = cuenta_up(0, e.get("valor", 0), t, t_in, progreso=g_)
+    fnt = fuente_que_cabe(ctx.fT, cuenta_up(0, e.get("valor", 0), 1e9, 0), unidad() * 0.18, r * 1.3,
+                          800, tabular=True)
+    cifra(d, (cx, cy - 8), val, fnt, BLANCO + (int(255 * ka),), anchor="mm",
+          final=cuenta_up(0, e.get("valor", 0), 1e9, 0))
+    t_et = at.get("etiqueta", t_in + 0.7)
+    if "etiqueta" in e and t >= t_et:
+        ke = smoothstep(clamp01((t - t_et) / 0.3))
+        d.text((cx, cy + r * 0.707 + 40 + (1 - ke) * 16), e.get("etiqueta", ""), font=ctx.fX(36, 600),
+               fill=GRIS + (int(255 * ke),), anchor="mt")
     return capa_salida(layer, t, e["to"])
 
 
@@ -1477,8 +1541,11 @@ def sc_confetti(ctx, e, t):
 # Cada escena nueva se compone con las primitivas DRY — sin duplicar logica.
 
 def sc_typewriter(ctx, e, t):
-    """Texto que aparece carácter a carácter con cursor parpadeante.
-    Params: `texto`, `tam`, `at{rotulo, fin, cursor}`. Sin `tam` se auto-ajusta.
+    """Texto que se escribe carácter a carácter con cursor. Envuelve en líneas
+    dentro de la zona segura (letra en unidad(): se lee en 9:16 y 16:9); el
+    cursor acompaña la escritura (fijo mientras escribe, parpadea al terminar).
+    Params: `texto`, `tam?`, `cps?` (caracteres por segundo, default 12.5),
+    `at{rotulo, cursor, fuente}`.
     Fuente: `typewriter-subtitle.tsx` (reactvideoeditor/remotion-templates).
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -1488,35 +1555,38 @@ def sc_typewriter(ctx, e, t):
     if not texto:
         return capa_salida(layer, t, e["to"])
     t_in = at.get("rotulo", e["from"])
-    # auto-fit: ajusta tam al ancho disponible
-    tmp = ImageDraw.Draw(Image.new("L", (10, 10)))
-    tam = int(e.get("tam", W * 0.075))
+    zx0, zy0, zx1, zy1 = caja_segura()
+    ancho = zx1 - zx0 - 80
+    tam = int(e.get("tam", unidad() * 0.075))
     fnt = ctx.fT(tam, 800)
-    while tam > 40 and tmp.textlength(texto, font=fnt) > W * 0.85:
+    lineas = linewrap(texto, fnt, ancho)
+    while len(lineas) > 4 and tam > 40:   # demasiado largo: encoger antes que salirse
         tam -= 4
         fnt = ctx.fT(tam, 800)
-    # centrado
-    text_w = tmp.textlength(texto, font=fnt)
-    cx = (W - text_w) / 2
-    cy = H * 0.42
-    # fondo sutil para legibilidad (PANEL con alpha)
-    panel_h = tam * 1.6
-    d.rounded_rectangle([W * 0.05, cy - 30, W * 0.95, cy + panel_h],
-                        radius=18, fill=PANEL + (180,))
-    # texto progresivo
-    n_visible = text_reveal(d, texto, fnt, cx, cy, t, t_in, dur=0.08 * len(texto),
-                            color=BLANCO, fill=BLANCO)
-    # cursor parpadeante al final
-    if n_visible > 0 and t >= at.get("cursor", t_in + 0.1):
-        n = n_visible
-        cursor_w = tmp.textlength(texto[:n], font=fnt)
-        # solo si se termino de escribir (>=95% del texto)
-        if n >= len(texto) * 0.95:
-            parpadeo = 1 if math.sin(t * 8) > 0 else 0
-            if parpadeo:
-                d.rectangle([cx + cursor_w + 4, cy - 8, cx + cursor_w + 8, cy + tam + 4],
-                            fill=ACENTO)
-    # fuente si existe
+        lineas = linewrap(texto, fnt, ancho)
+    lh = tam * 1.25
+    alto = lh * len(lineas)
+    y0 = H * 0.45 - alto / 2
+    # panel de lectura: entra con la escena, dentro de la zona segura
+    kp = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))
+    if kp > 0:
+        d.rounded_rectangle([zx0, y0 - tam * 0.45, zx1, y0 + alto + tam * 0.25], radius=22,
+                            fill=PANEL + (int(180 * kp),))
+    paso = 1 / float(e.get("cps", 12.5))
+    t_lin, cur = t_in, None
+    for li, ln in enumerate(lineas):
+        y = y0 + li * lh
+        x = zx0 + 40
+        n = text_reveal(d, ln, fnt, x, y, t, t_lin, paso * len(ln), BLANCO)
+        if n:
+            cur = (x + d.textlength(ln[:n], font=fnt), y, n == len(ln))
+        t_lin += paso * (len(ln) + 1)   # el salto de línea cuenta como una pulsación
+    # cursor: acompaña la escritura; parpadea solo al terminar
+    if cur and t >= at.get("cursor", t_in):
+        termino = t >= t_lin
+        if not termino or math.sin(t * 8) > 0:
+            d.rectangle([cur[0] + 6, cur[1] - 2, cur[0] + 6 + max(4, tam * 0.07), cur[1] + tam * 1.05],
+                        fill=ACENTO)
     pie_fuente(ctx, d, e, t, e["from"] + 2.5)
     return capa_salida(layer, t, e["to"])
 
@@ -1888,11 +1958,16 @@ def sc_demo(ctx, e, t):
     y0 = int(H * 0.44 - (bh + barra) / 2 + (1 - min(1, kv)) * 40)
     pasos = sorted(e.get("pasos", []), key=lambda p_: p_.get("at", 0))
     # pantalla vigente: la del último clic ya ocurrido que traiga `captura`
-    pantalla = ruta
+    pantalla, previa, t_cambio = ruta, None, None
     for p_ in pasos:
         if p_.get("captura") and t >= p_.get("at", 0):
-            pantalla = p_["captura"]
+            previa, pantalla, t_cambio = pantalla, p_["captura"], p_.get("at", 0)
     img = imagen_ajustada(pantalla, bw, bh)
+    # el cambio de pantalla arranca en el MISMO frame del clic, fundido en 0.15 s
+    if img is not None and t_cambio is not None and t - t_cambio < 0.15:
+        ant = imagen_ajustada(previa, bw, bh)
+        if ant is not None:
+            img = Image.blend(ant, img, smoothstep(clamp01((t - t_cambio) / 0.15)))
     if img is None:   # sin captura: maqueta neutra (nunca un hueco negro)
         img = Image.new("RGBA", (bw, bh), PANEL2 + (255,))
         dm = ImageDraw.Draw(img)
@@ -1904,8 +1979,9 @@ def sc_demo(ctx, e, t):
     for i, p_ in enumerate(pasos):
         a_ = p_.get("at", 0)
         nxt = pasos[i + 1].get("at", 1e9) if i + 1 < len(pasos) else 1e9
-        zin = ease_in_out(clamp01((t - (a_ + 0.15)) / 0.7))
-        zout = ease_in_out(clamp01((t - (nxt - 1.3)) / 0.7))
+        # zoom de cámara en 0.9 s smoothstep (0.7 s ease_in_out barría ~40 px/frame)
+        zin = smoothstep(clamp01((t - (a_ + 0.15)) / 0.9))
+        zout = smoothstep(clamp01((t - (nxt - 1.4)) / 0.9))
         s_ = zin * (1 - zout)
         if s_ > 0:
             # asentado el zoom (cursor quieto), la cámara sigue entrando lento:
