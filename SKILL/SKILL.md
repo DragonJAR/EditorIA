@@ -237,7 +237,10 @@ El skill debe activarse con:
 4. **Resume**: interrumpir `render_plan.py` a mitad y re-ejecutar sin `--force`
    retoma los frames faltantes (no re-renderiza desde 0).
 5. **Validación**: `python scripts/validate_skill.py` sale 0 (28/28 escenas
-   renderizan, scripts compilan, referencias existen).
+   renderizan dentro de la zona segura, scripts compilan, referencias
+   existen) y `python scripts/galeria.py -o /tmp/galeria` sale todo PASS
+   (cada escena y herramienta renderizada de verdad + auto_qa; MIRAR
+   `resumen.png`).
 
 ## Troubleshooting
 

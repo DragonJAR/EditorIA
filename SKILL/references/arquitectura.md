@@ -32,6 +32,13 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   completo), sobresaltos (+6 dB al entrar un corte), costura de loop
   (`--loop`) y contact sheet con zona segura (`--safe`) o zonas de pantalla
   final de YouTube (`--end-screen`). Ver `references/auto-qa.md`.
+- **scripts/galeria.py** — el ciclo crear → validar de todo lo animable:
+  renderiza las 28 escenas con `scripts/escenas_muestra.json` (la misma
+  fuente que el smoke test de `validate_skill.py`) y cada herramienta
+  (overlay con alfa, mancha, `--datos`, 16:9, captions, pase, audiograma,
+  films, thumbnail), pasa `auto_qa` a cada video y deja `resumen.png` +
+  `galeria.json` PASS/FAIL. Modo libre por defecto; `--brand` repite la
+  galería con un pack. Correrla tras tocar una escena o primitiva.
 - **scripts/ffmpeg_tools/delivery_check.py** — compliance contra la tabla de
   `_delivery.py` (codec, aspecto, LUFS, true peak; `--end-screen` para la
   pantalla final de YouTube).

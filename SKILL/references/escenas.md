@@ -1,4 +1,4 @@
-# Catálogo de escenas (13 tipos del plan)
+# Catálogo de escenas (28 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -83,7 +83,18 @@ El catálogo integra las 13 escenas originales más 15 escenas de
 datos/UI/tipo/cinemática/oferta validadas externamente (ver
 `references/scene-patterns-from-internet.md`). Cada escena nueva se compone
 con las primitivas DRY de `render_plan.py` (lista al final de este archivo).
-El validador renderiza las 28 con datos mínimos en cada corrida.
+Cada tipo tiene una muestra realista en `scripts/escenas_muestra.json`: el
+validador la renderiza en cada corrida y exige que quepa en la zona segura
+9:16 sin encogerse; `scripts/galeria.py` la renderiza de verdad y le pasa
+`auto_qa`. Toda escena nueva necesita su muestra.
+
+**Componer dentro de la zona segura**: `caja_segura()` da el rectángulo útil;
+`pie_fuente()` pone la fuente de un dato en su borde inferior;
+`fuente_que_cabe()` encoge cifras y etiquetas a su caja (el tamaño lo fija el
+valor FINAL, así no salta mientras cuenta); `columnas_grilla()` elige una
+columna en 9:16 hasta 3 tarjetas. Toda escena asentada respira con un push-in
+lento común (`respiracion()` en `componer`), salvo las que mueven su propia
+cámara o son overlay; `"respira": false` lo apaga por escena.
 **Marca-blanca**: el color viene del brand pack (`brand/*.json`); sin pack,
 se usa el `ACENTO` neutro del renderer.
 

@@ -32,7 +32,7 @@ re-render → auto_qa.py → comparar → entregar
 | Defecto máquina | Causa probable | Fix |
 |---|---|---|
 | `black_frame` | escena que termina antes que el video; fade no intencional | revisar `to` de la última escena; `--ignorar-fin` si el fade es intencional |
-| `frozen` | fondo sin animación; elemento estático | fondo vivo continuo; idle/breathing en el elemento |
+| `frozen` | fondo sin animación; elemento estático | fondo vivo continuo; la respiración común de `componer` (push-in lento) — si la escena la apaga (`"respira": false`) o mueve su propia cámara, idle/breathing en el elemento |
 | `flash` | pop de audio con corte visual; glitch de render | micro-fade 30ms en el corte; re-renderizar el tramo |
 | `silencio` | música que no arranca; gap entre segmentos de voz | revisar mezcla; fundidos en `musica.py` |
 | `clipping` | mezcla caliente | bajar master; re-medir con `medir_mezcla.py` |

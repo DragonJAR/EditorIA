@@ -180,103 +180,50 @@ for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
             check(False, f"compila {rel}: {e}")
 check(n_py > 0, f"scripts compilados: {n_py}")
 
-# 5. las N escenas renderizan (smoke test con params mínimos;
-#    cada escena del catalogo recibe defaults para que no lance KeyError)
+# 5. las N escenas renderizan con su muestra realista (escenas_muestra.json)
+#    en 9:16 y 16:9, compuestas DENTRO de la zona segura (sin que escala_segura las encoja)
 try:
     import render_plan as R
-    ctx = R.Ctx()
-    escenas_ok = 0
     n_total = len(R.SCENES)
-    ats = {"apertura": {"cambio": 2, "p1": [0.5, 1], "p2": [2.5, 3]},
-           "canales": {"marca": 0.5, "junta": 2, "rotulo": 3},
-           "chat": {"rotulo": 0.5},
-           "leads": {"rotulo": 1, "Caliente": 2, "Tibio": 3, "Frío": 4},
-           "handoff": {"rotulo": 1, "persona": 2, "contexto": 3},
-           "pago": {"rotulo": 1, "comprobante": 2, "cursor": 3, "toque": 4},
-           "listo": {"listo": 1},
-           "pildoras": {"palabras": [1, 2]},
-           "hoy": {"rotulo": 1, "cuenta": 2},
-           "recupera": {"rotulo": 1, "cursor": 2, "recupera": 3, "pagado": 4},
-           "remate": {"palabras": [1], "gigante": 3},
-           "final": {"lema": 1, "boton": 2},
-           "medianoche": {},
-           # Catalog unificado (ver references/scene-patterns-from-internet.md)
-           "bars": {"rotulo": 0.5, "bar0": 1.0, "fuente": 4.5},
-           "gauge": {"rotulo": 0.5, "gauge": 1.0, "etiqueta": 2.5},
-           "ranking": {"rotulo": 0.5, "item0": 1.0, "item1": 1.4, "fuente": 4.5},
-           "stats": {"rotulo": 0.5, "card0": 1.0, "card1": 1.2, "card2": 1.4, "fuente": 4.5},
-           "timeline": {"rotulo": 0.5, "item0": 1.0, "item1": 1.5, "item2": 2.0},
-           "quote": {"card": 0.3, "texto": 1.0, "autor": 2.5, "fuente": 3.5},
-           "versus": {"rotulo": 0.5, "izq": 1.0, "der": 1.5},
-           "confetti": {"particulas": 0.0, "texto": 0.5, "subtexto": 1.0},
-           # Ronda 2: reactvideoeditor/remotion-templates
-           "typewriter": {"rotulo": 0.5, "cursor": 1.0, "fuente": 4.5},
-           "kenburns": {"rotulo": 0.5, "kenburns": 0.2, "texto": 1.0, "subtitulo": 2.0},
-           "pasos": {"rotulo": 0.5, "item0": 1.0, "item1": 1.4, "item2": 1.8},
-           # Ronda 3: iart-ai/motion-skills
-           "countdown": {"rotulo": 0.2, "inicio": 0.5},
-           "oferta": {"descuento": 0.4, "tachado": 1.0, "precio": 1.5, "codigo": 2.5, "cta": 3.5},
-           "demo": {"rotulo": 0.2, "ventana": 0.3},
-           "rotulo_inferior": {"entra": 0.3}}
-    for nombre, fn in R.SCENES.items():
-        # Defaults que cubren TODAS las escenas (existentes + catalog unificado).
-        # Si añades una escena nueva con campos propios, agregala aquí — el
-        # check captura la regresión en cuanto la omites.
-        e = {"tipo": nombre, "from": 0, "to": 5, "at": ats.get(nombre, {}),
-             # marca / rotulo / texto
-             "marca": "T", "rotulo": "R",
-             "texto1": ["A"], "texto2": ["B"],
-             "texto": "¡Listo!" if nombre == "listo" else "Texto de prueba",
-             "lineas": ["A"], "gigante": "1", "lema": "L",
-             # cliente / contexto
-             "boton": "B", "cliente": "C", "iniciales": "AB", "monto": "$1",
-             "detalle": "D", "resumen": "R", "hace": "hace 1 h", "nota": "N",
-             "temp": "Caliente", "total": "1", "fecha": "hoy", "cuenta": 1,
-             "hora": "12:00",
-             # catalog extendido
-             "titulo": "T", "valor": 75, "max": 100, "etiqueta": "etiqueta",
-             "fuente": "fuente",
-             "barras": [{"etiqueta": "A", "valor": 70, "max": 100, "acento": True},
-                        {"etiqueta": "B", "valor": 30, "max": 100}],
-             "items": [{"etiqueta": "Item 1", "valor": 80, "fecha": "2024"},
-                       {"etiqueta": "Item 2", "valor": 50, "fecha": "2025"}],
-             "cards": [{"valor": 100, "etiqueta": "metric A", "acento": True},
-                       {"valor": 50, "etiqueta": "metric B"}],
-             "izquierda": {"etiqueta": "Izq", "items": ["a", "b", "c"]},
-             "derecha": {"etiqueta": "Der", "items": ["x", "y", "z"]},
-             "subtexto": "Sub",
-             # Ronda 2
-             "items_pasos": [{"titulo": "Paso 1", "texto": "desc 1", "at": 1.0},
-                              {"titulo": "Paso 2", "texto": "desc 2", "at": 1.5},
-                              {"titulo": "Paso 3", "texto": "desc 3", "at": 2.0}],
-             # Ronda 3
-             "segundos": 3, "final": "YA", "antes": 100, "descuento": 30, "codigo": "COD30",
-             "vence": "hoy", "cta": "Ir", "estrellas": 4.5, "rol": "rol", "nombre": "Nombre",
-             "pasos": [{"x": 0.7, "y": 0.2, "at": 1.5, "texto": "Clic"},
-                       {"x": 0.3, "y": 0.6, "at": 3.5}],
-             "tam": 80, "zoom_from": 1.0, "zoom_to": 1.15, "pan_x": 0.0, "pan_y": 0.0, "dur_kb": 4.0,
-             # originales
-             "canales": [{"canal": "whatsapp", "nombre": "N",
-                          "texto": "T", "at": 1}],
-             "notificaciones": [{"canal": "w", "titulo": "T",
-                                 "texto": "X", "at": 1}],
-             "mensajes": [{"de": "cliente", "texto": "Hola", "at": 1},
-                          {"de": "ia", "texto": "Listo", "at": 2}],
-             "link": {"titulo": "T", "monto": "$1", "at": 9},
-             "filas": [{"nombre": "N", "etapa": "E", "puntaje": 90,
-                        "temp": "Caliente"}],
-             "contexto": [{"k": "K", "v": "V"}],
-             "tarjetas": [{"titulo": "T", "detalle": "D"}]}
-        try:
-            for t in [0.5, 2.5, 4.5]:
-                fn(ctx, e, t)
-            if nombre == "chat":   # sin `at`: tiempos derivados + escribiendo
-                fn(ctx, dict(e, mensajes=[{"de": "cliente", "texto": "Hola"},
-                                          {"de": "ia", "texto": "Listo"}] * 4), 4.0)
-            escenas_ok += 1
-        except Exception as ex:
-            check(False, f"escena {nombre}: {type(ex).__name__}: {ex}")
-    check(escenas_ok == n_total, f"{n_total}/{n_total} escenas renderizan ({escenas_ok}/{n_total})")
+    # muestras realistas: fuente única con galeria.py (scripts/escenas_muestra.json)
+    muestras = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"),
+                              encoding="utf-8"))["escenas"]
+    sin_muestra = sorted(set(R.SCENES) - set(muestras))
+    check(not sin_muestra, f"cada escena tiene muestra en escenas_muestra.json "
+                           f"({', '.join(sin_muestra) or 'todas'})")
+    sobran = sorted(set(muestras) - set(R.SCENES))
+    check(not sobran, f"escenas_muestra.json sin tipos inexistentes ({', '.join(sobran) or 'ninguno'})")
+    # 9:16 y 16:9: toda escena funciona en los dos formatos
+    for ancho, alto in ((1080, 1920), (1920, 1080)):
+        R.formato(ancho, alto)
+        ctx = R.Ctx()
+        fuera, escenas_ok = [], 0
+        for nombre, fn in R.SCENES.items():
+            e = dict(muestras.get(nombre, {"from": 0, "to": 5, "at": {}}), tipo=nombre)
+            try:
+                for t in [0.5, e["to"] / 2, e["to"] - 0.3]:
+                    fn(ctx, e, t)
+                if nombre == "chat":   # sin `at`: tiempos derivados + escribiendo
+                    fn(ctx, dict(e, mensajes=[{"de": "cliente", "texto": "Hola"},
+                                              {"de": "ia", "texto": "Listo"}] * 4), 4.0)
+                R._ESCALA.clear()
+                f = R.escala_segura(ctx, e, 0)
+                # escala_segura es la red (encoge hasta x0.70); bajo x0.75 el diseño
+                # ignora la zona segura y en el tope el contenido queda bajo la UI
+                if f < 0.75:
+                    fuera.append(f"{nombre} x{f:.2f}")
+                escenas_ok += 1
+            except Exception as ex:
+                check(False, f"escena {nombre} {ancho}x{alto}: {type(ex).__name__}: {ex}")
+        check(escenas_ok == n_total,
+              f"{ancho}x{alto}: {n_total}/{n_total} escenas renderizan ({escenas_ok}/{n_total})")
+        check(not fuera, f"{ancho}x{alto}: muestras caben en la zona segura sin encogerse "
+                         f"bajo x0.75 ({', '.join(fuera) or 'todas'})")
+    R.formato(1080, 1920)
+    ctx = R.Ctx()
+    # cifras: los intermedios llevan los decimales del valor final (nunca 3.4999…)
+    cu = [R.cuenta_up(0, 3.5, 0.3, 0), R.cuenta_up(0, 3.5, 9, 0), R.cuenta_up(0, 1500, 9, 0)]
+    check(cu[1] == "3.5" and len(cu[0]) == 3 and cu[2] == "1,500", f"cuenta_up con decimales ({cu})")
 except Exception as ex:
     check(False, f"smoke test escenas: {ex}")
 
