@@ -104,6 +104,8 @@ class Ctx:
         self.blob_big=self._blob(560,ACENTO+(46,))
         self.blob_mid=self._blob(380,ACENTO+(30,))
         self.blob_wht=self._blob(420,(250,248,246,14))
+        self.mota_acento=self._blob(9,ACENTO+(70,))       # objetos de ambiente del mundo
+        self.mota_blanca=self._blob(7,(250,248,246,60))
         # viñeta precomputada (blur 220 por frame sería inviable)
         vig=Image.new("L",(W,H),0); dv=ImageDraw.Draw(vig)
         dv.ellipse([-W*0.25,-H*0.12,W*1.25,H*1.12],fill=255)
@@ -142,6 +144,17 @@ def mundo(ctx,t,oscuro=True,seed=1):
     bx2=W*0.5+W*0.30*math.sin(t*0.07+seed*4.2+2)
     by2=H*0.72+H*0.08*math.sin(t*0.10+seed)
     img.alpha_composite(ctx.blob_mid,(int(bx2-380),int(by2-380)))
+    # objetos de ambiente (fluidez.md): motas de luz que derivan lento y
+    # titilan — el fondo está vivo también en los holds, sin distraer
+    for i in range(18):   # sprites pre-difuminados (un blur de cuadro entero costaba +30 %)
+        rnd=random.Random(seed*97+i)
+        vel=rnd.uniform(14,32)
+        x=(rnd.uniform(0,W)+18*math.sin(t*rnd.uniform(0.2,0.5)+i))%W
+        y=H-((rnd.uniform(0,H)+vel*t)%(H+40))+20          # suben despacio
+        a=rnd.uniform(0.45,1.0)*(0.65+0.35*math.sin(t*rnd.uniform(0.6,1.4)+i*1.7))
+        sp=ctx.mota_acento if i%3==0 else ctx.mota_blanca
+        sp=sp if a>=0.99 else Image.fromarray((np.asarray(sp,np.float32)*[1,1,1,a]).astype(np.uint8),"RGBA")
+        img.alpha_composite(sp,(int(x-sp.width/2),int(y-sp.height/2)))
     # viñeta sutil para profundidad (precomputada)
     img=Image.composite(img,ctx.vig_negro,ctx.vig_mask)
     return img

@@ -206,7 +206,15 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
     dm = np.abs(np.diff(muestras, axis=0)).mean(axis=(1, 2))
     t_m = np.arange(1, len(muestras)) * paso / fps
     hold = (t_m > 0.5) & (t_m < dur - 0.6)
-    muerto = float((dm[hold] < QA.FROZEN_DIFF).mean()) if hold.any() else 0.0
+    # tiempo muerto = quietud SOSTENIDA (≥ 0.5 s seguidos bajo el umbral de auto_qa):
+    # el punto de giro de una flotación (velocidad 0 un instante) es easing, no un cuadro congelado
+    bajo = (dm < QA.FROZEN_DIFF) & hold
+    muertas = np.zeros_like(bajo)
+    racha = max(2, int(round(0.5 * QA.FPS_MUESTREO)))
+    for i in range(len(bajo) - racha + 1):
+        if bajo[i:i + racha].all():
+            muertas[i:i + racha] = True
+    muerto = float(muertas[hold].mean()) if hold.any() else 0.0
     # densidad: picos de movimiento (eventos) por segundo, energía suavizada 0.2 s
     k = max(1, int(0.2 * fps))
     sua = np.convolve(energia, np.ones(k) / k, mode="same")
