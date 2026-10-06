@@ -352,6 +352,29 @@ try:
                         largos.append(nombre)
                 except Exception as ex:
                     largos.append(f"{nombre} {type(ex).__name__}: {ex}")
+        # plan de agente: SIN `at` toda escena compone (tiempos desde la muestra,
+        # escalados a su duración); un campo de contenido que falta da un error
+        # claro con ejemplo (nunca un KeyError crudo tras minutos de render)
+        sin_at, crudos = [], []
+        for nombre in R.SCENES:
+            e = {k_: v_ for k_, v_ in muestras[nombre].items() if k_ != "at"}
+            e.update(tipo=nombre, to=e["to"] * 1.6)   # otra duración: los tiempos se estiran
+            if "imagen" in e:
+                e["imagen"] = foto
+            try:
+                R._ESCALA.clear()
+                for t in (0.5, e["to"] / 2, e["to"] - 0.3):
+                    R.componer(ctx, [R.completar_escena(e)], e["to"], t, set())
+            except Exception as ex:
+                sin_at.append(f"{nombre} {type(ex).__name__}: {ex}")
+        try:
+            R.preparar_escenas(ctx, {"escenas": [{"tipo": "pago", "from": 0, "to": 4}]})
+            crudos.append("pago sin monto no falló")
+        except SystemExit as ex:
+            if "falta el campo `" not in str(ex) or "Ejemplo completo" not in str(ex):
+                crudos.append(str(ex)[:80])
+        check(not sin_at and not crudos, f"{ancho}x{alto}: plan sin `at` compone (tiempos desde la muestra) y "
+                                         f"un campo faltante da error claro ({', '.join(sin_at + crudos) or 'sí'})")
         check(not largos, f"{ancho}x{alto}: con copy x2 cada escena encoge o parte su texto "
                           f"(sin red bajo x0.90, sin errores) ({', '.join(largos) or 'todas'})")
         check(not pisados, f"{ancho}x{alto}: ningún texto pisa a otro con la escena asentada "

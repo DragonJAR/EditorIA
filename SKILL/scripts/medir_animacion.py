@@ -444,6 +444,9 @@ def main():
         nombre = os.path.splitext(os.path.basename(a.plan))[0]
         fmts_plan = fmts if a.formato != "ambos" else (
             ["h"] if str(plan.get("tamano", "")).startswith("1920") else ["v"])
+        _init()
+        for f in fmts_plan:   # misma puerta que render_plan: tiempos por defecto y error claro
+            plan["escenas"] = R.preparar_escenas(_ctx(f), plan)
         jobs = [(nombre, f, plan["escenas"], plan["duracion"], a.fps) for f in fmts_plan]
     else:
         jobs = [(n, f, [dict(e, tipo=n)], e["to"], a.fps) for f in fmts for n, e in muestras.items()

@@ -191,7 +191,8 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
     real (1.16 -> 1.0, el overshoot del resorte da el asentamiento) y elevación.
     Auto-fit sobre el ancho REAL de la línea (palabras + huecos)."""
     d=ImageDraw.Draw(layer)
-    maxw=maxw or (W-2*MARGEN)
+    zx0,_,zx1,_=caja_segura()
+    maxw=maxw or (zx1-zx0)*0.96   # cabe en la zona SEGURA (W-2*MARGEN es más ancho en 9:16)
     def palabras(ln):
         return [(w_,em) for t_seg,em in segs(ln) for w_ in t_seg.split(" ") if w_]
     def ancho(ln,fnt):
@@ -211,7 +212,7 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
         x=(W-ancho(ln,fnt))/2
         for w_,em in palabras(ln):
             ww=ctx.tmp.textlength(w_,font=fnt)
-            at=ats[wi] if wi < len(ats) else ats[-1]; wi+=1
+            at=ats[wi] if wi < len(ats) else ats[-1]+0.12*(wi-len(ats)+1); wi+=1   # palabras de más: siguen la cadencia
             k=spring(t,at,150,15)
             if k>0:
                 sc=1+0.16*(1-k)
@@ -225,7 +226,7 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
 def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=44):
     """Rótulo con entrada real: fade + elevación 24 px con resorte (nunca de golpe)."""
     color=color or BLANCO
-    if t<at: return 0
+    if not texto or t<at: return 0   # sin rótulo en el plan: no se dibuja
     k=spring(t,at,140,16)
     al=int(255*clamp01(k*1.5))
     d=ImageDraw.Draw(layer)
@@ -716,7 +717,7 @@ def sc_apertura(ctx,e,t):
 def sc_canales(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]; junta=prog(t,at["junta"]-0.4,at["junta"]+0.6)   # 1 s: las tarjetas no barren >60 px/frame
-    rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
+    rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.20)
     # marca que sube y se encoge (grupo logo+texto centrado)
     k=spring(t,at["marca"],90,14)
     if k>0:
@@ -772,7 +773,7 @@ def sc_canales(ctx,e,t):
 
 def sc_medianoche(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0))
-    rotulo(ctx,layer,t,e["rotulo"],e["from"]+0.1,y=H*0.20)
+    rotulo(ctx,layer,t,e.get("rotulo",""),e["from"]+0.1,y=H*0.20)
     k=spring(t,e["from"],110,13)
     if k>0:
         tw,th=560,1140
@@ -794,7 +795,7 @@ def sc_medianoche(ctx,e,t):
         brillo.putalpha(ImageChops.multiply(halo,masc))
         ph.alpha_composite(brillo)
         dp.rounded_rectangle([tw/2-85,42,tw/2+85,90],radius=24,fill=(0,0,0,255))
-        dp.text((tw/2,160),e["fecha"],font=ctx.fX(30,600),fill=(255,255,255,200),anchor="ma")
+        dp.text((tw/2,160),e.get("fecha",""),font=ctx.fX(30,600),fill=(255,255,255,200),anchor="ma")
         dp.text((tw/2,280),e["hora"],font=ctx.fT(150,700),fill=BLANCO,anchor="ma")   # dígitos hasta y≈438
         nots=e["notificaciones"]
         for i,n in enumerate(nots):
@@ -918,9 +919,9 @@ def sc_chat(ctx,e,t):
 def sc_leads(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
-    kr=rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
+    kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.20)
     if kr>0:   # el total entra con su rótulo
-        d.text((W/2,bajo_rotulo(H*0.20,aire=0.15)),e["total"],font=ctx.fM(36,700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
+        d.text((W/2,bajo_rotulo(H*0.20,aire=0.15)),e.get("total",""),font=ctx.fM(36,700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
     y0=H*0.32
     def color_temp(f_):   # tolerante: el agente escribe "caliente", "Hot", "frio"…
         if f_.get("color"):
@@ -959,18 +960,19 @@ def sc_leads(ctx,e,t):
 def sc_handoff(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
-    rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
+    rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.20)
     k=spring(t,at["persona"],120,14)
     if k>0:   # la ficha entera entra junta
         sub,ds=grupo()
         zx0,_,zx1,_=caja_segura()   # dentro de la zona segura: la letra conserva su tamaño
         tarjeta(ctx,sub,zx0,H*0.30,zx1-zx0,220)
         ds.ellipse([zx0+40,H*0.30+60,zx0+140,H*0.30+160],fill=ACENTO+(255,))
-        ds.text((zx0+90,H*0.30+110),e["iniciales"],font=fuente_que_cabe(ctx.fT,e["iniciales"],44,72,800),fill=BLANCO,anchor="mm")
+        ini=e.get("iniciales") or "".join(w_[0] for w_ in e["cliente"].split()[:2]).upper()   # derivables del nombre
+        ds.text((zx0+90,H*0.30+110),ini,font=fuente_que_cabe(ctx.fT,ini,44,72,800),fill=BLANCO,anchor="mm")
         at_=zx1-zx0-200
         ds.text((zx0+170,H*0.30+52),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],40,at_,800),fill=BLANCO)
-        ds.text((zx0+170,H*0.30+102),e["temp"],font=ctx.fM(30,700),fill=(200,140,40))
-        ds.text((zx0+170,H*0.30+142),e["nota"],font=fuente_que_cabe(ctx.fX,e["nota"],28,at_,400),fill=GRIS)
+        ds.text((zx0+170,H*0.30+102),e.get("temp",""),font=ctx.fM(30,700),fill=(200,140,40))
+        ds.text((zx0+170,H*0.30+142),e.get("nota",""),font=fuente_que_cabe(ctx.fX,e.get("nota",""),28,at_,400),fill=GRIS)
         fundir(layer,sub,k)
     y=H*0.30+270
     zx0,_,zx1,_=caja_segura()
@@ -986,7 +988,7 @@ def sc_handoff(ctx,e,t):
 def sc_pago(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
-    rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
+    rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.20)
     k=spring(t,at["comprobante"],110,13)
     zx0,_,zx1,zy1=caja_segura()
     cw,chh=min(720,zx1-zx0),420; x=(W-cw)/2; y_card=H*0.36 if H>W else H*0.30
@@ -999,7 +1001,7 @@ def sc_pago(ctx,e,t):
                fill=BLANCO+(ak,),anchor="ma")
         d.text((W/2,yy+190),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],34,util,600),
                fill=BLANCO+(ak,),anchor="ma")
-        d.text((W/2,yy+240),e["detalle"],font=fuente_que_cabe(ctx.fX,e["detalle"],28,util,400),
+        d.text((W/2,yy+240),e.get("detalle",""),font=fuente_que_cabe(ctx.fX,e.get("detalle",""),28,util,400),
                fill=GRIS+(ak,),anchor="ma")
         d.line([(x+80,yy+300),(x+cw-80,yy+300)],fill=(255,255,255,int(40*ak/255)),width=2)
         # botón que el cursor pulsa: el toque TIENE consecuencia (pasa a confirmado)
@@ -1076,9 +1078,9 @@ def sc_hoy(ctx,e,t):
     at=e["at"]
     vertical=H>W
     # rótulo y fecha apilados y la fecha entra con el rótulo
-    kr=rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.16)
+    kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.16)
     if kr>0:
-        d.text((W/2,H*0.16+64+(1-min(1,kr))*24),e["fecha"],font=ctx.fX(34,400),
+        d.text((W/2,H*0.16+64+(1-min(1,kr))*24),e.get("fecha",""),font=ctx.fX(34,400),
                fill=GRIS+(int(255*clamp01(kr*1.5)),),anchor="ma")
     ck=prog(t,at["cuenta"],at["cuenta"]+0.8,ease_out)   # una sola curva
     if t>=at["cuenta"]:
@@ -1112,7 +1114,7 @@ def sc_recupera(ctx,e,t):
     `hecho` (default "PAGADO") con el monto. Centrado en cualquier formato."""
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
-    kr=rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20 if H>W else H*0.16)
+    kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.20 if H>W else H*0.16)
     if kr<=0: return capa_salida(layer,t,e["to"])
     al=int(255*clamp01(kr*1.5)); sube=(1-min(1,kr))*24
     zx0,_,zx1,_=caja_segura()
@@ -1134,7 +1136,7 @@ def sc_recupera(ctx,e,t):
         d.text((W/2,yc+142),e["monto"],font=ctx.fT(54,800),fill=BLANCO,anchor="ma")
     else:
         d.text((W/2,yc+90+sube),e["cliente"],font=ctx.fX(36,600),fill=GRIS+(al,),anchor="ma")
-        d.text((W/2,yc+140+sube),e["hace"],font=ctx.fX(28,400),fill=GRIS+(al,),anchor="ma")
+        d.text((W/2,yc+140+sube),e.get("hace",""),font=ctx.fX(28,400),fill=GRIS+(al,),anchor="ma")
     return capa_salida(layer,t,e["to"])
 
 def sc_remate(ctx,e,t):
@@ -1149,19 +1151,21 @@ def sc_remate(ctx,e,t):
     k=spring(t,g,120,11)
     if k>0:
         sc=1.6-0.6*min(1,k)   # slam: aterriza sin estroboscopio (2.2x movía 100 px/frame)
-        zx0,_,zx1,_=caja_segura()
+        zx0,_,zx1,zy1=caja_segura()
         tam_g=fuente_que_cabe(ctx.fT,e["gigante"],300,(zx1-zx0)*0.94,800).size   # "1.000.000×" cabe
+        # centro FIJO: donde asienta, sin pasar el borde seguro inferior (el
+        # slam crece simétrico alrededor del centro; antes colgaba de arriba)
+        bb0=ctx.fT(tam_g,800).getbbox(e["gigante"],anchor="mm"); hb=bb0[3]-bb0[1]
+        yc=min(H*0.62+hb/2,zy1-hb*0.65)
         fnt=ctx.fT(int(tam_g*sc),800)
-        # glow
-        # glow: lienzo dimensionado por el bbox real del texto (nunca recorta)
-        bb=fnt.getbbox(e["gigante"],anchor="ma"); pad=90
+        bb=fnt.getbbox(e["gigante"],anchor="mm"); pad=90   # glow: lienzo por el bbox real (nunca recorta)
+        a_g=smoothstep(clamp01((t-g)/0.25))
         glow=Image.new("RGBA",(bb[2]-bb[0]+2*pad,bb[3]-bb[1]+2*pad),(0,0,0,0))
         ImageDraw.Draw(glow).text((pad-bb[0],pad-bb[1]),e["gigante"],font=fnt,
-                                  fill=ACENTO+(int(110*smoothstep(clamp01((t-g)/0.25))),),anchor="ma")
+                                  fill=ACENTO+(int(110*a_g),),anchor="mm")
         glow=glow.filter(ImageFilter.GaussianBlur(30))
-        layer.alpha_composite(glow,(int(W/2+bb[0]-pad),int(H*0.62+bb[1]-pad)))
-        d.text((W/2,H*0.62),e["gigante"],font=fnt,
-               fill=BLANCO+(int(255*smoothstep(clamp01((t-g)/0.25))),),anchor="ma")
+        layer.alpha_composite(glow,(int(W/2+bb[0]-pad),int(yc+bb[1]-pad)))
+        d.text((W/2,yc),e["gigante"],font=fnt,fill=BLANCO+(int(255*a_g),),anchor="mm")
     return capa_salida(layer,t,e["to"])
 
 def sc_final(ctx,e,t):
@@ -1184,9 +1188,9 @@ def sc_final(ctx,e,t):
             fnt_m=ctx.fT(int(tam_m*min(1,k)*push),800)
             d.text((W/2,H*0.40+fy),e["marca"],font=fnt_m,
                    fill=BLANCO+(int(255*clamp01(k*1.4)),),anchor="mm")
-    if t>=at["lema"]:
+    if e.get("lema") and t>=at["lema"]:
         rotulo(ctx,layer,t,e["lema"],at["lema"],y=H*0.58+fy*0.6,tam=52)
-    if t>=at["boton"]:
+    if e.get("boton") and t>=at["boton"]:
         kb=spring(t,at["boton"],120,14)
         bw,bh=520*min(1.0,kb),110*min(1.0,kb); x=(W-bw)/2; yy=H*0.70+(110-bh)/2+fy*0.4
         if bh>4:
@@ -2485,10 +2489,9 @@ def render(plan_path,plan,out,a):
     formato(W,H,a.plataforma or plan.get("plataforma"))
     ctx=Ctx(); fps=a.fps
     dur=plan["duracion"]; n=int(dur*fps)
-    escenas=sorted(plan["escenas"],key=lambda s:s["from"])
+    escenas=preparar_escenas(ctx,plan)
     maximo=plan.get("mancha_max", 1 if TRANSICIONES=="corte_seco" else 2)
     manchas_ok=presupuesto_manchas(escenas,maximo)
-    for i,e in enumerate(escenas): escala_segura(ctx,e,i)   # una vez, antes del render
     tmpd=f"{out}.frames"; os.makedirs(tmpd,exist_ok=True)
     print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}"+(" · overlay con alfa" if ALFA else ""),flush=True)
     pend=[fi for fi in range(n) if a.force or not os.path.exists(f"{tmpd}/f_{fi:04d}.png")]
@@ -2534,6 +2537,61 @@ def resolver_medios(nodo,base):
             else:
                 faltan+=resolver_medios(v,base)
     return faltan
+
+_MUESTRAS={}
+def muestra(tipo):
+    """La muestra realista de una escena (scripts/escenas_muestra.json): fuente
+    única de ejemplos para galería, banco, validador y mensajes de error."""
+    if not _MUESTRAS:
+        ruta=os.path.join(os.path.dirname(os.path.abspath(__file__)),"escenas_muestra.json")
+        _MUESTRAS.update(json.load(open(ruta,encoding="utf-8"))["escenas"])
+    return _MUESTRAS.get(tipo)
+
+def _escalar_t(v,k,t0):
+    if isinstance(v,list): return [_escalar_t(x,k,t0) for x in v]
+    if isinstance(v,dict): return {a:_escalar_t(b,k,t0) for a,b in v.items()}
+    if isinstance(v,(int,float)) and not isinstance(v,bool): return round(t0+v*k,3)
+    return v
+
+def completar_escena(e,i=0):
+    """Tiempos por defecto: los `at` que el plan no trae se toman de la muestra
+    de esa escena, escalados a SU duración (una escena de 8 s reparte sus
+    entradas como la muestra de 5 s, estiradas). El agente escribe contenido;
+    la coreografía tiene un default con oficio. Devuelve una copia."""
+    tipo=e.get("tipo")
+    if tipo not in SCENES:
+        sys.exit(f"ERROR: escena {i+1}: tipo «{tipo}» no existe. Tipos: {', '.join(SCENES)}")
+    if not all(isinstance(e.get(c),(int,float)) for c in ("from","to")) or e["to"]<=e["from"]:
+        sys.exit(f"ERROR: escena {i+1} ({tipo}): necesita `from` y `to` en segundos, con to > from")
+    e=dict(e); m=muestra(tipo)
+    if m and isinstance(m.get("at"),dict) and isinstance(e.get("at",{}),dict):
+        k=(e["to"]-e["from"])/max(0.1,m["to"]-m["from"])
+        at=dict(e.get("at") or {})
+        for clave,v in m["at"].items():
+            if clave not in at: at[clave]=_escalar_t(v,k,e["from"])
+        e["at"]=at
+    return e
+
+def error_de_escena(e,i,ex):
+    """Un campo que falta, explicado (nunca un KeyError crudo): qué escena,
+    qué campo y un ejemplo completo de esa escena para copiar."""
+    tipo=e.get("tipo"); campo=ex.args[0] if isinstance(ex,KeyError) and ex.args else None
+    que=f"falta el campo `{campo}`" if campo else f"{type(ex).__name__}: {ex}"
+    ej=json.dumps(muestra(tipo) or {},ensure_ascii=False)
+    return (f"ERROR: escena {i+1} ({tipo}, {e.get('from')}–{e.get('to')} s): {que}.\n"
+            f"  Ejemplo completo de `{tipo}` (scripts/escenas_muestra.json):\n  {ej}")
+
+def preparar_escenas(ctx,plan):
+    """Escenas del plan listas para componer: tiempos completados desde la
+    muestra, en orden, y cada una compuesta UNA vez (escala_segura) para fallar
+    en segundos con un mensaje claro, no tras minutos de render. Una sola
+    puerta para render_plan y medir_animacion --plan."""
+    escenas=sorted((completar_escena(e,i) for i,e in enumerate(plan["escenas"])),key=lambda s:s["from"])
+    for i,e in enumerate(escenas):
+        try: escala_segura(ctx,e,i)
+        except (KeyError,IndexError,TypeError) as ex:
+            sys.exit(error_de_escena(e,i,ex))
+    return escenas
 
 def medios_o_morir(plan,base,quien="el plan"):
     faltan=resolver_medios(plan,base)

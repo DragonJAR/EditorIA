@@ -37,6 +37,14 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 - Tiempos en **segundos absolutos** del video (no relativos a la escena).
 - `*texto*` = énfasis (se renderiza en color acento).
 - `at` puede ser número, lista de números o dict según la escena.
+- **`at` es opcional**: lo que falte se toma de la muestra de esa escena
+  (`scripts/escenas_muestra.json`) escalado a su duración. El agente escribe
+  contenido; la coreografía tiene un default con oficio. Fijar `at` solo para
+  sincronizar con la voz o el beat.
+- Campos decorativos opcionales (`rotulo`, `fecha`, `detalle`, `nota`, `temp`,
+  `hace`, `lema`, `boton`, `total`; `iniciales` sale del nombre). Si falta
+  contenido esencial, el render falla en < 1 s diciendo escena, campo y un
+  ejemplo completo para copiar.
 - `"transicion": "mancha"` = barrido orgánico al entrar la escena.
 - `"respira": false` = apaga la respiración de cámara común (push-in lento +
   flotación) en esa escena; útil para una escena que debe quedar clavada
