@@ -98,6 +98,21 @@ try:
 except ImportError:
     print("AVISO pyflakes no instalado: pip install pyflakes para revisar código muerto")
 
+# toda CLI arranca: --help sin traceback (una dependencia opcional ausente se
+# avisa con un mensaje claro, nunca un ModuleNotFoundError crudo)
+crudas = []
+for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpeg_tools")):
+    for _f in sorted(os.listdir(_dir)):
+        if not _f.endswith(".py") or _f.startswith("_") or _f == "validate_skill.py":
+            continue
+        _ruta = os.path.join(_dir, _f)
+        if "argparse" not in open(_ruta, encoding="utf-8").read():
+            continue
+        _r = subprocess.run([sys.executable, _ruta, "--help"], capture_output=True, text=True, timeout=60)
+        if "Traceback" in _r.stderr:
+            crudas.append(f"{_f}: {_r.stderr.strip().splitlines()[-1]}")
+check(not crudas, f"toda CLI arranca con --help ({'; '.join(crudas) or 'todas'})")
+
 # 2. archivos requeridos
 req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
        "references/pipeline-resumen.md", "references/checklist-qa.md",

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sintetiza un pack de SFX procedural (sin assets externos).
 
-Genera WAV 44.1kHz mono de 16 bits con numpy/scipy, determinista (seed fijo)
+Genera WAV 44.1kHz mono de 16 bits solo con numpy, determinista (seed fijo)
 para que los builds sean reproducibles. Pensado para la capa de SFX de
 `references/sfx.md`: efectos suaves que se mezclan bajo la musica.
 
@@ -13,10 +13,24 @@ Uso:
 import argparse
 import os
 import numpy as np
-from scipy import signal
 
 SR = 44100
 SEED = 7
+
+
+def _filtro(x, bajo=None, alto=None, orden=4):
+    """Butterworth en frecuencia (|H| = 1/sqrt(1+(f/fc)^2n)), fase cero, solo
+    numpy: `bajo` = pasa-altos desde bajo Hz, `alto` = pasa-bajos hasta alto Hz
+    (ambos = pasa-banda). Sin scipy, que en una instalación mínima no está."""
+    n = len(x)
+    f = np.fft.rfftfreq(n, 1 / SR)
+    h = np.ones_like(f)
+    if alto:
+        h /= np.sqrt(1 + (f / alto) ** (2 * orden))
+    if bajo:
+        with np.errstate(divide="ignore"):
+            h /= np.sqrt(1 + (bajo / np.maximum(f, 1e-9)) ** (2 * orden))
+    return np.fft.irfft(np.fft.rfft(x) * h, n)
 
 
 def _env(n, attack=0.005, decay=None):
@@ -39,8 +53,7 @@ def _wav(x, path):
 def click(rng):
     n = int(0.07 * SR)
     x = rng.standard_normal(n) * _env(n, attack=0.001, decay=0.012)
-    b, a = signal.butter(4, 2500 / (SR / 2), "high")
-    return signal.lfilter(b, a, x) * 0.5
+    return _filtro(x, bajo=2500) * 0.33   # 0.5 saturaba (pico 1.0)
 
 
 def pop(rng):
@@ -58,8 +71,7 @@ def drop(rng):
     f = 300 * np.exp(-t * 10) + 110
     ph = np.cumsum(2 * np.pi * f / SR)
     x = np.sin(ph) * _env(n, attack=0.004, decay=0.07)
-    b, a = signal.butter(4, 900 / (SR / 2), "low")
-    return signal.lfilter(b, a, x) * 0.6
+    return _filtro(x, alto=900) * 0.6
 
 
 def whoosh(rng):
@@ -71,9 +83,8 @@ def whoosh(rng):
     seg = n // steps
     for i in range(steps):
         fc = 400 * (4000 / 400) ** (i / (steps - 1))
-        b, a = signal.butter(2, [fc * 0.7 / (SR / 2), min(fc * 1.4 / (SR / 2), 0.99)], "band")
         s = slice(i * seg, (i + 1) * seg if i < steps - 1 else n)
-        out[s] = signal.lfilter(b, a, x[s])
+        out[s] = _filtro(x[s], bajo=fc * 0.7, alto=min(fc * 1.4, SR * 0.49), orden=2)
     env = np.sin(np.pi * np.arange(n) / n) ** 1.5
     return out * env * 0.45
 
@@ -95,8 +106,7 @@ def thud(rng):
     ph = np.cumsum(2 * np.pi * f / SR)
     body = np.sin(ph) * _env(n, attack=0.003, decay=0.09)
     nz = rng.standard_normal(n) * _env(n, attack=0.001, decay=0.02) * 0.3
-    b, a = signal.butter(4, 500 / (SR / 2), "low")
-    return signal.lfilter(b, a, body + nz) * 0.8
+    return _filtro(body + nz, alto=500) * 0.8
 
 
 def tick(rng):
@@ -109,8 +119,7 @@ def swell(rng):
     n = int(1.2 * SR)
     t = np.arange(n) / SR
     nz = rng.standard_normal(n)
-    b, a = signal.butter(4, 1200 / (SR / 2), "low")
-    nz = signal.lfilter(b, a, nz)
+    nz = _filtro(nz, alto=1200)
     cresc = (np.arange(n) / n) ** 2.2
     tone = np.sin(2 * np.pi * 110 * t) * cresc * 0.5
     return (nz * cresc * 0.35 + tone) * np.minimum(1.0, np.exp(-(t - 1.0) * 8))
@@ -130,7 +139,7 @@ GENERADORES = {
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("-o", required=True, help="directorio de salida")
+    ap.add_argument("-o", help="directorio de salida (no hace falta con --list)")
     ap.add_argument("--only", default="", help="solo estos, separados por coma")
     ap.add_argument("--list", action="store_true", help="lista el pack y sale")
     args = ap.parse_args()
@@ -140,6 +149,8 @@ def main():
             print(f"{name:8s} {desc}")
         return
 
+    if not args.o:
+        ap.error("falta -o DIRECTORIO (o usar --list)")
     os.makedirs(args.o, exist_ok=True)
     sel = [s.strip() for s in args.only.split(",") if s.strip()] or list(GENERADORES)
     rng = np.random.default_rng(SEED)
