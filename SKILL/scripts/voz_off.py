@@ -34,7 +34,8 @@ MODEL = "eleven_v3"  # soporta audio tags de dirección; fallback: eleven_multil
 
 def cache_path(texto, voz_id, model):
     """Path content-addressed: el mismo texto+voz+modelo reusa el MP3."""
-    h = hashlib.md5(f"{model}|{voz_id}|{texto}".encode()).hexdigest()[:12]
+    # clave de caché, no seguridad: usedforsecurity=False lo declara (y no falla en FIPS)
+    h = hashlib.md5(f"{model}|{voz_id}|{texto}".encode(), usedforsecurity=False).hexdigest()[:12]
     d = os.path.expanduser("~/.cache/editoria/voz")
     os.makedirs(d, exist_ok=True)
     return f"{d}/vo_{h}.mp3"

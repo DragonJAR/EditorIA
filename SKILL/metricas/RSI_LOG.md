@@ -67,8 +67,8 @@ python3 SKILL/scripts/galeria.py -o /tmp/g                     # 83 piezas reale
 | Banco de animación | 99.35 (mínima 96.9), 0 pops, 0 tirones | determinista |
 | Cortes | 99.57 (mínima 93.8) | |
 | Galería real | 83/83 PASS | |
-| Cobertura | _midiendo_ | |
-| Rendimiento (render e2e 27 s 16:9) | _midiendo_ | mediana de 3 |
+| Cobertura (suite + subprocesos) | **52 %** (8 693 sentencias) | render_plan 90 %, validate_skill 89 %; delivery_check 19 %, scenes 19 %, check_env 0 % |
+| Rendimiento (`demo_plan.json`, 30 s 9:16) | mediana **151.05 s**, dispersión 1.3 % | 3 MP4 **idénticos bit a bit** (md5): render determinista verificado |
 | Sincronía con la música | **no evaluado** | no existe aún la métrica |
 
 ## 6. Umbrales de aceptación (fijados antes del primer ciclo)
@@ -80,8 +80,8 @@ y además:
 - banco ≥ 99.35 − 0.05 y mínima ≥ 96.9, pops 0, tirones 0; cortes ≥ 99.57 − 0.05;
 - bandit HIGH/MEDIUM no sube; complejidad máxima no sube; duplicación ≤ +0.10 pp;
 - docstrings no baja; cobertura no baja más de 0.5 pp;
-- rendimiento: mediana de 3 renders no empeora más de 10 % (tolerancia de ruido
-  medida en la línea base).
+- rendimiento: mediana de 3 renders no empeora más de 10 %; una MEJORA de
+  rendimiento solo cuenta si supera 4 % (≈ 3 × la dispersión medida, 1.3 %).
 
 ## 7. Presupuesto
 
@@ -91,4 +91,13 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
 
 ## 8. Ciclos
 
-_(se completa a medida que avanza)_
+### Ciclo 1 — CONSERVADO · seguridad: MD5 de caché declarado como no criptográfico
+- **Hipótesis**: `voz_off.cache_path` usa MD5 como clave de caché; declararlo con
+  `usedforsecurity=False` elimina el único hallazgo HIGH sin cambiar el comportamiento.
+- **Medida (definida antes)**: bandit HIGH 1 → 0; digest idéntico antes/después
+  (las cachés existentes siguen sirviendo); suite en verde.
+- **Resultado**: HIGH 1 → 0; digest idéntico (`diff` vacío); 44/44, ruff 346 = 346,
+  complejidad, duplicación y docstrings iguales; suite SKILL VALIDO 290 OK.
+  Banco no corrido: `voz_off` no lo importa ni el render ni el banco (grep vacío).
+- **Proceso**: la validación de un cambio que no toca el render puede omitir el
+  banco si se demuestra (grep) que no hay dependencia; se registra la razón.
