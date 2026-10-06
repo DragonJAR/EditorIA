@@ -790,7 +790,10 @@ def sc_canales(ctx,e,t):
         ang=[-1,0,1][i] if i<3 else 0
         zx0,_,zx1,_=caja_segura()
         abre=min(unidad()*0.3,(zx1-zx0-300)/2)   # recorrido en unidad() y dentro de la zona segura
-        sx,sy=W/2+ang*abre,vy(0.68)
+        # si 3 tarjetas de 300 no caben lado a lado (9:16), van en CASCADA: cada
+        # una 96 px más abajo, el nombre de la anterior sigue a la vista
+        cascada=96 if 3*300+32>zx1-zx0 else 0
+        sx,sy=W/2+ang*abre,vy(0.68)+(i-1)*cascada
         fy=vy(0.58)-120+i*150
         x=lerp(sx,W/2,junta); y=lerp(sy,fy,junta)
         w=lerp(300,min(880,zx1-zx0),junta); h=124
@@ -806,9 +809,15 @@ def sc_canales(ctx,e,t):
         ico=str(c.get("icono") or (c.get("nombre") or c["canal"])[:1]).strip()
         dc.text((66,62),ico.upper() if len(ico)==1 else ico,font=fuente_que_cabe(ctx.fT,ico,44,60,800),
                 fill=BLANCO,anchor="mm")
-        at_=clamp01((junta-0.4)/0.35)   # el texto se revela al asentar la bandeja, fundido
+        # el NOMBRE del canal entra con su tarjeta (sin él, 2 s de tarjetas vacías:
+        # parecían placeholders); el mensaje se revela al asentar la bandeja y el
+        # nombre sube a hacerle lugar
+        at_=clamp01((junta-0.4)/0.35)
+        an=clamp01(k2*1.4)
+        if an>0:
+            fn=fuente_que_cabe(ctx.fX,c["nombre"],34,max(40,ww-150),800)
+            dc.text((130,lerp(62,48,smoothstep(at_))),c["nombre"],font=fn,fill=BLANCO+(int(255*an),),anchor="lm")
         if at_>0:
-            dc.text((130,32),c["nombre"],font=ctx.fX(34,800),fill=BLANCO+(int(255*at_),))
             dc.text((130,74),c["texto"][:34],font=ctx.fX(27,400),fill=GRIS+(int(255*at_),))
         card=card.rotate((1-junta)*ang*8,expand=True,resample=Image.BICUBIC)
         fy_float=flota(t,c["at"]+1.2,5,0.4) if junta>0.9 else 0

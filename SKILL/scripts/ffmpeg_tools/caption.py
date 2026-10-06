@@ -552,9 +552,9 @@ def main():
     args.position = args.position or (bcap.get("position", "bottom") if args.brand else "bottom")
     args.animate = args.animate or (bcap.get("animate", "none") if args.brand else "none")
     # el acento del pack (colores.acento o colors.primary, vía colores_marca);
-    # sin pack, el amarillo clásico de captions
-    acento_pack = ("%02X%02X%02X" % colores_marca(args.brand)["acento"]) if args.brand else None
-    args.highlight_color = color_hex(args.highlight_color or acento_pack or bc.get("primary", "FFD200"))
+    # sin pack, el acento NEUTRO del kit: el mismo de las escenas (el amarillo
+    # FFD200 de antes no era de ningún sistema visual del video)
+    args.highlight_color = color_hex(args.highlight_color or "%02X%02X%02X" % colores_marca(args.brand)["acento"])
     if args.brand and bcap.get("bold") and not args.bold:
         args.bold = True
     if args.brand and bcap.get("karaoke") and not args.karaoke:
