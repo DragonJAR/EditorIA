@@ -230,3 +230,23 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
   `.coveragerc` y la primera corrida falló; se reescribió como script con su
   carpeta por etiqueta (configuración y datos aparte). La línea base total de
   52 % era de e70fe4a; para comparar se re-midió el commit previo (53.93 %).
+
+### Ciclo 8 — CONSERVADO · rendimiento exacto: PNG de cuadro con compresión 1
+- **Exploración descartada sin tocar código**: `mundo()` (fondo) cuesta 23 ms de
+  ~190 ms por cuadro; sus partes caras (composite de blobs 10 ms, viñeta 7.8 ms)
+  no se pueden quitar sin cambiar la imagen → ahorro exacto < 4 %: no se intenta.
+- **Hallazgo**: el perfil del ciclo 6 no incluía GUARDAR el cuadro: PNG con el
+  nivel por defecto (6) = **239 ms por cuadro**, más que componerlo. PNG no pierde
+  nada: el nivel de compresión no cambia un solo píxel.
+- **Hipótesis**: `compress_level=1` (81 ms) baja el tiempo de render sin ningún
+  cambio en el entregable.
+- **Medida (definida antes)**: mediana de 3 renders ≥ 4 % más rápida; MP4 final
+  con el MISMO MD5 que la línea base (sin tolerancia que discutir); disco
+  temporal registrado como costo.
+- **Resultado**: **151.05 s → 103.49 s (−31.5 %)**, dispersión 1.9 %; los 4 MP4
+  (base + 3) con MD5 idéntico `54757240…`: **bit a bit igual**. Costo: frames
+  temporales 339 MB → 479 MB (+41 %) para 30 s. Suite 294 OK; ruff 346; banco no
+  corrido (compone en memoria, no guarda PNG: grep). Duplicación 0.42 → 0.41 %.
+- **Proceso**: perfilar el pipeline COMPLETO (incluida la E/S), no solo la
+  función de composición; y preferir mejoras exactas por construcción, cuyo
+  criterio (MD5) no admite discusión.

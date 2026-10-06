@@ -2487,9 +2487,13 @@ def _init_worker(brand_path,acento,plan,maximo_cfg,safe=None,escalas=None,alfa=F
     maximo=maximo_cfg if maximo_cfg is not None else (1 if TRANSICIONES=="corte_seco" else 2)
     _W.update(ctx=Ctx(),esc=esc,dur=plan["duracion"],ok=presupuesto_manchas(esc,maximo,avisar=False))
 
+# PNG de cuadro con compresión 1: el PNG no pierde nada (píxeles idénticos) y el
+# nivel por defecto (6) costaba 239 ms por cuadro, más que componerlo (~190 ms)
+PNG_CUADRO={"compress_level":1}
+
 def _render_worker(job):
     fi,fp,fps,blur,obt=job
-    frame_con_blur(_W["ctx"],_W["esc"],_W["dur"],fi/fps,fps,blur,obt,_W["ok"]).save(fp)
+    frame_con_blur(_W["ctx"],_W["esc"],_W["dur"],fi/fps,fps,blur,obt,_W["ok"]).save(fp,**PNG_CUADRO)
     return fi
 
 def revisar_overlay(tmpd,n,fps):
@@ -2558,7 +2562,7 @@ def render(plan_path,plan,out,a):
     jobs=[(fi,f"{tmpd}/f_{fi:04d}.png",fps,a.blur,a.obturador) for fi in pend]
     if a.jobs<=1:
         for i,j in enumerate(jobs):
-            frame_con_blur(ctx,escenas,dur,j[0]/fps,fps,a.blur,a.obturador,manchas_ok).save(j[1])
+            frame_con_blur(ctx,escenas,dur,j[0]/fps,fps,a.blur,a.obturador,manchas_ok).save(j[1],**PNG_CUADRO)
             if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
     else:
         from multiprocessing import Pool
