@@ -97,7 +97,14 @@ def _is_ffmpeg(cmd: Sequence[str]) -> bool:
 def _cleanup_partial_output(cmd: Sequence[str]) -> None:
     """Si un ffmpeg fallo despues de abrir el contenedor de salida, borra el
     archivo parcial para que no se confunda con un resultado valido."""
+    # SOLO ffmpeg escribe salidas: en ffprobe el último argumento es la ENTRADA
+    # (un probe fallido sobre un archivo corrupto o un .json lo borraba: pérdida
+    # de datos). Y nunca un archivo que el comando lee (-i).
+    if os.path.splitext(os.path.basename(str(cmd[0])))[0].lower() != "ffmpeg":
+        return
     output = cmd[-1]
+    if output in {cmd[i + 1] for i, a in enumerate(cmd[:-1]) if a == "-i"}:
+        return
     if output in ("-", "pipe:0", "pipe:1") or output.startswith("pipe:") or output.startswith("-"):
         return
     try:

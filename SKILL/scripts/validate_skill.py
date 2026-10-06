@@ -563,6 +563,23 @@ try:
 except Exception as ex:
     check(False, f"plan de agente de punta a punta: {type(ex).__name__}: {ex}")
 
+# 5d. ningún comando fallido borra lo que LEE: _comun.run limpiaba cmd[-1] tras
+#     un fallo, y en ffprobe ese es la ENTRADA (un probe sobre un .json borró
+#     scripts/demo_plan.json). Solo se limpia la salida parcial de ffmpeg.
+try:
+    sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
+    import _comun as _C5
+    _d6 = tempfile.mkdtemp(prefix="editoria_borra_")
+    _f6 = os.path.join(_d6, "plan.json")
+    open(_f6, "w").write('{"no": "es video"}')
+    _C5.run(["ffprobe", "-v", "error", _f6], quiet=True, check=False)
+    _C5.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "nullsrc", "-i", _f6, _f6], quiet=True, check=False)
+    check(os.path.isfile(_f6), "un ffprobe/ffmpeg fallido no borra su entrada (solo la salida parcial de ffmpeg)")
+except SystemExit:
+    check(os.path.isfile(_f6), "un ffprobe/ffmpeg fallido no borra su entrada (solo la salida parcial de ffmpeg)")
+except Exception as ex:
+    check(False, f"limpieza de salidas parciales: {type(ex).__name__}: {ex}")
+
 # 6. nuevos módulos de post-producción (smoke tests con datos sintéticos)
 sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 try:
