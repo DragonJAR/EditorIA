@@ -13,7 +13,9 @@ en dos fases (`texto1` → `texto2` en `at.cambio`). Palabras con tiempos `at.p1
 ## 2. `canales` — "todos tus canales, un lugar"
 Marca grande al centro que sube y se encoge; tarjetas de canal que entran volando
 con resorte y se juntan en una bandeja (filas que crecen). Rótulo al final.
-- Params: `marca`, `rotulo`, `canales[{canal, nombre, texto, at}]`, `at{marca, junta, rotulo}`
+- Params: `marca`, `rotulo`, `canales[{canal, nombre, texto, at, icono?}]`, `at{marca, junta, rotulo}`
+- `icono`: letra(s) del círculo (default: inicial del `nombre`; úsalo cuando dos
+  canales empiezan igual, p. ej. WhatsApp/Web).
 
 ## 3. `medianoche` — teléfono 3D
 Teléfono que rota en 3D al entrar (perspectiva, rotateY de -70° a -12°). Pantalla
@@ -44,7 +46,10 @@ Nota de aviso ("Te avisa al instante").
 ## 7. `pago` — comprobante
 Comprobante que sube con resorte; cursor que se mueve y "pulsa" (escala + onda).
 Monto grande.
-- Params: `rotulo`, `cliente`, `monto`, `detalle`, `at{rotulo, comprobante, cursor, toque}`
+- Params: `rotulo`, `cliente`, `monto`, `detalle`, `boton?` ("Pagar"), `hecho?`
+  ("Pagado"), `at{rotulo, comprobante, cursor, toque}`. El toque CAMBIA el
+  botón a su estado `hecho` (fundido cruzado de 0.25 s): un clic sin
+  consecuencia no vende.
 
 ## 8. `listo` — check con estallido
 "¡Listo!" gigante con estallido de partículas en anillo + onda expansiva.
@@ -62,7 +67,7 @@ Contador que sube + tarjetas de tareas en grilla que entran en cascada.
 Cursor que arrastra una barra de progreso; al completarse, tarjeta "pagado" con
 cambio de color.
 - Params: `rotulo`, `resumen`, `cliente`, `hace` (ej. "hace 2 horas"),
-  `monto`, `at{rotulo, cursor, recupera, pagado}`
+  `monto`, `hecho?` ("PAGADO", en el idioma de la pieza), `at{rotulo, cursor, recupera, pagado}`
 
 ## 12. `remate` — frases + cifra gigante
 Frases cinéticas palabra por palabra + cifra gigante que entra con slam y glow.
@@ -155,9 +160,11 @@ Fuente: `ParticleAnimations` (MIT).
 
 ### 22-24. Ronda 2 — Texto, Cinemática y Pasos (reactvideoeditor/remotion-templates, MIT)
 
-**`typewriter`** — Texto que aparece carácter a carácter con cursor parpadeante.
-`texto`, `tam?` (auto-fit), `at{rotulo, cursor, fuente}`. Útil para hooks, intros
-y subtítulos animados. Fuente: `typewriter-subtitle.tsx` (MIT).
+**`typewriter`** — Texto que se escribe carácter a carácter a ritmo constante
+(cada carácter nace con un fundido corto), en líneas dentro de la zona segura;
+el cursor acompaña la escritura y parpadea al terminar. `texto`, `tam?`,
+`cps?` (caracteres por segundo, 12.5), `at{rotulo, cursor, fuente}`. Útil para
+hooks, intros y subtítulos animados. Fuente: `typewriter-subtitle.tsx` (MIT).
 
 **`kenburns`** — Ken Burns sobre una imagen: zoom + paneo progresivo. Ideal para
 galerías, openings sobre foto, documentales. `imagen` (ruta), `titulo`,

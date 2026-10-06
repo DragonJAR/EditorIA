@@ -38,6 +38,9 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 - `*texto*` = énfasis (se renderiza en color acento).
 - `at` puede ser número, lista de números o dict según la escena.
 - `"transicion": "mancha"` = barrido orgánico al entrar la escena.
+- `"respira": false` = apaga la respiración de cámara común (push-in lento +
+  flotación) en esa escena; útil para una escena que debe quedar clavada
+  (un dato que se lee quieto). Sin ese campo toda escena asentada respira.
 - Escenas contiguas: el `to` de una = el `from` de la siguiente (la transición
   la maneja el renderizador con la salida anticipada).
 - **Marca**: el plan puede declarar `"brand": "brand/dragonjar.json"` (ruta
