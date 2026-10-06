@@ -202,7 +202,9 @@ def render_frame(ctx,t):
         a_cur=smooth(prog(t,7.2,7.6)) if seg==0 and t<7.6 else 1.0
         if local>0.72 and seg<2:
             k=smooth(prog(local,0.72,1.0))   # cruce parejo (bezier_out lo hacía en 2 frames)
-            place_iso(layer,ctx.iso_at(s2,cur),s2,khx,khy,alpha=a_cur)
+            # fundido CRUZADO: la saliente también se va (la variante de contorno
+            # no tapa a la sólida y esta desaparecía de golpe al cambiar de tramo)
+            place_iso(layer,ctx.iso_at(s2,cur),s2,khx,khy,alpha=a_cur*(1-k))
             place_iso(layer,ctx.iso_at(s2,variants[seg+1]),s2,khx,khy,alpha=k)
         else:
             place_iso(layer,ctx.iso_at(s2,cur),s2,khx,khy,alpha=a_cur)

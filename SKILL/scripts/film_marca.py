@@ -200,6 +200,8 @@ def render_frame(ctx,t,state):
         if local>0.75 and seg<2:
             nxt=variants[seg+1]
             k=smooth(prog(local,0.75,1.0))   # cruce parejo (bezier_out lo hacía en 2 frames)
+            # fundido CRUZADO: la saliente también se va (el contorno no tapa al sólido)
+            cur=cur.copy(); cur.putalpha(cur.split()[3].point(lambda v:int(v*(1-k))))
             layer.alpha_composite(cur,ISO_POS)
             tmp=nxt.copy(); al=tmp.split()[3].point(lambda v:int(v*k)); tmp.putalpha(al)
             layer.alpha_composite(tmp,ISO_POS)
