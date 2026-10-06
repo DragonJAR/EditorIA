@@ -254,6 +254,21 @@ def partir_segs(sg,fnt,ancho):
     mejor=min(range(1,len(pal)) or [1],key=lambda c:max(seg_width(armar(pal[:c]),fnt),seg_width(armar(pal[c:]),fnt)))
     return [armar(pal[:mejor]),armar(pal[mejor:])]
 
+def vk():
+    """Factor vertical de la caja segura actual frente a la de diseño: 1 sin
+    banda de subtítulos; < 1 con "subtitulos": true (la caja es más baja)."""
+    banda=int(H*BANDA_SUBS["fraccion"])
+    if not banda: return 1.0
+    top=SAFE["top"]; b0=H-(SAFE["bottom"]-banda); b1=H-SAFE["bottom"]
+    return (b1-top)/max(1,(b0-top))
+
+def vy(f):
+    """y de diseño (fracción de H) re-mapeada a la caja segura actual: las
+    escenas compuestas en fracciones de H suben y se comprimen sobre la banda
+    de subtítulos en vez de que la red las encoja enteras. Sin banda = H*f."""
+    y=H*f; top=SAFE["top"]
+    return y if y<=top else top+(y-top)*vk()
+
 def bajo_rotulo(y,tam=44,aire=0.45):
     """Primer y libre bajo un rótulo anclado arriba en `y` (alto de línea +
     aire). Lo que va debajo del rótulo se mide desde aquí, nunca con una
@@ -311,9 +326,17 @@ LOCALES = {"es": {"miles": ".", "decimal": ","}, "en": {"miles": ",", "decimal":
            "fr": {"miles": "\u202f", "decimal": ","}}
 
 
-def aplicar_numeros(plan):
-    """`"numeros": "es"` (1.240 · 4,8), "en" (1,240 · 4.8), "fr" o
-    {"miles": ".", "decimal": ","}: una sola fuente para toda cifra del plan."""
+BANDA_SUBS = {"fraccion": 0.0}   # alto reservado abajo para subtítulos quemados
+BANDA_SUBTITULOS = 0.12
+
+
+def aplicar_globales(plan):
+    """Ajustes de TODO el plan, en una sola puerta (render, workers, banco):
+    - `"numeros": "es"` (1.240 · 4,8), "en" (1,240 · 4.8), "fr" o
+      {"miles": ".", "decimal": ","}: separadores de toda cifra.
+    - `"subtitulos": true`: reserva una banda abajo (12 % del alto) sobre la
+      zona segura; toda escena compone encima y los subtítulos no pisan nada."""
+    BANDA_SUBS["fraccion"] = BANDA_SUBTITULOS if plan.get("subtitulos") else 0.0
     v = plan.get("numeros", "en")
     NUMEROS.update(LOCALES.get(v, LOCALES["en"]) if isinstance(v, str) else
                    {k: str(v.get(k, NUMEROS[k])) for k in ("miles", "decimal")})
@@ -738,11 +761,11 @@ def sc_apertura(ctx,e,t):
 def sc_canales(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]; junta=prog(t,at["junta"]-0.4,at["junta"]+0.6)   # 1 s: las tarjetas no barren >60 px/frame
-    rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.20)
+    rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=vy(0.20))
     # marca que sube y se encoge (grupo logo+texto centrado)
     k=spring(t,at["marca"],90,14)
     if k>0:
-        my=lerp(H*0.52,H*0.36,junta)
+        my=lerp(vy(0.52),vy(0.36),junta)
         iso_ok=ctx.iso is not None and es_marca_del_pack(e["marca"])
         # una marca larga encoge para caber (factor FIJO de la escena: sin saltos)
         zx0_,_,zx1_,_=caja_segura()
@@ -767,8 +790,8 @@ def sc_canales(ctx,e,t):
         ang=[-1,0,1][i] if i<3 else 0
         zx0,_,zx1,_=caja_segura()
         abre=min(unidad()*0.3,(zx1-zx0-300)/2)   # recorrido en unidad() y dentro de la zona segura
-        sx,sy=W/2+ang*abre,H*0.68
-        fy=H*0.58-120+i*150
+        sx,sy=W/2+ang*abre,vy(0.68)
+        fy=vy(0.58)-120+i*150
         x=lerp(sx,W/2,junta); y=lerp(sy,fy,junta)
         w=lerp(300,min(880,zx1-zx0),junta); h=124
         sc2=k2
@@ -1058,7 +1081,7 @@ def sc_listo(ctx,e,t):
     k=spring(t,t0,90,10)
     if k>0:
         # asentado el estallido, el check flota (centrado, el push-in casi no lo mueve)
-        cy=H*0.5+flota(t,t0+0.8,7,0.45)
+        cy=vy(0.5)+flota(t,t0+0.8,7,0.45)
         # estallido de partículas en anillo
         for i in range(24):
             a=i/24*math.pi*2
@@ -1135,12 +1158,12 @@ def sc_recupera(ctx,e,t):
     `hecho` (default "PAGADO") con el monto. Centrado en cualquier formato."""
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
-    kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=H*0.20 if H>W else H*0.16)
+    kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=vy(0.20) if H>W else vy(0.16))
     if kr<=0: return capa_salida(layer,t,e["to"])
     al=int(255*clamp01(kr*1.5)); sube=(1-min(1,kr))*24
     zx0,_,zx1,_=caja_segura()
-    bw=min(800,(zx1-zx0)-68); bx=(W-bw)/2; by=H*0.5 if H>W else H*0.46   # -68: la perilla cabe
-    d.text((W/2,(H*0.26 if H>W else H*0.25)+sube),e["resumen"],font=ctx.fX(36,600),
+    bw=min(800,(zx1-zx0)-68); bx=(W-bw)/2; by=vy(0.5) if H>W else vy(0.46)   # -68: la perilla cabe
+    d.text((W/2,(vy(0.26) if H>W else vy(0.25))+sube),e["resumen"],font=ctx.fX(36,600),
            fill=BLANCO+(al,),anchor="ma")
     # barra de progreso arrastrada por cursor
     rk=prog(t,at["cursor"],at["recupera"],smoothstep)   # una sola curva (antes ease sobre ease)
@@ -1149,7 +1172,7 @@ def sc_recupera(ctx,e,t):
         d.rounded_rectangle([bx,by,bx+max(44,bw*rk),by+44],radius=22,fill=ACENTO+(al,))
     cx=bx+bw*rk
     d.ellipse([cx-34,by-12+sube,cx+34,by+56+sube],fill=BLANCO+(al,))
-    yc=by+(H*0.12 if H>W else H*0.14)
+    yc=by+(H*0.12 if H>W else H*0.14)*vk()
     if t>=at["pagado"]:
         k=spring(t,at["pagado"],120,14)
         tarjeta(ctx,layer,bx,yc,bw,240,radio=30,alpha=int(255*min(1,k)))
@@ -1202,18 +1225,18 @@ def sc_final(ctx,e,t):
         if ctx.logo and es_marca_del_pack(e["marca"]):
             lw=int(760*min(1,k)*push)
             lg=ctx.logo.resize((lw,int(lw*ctx.logo.height/ctx.logo.width)),Image.LANCZOS)
-            layer.alpha_composite(lg,(int(W/2-lw/2),int(H*0.40-lg.height/2+fy)))
+            layer.alpha_composite(lg,(int(W/2-lw/2),int(vy(0.40)-lg.height/2+fy)))
         else:
             zx0,_,zx1,_=caja_segura()
             tam_m=fuente_que_cabe(ctx.fT,e["marca"],120,(zx1-zx0)*0.92/1.035,800).size   # con el push máximo: tamaño fijo, sin saltos
             fnt_m=ctx.fT(int(tam_m*min(1,k)*push),800)
-            d.text((W/2,H*0.40+fy),e["marca"],font=fnt_m,
+            d.text((W/2,vy(0.40)+fy),e["marca"],font=fnt_m,
                    fill=BLANCO+(int(255*clamp01(k*1.4)),),anchor="mm")
     if e.get("lema") and t>=at["lema"]:
-        rotulo(ctx,layer,t,e["lema"],at["lema"],y=H*0.58+fy*0.6,tam=52)
+        rotulo(ctx,layer,t,e["lema"],at["lema"],y=vy(0.58)+fy*0.6,tam=52)
     if e.get("boton") and t>=at["boton"]:
         kb=spring(t,at["boton"],120,14)
-        bw,bh=520*min(1.0,kb),110*min(1.0,kb); x=(W-bw)/2; yy=H*0.70+(110-bh)/2+fy*0.4
+        bw,bh=520*min(1.0,kb),110*min(1.0,kb); x=(W-bw)/2; yy=vy(0.70)+(110-bh)/2+fy*0.4
         if bh>4:
             # halo que late suave alrededor del botón (acción secundaria)
             pul=0.5+0.5*math.sin((t-at["boton"])*2*math.pi*0.6)
@@ -2450,7 +2473,7 @@ def _init_worker(brand_path,acento,plan,maximo_cfg,safe=None,escalas=None,alfa=F
         ACENTO=hex_a_rgb(acento); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
     if safe: SAFE.update(safe)
     if escalas: _ESCALA.update(escalas)
-    aplicar_numeros(plan)
+    aplicar_globales(plan)
     esc=sorted(plan["escenas"],key=lambda s:s["from"])
     maximo=maximo_cfg if maximo_cfg is not None else (1 if TRANSICIONES=="corte_seco" else 2)
     _W.update(ctx=Ctx(),esc=esc,dur=plan["duracion"],ok=presupuesto_manchas(esc,maximo,avisar=False))
@@ -2489,6 +2512,7 @@ def formato(ancho,alto,plataforma=None):
     plataforma=plataforma or ("vertical" if H>W else "youtube")
     if plataforma!="ninguna": SAFE.update(zona_segura(plataforma))
     else: SAFE.update({"top":0,"bottom":0,"left":0,"right":0})
+    SAFE["bottom"]+=int(H*BANDA_SUBS["fraccion"])   # banda de subtítulos (aplicar_globales)
     MARGEN=max(SAFE["left"],int(W*0.05))
     _ESCALA.clear()
     return plataforma
@@ -2507,7 +2531,12 @@ def render(plan_path,plan,out,a):
         aplicar_brand(brand_path)
     elif plan.get("acento"):   # modo libre: el plan puede fijar su acento
         ACENTO=hex_a_rgb(plan["acento"]); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
+    aplicar_globales(plan)   # antes de formato: la banda de subtítulos entra en la zona segura
     formato(W,H,a.plataforma or plan.get("plataforma"))
+    if BANDA_SUBS["fraccion"]:
+        base=SAFE["bottom"]-int(H*BANDA_SUBS["fraccion"])   # borde inferior de la banda
+        print(f"banda de subtítulos reservada: quemar con caption.py --margin "
+              f"{round((base+H*0.025)/H*288)} (unidades libass, 288 = alto)",flush=True)
     ctx=Ctx(); fps=a.fps
     dur=plan["duracion"]; n=int(dur*fps)
     escenas=preparar_escenas(ctx,plan)
@@ -2644,7 +2673,7 @@ def preparar_escenas(ctx,plan):
     muestra, en orden, y cada una compuesta UNA vez (escala_segura) para fallar
     en segundos con un mensaje claro, no tras minutos de render. Una sola
     puerta para render_plan y medir_animacion --plan."""
-    aplicar_numeros(plan)
+    aplicar_globales(plan)
     escenas=sorted((completar_escena(e,i) for i,e in enumerate(plan["escenas"])),key=lambda s:s["from"])
     for i,e in enumerate(escenas):
         for av in avisos_de_campos(e,i): print(av,file=sys.stderr,flush=True)

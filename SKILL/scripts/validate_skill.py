@@ -136,6 +136,14 @@ for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpe
                     mudas.append(f"{_f} {_m.group(1).split(',')[0].split()[0]}")
 check(not crudas, f"toda CLI arranca con --help ({'; '.join(crudas) or 'todas'})")
 check(not mudas, f"toda opción y subcomando de toda CLI se explica en --help ({', '.join(mudas[:8]) or 'todas'})")
+# subtítulos sin marca: la tipografía de las escenas (Montserrat empaquetada,
+# instancia estática para libass), no DejaVu del sistema
+_vcap = os.path.join(tempfile.mkdtemp(prefix="editoria_cap_"), "v.mp4")
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x180:d=1", _vcap])
+_cap = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "ffmpeg_tools", "caption.py"),
+                       _vcap, "--text", "hola", "--dry-run"], capture_output=True, text=True, timeout=60)
+check("FontName=Montserrat" in _cap.stdout + _cap.stderr and "fontsdir=" in _cap.stdout + _cap.stderr,
+      "subtítulos sin marca en la tipografía empaquetada (Montserrat Bold estática, fontsdir del kit)")
 
 # 2. archivos requeridos
 req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
@@ -529,11 +537,29 @@ try:
     _typo = _R5.avisos_de_campos({"tipo": "pasos", "from": 0, "to": 4, "pasos": [{"titulo": "x"}]})
     check(not _ruido and _typo and "`items`" in _typo[0],
           f"campos mal escritos: avisados con sugerencia, 0 avisos en las muestras ({len(_ruido)} ruido)")
-    _R5.aplicar_numeros({"numeros": "es"})
+    _R5.aplicar_globales({"numeros": "es"})
     _n5 = (_R5.cuenta_up(0, 1240, 9, 0), _R5.cuenta_up(0, 4.8, 9, 0))
-    _R5.aplicar_numeros({})
+    _R5.aplicar_globales({})
     check(_n5 == ("1.240", "4,8") and _R5.cuenta_up(0, 1240, 9, 0) == "1,240",
           f"\"numeros\": \"es\" separa 1.240 y 4,8 (default 1,240) ({_n5})")
+    # "subtitulos": true reserva la banda; las 28 escenas siguen cabiendo encima
+    _apret = []
+    _R5.aplicar_globales({"subtitulos": True})
+    try:
+        for _w5, _h5 in ((1080, 1920), (1920, 1080)):
+            _R5.formato(_w5, _h5)
+            _base5 = _R5.caja_segura()[3]
+            _c5 = _R5.Ctx()
+            for t_, e_ in _m5.items():
+                _R5._ESCALA.clear()
+                if _R5.escala_segura(_c5, dict(e_, tipo=t_), 0) < 0.85:
+                    _apret.append(f"{t_} {_w5}x{_h5}")
+    finally:
+        _R5.aplicar_globales({})
+        _R5.formato(1080, 1920)
+    check(_base5 < _R5.caja_segura()[3] and not _apret,
+          f"\"subtitulos\": true sube el borde seguro y las escenas caben encima (≥ x0.85) "
+          f"({', '.join(_apret) or 'todas'})")
 except Exception as ex:
     check(False, f"plan de agente de punta a punta: {type(ex).__name__}: {ex}")
 

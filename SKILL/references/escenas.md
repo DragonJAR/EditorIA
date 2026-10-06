@@ -110,6 +110,9 @@ validador la renderiza en cada corrida y exige que quepa en la zona segura
   cada texto ×2 en los dos formatos: sin solapes y sin que la red encoja bajo
   x0.90. Las temperaturas de `leads` aceptan sinónimos (caliente/hot,
   tibio/warm, frío/cold) o `color` explícito.
+- `vy(f)` / `vk()`: posición y desplazamiento de diseño (fracción de H)
+  re-mapeados a la caja segura actual; con banda de subtítulos la escena sube
+  y se comprime en vez de que la red la encoja entera. Sin banda: H*f.
 - `bajo_rotulo(y)`: primer y libre bajo un rótulo; lo que va debajo se mide
   desde ahí, nunca con una fracción fija de H (en 16:9 H*0.04 son 43 px y el
   rótulo mide ~55: «24 leads hoy» y la ventana de `demo` lo pisaban).

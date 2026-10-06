@@ -77,7 +77,7 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
    con escena, segundo y los dos textos). Bajo 90, `--ver escena:v:segundo`
    muestra el defecto. Leer también los `AVISO` de campos (un nombre de campo
    equivocado deja la escena vacía sin error) y fijar `"numeros": "es"` si el
-   público es hispano.
+   público es hispano y `"subtitulos": true` si se quemarán subtítulos.
 2. **Render**: `python scripts/render_plan.py plan.json -o salida.mp4`
    (motor de fluidez: resortes, fondo vivo, transiciones según el brand pack
    o el tono; `--force` para re-renderizar, sin él retoma donde iba).

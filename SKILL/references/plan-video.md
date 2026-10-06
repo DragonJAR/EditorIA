@@ -49,6 +49,11 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 - **Cifras**: `"numeros": "es"` (1.240 · 4,8), `"en"` (default: 1,240 · 4.8),
   `"fr"` o `{"miles": ".", "decimal": ","}` a nivel de plan: aplica a toda
   cifra animada y a los precios que no fijen los suyos. Público hispano → `"es"`.
+- **Subtítulos quemados**: `"subtitulos": true` reserva una banda abajo (12 %
+  del alto, sobre la UI de la plataforma): toda escena compone encima y el
+  render imprime el `--margin` exacto para `caption.py`. Sin banda, los
+  subtítulos pisan fuentes, botones y pies de las escenas. `caption.py` sin
+  marca usa la Montserrat empaquetada (la misma de las escenas).
 - **Campos mal escritos**: el render y `medir_animacion --plan` avisan de todo
   campo que la escena no lee, con la sugerencia más parecida (`pasos` →
   `items`, `titulo` → `rotulo`): una escena que saldría vacía EN SILENCIO. El

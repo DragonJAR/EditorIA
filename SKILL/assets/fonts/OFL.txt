@@ -190,3 +190,8 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+
+Montserrat-Bold.ttf: instancia estática (wght 700) generada de
+Montserrat-wght.ttf con fontTools.varLib.instancer para libass (los
+subtítulos quemados no leen el eje wght de una fuente variable). Misma
+licencia SIL OFL 1.1; Montserrat no declara Reserved Font Name.

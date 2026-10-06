@@ -159,28 +159,34 @@ def parse_text_cues(path, auto_seconds, gap, fps=None):
     """Convierte el archivo de texto a lista de (inicio, fin, texto)."""
     cues = []
     cursor = 0.0
-    with open(path, encoding="utf-8") as fh:
-        for raw in fh:
-            line = raw.rstrip("\n")
-            if not line.strip():
-                continue
-            m = TIME_RE.match(line)
-            if m:
-                try:
-                    start, end = parse_time(m.group("a"), fps), parse_time(m.group("b"), fps)
-                except MissingFpsError as e:
-                    die(f"cue '{line}': {e} -- pasa --fps, o se usa el fps del input si se dio")
-                except ValueError:
-                    start, end, text = cursor, cursor + auto_seconds, line.strip()
-                else:
-                    text = m.group("text").strip()
-            else:
+    # `--text "Hola mundo"` (texto literal) además de `--text cues.txt`: un
+    # agente escribe lo primero; antes era un FileNotFoundError crudo
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as fh:
+            lineas = fh.read().splitlines(True)
+    else:
+        lineas = str(path).replace("\\n", "\n").splitlines(True)
+    for raw in lineas:
+        line = raw.rstrip("\n")
+        if not line.strip():
+            continue
+        m = TIME_RE.match(line)
+        if m:
+            try:
+                start, end = parse_time(m.group("a"), fps), parse_time(m.group("b"), fps)
+            except MissingFpsError as e:
+                die(f"cue '{line}': {e} -- pasa --fps, o se usa el fps del input si se dio")
+            except ValueError:
                 start, end, text = cursor, cursor + auto_seconds, line.strip()
-            if end <= start:
-                die(f"cue '{line}': el fin debe ser mayor que el inicio")
-            text = text.replace(" | ", "\n").replace("|", "\n")
-            cues.append((start, end, text))
-            cursor = end + gap
+            else:
+                text = m.group("text").strip()
+        else:
+            start, end, text = cursor, cursor + auto_seconds, line.strip()
+        if end <= start:
+            die(f"cue '{line}': el fin debe ser mayor que el inicio")
+        text = text.replace(" | ", "\n").replace("|", "\n")
+        cues.append((start, end, text))
+        cursor = end + gap
     if not cues:
         die(f"no se encontraron cues en {path}")
     return cues
@@ -404,7 +410,7 @@ def main():
     src = ap.add_argument_group("fuente de subtitulos")
     src.add_argument("--srt", help="archivo SRT a quemar")
     src.add_argument("--ass", help="archivo ASS a quemar (se usan los estilos del archivo)")
-    src.add_argument("--text", help="archivo de texto con cues para convertir a SRT (formato arriba)")
+    src.add_argument("--text", help="archivo de texto con cues (o el texto mismo entre comillas; \\n separa cues) para convertir a SRT (formato arriba)")
     src.add_argument("--palabras", help="JSON de tiempos por palabra (scripts/alinear.py): "
                      "cues frase-conscientes y karaoke con el tiempo REAL de cada palabra")
     src.add_argument("--transcribe", action="store_true",
@@ -423,7 +429,7 @@ def main():
                           "default: el fps del video si se dio input, requerido si no")
     sty = ap.add_argument_group("estilo (solo SRT)")
     sty.add_argument("--brand", help="brand.json: fuente, colores, defaults de subtitulos")
-    sty.add_argument("--font", default=None, help="familia de fuente (default DejaVu Sans o fuente de marca)")
+    sty.add_argument("--font", default=None, help="familia de fuente (default: la de la marca, o Montserrat empaquetada en assets/fonts)")
     sty.add_argument("--fonts-dir", help="directorio con fuentes extra .ttf/.otf")
     sty.add_argument("--size", type=int, default=None,
                      help="tamano de fuente en puntos ASS (relativo a un script de 288p, escala solo)")
@@ -472,6 +478,13 @@ def main():
 
     brand = load_brand(args.brand)
     bc, bcap = brand["colors"], brand["caption"]
+    # sin marca ni --font: la tipografía EMPAQUETADA del kit (la misma de las
+    # escenas de render_plan), no la de sistema: un subtítulo en DejaVu sobre
+    # un video en Montserrat se ve pegado encima
+    # (assets/fonts/Montserrat-Bold.ttf: instancia estática; libass no lee el eje wght)
+    from _plataforma import FUENTES_SKILL
+    if not args.font and not args.brand and (FUENTES_SKILL / "Montserrat-Bold.ttf").exists():
+        args.font, args.fonts_dir = "Montserrat", args.fonts_dir or str(FUENTES_SKILL)
     args.font = args.font or brand.get("font") or "DejaVu Sans"
     if not args.fonts_dir and brand.get("fonts_dir"):
         args.fonts_dir = os.path.expanduser(brand["fonts_dir"])

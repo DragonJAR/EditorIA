@@ -109,6 +109,7 @@ def medir(job):
     nombre, f, escenas, dur, fps = job[:5]
     ventana = job[5] if len(job) > 5 else None   # (t0, t1): medir solo un tramo (un corte)
     R = _W["R"]
+    R.aplicar_globales(job[6] if len(job) > 6 else {})   # numeros, banda de subtítulos del plan
     ctx = _ctx(f)
     R._ESCALA.clear()
     escenas = sorted(escenas, key=lambda s_: s_["from"])
@@ -455,9 +456,11 @@ def main():
         fmts_plan = fmts if a.formato != "ambos" else (
             ["h"] if str(plan.get("tamano", "")).startswith("1920") else ["v"])
         _init()
+        globales = {k: plan[k] for k in ("numeros", "subtitulos") if k in plan}
+        _W["R"].aplicar_globales(globales)
         for f in fmts_plan:   # misma puerta que render_plan: tiempos por defecto y error claro
             plan["escenas"] = R.preparar_escenas(_ctx(f), plan)
-        jobs = [(nombre, f, plan["escenas"], plan["duracion"], a.fps) for f in fmts_plan]
+        jobs = [(nombre, f, plan["escenas"], plan["duracion"], a.fps, None, globales) for f in fmts_plan]
     else:
         jobs = [(n, f, [dict(e, tipo=n)], e["to"], a.fps) for f in fmts for n, e in muestras.items()
                 if not solo or n in solo]
