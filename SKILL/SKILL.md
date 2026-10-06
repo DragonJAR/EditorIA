@@ -75,7 +75,9 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
    (pops, saltos en los cortes, tiempo muerto, letra, zona segura y **textos que
    se pisan** con TU copy; nota 0–100 en ~2 min sin codificar; cada `SOLAPE` sale
    con escena, segundo y los dos textos). Bajo 90, `--ver escena:v:segundo`
-   muestra el defecto.
+   muestra el defecto. Leer también los `AVISO` de campos (un nombre de campo
+   equivocado deja la escena vacía sin error) y fijar `"numeros": "es"` si el
+   público es hispano.
 2. **Render**: `python scripts/render_plan.py plan.json -o salida.mp4`
    (motor de fluidez: resortes, fondo vivo, transiciones según el brand pack
    o el tono; `--force` para re-renderizar, sin él retoma donde iba).

@@ -306,6 +306,27 @@ def decimales_de(v):
     return min(3, len(repr(float(v)).split(".")[1]))
 
 
+NUMEROS = {"miles": ",", "decimal": "."}   # separadores de toda cifra; el plan los fija con "numeros"
+LOCALES = {"es": {"miles": ".", "decimal": ","}, "en": {"miles": ",", "decimal": "."},
+           "fr": {"miles": "\u202f", "decimal": ","}}
+
+
+def aplicar_numeros(plan):
+    """`"numeros": "es"` (1.240 · 4,8), "en" (1,240 · 4.8), "fr" o
+    {"miles": ".", "decimal": ","}: una sola fuente para toda cifra del plan."""
+    v = plan.get("numeros", "en")
+    NUMEROS.update(LOCALES.get(v, LOCALES["en"]) if isinstance(v, str) else
+                   {k: str(v.get(k, NUMEROS[k])) for k in ("miles", "decimal")})
+
+
+def separar(txt, miles=None, decimal=None):
+    """'1,234.5' (formato Python) con los separadores pedidos."""
+    m, d = miles or NUMEROS["miles"], decimal or NUMEROS["decimal"]
+    if (m, d) == (",", "."):
+        return txt
+    return txt.replace(",", "\0").replace(".", d).replace("\0", m)
+
+
 def cuenta_up(desde, hasta, t, t0, dur=0.8, fmt="{:,}", progreso=None):
     """Cuenta animada de `desde` a `hasta` en `dur` segundos desde `t0`.
     Devuelve el string listo para imprimir (con separadores). Cada valor
@@ -324,7 +345,7 @@ def cuenta_up(desde, hasta, t, t0, dur=0.8, fmt="{:,}", progreso=None):
     v = desde + (hasta - desde) * p
     n = max(decimales_de(hasta), decimales_de(desde))
     if fmt == "{:,}":
-        return f"{v:,.{n}f}"
+        return separar(f"{v:,.{n}f}")
     return fmt.format(round(v, n) if n else int(round(v)))
 
 
@@ -1906,8 +1927,7 @@ def _fmt_precio(v, e):
     if dec is None:   # mismos decimales en todos los precios de la oferta
         dec = 0 if all(float(x).is_integer() for x in precios_oferta(e)[:2]) else 2
     txt = f"{v:,.{dec}f}"
-    if (e.get("miles", ","), e.get("decimal", ".")) != (",", "."):
-        txt = txt.replace(",", "\0").replace(".", e.get("decimal", ".")).replace("\0", e.get("miles", ","))
+    txt = separar(txt, e.get("miles"), e.get("decimal"))   # la escena manda; si no, el plan
     m = e.get("moneda", "$")
     return f"{txt} {m}" if e.get("moneda_despues") else f"{m}{txt}"
 
@@ -2375,8 +2395,8 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)
-    if dur-t<0.8:   # fundido al cierre con ease-in-out: no arranca a velocidad plena
-        k=smoothstep(clamp01((0.8-(dur-t))/0.8))
+    if dur-t<0.8:   # fundido al cierre con ease-IN (x²): arranca suave y llega a negro en el
+        k=clamp01((0.8-(dur-t))/0.8)**2   # último frame (smoothstep se quedaba 0.25 s en negro: black_frame)
         if ALFA:   # un overlay se va por transparencia, no a negro
             bg.putalpha(bg.split()[3].point(lambda v:int(v*(1-k))))
         else:
@@ -2430,6 +2450,7 @@ def _init_worker(brand_path,acento,plan,maximo_cfg,safe=None,escalas=None,alfa=F
         ACENTO=hex_a_rgb(acento); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
     if safe: SAFE.update(safe)
     if escalas: _ESCALA.update(escalas)
+    aplicar_numeros(plan)
     esc=sorted(plan["escenas"],key=lambda s:s["from"])
     maximo=maximo_cfg if maximo_cfg is not None else (1 if TRANSICIONES=="corte_seco" else 2)
     _W.update(ctx=Ctx(),esc=esc,dur=plan["duracion"],ok=presupuesto_manchas(esc,maximo,avisar=False))
@@ -2504,7 +2525,7 @@ def render(plan_path,plan,out,a):
     else:
         from multiprocessing import Pool
         init=(brand_path if brand_path else None, None if brand_path else plan.get("acento"),
-              plan, plan.get("mancha_max"), dict(SAFE), dict(_ESCALA), ALFA, (W,H,MARGEN))
+              dict(plan,escenas=escenas), plan.get("mancha_max"), dict(SAFE), dict(_ESCALA), ALFA, (W,H,MARGEN))   # escenas YA preparadas
         with Pool(a.jobs,initializer=_init_worker,initargs=init) as pool:
             for i,_ in enumerate(pool.imap_unordered(_render_worker,jobs,chunksize=4)):
                 if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
@@ -2572,6 +2593,43 @@ def completar_escena(e,i=0):
         e["at"]=at
     return e
 
+COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}
+_CAMPOS={}
+def campos_de(tipo):
+    """Campos que una escena LEE, sacados de su propio código (e["x"] /
+    e.get("x") en su función y en los helpers que reciben `e`): el esquema
+    nunca se desincroniza del renderizador porque ES el renderizador."""
+    if not _CAMPOS:
+        import inspect
+        pat=re.compile(r'\be(?:\.get\(|\[)"(\w+)"')
+        fn_escenas=set(SCENES.values())
+        comunes=set(COMUNES)
+        for f_ in list(globals().values()):
+            if inspect.isfunction(f_) and f_ not in fn_escenas and "e" in inspect.signature(f_).parameters:
+                comunes|=set(pat.findall(inspect.getsource(f_)))
+        for t_,f_ in SCENES.items():
+            _CAMPOS[t_]=comunes|set(pat.findall(inspect.getsource(f_)))
+    return _CAMPOS.get(tipo,set(COMUNES))
+
+def avisos_de_campos(e,i=0):
+    """Un campo que la escena no lee es casi siempre un error del plan (`pasos`
+    en vez de `items`, `titulo` en vez de `rotulo`): la escena saldría vacía
+    EN SILENCIO. Devuelve avisos con la sugerencia más parecida."""
+    import difflib
+    conocidos=campos_de(e.get("tipo"))
+    avisos=[]
+    for k_ in e:
+        if k_ in conocidos or k_.startswith("_"): continue
+        sug=difflib.get_close_matches(k_,sorted(conocidos-COMUNES),n=1,cutoff=0.5)
+        ej=muestra(e.get("tipo")) or {}
+        if not sug:   # ¿lo que trae es la lista que la escena espera con otro nombre?
+            listas=[c for c,v in ej.items() if isinstance(v,list) and c not in e]
+            sug=listas[:1] if isinstance(e[k_],list) else []
+        avisos.append(f"AVISO: escena {i+1} ({e.get('tipo')}): `{k_}` no lo usa esta escena"
+                      +(f" — ¿quisiste decir `{sug[0]}`?" if sug else "")
+                      +f" (campos de la muestra: {', '.join(c for c in ej if c not in COMUNES)})")
+    return avisos
+
 def error_de_escena(e,i,ex):
     """Un campo que falta, explicado (nunca un KeyError crudo): qué escena,
     qué campo y un ejemplo completo de esa escena para copiar."""
@@ -2586,7 +2644,10 @@ def preparar_escenas(ctx,plan):
     muestra, en orden, y cada una compuesta UNA vez (escala_segura) para fallar
     en segundos con un mensaje claro, no tras minutos de render. Una sola
     puerta para render_plan y medir_animacion --plan."""
+    aplicar_numeros(plan)
     escenas=sorted((completar_escena(e,i) for i,e in enumerate(plan["escenas"])),key=lambda s:s["from"])
+    for i,e in enumerate(escenas):
+        for av in avisos_de_campos(e,i): print(av,file=sys.stderr,flush=True)
     for i,e in enumerate(escenas):
         try:   # compone de verdad (escala_segura cachea por índice: no basta)
             for t in (e["from"]+0.05,(e["from"]+e["to"])/2,e["to"]-0.05): pintar(ctx,e,t)

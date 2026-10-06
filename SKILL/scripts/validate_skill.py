@@ -483,6 +483,36 @@ try:
 except Exception as ex:
     check(False, f"detector de pops: {ex}")
 
+# 5c. plan de agente, de punta a punta: render REAL multiproceso de un plan sin
+#     `at` (los workers recargaban el plan sin completar: KeyError solo en el
+#     render de verdad), campos mal escritos avisados con sugerencia y cifras
+#     con los separadores del idioma del plan
+try:
+    import subprocess as _sp5
+    _d5 = tempfile.mkdtemp(prefix="editoria_e2e_")
+    _p5 = os.path.join(_d5, "plan.json")
+    json.dump({"duracion": 2.0, "numeros": "es", "escenas": [
+        {"tipo": "stats", "from": 0, "to": 2.0, "titulo": "Prueba",
+         "cards": [{"valor": 1240, "etiqueta": "a"}, {"valor": 4.8, "etiqueta": "b"}]}]},
+        open(_p5, "w", encoding="utf-8"))
+    _r5 = _sp5.run([sys.executable, os.path.join(BASE, "scripts", "render_plan.py"), _p5, "-o",
+                    os.path.join(_d5, "e2e.mp4"), "--fps", "10", "--jobs", "2"], capture_output=True, text=True)
+    check(_r5.returncode == 0 and os.path.isfile(os.path.join(_d5, "e2e.mp4")),
+          f"render real multiproceso de un plan sin `at` ({(_r5.stderr or 'ok').strip().splitlines()[-1][:90]})")
+    import render_plan as _R5
+    _m5 = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
+    _ruido = [a_ for t_, e_ in _m5.items() for a_ in _R5.avisos_de_campos(dict(e_, tipo=t_))]
+    _typo = _R5.avisos_de_campos({"tipo": "pasos", "from": 0, "to": 4, "pasos": [{"titulo": "x"}]})
+    check(not _ruido and _typo and "`items`" in _typo[0],
+          f"campos mal escritos: avisados con sugerencia, 0 avisos en las muestras ({len(_ruido)} ruido)")
+    _R5.aplicar_numeros({"numeros": "es"})
+    _n5 = (_R5.cuenta_up(0, 1240, 9, 0), _R5.cuenta_up(0, 4.8, 9, 0))
+    _R5.aplicar_numeros({})
+    check(_n5 == ("1.240", "4,8") and _R5.cuenta_up(0, 1240, 9, 0) == "1,240",
+          f"\"numeros\": \"es\" separa 1.240 y 4,8 (default 1,240) ({_n5})")
+except Exception as ex:
+    check(False, f"plan de agente de punta a punta: {type(ex).__name__}: {ex}")
+
 # 6. nuevos módulos de post-producción (smoke tests con datos sintéticos)
 sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 try:

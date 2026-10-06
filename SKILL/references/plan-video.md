@@ -46,6 +46,13 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
   contenido esencial, el render falla en < 1 s diciendo escena, campo y un
   ejemplo completo para copiar.
 - `"transicion": "mancha"` = barrido orgánico al entrar la escena.
+- **Cifras**: `"numeros": "es"` (1.240 · 4,8), `"en"` (default: 1,240 · 4.8),
+  `"fr"` o `{"miles": ".", "decimal": ","}` a nivel de plan: aplica a toda
+  cifra animada y a los precios que no fijen los suyos. Público hispano → `"es"`.
+- **Campos mal escritos**: el render y `medir_animacion --plan` avisan de todo
+  campo que la escena no lee, con la sugerencia más parecida (`pasos` →
+  `items`, `titulo` → `rotulo`): una escena que saldría vacía EN SILENCIO. El
+  esquema sale del propio código de cada escena. Comentarios: campos `_algo`.
 - `"respira": false` = apaga la respiración de cámara común (push-in lento +
   flotación) en esa escena; útil para una escena que debe quedar clavada
   (un dato que se lee quieto). Sin ese campo toda escena asentada respira.
