@@ -194,8 +194,14 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
             pops.append(round((i + 1) / fps, 2))
     tir_t = []   # un frame quieto entre dos que se mueven: salto o congelado de un frame
     for i in range(1, len(energia) - 1):
-        vec = (energia[i - 1] + energia[i + 1]) / 2
+        # movimiento a AMBOS lados (min, no promedio): un frame quieto antes de que
+        # algo arranque es el inicio de un movimiento, no un tirón
+        vec = min(energia[i - 1], energia[i + 1])
         if vec > 1.0 and energia[i] < 0.15 * vec:
+            tir_t.append(round((i + 1) / fps, 2))
+        # salto: UN frame con mucho más movimiento que sus dos vecinos (algo se
+        # teletransporta: p. ej. notificaciones que bajaban 170 px de golpe)
+        elif energia[i] > 2.0 and energia[i] > 4 * max(energia[i - 1], energia[i + 1]):
             tir_t.append(round((i + 1) / fps, 2))
     jerk = float(np.mean(np.abs(np.diff(energia, 2)))) / max(1e-6, float(np.mean(energia))) \
         if len(energia) > 2 else 0.0

@@ -359,8 +359,16 @@ try:
     movida = _cuadro(lambda d_: d_.rectangle([55, 100, 135, 180], fill=240))
     txt_a = _cuadro(lambda d_: d_.text((90, 160), "Hola", font=R.Ctx().fT(40, 800), fill=245, anchor="mm"))
     txt_b = _cuadro(lambda d_: d_.text((90, 160), "Hola", font=R.Ctx().fT(43.2, 800), fill=245, anchor="mm"))
+    def _seq(salto_en=None):   # caja que se mueve 3 px/frame; opcionalmente se teletransporta
+        xs, x_ = [], 20
+        for i_ in range(14):
+            x_ += 60 if i_ == salto_en else 3
+            xs.append(_cuadro(lambda d_, x0=x_: d_.rectangle([x0, 100, x0 + 60, 160], fill=240)))
+        return _np.stack(xs)
     casos = {"aparece de golpe = pop": _pop(vacio, caja), "se mueve 30 px = no": not _pop(caja, movida),
-             "escala 8 % = no": not _pop(txt_a, txt_b)}
+             "escala 8 % = no": not _pop(txt_a, txt_b),
+             "movimiento parejo = sin tirones": _MA.metricas(_seq(), 30, 14 / 30 + 1)["tirones"] == 0,
+             "teletransporte = salto": _MA.metricas(_seq(7), 30, 14 / 30 + 1)["tirones"] >= 1}
     check(all(casos.values()), f"detector de pops calibrado ({casos})")
 except Exception as ex:
     check(False, f"detector de pops: {ex}")

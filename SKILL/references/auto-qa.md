@@ -35,6 +35,21 @@ formato, con nota 0–100. Es el banco de la mejora recursiva: toda mejora se
 mide contra `metricas/historial.jsonl` y se queda solo si sube la nota sin
 romper `validate_skill.py`. Un pop se diagnostica con
 `--ver escena:v|h:segundo` (par de frames con los bloques abruptos marcados).
+`--plan plan.json` mide un plan entero (cortes incluidos) y `--video x.mp4`
+cualquier video ya renderizado, a su propio fps.
+
+Qué mide cada número (calibrado con casos sintéticos en `validate_skill.py`):
+- **pop**: en un frame, ≥ 35 % de los bloques que cambian de golpe no tienen
+  origen cerca en el frame anterior (ni exacto ni suavizado). Lo que aparece
+  deja casi todo sin origen; lo que se mueve o escala, solo su borde. Las
+  cifras que cuentan quedan exentas (cambian por diseño).
+- **tirones**: un frame quieto entre dos que se mueven (corte o salto de un
+  frame) o un frame que se mueve 4× más que sus dos vecinos (teletransporte).
+- **muerto**: % del hold con quietud SOSTENIDA (≥ 0.5 s bajo el umbral de
+  auto_qa); el punto de giro de una flotación no cuenta.
+- **densidad**: eventos de movimiento por segundo (doctrina: 0.5–2).
+- **letra**: tamaño mínimo de texto ya asentado (≥ 26 px sobre 1080).
+- **zona**: factor de `escala_segura` (1 = compuesta dentro de la zona segura).
 Causas que encontró (y su fix en la primitiva): ease aplicado dos veces
 (cursor a 85 px/frame), resorte en barras de datos (rebota por encima del
 valor), cifras proporcionales al contar (tiemblan de lado), texto que entra
