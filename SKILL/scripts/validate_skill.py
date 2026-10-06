@@ -648,6 +648,49 @@ try:
 except Exception as ex:
     check(False, f"sincronía con la música: {type(ex).__name__}: {ex}")
 
+# 5f. delivery_check (el veredicto en que confía el agente antes de entregar),
+#     contra el spec de _delivery.py con archivos sintéticos de propiedades
+#     conocidas: cada fila falla por SU causa y propone su arreglo
+try:
+    sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
+    import delivery_check as _DC
+    _d8 = tempfile.mkdtemp(prefix="editoria_entrega_")
+
+    def _fixture(nombre, tam, pix="yuv420p", audio="loudnorm=I=-14:TP=-2"):
+        ruta = os.path.join(_d8, nombre)
+        cmd = ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc2=s={tam}:d=2:r=30"]
+        if audio:
+            cmd += ["-f", "lavfi", "-i", "sine=f=330:d=2:sample_rate=48000", "-af", audio, "-shortest"]
+        subprocess.run(cmd + ["-c:v", "libx264", "-pix_fmt", pix, "-c:a", "aac", ruta], check=True)
+        return ruta
+    def _filas(r):
+        return {f_["row"]: f_ for f_ in r["rows"]}
+    _ok8 = _DC.check_file(_fixture("ok.mp4", "1080x1920"), "reels")
+    _bajo8 = _DC.check_file(_fixture("bajo.mp4", "1080x1920", audio="volume=0.01"), "reels")
+    _h8 = _DC.check_file(_fixture("h.mp4", "1920x1080"), "reels")
+    _mudo8 = _DC.check_file(_fixture("mudo.mp4", "1080x1920", audio=None), "reels")
+    _444 = _DC.check_file(_fixture("p444.mp4", "1080x1920", pix="yuv444p"), "reels")
+    try:
+        _DC.check_file(os.path.join(_d8, "ok.mp4"), "plataforma_que_no_existe")
+        _desc8 = False
+    except SystemExit:
+        _desc8 = True
+    _casos8 = {
+        "conforme = PASS": _ok8["verdict"] == "PASS",
+        "audio bajo = loudness FAIL con su arreglo": _filas(_bajo8)["loudness"]["status"] == "FAIL"
+        and "loudness.py" in _filas(_bajo8)["loudness"]["fix"],
+        "16:9 en reels = aspecto FAIL": _filas(_h8)["aspecto"]["status"] == "FAIL",
+        "sin audio = WARN": _mudo8["verdict"] == "WARN" and _filas(_mudo8)["audio"]["status"] == "WARN",
+        "yuv444p = pixel format FAIL": _filas(_444)["pixel format"]["status"] == "FAIL",
+        "plataforma desconocida = error claro": _desc8,
+    }
+    check(all(_casos8.values()), f"delivery_check: cada fila falla por su causa "
+                                 f"({', '.join(k_ for k_, v_ in _casos8.items() if not v_) or 'todas'})")
+    import shutil as _sh8
+    _sh8.rmtree(_d8, ignore_errors=True)
+except Exception as ex:
+    check(False, f"delivery_check: {type(ex).__name__}: {ex}")
+
 # 6. nuevos módulos de post-producción (smoke tests con datos sintéticos)
 sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 try:

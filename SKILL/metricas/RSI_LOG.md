@@ -209,3 +209,24 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
 - **Proceso**: para cambios de rendimiento en el render, declarar la
   tolerancia de imagen en términos de lo visible (PNG pre-codificación, PSNR)
   y no solo «bit a bit/≤1», porque el reordenamiento de flotantes es inevitable.
+
+### Ciclo 7 — CONSERVADO · cobertura: pruebas de `delivery_check` (criterio MoviePy)
+- **Hipótesis**: `delivery_check` es el veredicto en que confía el agente antes
+  de entregar y tenía 19 % de cobertura (ningún chequeo lo probaba). Pruebas
+  legítimas contra el spec de `_delivery.py`, con archivos sintéticos de
+  propiedades conocidas, suben su cobertura y pueden encontrar errores.
+- **Medida (definida antes)**: cobertura del módulo 19 % → ≥ 50 %; total ≥ +0.3 pp
+  (medido antes y después con el MISMO comando, sobre el commit anterior y el
+  nuevo); suite en verde; un error encontrado iría en su propio ciclo.
+- **Pruebas añadidas** (comportamiento del spec, no salida copiada): conforme →
+  PASS; audio bajo → loudness FAIL con su arreglo (`loudness.py`); 16:9 en reels →
+  aspecto FAIL; sin audio → WARN; yuv444p → pixel format FAIL; plataforma
+  desconocida → error claro. Ninguna encontró un defecto.
+- **Resultado**: `delivery_check` **19 % → 63 %**; total **53.93 % → 54.64 %
+  (+0.71 pp)**; suite 293 → 294 OK, 0 FAIL; ruff 346 = base (tras cambiar un
+  `lambda` asignado mío por `def`); bandit LOW 138 → 139 (subprocess en la
+  prueba); demás iguales. Banco no corrido: solo cambia la suite.
+- **Error de medición propio (corregido)**: `rm -f .coverage*` borró también
+  `.coveragerc` y la primera corrida falló; se reescribió como script con su
+  carpeta por etiqueta (configuración y datos aparte). La línea base total de
+  52 % era de e70fe4a; para comparar se re-midió el commit previo (53.93 %).
