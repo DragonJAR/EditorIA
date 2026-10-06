@@ -51,6 +51,62 @@ def ajustar(t, beats, ventana_s):
     return round(t, 3), None, 0.0
 
 
+def _cerca(t, rejilla):
+    """El punto de la rejilla (ordenada) más cercano a t."""
+    import bisect
+    i = bisect.bisect_left(rejilla, t)
+    cand = [rejilla[j] for j in (i - 1, i) if 0 <= j < len(rejilla)]
+    return min(cand, key=lambda b: abs(b - t)) if cand else t
+
+
+def sincronizar_escenas(escenas, grid, duracion):
+    """Edición al ritmo de la música, sobre escenas ya completas (con `at`):
+    - cada CORTE entre escenas cae en el "uno" del compás más cercano si está
+      a ≤ 1 beat; si no, en el beat más cercano (el inicio y el final del
+      video no se tocan);
+    - cada ENTRADA (todo número bajo una clave `at`, también dentro de listas
+      de mensajes, pasos o notificaciones) cae en el medio beat más cercano:
+      corcheas, no negras, para no fundir entradas escalonadas en un mismo
+      golpe. El orden se conserva y toda entrada queda dentro de su escena.
+    Devuelve (escenas nuevas, informe {cortes, entradas, desvio_max})."""
+    beat = 60.0 / grid["bpm"]
+    b0 = grid["beat0"]
+    c0 = grid.get("compas0", b0)
+    n = int((duracion - b0) / beat) + 2
+    beats = [b0 + i * beat for i in range(-1, n)]
+    medios = [b0 + i * beat / 2 for i in range(-2, 2 * n)]
+    compases = [c0 + i * 4 * beat for i in range(-1, n // 4 + 2)]
+    escenas = sorted((dict(e) for e in escenas), key=lambda e: e["from"])
+    # cortes: el mismo instante para el `to` de una y el `from` de la siguiente
+    cortes = sorted({round(e["from"], 3) for e in escenas[1:]})
+    mapa = {}
+    for t in cortes:
+        uno = _cerca(t, compases)
+        nuevo = uno if abs(uno - t) <= beat else _cerca(t, beats)
+        mapa[t] = round(nuevo, 3)
+    for e in escenas:
+        for k in ("from", "to"):
+            e[k] = mapa.get(round(e[k], 3), e[k])
+    desvio = [abs(mapa[t] - t) for t in cortes]
+    entradas = [0]
+
+    def ajustar_at(nodo, e, es_at=False):
+        if isinstance(nodo, dict):
+            return {k: ajustar_at(v, e, es_at or k == "at") for k, v in nodo.items()}
+        if isinstance(nodo, list):
+            return [ajustar_at(v, e, es_at) for v in nodo]
+        if es_at and isinstance(nodo, (int, float)) and not isinstance(nodo, bool):
+            t = min(max(_cerca(nodo, medios), e["from"]), e["to"] - 0.05)
+            desvio.append(abs(t - nodo))
+            entradas[0] += 1
+            return round(t, 3)
+        return nodo
+    escenas = [dict(ajustar_at({k: v for k, v in e.items() if k not in ("from", "to")}, e),
+                    **{"from": e["from"], "to": e["to"]}) for e in escenas]
+    return escenas, {"cortes": len(cortes), "entradas": entradas[0], "bpm": grid["bpm"],
+                     "desvio_max": round(max(desvio, default=0.0), 3)}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)

@@ -11,7 +11,11 @@ marca K donde hay kick en cada beat y nivel RMS del compás.
 El BPM/BEAT0 resultantes sirven para alinear cortes, zooms y captions
 con el ritmo de la música en el video.
 
-Requiere: ffmpeg, numpy, scipy.
+Importable: analizar(ruta) → {bpm, beat0, compas0, duracion, compases}
+(render_plan lo usa con "musica" en el plan). compas0 = primer tiempo
+fuerte (el "uno" del compás: la fase de 4 con más kick).
+
+Requiere: ffmpeg, numpy.
 """
 import argparse
 import json
@@ -21,9 +25,18 @@ from pathlib import Path
 
 try:
     import numpy as np
-    from scipy.ndimage import maximum_filter1d
 except ImportError:
-    sys.exit("Falta numpy o scipy: python -m pip install numpy scipy")
+    sys.exit("Falta numpy: python -m pip install numpy")
+
+
+def maximum_filter1d(x, k):
+    """Máximo local centrado de ancho k (lo que se usaba de scipy, en numpy)."""
+    x = np.asarray(x, dtype=np.float64)
+    if k <= 1 or len(x) == 0:
+        return x
+    m = k // 2
+    pad = np.pad(x, (m, k - 1 - m), mode="edge")
+    return np.lib.stride_tricks.sliding_window_view(pad, k).max(axis=1)
 
 SR = 11025
 HOP = 128
@@ -66,55 +79,58 @@ def ajustar_rejilla(env, dur, min_bpm, max_bpm):
     return mejor[1], mejor[2]
 
 
+def analizar(ruta, min_bpm=90, max_bpm=140):
+    """Rejilla de la música: bpm, beat0 (primer beat), compas0 (primer tiempo
+    fuerte: de las 4 fases del compás, la de más kick) y compases con su
+    marca de kicks y nivel. Sin efectos de consola: la usa render_plan."""
+    banda_completa = decodificar(ruta, "anull")
+    banda_baja = decodificar(ruta, "lowpass=f=150,lowpass=f=150")
+    dur = len(banda_completa) / SR
+    on_baja, on_full, rms = onset(banda_baja), onset(banda_completa), rms_por_frame(banda_completa)
+    n = min(len(on_baja), len(on_full))
+    env = maximum_filter1d(
+        on_baja[:n] / (on_baja.max() + 1e-9) + 0.5 * on_full[:n] / (on_full.max() + 1e-9), 3)
+    bpm, b0 = ajustar_rejilla(env, dur, min_bpm, max_bpm)
+    beat = 60 / bpm
+    nb = max(1, int((dur - b0) / beat))
+    lo = maximum_filter1d(on_baja, 5)
+    kick = np.array([lo[min(len(lo) - 1, int(round((b0 + i * beat) * FPS)))] for i in range(nb)])
+    fase = int(np.argmax([kick[f::4].mean() if len(kick[f::4]) else 0 for f in range(4)]))
+    c0 = b0 + fase * beat
+    umbral = np.percentile(kick, 70) * 0.4
+    compases = []
+    for c in range((nb - fase) // 4):
+        ks = kick[fase + c * 4: fase + c * 4 + 4]
+        t = c0 + c * 4 * beat
+        i0_, i1_ = int(t * FPS), int((t + 4 * beat) * FPS)
+        db = 20 * np.log10(rms[i0_:i1_].mean() + 1e-9)
+        compases.append({"compas": c, "t": round(t, 3), "kick": "".join("K" if k > umbral else "." for k in ks),
+                         "db": round(float(db), 1)})
+    return {"bpm": round(float(bpm), 2), "beat0": round(float(b0), 3), "compas0": round(float(c0), 3),
+            "duracion": round(dur, 2), "compases": compases}
+
+
 def main():
     ap = argparse.ArgumentParser(
-        description="Estima BPM, fase (beat0) y energía/kick por compás de un MP3.",
+        description="Estima BPM, fase (beat0), primer tiempo fuerte y energía/kick por compás de un MP3.",
         epilog="Ejemplo: python3 beat_grid.py musica.mp3 --min-bpm 90 --max-bpm 140",
     )
     ap.add_argument("archivo", help="archivo de música (mp3, wav, ...)")
     ap.add_argument("--min-bpm", type=float, default=90, help="BPM mínimo a buscar (def: 90)")
     ap.add_argument("--max-bpm", type=float, default=140, help="BPM máximo a buscar (def: 140)")
     ap.add_argument("--json", dest="salida_json", default=None,
-                    help="guarda {bpm, beat0, duracion, compases} en este archivo JSON")
+                    help="guarda {bpm, beat0, compas0, duracion, compases} en este archivo JSON")
     a = ap.parse_args()
-
     if not Path(a.archivo).is_file():
         sys.exit(f"No existe el archivo: {a.archivo}")
-
-    banda_completa = decodificar(a.archivo, "anull")
-    banda_baja = decodificar(a.archivo, "lowpass=f=150,lowpass=f=150")
-    dur = len(banda_completa) / SR
-    on_baja, on_full, rms = onset(banda_baja), onset(banda_completa), rms_por_frame(banda_completa)
-    n = min(len(on_baja), len(on_full))
-    env = maximum_filter1d(
-        on_baja[:n] / (on_baja.max() + 1e-9) + 0.5 * on_full[:n] / (on_full.max() + 1e-9), 3)
-
-    bpm, b0 = ajustar_rejilla(env, dur, a.min_bpm, a.max_bpm)
-    beat = 60 / bpm
-    print(f"OK {a.archivo}\n duración {dur:.2f}s  rejilla: BPM {bpm:.2f} · BEAT0 {b0:.3f}s")
-
-    nb = int((dur - b0) / beat)
-    lo = maximum_filter1d(on_baja, 5)
-    kick = np.array([lo[min(len(lo) - 1, int(round((b0 + i * beat) * FPS)))] for i in range(nb)])
-    umbral = np.percentile(kick, 70) * 0.4
-    compases = []
-    for c in range(nb // 4):
-        ks = kick[c * 4: c * 4 + 4]
-        t = b0 + c * 4 * beat
-        i0, i1 = int(t * FPS), int((t + 4 * beat) * FPS)
-        db = 20 * np.log10(rms[i0:i1].mean() + 1e-9)
-        marcas = "".join("K" if k > umbral else "." for k in ks)
-        compases.append({"compas": c, "t": round(t, 2), "kick": marcas, "db": round(float(db), 1)})
-        barra = "#" * max(0, int(db + 40))
-        print(f" compás {c:3d} {t:7.2f}s  {marcas}  {db:6.1f} dB  {barra}")
-
+    g = analizar(a.archivo, a.min_bpm, a.max_bpm)
+    print(f"OK {a.archivo}\n duración {g['duracion']:.2f}s  rejilla: BPM {g['bpm']:.2f} · "
+          f"BEAT0 {g['beat0']:.3f}s · primer tiempo fuerte {g['compas0']:.3f}s")
+    for c in g["compases"]:
+        print(f" compás {c['compas']:3d} {c['t']:7.2f}s  {c['kick']}  {c['db']:6.1f} dB  {'#' * max(0, int(c['db'] + 40))}")
     print("Usa BPM y BEAT0 para alinear cortes, zooms y captions con la música.")
     if a.salida_json:
-        Path(a.salida_json).write_text(
-            json.dumps({"bpm": round(bpm, 2), "beat0": round(b0, 3),
-                        "duracion": round(dur, 2), "compases": compases},
-                       indent=2, ensure_ascii=False),
-            encoding="utf-8")
+        Path(a.salida_json).write_text(json.dumps(g, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"OK rejilla guardada en {a.salida_json}")
 
 
