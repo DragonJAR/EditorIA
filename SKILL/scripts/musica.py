@@ -8,9 +8,10 @@ El mix aplica ducking (sidechain): la música baja cuando hay voz en off,
 para que la cadencia respire con la narración. La key sale de
 $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
-import os, sys, argparse, subprocess, requests
+import os, sys, argparse, subprocess
 
 def gen(prompt,dur,out):
+    import requests   # solo gen usa la red: mezclar no depende de requests
     key=os.environ.get("ELEVENLABS_API_KEY")
     if not key: sys.exit("Falta ELEVENLABS_API_KEY en el entorno")
     r=requests.post("https://api.elevenlabs.io/v1/music",

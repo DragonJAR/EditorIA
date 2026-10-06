@@ -159,3 +159,26 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
   repetir la suite completa.
 - **Proceso**: medir el criterio de cortes exigió un plan sin voz; los criterios
   de éxito deben declarar de qué plan dependen.
+
+### Ciclo 5 — CONSERVADO · el entregable lleva la música con la que se editó
+- **Hipótesis**: con `"musica"` el render salía MUDO: la sincronía del ciclo 4 no
+  se oía hasta mezclar a mano. Si el plan no tiene voz ni es overlay con alfa,
+  el render mezcla esa música (reutiliza `musica.mix_music_only`).
+- **Medida (definida antes)**: el MP4 tiene audio; audio = video ±0.05 s; pasa
+  `delivery_check` (loudness y true peak); imagen idéntica bit a bit; sin
+  temporales.
+- **Iteraciones dentro del ciclo** (cada una por un criterio medido en falla):
+  1. mezcla sola: −18.1 LUFS → falla loudness. Se extrae `loudness.normalizar()`
+     de la CLI (una implementación para CLI y render) y se normaliza a −14.
+  2. audio 30.1 s vs video 30.0 s (loudnorm + AAC) y true peak −1.0 justo en el
+     límite → `normalizar(duracion=…)` recorta el audio; techo −1.5 dBTP.
+  3. ruff +1 (dos sentencias en una línea, mía) → corregido; 346 = base.
+- **Resultado** (`demo_plan` sin voz + `musica_demo`): audio 30.000 = video
+  30.000; −13.9 LUFS / −1.5 dBTP: **Reels PASS, YouTube PASS**; MD5 del stream de
+  video idéntico al de los mismos frames sin audio; sin temporales. Suite 293 OK
+  (+1: render real con música → audio del largo del video y −14.5 LUFS ±1);
+  banco 99.35/96.9 idéntico; bandit LOW 135 → 138 (subprocesos en la suite; LOW
+  fuera de umbral); docstrings 53.9 → 54.0. `musica.py` ya no importa `requests`
+  al cargar (solo `gen` usa la red).
+- **Proceso**: comparar ruff contra la línea base REAL (346), no contra la
+  medición intermedia del ciclo anterior (348, tomada antes de su corrección).

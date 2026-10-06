@@ -54,7 +54,10 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
   compás) y, en la puerta única del render, lleva cada entrada (`at`) al medio
   beat más cercano y cada corte entre escenas al «uno» del compás (si está a
   ≤ 1 beat; si no, al beat). Con voz en off solo se ajustan las entradas (la
-  voz va por los tiempos originales). `"ritmo": false` lo apaga.
+  voz va por los tiempos originales). `"ritmo": false` lo apaga. Sin voz,
+  el MP4 sale con esa misma música, recortada al largo del video y normalizada
+  a -14 LUFS / -1.5 dBTP (pasa `delivery_check` de Reels y YouTube); con voz,
+  la mezcla con ducking es `scripts/musica.py mix`.
   `medir_animacion --plan` imprime la SINCRONÍA: % de entradas en medio beat
   y de cortes en el uno, frente al azar.
 - **Subtítulos quemados**: `"subtitulos": true` reserva una banda abajo (12 %

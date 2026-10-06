@@ -2574,6 +2574,20 @@ def render(plan_path,plan,out,a):
     res=codificar_frames(f"{tmpd}/f_%04d.png", fps, out, crf=20)
     if res.get("alfa"):
         print(f"  alfa verificado: el frame central decodifica {res['transparente']:.0%} transparente",flush=True)
+    # la música con la que se editó al ritmo va en el entregable (sin voz y sin
+    # alfa; con voz en off la mezcla con ducking es musica.py mix)
+    if plan.get("musica") and not ALFA and not any(e.get("voz") for e in escenas):
+        import musica
+        from loudness import normalizar
+        ext=os.path.splitext(out)[1]
+        mezcla,final=f"{out}.mezcla{ext}",f"{out}.final{ext}"
+        musica.mix_music_only(out,plan["musica"],mezcla)
+        # -14 LUFS (lo que esperan las plataformas) con techo -1.5 dBTP: el AAC
+        # suma sobrepico tras loudnorm y a -1.0 quedaba justo en el límite
+        nivel=normalizar(mezcla,final,lufs=-14.0,tp=-1.5,duracion=dur)
+        os.replace(final,out)
+        os.remove(mezcla)
+        print(f"  música mezclada y normalizada: {float(nivel['input_i']):.1f} LUFS",flush=True)
     print("OK",out)
 
 MEDIOS=("imagen","captura","musica")   # campos del plan que apuntan a un archivo

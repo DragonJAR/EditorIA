@@ -543,6 +543,22 @@ try:
                     os.path.join(_d5, "e2e.mp4"), "--fps", "10", "--jobs", "2"], capture_output=True, text=True)
     check(_r5.returncode == 0 and os.path.isfile(os.path.join(_d5, "e2e.mp4")),
           f"render real multiproceso de un plan sin `at` ({(_r5.stderr or 'ok').strip().splitlines()[-1][:90]})")
+    # con "musica" (sin voz) el entregable lleva esa música, del largo exacto del
+    # video y normalizada a -14 LUFS (antes salía mudo: la sincronía no se oía)
+    _p5m = os.path.join(_d5, "plan_musica.json")
+    json.dump(dict(json.load(open(_p5, encoding="utf-8")),
+                   musica=os.path.join(BASE, "film", "musica_demo.mp3")), open(_p5m, "w", encoding="utf-8"))
+    _v5m = os.path.join(_d5, "e2e_musica.mp4")
+    _r5m = _sp5.run([sys.executable, os.path.join(BASE, "scripts", "render_plan.py"), _p5m, "-o", _v5m,
+                     "--fps", "10", "--jobs", "2"], capture_output=True, text=True)
+    _dur5 = _sp5.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "csv=p=0",
+                      _v5m], capture_output=True, text=True).stdout.split()
+    _ds5 = {l_.split(",")[0]: float(l_.split(",")[1]) for l_ in _dur5 if "," in l_}
+    import loudness as _LN5
+    _lufs5 = float(_LN5.measure(_v5m, -14, -1.5, 11)["input_i"]) if "audio" in _ds5 else None
+    check(_r5m.returncode == 0 and "audio" in _ds5 and abs(_ds5["audio"] - _ds5["video"]) <= 0.05
+          and abs(_lufs5 + 14) <= 1.0,
+          f"plan con \"musica\": el MP4 sale con ella, del largo del video y a -14 LUFS ({_ds5}, {_lufs5} LUFS)")
     import render_plan as _R5
     _m5 = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
     _ruido = [a_ for t_, e_ in _m5.items() for a_ in _R5.avisos_de_campos(dict(e_, tipo=t_))]

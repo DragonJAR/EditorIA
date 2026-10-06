@@ -47,6 +47,35 @@ def measure(path, I, tp, lra):
     return data
 
 
+def normalizar(entrada, salida, lufs=-14.0, tp=-1.0, lra=11.0, bitrate="192k", sample_rate=None, stats=None,
+               duracion=None):
+    """Normaliza en dos pasadas (mide → loudnorm lineal) de `entrada` a `salida`;
+    el video se copia intacto. `duracion` recorta el audio a ese largo
+    (loudnorm + AAC agregan ~0.1 s: el audio no debe pasar al video).
+    Devuelve la medición del resultado. Una sola implementación para la CLI
+    y para render_plan (música del entregable)."""
+    meta = probe(entrada)
+    stats = stats or measure(entrada, lufs, tp, lra)
+    af = (f"loudnorm=I={lufs}:TP={tp}:LRA={lra}"
+          f":measured_I={stats['input_i']}:measured_TP={stats['input_tp']}:measured_LRA={stats['input_lra']}"
+          f":measured_thresh={stats['input_thresh']}:offset={stats['target_offset']}:linear=true:print_format=summary")
+    if duracion:
+        af += f",atrim=0:{duracion:.3f}"
+    sr = sample_rate or meta["audio"].get("sample_rate") or 48000
+    ext = os.path.splitext(salida)[1].lower()
+    cmd = ffmpeg_base() + ["-i", entrada, "-af", af, "-ar", str(sr)]
+    if duracion:
+        cmd += ["-t", f"{duracion:.3f}"]
+    if ext in AUDIO_CODECS or not meta.get("video"):
+        cmd += ["-vn"] + audio_codec_for(salida, bitrate)
+    else:
+        cmd += ["-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy",
+                "-c:a", "aac", "-b:a", bitrate]
+    cmd.append(salida)
+    run(cmd)
+    return measure(salida, lufs, tp, lra)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -95,21 +124,8 @@ def main():
         return 0
 
     output = args.output or default_output(args.input, "loudnorm")
-    af = (f"loudnorm=I={args.lufs}:TP={args.tp}:LRA={args.lra}"
-          f":measured_I={stats['input_i']}:measured_TP={stats['input_tp']}:measured_LRA={stats['input_lra']}"
-          f":measured_thresh={stats['input_thresh']}:offset={stats['target_offset']}:linear=true:print_format=summary")
-    sr = args.sample_rate or meta["audio"].get("sample_rate") or 48000
-    ext = os.path.splitext(output)[1].lower()
-    cmd = ffmpeg_base() + ["-i", args.input, "-af", af, "-ar", str(sr)]
-    if ext in AUDIO_CODECS or not meta.get("video"):
-        cmd += ["-vn"] + audio_codec_for(output, args.audio_bitrate)
-    else:
-        cmd += ["-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy",
-                "-c:a", "aac", "-b:a", args.audio_bitrate]
-    cmd.append(output)
-    run(cmd)
-
-    after = measure(output, args.lufs, args.tp, args.lra)
+    after = normalizar(args.input, output, args.lufs, args.tp, args.lra,
+                       args.audio_bitrate, args.sample_rate, stats=stats)
     if not after.get("silent"):
         info(f"resultado: {float(after['input_i']):.1f} LUFS, "
              f"TP {float(after['input_tp']):.1f} dBTP (objetivo {args.lufs} LUFS)")
