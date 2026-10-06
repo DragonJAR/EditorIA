@@ -212,6 +212,9 @@ def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=44):
     al=int(255*clamp01(k*1.5))
     d=ImageDraw.Draw(layer)
     sg=segs(texto); fnt=ctx.fX(tam,700)
+    zx0,_,zx1,_=caja_segura()   # el rótulo cabe en la zona segura: encoge, nunca se sale
+    while tam>26 and seg_width(sg,fnt)>(zx1-zx0)-20:
+        tam-=2; fnt=ctx.fX(tam,700)
     yy=(y or H*0.30)+(1-min(1,k))*24
     draw_seg(d,(W/2,yy),sg,fnt,color+(al,),ACENTO+(al,),anchor="ma")
     return k
@@ -347,7 +350,7 @@ def pie_fuente(ctx, d, e, t, t_def):
     if e.get("fuente") and t >= e.get("at", {}).get("fuente", t_def):
         x0, _, x1, y1 = caja_segura()
         txt = f"Fuente: {e['fuente']}"
-        d.text((W / 2, y1 - 24), txt, font=fuente_que_cabe(ctx.fX, txt, 24, x1 - x0, 400),
+        d.text((W / 2, y1 - 24), txt, font=fuente_que_cabe(ctx.fX, txt, 28, x1 - x0, 400, minimo=26),
                fill=GRIS, anchor="mb")
 
 
@@ -687,10 +690,12 @@ def sc_canales(ctx,e,t):
         k2=spring(t,c["at"],130,15)
         if k2<=0: continue
         ang=[-1,0,1][i] if i<3 else 0
-        sx,sy=W/2+ang*W*0.3,H*0.68
+        zx0,_,zx1,_=caja_segura()
+        abre=min(unidad()*0.3,(zx1-zx0-300)/2)   # recorrido en unidad() y dentro de la zona segura
+        sx,sy=W/2+ang*abre,H*0.68
         fy=H*0.58-120+i*150
         x=lerp(sx,W/2,junta); y=lerp(sy,fy,junta)
-        w=lerp(300,880,junta); h=124
+        w=lerp(300,min(880,zx1-zx0),junta); h=124
         sc2=k2
         ww,hh=int(w*sc2),int(h*sc2)
         if ww<10: continue
@@ -771,12 +776,14 @@ def sc_chat(ctx,e,t):
     at=e.get("at",{}); t_rot=at.get("rotulo",e["from"])
     rotulo(ctx,layer,t,e.get("rotulo",""),t_rot,y=H*0.20)
     fnt=ctx.fX(32,400); GAP=36; ALTO_ESC=84
+    zx0,_,zx1,_=caja_segura()   # burbujas ancladas a los bordes de la zona segura
+    ancho_burbuja=min(680,(zx1-zx0)*0.82)
     msgs=[]; reloj=t_rot+0.4
     for m in e.get("mensajes",[]):
         ia=m.get("de")!="cliente"
         esc=m.get("escribe",0.7 if ia else 0.0)
         tm=m["at"] if "at" in m else reloj+m.get("pausa",0.6)+esc
-        lineas=wrap(m.get("texto",""),fnt,680,ctx.tmp)
+        lineas=wrap(m.get("texto",""),fnt,ancho_burbuja,ctx.tmp)
         tw=max(ctx.tmp.textlength(l,font=fnt) for l in lineas)+70
         msgs.append({"ia":ia,"at":tm,"esc":esc,"lineas":lineas,"tw":tw,
                      "hh":len(lineas)*52+44})
@@ -794,11 +801,14 @@ def sc_chat(ctx,e,t):
             alto+=(ALTO_ESC+GAP)*min(1,ke)*(1-min(1,k))
         alto+=(mm["hh"]+GAP)*min(1,max(0,k))
     lk=e.get("link")
-    limite=H*0.70 if lk and t>=lk.get("at",1e9)-0.4 else H-SAFE["bottom"]-20
+    # al acercarse el link, el hilo sube con suavidad (antes el límite cambiaba en
+    # un escalón y toda la conversación saltaba ~30 px en un frame)
+    kl=smoothstep(clamp01((t-(lk.get("at",1e9)-0.4))/0.35)) if lk else 0.0
+    limite=lerp(H-SAFE["bottom"]-20,H*0.70,kl)
     y=y0-max(0.0,y0+alto-limite)
     for mm in msgs:
         k=spring(t,mm["at"],140,15)
-        lado_x=lambda w_: 90 if not mm["ia"] else W-90-w_
+        lado_x=lambda w_: zx0+12 if not mm["ia"] else zx1-12-w_
         visible=clamp01((y-H*0.24)/80)          # se desvanece bajo el rótulo
         if escribiendo(mm) and k<1:
             ke=min(1,spring(t,mm["at"]-mm["esc"],160,16))*(1-min(1,k))
@@ -827,10 +837,12 @@ def sc_chat(ctx,e,t):
         y+=(hh+GAP)*min(1,k)
     if lk and t>=lk.get("at",1e9):
         k=spring(t,lk["at"],120,14)
-        cw,chh=760,150; x=(W-cw)/2; yy=H*0.72
-        d.rounded_rectangle([x,yy,x+cw,yy+chh],radius=28,fill=ACENTO+(int(235*min(1,k)),))
-        d.text((x+40,yy+34),lk.get("titulo",""),font=ctx.fX(34,800),fill=BLANCO)
-        d.text((x+40,yy+84),lk.get("monto",""),font=ctx.fT(44,800),fill=BLANCO)
+        cw,chh=min(760,zx1-zx0),150; x=(W-cw)/2
+        yy=min(H*0.72,caja_segura()[3]-chh-10)+(1-min(1,k))*24   # sobre la UI de la plataforma
+        ak=int(255*clamp01(k*1.4))   # la tarjeta y su texto entran juntos
+        d.rounded_rectangle([x,yy,x+cw,yy+chh],radius=28,fill=ACENTO+(int(235*ak/255),))
+        d.text((x+40,yy+34),lk.get("titulo",""),font=ctx.fX(34,800),fill=BLANCO+(ak,))
+        d.text((x+40,yy+84),lk.get("monto",""),font=ctx.fT(44,800),fill=BLANCO+(ak,))
     return capa_salida(layer,t,e["to"])
 
 def sc_leads(ctx,e,t):
@@ -846,20 +858,24 @@ def sc_leads(ctx,e,t):
         if k<=0: continue
         sub,ds=grupo()   # la fila entera entra junta (tarjeta, avatar, textos, barra)
         yy=y0+i*128
-        tarjeta(ctx,sub,90,yy,W-180,112)
+        zx0,_,zx1,_=caja_segura()   # compuesta DENTRO de la zona segura: no se encoge
+        tarjeta(ctx,sub,zx0,yy,zx1-zx0,112)
         if f["temp"] in at and t>=at[f["temp"]]:   # el resaltado se enciende fundido, no de golpe
             ah=int(255*smoothstep(clamp01((t-at[f["temp"]])/0.2)))
-            ds.rounded_rectangle([90,yy,W-90,yy+112],radius=28,outline=colores_temp[f["temp"]]+(ah,),width=4)
-        ds.ellipse([120,yy+24,184,yy+88],fill=colores_temp[f["temp"]]+(255,))
-        ds.text((152,yy+56),f["nombre"][0],font=ctx.fT(36,800),fill=BLANCO,anchor="mm")
-        ds.text((210,yy+24),f["nombre"],font=ctx.fX(32,800),fill=BLANCO)
-        ds.text((210,yy+62),f["etapa"],font=ctx.fX(26,400),fill=GRIS)
+            ds.rounded_rectangle([zx0,yy,zx1,yy+112],radius=28,outline=colores_temp[f["temp"]]+(ah,),width=4)
+        ds.ellipse([zx0+24,yy+24,zx0+88,yy+88],fill=colores_temp[f["temp"]]+(255,))
+        ds.text((zx0+56,yy+56),f["nombre"][0],font=ctx.fT(36,800),fill=BLANCO,anchor="mm")
+        bmax=min(260,(zx1-zx0)*0.32)   # barra de puntaje a la derecha, el texto se ajusta al resto
+        ancho_txt=(zx1-zx0)-bmax-150
+        ds.text((zx0+112,yy+24),f["nombre"],font=fuente_que_cabe(ctx.fX,f["nombre"],32,ancho_txt,800),fill=BLANCO)
+        ds.text((zx0+112,yy+62),f["etapa"],font=fuente_que_cabe(ctx.fX,f["etapa"],26,ancho_txt,400),fill=GRIS)
         # barra de puntaje: crece sin rebote (un dato no se pasa de su valor)
-        bw=(f["puntaje"]/130)*260
-        ds.rounded_rectangle([W-420,yy+44,W-160,yy+68],radius=12,fill=(60,60,60,255))
+        bw=(f["puntaje"]/100)*bmax
+        bx=zx1-bmax-24
+        ds.rounded_rectangle([bx,yy+44,bx+bmax,yy+68],radius=12,fill=(60,60,60,255))
         g_=smoothstep(clamp01((t-(e["from"]+0.4+i*0.35))/0.8))
         if bw*g_>=24:
-            ds.rounded_rectangle([W-420,yy+44,W-420+bw*g_,yy+68],radius=12,fill=colores_temp[f["temp"]]+(255,))
+            ds.rounded_rectangle([bx,yy+44,bx+bw*g_,yy+68],radius=12,fill=colores_temp[f["temp"]]+(255,))
         fundir(layer,sub,k,dy=-50)
     return capa_salida(layer,t,e["to"])
 
@@ -870,21 +886,24 @@ def sc_handoff(ctx,e,t):
     k=spring(t,at["persona"],120,14)
     if k>0:   # la ficha entera entra junta
         sub,ds=grupo()
-        tarjeta(ctx,sub,110,H*0.30,W-220,220)
-        ds.ellipse([160,H*0.30+60,260,H*0.30+160],fill=ACENTO+(255,))
-        ds.text((210,H*0.30+110),e["iniciales"],font=ctx.fT(44,800),fill=BLANCO,anchor="mm")
-        ds.text((300,H*0.30+52),e["cliente"],font=ctx.fX(40,800),fill=BLANCO)
-        ds.text((300,H*0.30+102),e["temp"],font=ctx.fM(30,700),fill=(200,140,40))
-        ds.text((300,H*0.30+142),e["nota"],font=ctx.fX(28,400),fill=GRIS)
+        zx0,_,zx1,_=caja_segura()   # dentro de la zona segura: la letra conserva su tamaño
+        tarjeta(ctx,sub,zx0,H*0.30,zx1-zx0,220)
+        ds.ellipse([zx0+40,H*0.30+60,zx0+140,H*0.30+160],fill=ACENTO+(255,))
+        ds.text((zx0+90,H*0.30+110),e["iniciales"],font=ctx.fT(44,800),fill=BLANCO,anchor="mm")
+        at_=zx1-zx0-200
+        ds.text((zx0+170,H*0.30+52),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],40,at_,800),fill=BLANCO)
+        ds.text((zx0+170,H*0.30+102),e["temp"],font=ctx.fM(30,700),fill=(200,140,40))
+        ds.text((zx0+170,H*0.30+142),e["nota"],font=fuente_que_cabe(ctx.fX,e["nota"],28,at_,400),fill=GRIS)
         fundir(layer,sub,k)
     y=H*0.30+270
+    zx0,_,zx1,_=caja_segura()
     for i,c in enumerate(e["contexto"]):
         kc=spring(t,at["contexto"]+i*0.4,130,15)
         if kc<=0: continue
         yy=y+i*96+(1-min(1,kc))*-40
         al=int(255*clamp01(kc*1.4))
-        d.text((140,yy),c["k"],font=ctx.fM(30,700),fill=ACENTO+(al,))
-        d.text((140,yy+40),c["v"][:44],font=ctx.fX(30,400),fill=BLANCO+(al,))
+        d.text((zx0+30,yy),c["k"],font=ctx.fM(30,700),fill=ACENTO+(al,))
+        d.text((zx0+30,yy+40),c["v"],font=fuente_que_cabe(ctx.fX,c["v"],30,zx1-zx0-60,400),fill=BLANCO+(al,))
     return capa_salida(layer,t,e["to"])
 
 def sc_pago(ctx,e,t):
@@ -1016,7 +1035,7 @@ def sc_recupera(ctx,e,t):
     if kr<=0: return capa_salida(layer,t,e["to"])
     al=int(255*clamp01(kr*1.5)); sube=(1-min(1,kr))*24
     zx0,_,zx1,_=caja_segura()
-    bw=min(800,(zx1-zx0)); bx=(W-bw)/2; by=H*0.5 if H>W else H*0.46
+    bw=min(800,(zx1-zx0)-68); bx=(W-bw)/2; by=H*0.5 if H>W else H*0.46   # -68: la perilla cabe
     d.text((W/2,(H*0.26 if H>W else H*0.25)+sube),e["resumen"],font=ctx.fX(36,600),
            fill=BLANCO+(al,),anchor="ma")
     # barra de progreso arrastrada por cursor
@@ -1142,7 +1161,7 @@ def sc_bars(ctx, e, t):
         # track (gris) + fill con color
         x0 = zx0 + i * (bw + gap)
         # pista, etiqueta y cifra entran fundidas (0.3 s), no de golpe
-        ki = smoothstep(clamp01((t - t_in) / 0.3))
+        ki = smoothstep(clamp01((t - t_in) / 0.45))
         col = tuple(col[:3]) + (int((col[3] if len(col) > 3 else 255) * ki),)
         d.rounded_rectangle([x0, base_y - max_h, x0 + bw, base_y], radius=18,
                             fill=(255, 255, 255, int(18 * ki)))
@@ -1151,8 +1170,8 @@ def sc_bars(ctx, e, t):
         # (el resorte lo mostraba de más) y el borde no salta >60 px por frame
         g_ = smoothstep(clamp01((t - t_in) / 0.9))
         fill_h = max_h * fraccion * g_
-        if fill_h > 0:
-            d.rounded_rectangle([x0, base_y - fill_h, x0 + bw, base_y], radius=18, fill=col)
+        if fill_h >= 1:   # el radio nunca supera la mitad del alto: nace de 0, no como píldora
+            d.rounded_rectangle([x0, base_y - fill_h, x0 + bw, base_y], radius=min(18, fill_h / 2), fill=col)
         # etiqueta abajo
         fnt = fuente_que_cabe(ctx.fX, b.get("etiqueta", ""), 30, bw, 600)
         d.text((x0 + bw / 2, base_y + 22), b.get("etiqueta", ""), font=fnt, fill=BLANCO + (int(255 * ki),),
@@ -1379,7 +1398,7 @@ def sc_quote(ctx, e, t):
     s = lerp(0.94, 1.0, k)
     U = unidad()
     zx0, zy0, zx1, zy1 = caja_segura()
-    cw = min(zx1 - zx0 + (W * 0.04 if H > W else 0), U * 1.35)
+    cw = min(zx1 - zx0, U * 1.35)
     cx = (W - cw) / 2
     # palabras con su marca de énfasis, envueltas con medida real
     fnt = ctx.fX(int(U * 0.055), 600)
@@ -1401,9 +1420,10 @@ def sc_quote(ctx, e, t):
     h_aut = (U * 0.06 if e.get("autor") else 0) + (U * 0.04 if e.get("rol") else 0)
     ch = h_com + h_txt + h_est + h_aut + U * 0.10
     cy = max(zy0 + 70, (zy0 + zy1) / 2 - ch / 2 + 30)
+    ac = int(255 * clamp01(k * 1.4))   # la tarjeta y su comilla entran fundidas, no de golpe
     tarjeta(ctx, layer, int(cx + (1 - s) * cw / 2), int(cy + (1 - s) * ch / 2),
-            int(cw * s), int(ch * s))
-    d.text((cx + 40, cy + 20), "\u201C", font=ctx.fT(int(U * 0.22), 800), fill=ACENTO, anchor="lt")
+            int(cw * s), int(ch * s), alpha=ac)
+    d.text((cx + 40, cy + 20), "\u201C", font=ctx.fT(int(U * 0.22), 800), fill=ACENTO + (ac,), anchor="lt")
     t_texto = at.get("texto", t_card + 0.2)
     y_txt = cy + h_com + lh / 2
     for li, ln in enumerate(lineas):
@@ -1943,7 +1963,8 @@ def sc_demo(ctx, e, t):
     kv = spring(t, at.get("ventana", e["from"] + 0.2), 110, 15)
     if kv <= 0:
         return capa_salida(layer, t, e["to"])
-    bw = int(W * 0.86)
+    zx0_, _, zx1_, _ = caja_segura()
+    bw = int(min(W * 0.86, zx1_ - zx0_))   # la ventana cabe en la zona segura
     ruta = e.get("captura")
     asp = e.get("aspecto", 0.625)
     if ruta and os.path.isfile(os.path.expanduser(ruta)):
@@ -2090,13 +2111,19 @@ def sc_rotulo_inferior(ctx, e, t):
                                   (e.get("rol", ""), fr_, ACENTO, 0.24, y0 + pad * 0.6 + tam * 1.25)):
         if not txt:
             continue
-        kr = ease_out(clamp01((t - t_in - dt) / 0.4)) * k_txt
+        kr = smoothstep(clamp01((t - t_in - dt) / 0.5)) * k_txt   # barrido parejo (ease_out revelaba media palabra en 2 frames)
         if kr <= 0:
             continue
         tw_ = int(ctx.tmp.textlength(txt, font=fnt)) + 4
         img = Image.new("RGBA", (tw_, int(fnt.size * 1.4)), (0, 0, 0, 0))
         ImageDraw.Draw(img).text((0, 0), txt, font=fnt, fill=col + (255,))
-        vis = img.crop((0, 0, max(1, int(tw_ * kr)), img.height))   # máscara: barre, no se mueve
+        # máscara que barre con borde DIFUMINADO (40 px): la letra se revela, no aparece entera
+        borde = 40
+        x_rev = (tw_ + borde) * kr
+        rampa = np.clip((x_rev - np.arange(tw_)) / borde, 0, 1)
+        a_ = np.asarray(img.split()[3], np.float32) * rampa[None, :]
+        img.putalpha(Image.fromarray(a_.astype(np.uint8), "L"))
+        vis = img
         layer.alpha_composite(vis, (int(x0 + pad + 12), int(yy)))
     return layer
 

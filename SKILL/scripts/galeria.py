@@ -88,10 +88,26 @@ def assets(dst, acento):
         k = y / 1400
         d.line([(0, y), (1800, y)], fill=(int(40 + 180 * k), int(60 + 70 * k), int(120 - 40 * k)))
     d.ellipse([1150, 380, 1450, 680], fill=(255, 214, 150))
+    import random as _r
+    rnd = _r.Random(7)
+    for _ in range(140):   # estrellas: una foto real tiene detalle fino, no solo degradés
+        x, y = rnd.randrange(1800), rnd.randrange(700)
+        b_ = rnd.randint(150, 255)
+        d.ellipse([x, y, x + 3, y + 3], fill=(b_, b_, b_))
     for i, (amp, base, col) in enumerate(((90, 900, (60, 70, 90)), (70, 1050, (35, 45, 60)),
                                            (50, 1200, (20, 25, 35)))):
         pts = [(x, base + amp * math.sin(x / (180 + 60 * i) + i)) for x in range(0, 1801, 20)]
         d.polygon(pts + [(1800, 1400), (0, 1400)], fill=col)
+        for _ in range(40):   # árboles en cada loma
+            x = rnd.randrange(1800)
+            y = base + amp * math.sin(x / (180 + 60 * i) + i)
+            h_ = rnd.randint(30, 90)
+            d.polygon([(x, y - h_), (x - h_ * 0.3, y + 4), (x + h_ * 0.3, y + 4)],
+                      fill=tuple(max(0, c - 18) for c in col))
+    # grano de película (textura real, determinista)
+    import numpy as _np
+    arr = _np.asarray(foto, _np.int16) + _np.random.default_rng(7).integers(-9, 10, (1400, 1800, 1))
+    foto = Image.fromarray(_np.clip(arr, 0, 255).astype(_np.uint8))
     foto.save(os.path.join(dst, "foto_muestra.png"))
 
     def captura(nombre, filas, resaltada):
