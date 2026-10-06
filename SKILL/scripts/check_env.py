@@ -48,19 +48,24 @@ rep("python", ok_py,
     f"{platform.python_version()} ({sys.executable})" if ok_py else "se requiere Python 3.9+ (https://www.python.org/downloads/)",
     critico=True)
 
+# Exactamente las librerías de terceros que importan los scripts (validate_skill
+# compara ambas listas: ni dependencias fantasma ni dependencias sin declarar)
+LIBS_CRITICAS = {"PIL": "pillow", "numpy": "numpy"}
+LIBS_OPCIONALES = {"requests": ("requests", "voz y música IA (voz_off.py, musica.py gen)"),
+                   "faster_whisper": ("faster-whisper", "transcripción local en Python (alinear.py, transcribir.py)")}
 print("== Librerías Python ==")
-for lib in ["PIL", "numpy", "requests"]:
+for lib, pip in LIBS_CRITICAS.items():
     try:
         __import__(lib)
-        rep(lib, True, "importable", critico=(lib != "requests"))
+        rep(lib, True, "importable", critico=True)
     except ImportError:
-        rep(lib, False, "pip install " + ("pillow" if lib == "PIL" else lib.lower()),
-            critico=(lib != "requests"))
-try:
-    __import__("scipy")
-    rep("scipy", True, "importable (beat_grid.py)")
-except ImportError:
-    rep("scipy", False, "pip install scipy — solo necesario para beat_grid.py")
+        rep(lib, False, f"pip install {pip}", critico=True)
+for lib, (pip, para) in LIBS_OPCIONALES.items():
+    try:
+        __import__(lib)
+        rep(lib, True, f"importable — {para}")
+    except ImportError:
+        rep(lib, False, f"pip install {pip} — solo para {para}")
 
 print("== Assets del skill ==")
 for fam, arch in (("Plus Jakarta Sans", "PlusJakartaSans-wght.ttf"), ("Montserrat", "Montserrat-wght.ttf")):

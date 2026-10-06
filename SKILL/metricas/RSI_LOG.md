@@ -250,3 +250,20 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
 - **Proceso**: perfilar el pipeline COMPLETO (incluida la E/S), no solo la
   función de composición; y preferir mejoras exactas por construcción, cuyo
   criterio (MD5) no admite discusión.
+
+### Ciclo 9 — CONSERVADO · el reporte de entorno declara las dependencias reales
+- **Hallazgo** (al correr `check_env.py`, paso 0 del agente, cobertura 0 %):
+  avisaba «WARN scipy — solo necesario para beat_grid.py», pero ningún script
+  importa scipy desde que `beat_grid` dejó de usarla; `instalacion.md` mandaba a
+  instalarla en los 3 sistemas. Y `faster_whisper`, que sí se importa
+  (`_comun`, `alinear`), no se reportaba.
+- **Hipótesis**: declarar en `check_env` exactamente las librerías de terceros
+  que importan los scripts elimina la instalación innecesaria y el aviso
+  engañoso, y un chequeo que compare ambos conjuntos impide que vuelva a pasar.
+- **Medida (definida antes)**: dependencias fantasma 1 → 0; sin declarar 1 → 0;
+  chequeo nuevo en verde; suite en verde.
+- **Resultado**: fantasma **1 → 0** (scipy), sin declarar **1 → 0**
+  (faster_whisper, opcional y con su para qué); `instalacion.md` 3 → 0 menciones
+  de scipy; chequeo «check_env declara exactamente las librerías que se
+  importan» en verde (la versión anterior no tenía la lista: no era verificable).
+  Suite 294 → 295 OK; ruff 346; demás iguales. Banco no corrido: no toca render.

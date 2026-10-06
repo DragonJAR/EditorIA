@@ -136,6 +136,28 @@ for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpe
                     mudas.append(f"{_f} {_m.group(1).split(',')[0].split()[0]}")
 check(not crudas, f"toda CLI arranca con --help ({'; '.join(crudas) or 'todas'})")
 check(not mudas, f"toda opción y subcomando de toda CLI se explica en --help ({', '.join(mudas[:8]) or 'todas'})")
+# check_env (paso 0 del agente) declara EXACTAMENTE las librerías de terceros que
+# importan los scripts: reportaba scipy, que nadie usa ya (mandaba a instalarla),
+# y no reportaba faster_whisper, que sí se usa
+_locales9 = {f_[:-3] for d_ in ("", "ffmpeg_tools") for f_ in os.listdir(os.path.join(BASE, "scripts", d_))
+             if f_.endswith(".py")}
+_terceros9 = set()
+for d_ in ("", "ffmpeg_tools"):
+    for f_ in os.listdir(os.path.join(BASE, "scripts", d_)):
+        if not f_.endswith(".py") or f_ == "validate_skill.py":   # pyflakes: solo para validar
+            continue
+        for n_ in ast.walk(ast.parse(open(os.path.join(BASE, "scripts", d_, f_), encoding="utf-8").read())):
+            mods_ = [a_.name for a_ in n_.names] if isinstance(n_, ast.Import) else (
+                [n_.module] if isinstance(n_, ast.ImportFrom) and n_.module and n_.level == 0 else [])
+            _terceros9 |= {m_.split(".")[0] for m_ in mods_} - set(sys.stdlib_module_names) - _locales9
+_declaradas9 = set()
+for n_ in ast.parse(open(os.path.join(BASE, "scripts", "check_env.py"), encoding="utf-8").read()).body:
+    if isinstance(n_, ast.Assign) and getattr(n_.targets[0], "id", "") in ("LIBS_CRITICAS", "LIBS_OPCIONALES"):
+        _declaradas9 |= set(ast.literal_eval(n_.value))
+check(_terceros9 == _declaradas9,
+      f"check_env declara exactamente las librerías que se importan (fantasma: "
+      f"{sorted(_declaradas9 - _terceros9) or 'ninguna'}; sin declarar: {sorted(_terceros9 - _declaradas9) or 'ninguna'})")
+
 # subtítulos sin marca: la tipografía de las escenas (Montserrat empaquetada,
 # instancia estática para libass), no DejaVu del sistema
 _vcap = os.path.join(tempfile.mkdtemp(prefix="editoria_cap_"), "v.mp4")
