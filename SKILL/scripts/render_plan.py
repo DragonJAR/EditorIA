@@ -2588,7 +2588,9 @@ def preparar_escenas(ctx,plan):
     puerta para render_plan y medir_animacion --plan."""
     escenas=sorted((completar_escena(e,i) for i,e in enumerate(plan["escenas"])),key=lambda s:s["from"])
     for i,e in enumerate(escenas):
-        try: escala_segura(ctx,e,i)
+        try:   # compone de verdad (escala_segura cachea por índice: no basta)
+            for t in (e["from"]+0.05,(e["from"]+e["to"])/2,e["to"]-0.05): pintar(ctx,e,t)
+            escala_segura(ctx,e,i)
         except (KeyError,IndexError,TypeError) as ex:
             sys.exit(error_de_escena(e,i,ex))
     return escenas
