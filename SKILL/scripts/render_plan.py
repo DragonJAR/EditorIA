@@ -237,6 +237,12 @@ def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=44):
     draw_seg(d,(W/2,yy),sg,fnt,color+(al,),ACENTO+(al,),anchor="ma")
     return k
 
+def bajo_rotulo(y,tam=44,aire=0.45):
+    """Primer y libre bajo un rótulo anclado arriba en `y` (alto de línea +
+    aire). Lo que va debajo del rótulo se mide desde aquí, nunca con una
+    fracción fija de H: en 16:9 H*0.04 son 43 px y el rótulo mide ~55."""
+    return y+tam*(1.2+aire)
+
 def tarjeta(ctx,img,x,y,w,h,radio=28,alpha=255):
     d=ImageDraw.Draw(img)
     borde=(255,255,255,int(28*alpha/255))   # el borde funde con la tarjeta (antes saltaba a 28)
@@ -889,7 +895,7 @@ def sc_leads(ctx,e,t):
     at=e["at"]
     kr=rotulo(ctx,layer,t,e["rotulo"],at["rotulo"],y=H*0.20)
     if kr>0:   # el total entra con su rótulo
-        d.text((W/2,H*0.24),e["total"],font=ctx.fM(36,700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
+        d.text((W/2,bajo_rotulo(H*0.20,aire=0.15)),e["total"],font=ctx.fM(36,700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
     y0=H*0.32
     colores_temp={"Caliente":ACENTO,"Tibio":(200,140,40),"Frío":(90,140,200)}
     for i,f in enumerate(e["filas"]):
@@ -1835,12 +1841,18 @@ def sc_countdown(ctx, e, t):
     k = spring(t, t0 - 0.3, 130, 15)
     t_fin = t0 + total
     kf = spring(t, t_fin, 150, 13) if e.get("final") else 0.0
-    alfa = int(255 * clamp01(k * 1.4) * (1 - 0.75 * min(1, kf)))
+    # al llegar a cero los dígitos se funden del todo EN SU LUGAR (subiendo
+    # chocaban con el rótulo en 16:9) y el texto final los reemplaza: antes el
+    # 00 quedaba al 25 % y el final lo pisaba
+    ks = prog(t, t_fin, t_fin + 0.2, smoothstep) if e.get("final") else 0.0
+    alfa = int(255 * clamp01(k * 1.4) * (1 - ks))
     if alfa > 0:
         odometro(layer, siguiente, actual, rodar, W / 2, H * 0.45, fnt, BLANCO + (alfa,))
     if kf > 0:
-        sc = 1 + 0.2 * (1 - min(1, kf))
-        d.text((W / 2, H * 0.45 + tam * 0.75), e["final"], font=ctx.fT(int(tam * 0.55 * sc), 800),
+        zx0, _, zx1, _ = caja_segura()
+        sc = 1 + 0.25 * (1 - min(1, kf))   # golpe: llega grande y asienta con el resorte
+        ff = fuente_que_cabe(ctx.fT, e["final"], tam * 0.62 * sc, (zx1 - zx0) * 0.94)
+        d.text((W / 2, H * 0.45 + flota(t, t_fin + 0.4, 5, 0.45)), e["final"], font=ff,   # asentado, respira
                fill=ACENTO + (int(255 * clamp01(kf * 1.4)),), anchor="mm")
     return capa_salida(layer, t, e["to"])
 
@@ -2020,10 +2032,14 @@ def sc_demo(ctx, e, t):
                 asp = im_.height / im_.width
         except Exception:
             pass
-    bh = int(min(H * 0.48, bw * asp))
-    barra = 48
+    barra, pie = 48, 152   # pie: aire + botón del beneficio bajo la ventana
+    # el bloque (ventana + botón) se centra ENTRE el rótulo y el borde seguro
+    # inferior: con H*0.44 fijo, en 16:9 la ventana tapaba el rótulo
+    arriba = bajo_rotulo(H * 0.16) + 16 if e.get("rotulo") else caja_segura()[1]
+    libre = caja_segura()[3] - arriba
+    bh = int(min(H * 0.48, bw * asp, libre - barra - pie))
     x0 = (W - bw) // 2
-    y0 = int(H * 0.44 - (bh + barra) / 2 + (1 - min(1, kv)) * 40)
+    y0 = int(arriba + (libre - (barra + bh + pie)) / 2 + (1 - min(1, kv)) * 40)
     pasos = sorted(e.get("pasos", []), key=lambda p_: p_.get("at", 0))
     # pantalla vigente: la del último clic ya ocurrido que traiga `captura`
     pantalla, previa, t_cambio = ruta, None, None
