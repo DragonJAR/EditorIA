@@ -336,6 +336,16 @@ try:
         R.ALFA = _alfa_prev
     check(hueco > 0.2 * antes, f"corte sin parpadeo: el contenido nunca cae a vacío en el corte "
                                f"(mínimo {hueco:.1f} vs {antes:.1f} antes)")
+    # toda escena SALE: al final del solape su capa ya no se ve (una escena que se
+    # creía la última desaparecía de golpe si le seguía otra)
+    sin_salida = []
+    for nombre, fn in R.SCENES.items():
+        e = dict(muestras[nombre], tipo=nombre)
+        antes = float(_np.asarray(fn(ctx, e, e["to"] - 0.6).split()[3]).mean())
+        despues = float(_np.asarray(fn(ctx, e, e["to"] + R.SOLAPE - 0.02).split()[3]).mean())
+        if antes > 1 and despues > 0.1 * antes:
+            sin_salida.append(f"{nombre} ({despues:.1f}/{antes:.1f})")
+    check(not sin_salida, f"toda escena sale al cruzar el corte ({', '.join(sin_salida) or 'todas'})")
     # cifras tabulares: un número que cuenta no tiembla de lado (nativo y sin raqm)
     from PIL import ImageDraw as _ID, Image as _IMG
     _f = R.Ctx().fT(150, 800)

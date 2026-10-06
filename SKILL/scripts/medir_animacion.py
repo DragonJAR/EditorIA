@@ -105,7 +105,8 @@ def _es_pop(prev, cur, bloques):
 def medir(job):
     """Mide una escena (o un plan entero: escenas en secuencia, cortes y
     transiciones) en un formato. Devuelve el dict de métricas."""
-    nombre, f, escenas, dur, fps = job
+    nombre, f, escenas, dur, fps = job[:5]
+    ventana = job[5] if len(job) > 5 else None   # (t0, t1): medir solo un tramo (un corte)
     R = _W["R"]
     ctx = _ctx(f)
     R._ESCALA.clear()
@@ -144,9 +145,10 @@ def medir(job):
     k_ = LADO / min(w, h)
     ancho_a, alto_a = int(w * k_), int(h * k_)
     frames, t0 = [], time.time()
-    n = int(e["to"] * fps)
+    i0, i1 = (int(ventana[0] * fps), int(ventana[1] * fps)) if ventana else (0, int(e["to"] * fps))
+    n = i1 - i0
     try:
-        for i in range(n):
+        for i in range(i0, i1):
             ti = i / fps
             en_hold[0] = any(s_["from"] + (s_["to"] - s_["from"]) * 0.5 <= ti <= s_["to"] - 0.6
                              for s_ in escenas)
@@ -158,7 +160,7 @@ def medir(job):
         R.cifra = cifra_orig
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
-    m = metricas(F, fps, dur, zonas_cifra, k_)
+    m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_)
     letra = int(min(tamanos) * 1080 / min(w, h)) if tamanos else 0
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
         m["muerto"] = 0.0
@@ -286,6 +288,19 @@ def ver(e, f, t, fps, salida):
     print("diagnóstico:", salida)
 
 
+def _desplazar(nodo, d, es_tiempo=False):
+    """Corre d segundos los tiempos de una muestra para encadenarla: solo lo que
+    vive bajo una clave `at` (un dict de `at`, una lista de tiempos o un `at`
+    escalar); x, y, zoom, valores… no se tocan."""
+    if isinstance(nodo, dict):
+        return {k: _desplazar(v, d, es_tiempo or k == "at") for k, v in nodo.items()}
+    if isinstance(nodo, list):
+        return [_desplazar(v, d, es_tiempo) for v in nodo]
+    if es_tiempo and isinstance(nodo, (int, float)) and not isinstance(nodo, bool):
+        return nodo + d
+    return nodo
+
+
 def nota(m):
     """Una sola fórmula, explícita: 100 menos penalizaciones."""
     p = 0.0
@@ -316,6 +331,7 @@ def main():
     ap.add_argument("--ver", metavar="ESCENA:F:SEG", help="diagnosticar un pop: guarda el par de frames marcado")
     ap.add_argument("--plan", help="medir un plan.json entero (secuencia, cortes, transiciones) antes de renderizar")
     ap.add_argument("--video", nargs="+", help="medir videos YA renderizados (captions, films, pases, entregas)")
+    ap.add_argument("--cortes", action="store_true", help="medir el corte entre cada par consecutivo del catálogo")
     a = ap.parse_args()
     muestras = json.load(open(os.path.join(AQUI, "escenas_muestra.json"), encoding="utf-8"))["escenas"]
     solo = set(a.solo.split(",")) if a.solo else None
@@ -347,7 +363,16 @@ def main():
         ver(dict(muestras[n_], tipo=n_), f_, float(t_), a.fps,
             os.path.join(tempfile.gettempdir(), f"pop_{n_}_{f_}_{t_}.png"))
         return 0
-    if a.plan:
+    if a.cortes:   # cada par consecutivo del catálogo: la ventana alrededor del corte
+        tipos = list(muestras)
+        jobs = []
+        for f in fmts:
+            for x, y in zip(tipos, tipos[1:]):
+                e1 = dict(muestras[x], tipo=x)
+                d_ = e1["to"]
+                e2 = dict(_desplazar(muestras[y], d_), tipo=y, **{"from": d_, "to": d_ + muestras[y]["to"]})
+                jobs.append((f"{x}→{y}", f, [e1, e2], e2["to"], a.fps, (d_ - 1.0, d_ + 1.5)))
+    elif a.plan:
         plan = json.load(open(a.plan, encoding="utf-8"))
         R.resolver_medios(plan, os.path.dirname(os.path.abspath(a.plan)))
         nombre = os.path.splitext(os.path.basename(a.plan))[0]
@@ -360,6 +385,8 @@ def main():
     with Pool(a.jobs, initializer=_init) as pool:
         res = pool.map(medir, jobs, chunksize=1)
     for r in res:
+        if a.cortes:   # en una ventana de 2.5 s la densidad no dice nada: se juzgan pops, saltos y quietud
+            r["densidad"] = 1.0
         r["nota"] = nota(r)
     res.sort(key=lambda r: r["nota"])
     print(f"{'escena':18s} f  nota  pops tir  jerk  muerto dens letra zona  s/frame")

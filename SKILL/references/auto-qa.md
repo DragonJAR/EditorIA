@@ -35,8 +35,10 @@ formato, con nota 0–100. Es el banco de la mejora recursiva: toda mejora se
 mide contra `metricas/historial.jsonl` y se queda solo si sube la nota sin
 romper `validate_skill.py`. Un pop se diagnostica con
 `--ver escena:v|h:segundo` (par de frames con los bloques abruptos marcados).
-`--plan plan.json` mide un plan entero (cortes incluidos) y `--video x.mp4`
-cualquier video ya renderizado, a su propio fps.
+`--plan plan.json` mide un plan entero (cortes incluidos), `--video x.mp4`
+cualquier video ya renderizado (a su propio fps) y `--cortes` la ventana de
+cada corte entre escenas consecutivas del catálogo (27 pares × 2 formatos):
+toda escena se prueba saliendo y entrando contra otra.
 
 Qué mide cada número (calibrado con casos sintéticos en `validate_skill.py`):
 - **pop**: en un frame, ≥ 35 % de los bloques que cambian de golpe no tienen

@@ -1132,7 +1132,9 @@ def sc_final(ctx,e,t):
             if kb>0.5:
                 d.text((W/2,yy+bh/2),e["boton"],font=ctx.fX(40*min(1.0,kb),800),
                        fill=BLANCO+(int(255*clamp01((kb-0.5)*2)),),anchor="mm")
-    return layer  # sin salida: fundido global al final
+    # sale como toda escena: puede no ser la última del plan (si le sigue otra,
+    # sin salida desaparecía de golpe al terminar el solape)
+    return capa_salida(layer,t,e["to"])
 
 
 # ───────────────────────── ESCENAS DATA/UI (Catálogo unificado) ─────────────────────────
@@ -1644,6 +1646,10 @@ def sc_kenburns(ctx, e, t):
     d.rectangle([0, 0, W, H], fill=(0, 0, 0, 255))
     # imagen cubriendo el 9:16, cargada una vez por proceso (imagen_ajustada)
     base = imagen_ajustada(e.get("imagen"), W, H)
+    # la foto (a sangre, cubre el cuadro) entra disuelta, lineal en 0.75 s: tras
+    # un corte aparecía entera en un frame; en 0.4 s smoothstep saltaba 59 de luma
+    # cada 0.25 s (destello); lineal y más larga queda bajo el umbral de auto_qa
+    a_foto = clamp01((t - e["from"]) / 0.75)
     if base is not None:
         t_kb = at.get("kenburns", e["from"] + 0.2)
         layer.alpha_composite(kenburns(base, t, t_kb, dur=e.get("dur_kb", 4.0),
@@ -1676,6 +1682,8 @@ def sc_kenburns(ctx, e, t):
         fnt_s = fuente_que_cabe(ctx.fX, e["subtitulo"], 36, x1 - x0, 600)
         d.text((W / 2, y_sub), e["subtitulo"], font=fnt_s,
                fill=GRIS + (int(255 * clamp01(k * 1.3)),), anchor="mm")
+    if a_foto < 1:   # disolución de entrada sobre la capa ya compuesta (la foto es opaca)
+        layer.putalpha(layer.split()[3].point(lambda v: int(v * a_foto)))
     return capa_salida(layer, t, e["to"])
 
 
