@@ -21,6 +21,10 @@ LADO = 1126   # lado del lienzo cuadrado del logo en el que se escribieron las c
 def clamp01(x): return max(0.0, min(1.0, x))
 def lerp(a, b, k): return a + (b - a) * k
 def prog(t, a, b): return clamp01((t - a) / max(1e-6, b - a))
+def smooth(k):
+    """Smoothstep: cruce parejo, sin el arranque brusco de bezier_out."""
+    k = clamp01(k)
+    return k * k * (3 - 2 * k)
 
 
 def vivo(rgb, blanco=0.0):

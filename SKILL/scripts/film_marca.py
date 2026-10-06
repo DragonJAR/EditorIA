@@ -15,7 +15,7 @@ W,H=1920,1080; FPS=24; DUR=15.0; N=int(DUR*FPS)
 BASE=os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 from _film import (LADO, args_formato, args_identidad, clamp01, dibujar_lema,  # noqa: E402
-                   draw_glow, lienzo, lineas_lema, preparar, prog, rejilla, text_center, vivo)
+                   draw_glow, lienzo, lineas_lema, preparar, prog, rejilla, smooth, text_center, vivo)
 # Identidad: se fija en main() desde el pack pedido o los flags (_film.preparar).
 NEGRO=ROJO=BLANCO_H=BRASA=BRASA_SUAVE=CALIDO=CHISPA=None
 LOGO=None; JAKARTA=None; NOMBRE=""; LEMA=[]
@@ -194,9 +194,12 @@ def render_frame(ctx,t,state):
         seg=min(2,int(t-7.0))  # 0,1,2 → a,b,c
         local=(t-7.0)-seg
         cur=variants[seg]
+        if seg==0 and t<7.4:   # la primera variante entra fundida (antes saltaba)
+            cur=cur.copy(); a0=smooth(prog(t,7.0,7.4))
+            cur.putalpha(cur.split()[3].point(lambda v:int(v*a0)))
         if local>0.75 and seg<2:
             nxt=variants[seg+1]
-            k=bezier_out(prog(local,0.75,1.0))
+            k=smooth(prog(local,0.75,1.0))   # cruce parejo (bezier_out lo hacía en 2 frames)
             layer.alpha_composite(cur,ISO_POS)
             tmp=nxt.copy(); al=tmp.split()[3].point(lambda v:int(v*k)); tmp.putalpha(al)
             layer.alpha_composite(tmp,ISO_POS)
@@ -204,17 +207,19 @@ def render_frame(ctx,t,state):
             layer.alpha_composite(cur,ISO_POS)
         # (d) 10-11: patrón de mini isotipos que vuelve a uno
         if t>=10.0:
-            k=prog(t,10.0,10.5)
+            # entra en 0.5 s y se va antes del cierre (su alfa era v*110*k sin /255:
+            # saturaba y aparecía entero en un frame)
+            k=smooth(prog(t,10.0,10.5))*(1-smooth(prog(t,10.8,11.2)))
             pat=Image.new("RGBA",(W,H),(0,0,0,0))
             # rejilla de minis centrada en el keyhole
             for gx,gy in rejilla(W,H):
                 mx=int(KH[0]+gx*150-55); my=int(KH[1]+gy*150-55)
                 m=ctx.iso_mini.copy()
-                al=m.split()[3].point(lambda v:int(v*110*k)); m.putalpha(al)
+                al=m.split()[3].point(lambda v:int(v*k*110/255)); m.putalpha(al)
                 pat.alpha_composite(m,(mx,my))
             layer.alpha_composite(pat,(0,0))
             if t>=10.5:
-                k2=bezier_out(prog(t,10.5,11.1))
+                k2=smooth(prog(t,10.5,11.1))
                 iso=ctx.iso_red.copy()
                 al=iso.split()[3].point(lambda v:int(v*k2)); iso.putalpha(al)
                 layer.alpha_composite(iso,ISO_POS)
@@ -222,8 +227,9 @@ def render_frame(ctx,t,state):
     # ---------- SHOT 4 (11-15): isotipo full color + wordmark + tagline ----------
     if t>=11.0:
         iso=ctx.iso.copy()
-        if t<11.4:  # dissolve desde la variación
-            al=iso.split()[3].point(lambda v:int(v*prog(t,11.0,11.4)))
+        if t<11.4:  # cruza DESDE el rojo, que sigue debajo (antes el logo se apagaba en el traspaso)
+            layer.alpha_composite(ctx.iso_red,ISO_POS)
+            al=iso.split()[3].point(lambda v:int(v*smooth(prog(t,11.0,11.4))))
             iso.putalpha(al)
         layer.alpha_composite(iso,ISO_POS)
         # brasas que se asientan

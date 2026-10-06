@@ -339,6 +339,32 @@ try:
 except Exception as ex:
     check(False, f"smoke test escenas: {ex}")
 
+# 5b. el detector de pops distingue aparición de movimiento y escalado (con casos
+#     sintéticos conocidos: si el banco miente, toda la mejora recursiva miente)
+try:
+    import medir_animacion as _MA
+    from PIL import Image as _I5, ImageDraw as _D5
+    def _cuadro(dib):
+        im = _I5.new("L", (180, 320), 12)
+        dib(_D5.Draw(im))
+        return _np.asarray(im, _np.float32)
+    def _pop(a_, b_):
+        d_ = _np.abs(b_ - a_)
+        B_ = _MA.BLOQUE
+        blq = [(by, bx) for by in range(320 // B_) for bx in range(180 // B_)
+               if d_[by * B_:(by + 1) * B_, bx * B_:(bx + 1) * B_].mean() > _MA.POP_SALTO]
+        return _MA._es_pop(a_, b_, blq)
+    vacio = _cuadro(lambda d_: None)
+    caja = _cuadro(lambda d_: d_.rectangle([50, 100, 130, 180], fill=240))
+    movida = _cuadro(lambda d_: d_.rectangle([55, 100, 135, 180], fill=240))
+    txt_a = _cuadro(lambda d_: d_.text((90, 160), "Hola", font=R.Ctx().fT(40, 800), fill=245, anchor="mm"))
+    txt_b = _cuadro(lambda d_: d_.text((90, 160), "Hola", font=R.Ctx().fT(43.2, 800), fill=245, anchor="mm"))
+    casos = {"aparece de golpe = pop": _pop(vacio, caja), "se mueve 30 px = no": not _pop(caja, movida),
+             "escala 8 % = no": not _pop(txt_a, txt_b)}
+    check(all(casos.values()), f"detector de pops calibrado ({casos})")
+except Exception as ex:
+    check(False, f"detector de pops: {ex}")
+
 # 6. nuevos módulos de post-producción (smoke tests con datos sintéticos)
 sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 try:

@@ -209,7 +209,8 @@ def main():
         # base ya tiene texto (abajo en 9:16 vive la UI de la plataforma)
         y = {"abajo": f"H-{a.altura}-{sm['bottom']}", "centro": f"(H-{a.altura})/2",
              "arriba": str(sm["top"])}[a.posicion]
-        fc = (f"[0:a]{filtro},scale={w}:{a.altura}[viz];"
+        # la banda entra fundida (0.4 s, sobre su alfa): no aparece de golpe en el frame 1
+        fc = (f"[0:a]{filtro},scale={w}:{a.altura},format=rgba,fade=t=in:st=0:d=0.4:alpha=1[viz];"
               f"[1:v][viz]overlay=0:{y},{VF_RGB_A_BT709},format=yuv420p[v]")
         cmd = ["ffmpeg", "-y", "-v", "error", "-i", a.audio, "-i", a.overlay,
                "-filter_complex", fc, "-map", "[v]", "-map", "0:a"]
@@ -223,7 +224,7 @@ def main():
             # fondo: con pad el alfa se perdía y quedaba una caja negra visible
             grafo = (f"color=c={fondo}:s={ancho}x{alto}:r={a.fps}[bg];"
                      f"[0:a]showwaves=s={ancho}x{banda}:mode=cline:draw=full:scale=sqrt:"
-                     f"colors={color}:rate={a.fps}[w];"
+                     f"colors={color}:rate={a.fps},format=rgba,fade=t=in:st=0:d=0.4:alpha=1[w];"
                      f"[bg][w]overlay=0:(H-h)/2:shortest=1,{VF_RGB_A_BT709},format=yuv420p[v]")
         else:
             grafo = f"[0:a]{filtro},{VF_RGB_A_BT709},format=yuv420p[v]"

@@ -341,8 +341,10 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
         if args.animate == "fade":
             fx += "{\\fad(200,200)}"
         elif args.animate == "pop":
-            fx += ("{\\fad(80,120)\\fscx60\\fscy60\\t(0,120,\\fscx110\\fscy110)"
-                   "\\t(120,200,\\fscx100\\fscy100)}")
+            # pop con punch pero sin aparecer de golpe: 160 ms de fundido, 80 → 108 → 100 %
+            # (80 ms y 60 → 110 % lo volcaba entero en 2 frames: pop en la métrica)
+            fx += ("{\\fad(160,120)\\fscx80\\fscy80\\t(0,160,\\fscx108\\fscy108)"
+                   "\\t(160,260,\\fscx100\\fscy100)}")
         elif args.animate == "slide":
             fx += ("{\\fad(150,150)\\move(%d,%d,%d,%d,0,250)}"
                   % (play_w // 2, play_h - margin + int(30 * scale),

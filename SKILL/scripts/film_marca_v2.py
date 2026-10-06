@@ -17,15 +17,13 @@ BASE=os.path.dirname(os.path.abspath(__file__))
 import sys
 sys.path.insert(0, BASE)
 from _film import (LADO, args_formato, args_identidad, clamp01, dibujar_lema,  # noqa: E402
-                   draw_glow, lerp, lienzo, lineas_lema, preparar, prog, rejilla,
+                   draw_glow, lerp, lienzo, lineas_lema, preparar, prog, rejilla, smooth,
                    text_center, vivo)
 # Identidad: se fija en main() desde el pack pedido o los flags (_film.preparar).
 NEGRO=ROJO=BLANCO_H=BRASA=BRASA_SUAVE=CALIDO=CHISPA=None
 LOGO=None; JAKARTA=None; NOMBRE=""; LEMA=[]
 KH_SRC=None  # ancla del logo en el lienzo LADO (pack logos.ancla o centro de masa)
 
-def smooth(k):
-    k=clamp01(k); return k*k*(3-2*k)
 def bezier_out(k):
     k=clamp01(k); return 1-pow(1-k,3) if k<1 else 1
 
@@ -194,37 +192,43 @@ def render_frame(ctx,t):
                 d.ellipse([x-sz,y-sz,x+sz,y+sz],fill=BRASA_SUAVE+(int(170*oa),))
 
     # ---- 7.4-11.2: VARIACIONES al centro, con pulso ----
-    if 7.2<=t<11.3:
+    if 7.2<=t<11.2:
         s2=size*beat_pulse(t)
         variants=["white","red","edge"]
         seg=min(2,int(t-7.4))
         local=(t-7.4)-seg
         cur=variants[seg]
+        # la primera variante entra fundida sobre el logo a color (antes saltaba)
+        a_cur=smooth(prog(t,7.2,7.6)) if seg==0 and t<7.6 else 1.0
         if local>0.72 and seg<2:
-            k=bezier_out(prog(local,0.72,1.0))
-            place_iso(layer,ctx.iso_at(s2,cur),s2,khx,khy)
+            k=smooth(prog(local,0.72,1.0))   # cruce parejo (bezier_out lo hacía en 2 frames)
+            place_iso(layer,ctx.iso_at(s2,cur),s2,khx,khy,alpha=a_cur)
             place_iso(layer,ctx.iso_at(s2,variants[seg+1]),s2,khx,khy,alpha=k)
         else:
-            place_iso(layer,ctx.iso_at(s2,cur),s2,khx,khy)
+            place_iso(layer,ctx.iso_at(s2,cur),s2,khx,khy,alpha=a_cur)
         if t>=10.1:
-            k=prog(t,10.1,10.6)
+            # el patrón entra en 0.5 s y se va antes de que cierre la sección (antes
+            # su alfa era v*110*k sin /255: saturaba y aparecía entero en un frame)
+            k=smooth(prog(t,10.1,10.6))*(1-smooth(prog(t,10.8,11.2)))
             pat=Image.new("RGBA",(W,H),(0,0,0,0))
             for gx,gy in rejilla(W,H):
                 m=ctx.mini.copy()
-                al=m.split()[3].point(lambda v:int(v*110*k)); m.putalpha(al)
+                al=m.split()[3].point(lambda v:int(v*k*110/255)); m.putalpha(al)
                 pat.alpha_composite(m,(int(khx+gx*150-55),int(khy+gy*150-55)))
             layer.alpha_composite(pat,(0,0))
             if t>=10.6:
                 place_iso(layer,ctx.iso_at(s2,"red"),s2,khx,khy,
-                          alpha=bezier_out(prog(t,10.6,11.2)))
+                          alpha=smooth(prog(t,10.6,11.2)))
 
     # ---- 11.2-15: FINAL asimétrico (isotipo izq, texto der) ----
     if t>=11.2:
         s3=size
-        if t<11.9:
-            place_iso(layer,ctx.iso_at(s3,"red"),s3,khx,khy,alpha=prog(t,11.2,11.9))
-        else:
-            place_iso(layer,ctx.iso_at(s3),s3,khx,khy)
+        # continuidad: el isotipo rojo ya está entero al llegar (antes arrancaba en
+        # alfa 0 y el logo se apagaba en el traspaso); luego cruza a su color real
+        place_iso(layer,ctx.iso_at(s3,"red"),s3,khx,khy)
+        kc=smooth(prog(t,11.9,12.4))
+        if kc>0:
+            place_iso(layer,ctx.iso_at(s3),s3,khx,khy,alpha=kc)
         sa=1-prog(t,11.4,12.8)
         if sa>0:
             for rr,a0,om,sz in ctx.orbit[:10]:

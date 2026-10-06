@@ -41,6 +41,7 @@ LADO = 180             # lado CORTO de análisis (misma escala en 9:16 y 16:9: 1
 BLOQUE = 10            # px del bloque para detectar pops
 POP_SALTO = 70.0       # luma media de un bloque que cambia en UN frame = pop
 TEXTURA = 12.0         # desvío de luma de un bloque con contenido (no fondo liso)
+POP_PROPORCION = 0.35  # fracción de bloques abruptos sin origen para llamarlo aparición
 MOV_RADIO = 10         # px de análisis (≈ 60 px a 1080, 1800 px/s): lo que se mueve más rápido
                        # que esto se lee como teletransporte (aparición), no como movimiento
 LETRA_MIN = 26         # px (sobre lado corto 1080) bajo los cuales no se lee en un teléfono
@@ -75,6 +76,30 @@ def _movido(prev, cur, y, x, radio=MOV_RADIO):
             if 0 <= yy and 0 <= xx and yy + BLOQUE <= prev.shape[0] and xx + BLOQUE <= prev.shape[1]:
                 mejor = min(mejor, float(np.abs(prev[yy:yy + BLOQUE, xx:xx + BLOQUE] - blq).mean()))
     return mejor < POP_SALTO * 0.4   # margen para el remuestreo sub-píxel del movimiento
+
+
+def _suave(a):
+    from PIL import Image, ImageFilter
+    return np.asarray(Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+                      .filter(ImageFilter.GaussianBlur(1.5)), np.float32)
+
+
+def _sin_origen(prev, cur, bloques):
+    """Bloques que cambian de golpe y cuyo contenido NO estaba cerca en el frame
+    anterior, ni exacto ni suavizado (lo suavizado absorbe un escalado leve)."""
+    resto = [(by, bx) for by, bx in bloques if not _movido(prev, cur, by * BLOQUE, bx * BLOQUE)]
+    if not resto:
+        return []
+    ps, cs = _suave(prev), _suave(cur)
+    return [(by, bx) for by, bx in resto if not _movido(ps, cs, by * BLOQUE, bx * BLOQUE)]
+
+
+def _es_pop(prev, cur, bloques):
+    """Un objeto que APARECE deja casi todos sus bloques sin origen; uno que se
+    mueve o escala, solo unos pocos en su borde. Pop = ≥35 % sin origen."""
+    if not bloques:
+        return False
+    return len(_sin_origen(prev, cur, bloques)) >= POP_PROPORCION * len(bloques)
 
 
 def medir(job):
@@ -165,10 +190,8 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
     fin_activo = int((dur - 0.6) * fps)
     pops = []
     for i in range(min(len(candidatos), fin_activo - 1)):
-        for by, bx in zip(*np.nonzero(candidatos[i])):
-            if not _movido(F[i], F[i + 1], by * BLOQUE, bx * BLOQUE):
-                pops.append(round((i + 1) / fps, 2))
-                break
+        if _es_pop(F[i], F[i + 1], list(zip(*np.nonzero(candidatos[i])))):
+            pops.append(round((i + 1) / fps, 2))
     tir_t = []   # un frame quieto entre dos que se mueven: salto o congelado de un frame
     for i in range(1, len(energia) - 1):
         vec = (energia[i - 1] + energia[i + 1]) / 2
@@ -199,13 +222,17 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
             "muerto": round(muerto, 3), "densidad": round(densidad, 2)}
 
 
-def frames_de_video(ruta, fps=30):
+def frames_de_video(ruta, fps=None):
     """Frames de un video ya renderizado, en gris a la escala de análisis
-    (lado corto = LADO). Para medir captions, films, pases, audiogramas o una
-    entrega final con la misma vara que las escenas."""
+    (lado corto = LADO), a SU fps (remuestrear 24 → 30 duplica un frame de
+    cada 4 y la métrica lo leería como tirones). Para medir captions, films,
+    pases, audiogramas o una entrega final con la misma vara que las escenas.
+    Devuelve (frames, duración, fps)."""
     import subprocess
     from _comun import probe
-    v = probe(ruta)["video"]
+    meta = probe(ruta)
+    v = meta["video"]
+    fps = fps or round(meta.get("fps") or v.get("fps") or 30)
     w, h = v["width"], v["height"]
     k_ = LADO / min(w, h)
     aw, ah = int(w * k_) // 2 * 2, int(h * k_) // 2 * 2
@@ -213,7 +240,7 @@ def frames_de_video(ruta, fps=30):
                           f"fps={fps},scale={aw}:{ah},format=gray", "-f", "rawvideo", "-"],
                          capture_output=True).stdout
     F = np.frombuffer(raw, np.uint8).reshape(-1, ah, aw).astype(np.float32)
-    return F, len(F) / fps
+    return F, len(F) / fps, fps
 
 
 def ver(e, f, t, fps, salida):
@@ -235,12 +262,11 @@ def ver(e, f, t, fps, salida):
     lienzo.paste(a_, (0, 0))
     lienzo.paste(b_, (w + 20, 0))
     dr = ImageDraw.Draw(lienzo)
-    for by in range(int(h * k_) // BLOQUE):
-        for bx in range(int(w * k_) // BLOQUE):
-            y, x = by * BLOQUE, bx * BLOQUE
-            if d[y:y + BLOQUE, x:x + BLOQUE].mean() > POP_SALTO and not _movido(pa, pb, y, x):
-                x0, y0 = (w + 20) + x / k_, y / k_
-                dr.rectangle([x0, y0, x0 + BLOQUE / k_, y0 + BLOQUE / k_], outline=(255, 40, 40), width=4)
+    abruptos = [(by, bx) for by in range(int(h * k_) // BLOQUE) for bx in range(int(w * k_) // BLOQUE)
+                if d[by * BLOQUE:(by + 1) * BLOQUE, bx * BLOQUE:(bx + 1) * BLOQUE].mean() > POP_SALTO]
+    for by, bx in _sin_origen(pa, pb, abruptos):
+        x0, y0 = (w + 20) + bx * BLOQUE / k_, by * BLOQUE / k_
+        dr.rectangle([x0, y0, x0 + BLOQUE / k_, y0 + BLOQUE / k_], outline=(255, 40, 40), width=4)
     lienzo.thumbnail((1600, 1600))
     lienzo.save(salida)
     print("diagnóstico:", salida)
@@ -292,8 +318,8 @@ def main():
     if a.video:   # misma vara para cualquier video (sin letra ni zona: no hay plan que leer)
         res = []
         for ruta in a.video:
-            F, dur = frames_de_video(ruta, a.fps)
-            r = dict({"escena": os.path.basename(ruta), "formato": "-"}, **metricas(F, a.fps, dur),
+            F, dur, fps_v = frames_de_video(ruta)
+            r = dict({"escena": os.path.basename(ruta), "formato": f"{fps_v}fps"}, **metricas(F, fps_v, dur),
                      letra_min=0, zona=1.0, costo=0.0)
             r["nota"] = nota(r)
             res.append(r)
