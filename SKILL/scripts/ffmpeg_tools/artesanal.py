@@ -72,6 +72,10 @@ def main():
     ap.add_argument("--sin-vineta", action="store_true")
     ap.add_argument("--crf", type=int, default=18, help="CRF de salida (default 18)")
     add_common(ap)
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "."))
+    from _comun import ayudar
+    ayudar(ap, {'--sin-parpadeo': 'sin parpadeo de proyector', '--sin-papel': 'sin textura de papel', '--sin-vineta': 'sin viñeta en los bordes'})
     args = ap.parse_args()
     apply_common(args)
 

@@ -732,6 +732,10 @@ def main():
     p.add_argument("--crf", type=int, default=18)
 
     add_common(ap)
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "."))
+    from _comun import ayudar
+    ayudar(ap, {'video1': 'primer clip', 'video2': 'segundo clip', '--dentro': 'segundos de fundido de entrada', '--fuera': 'segundos de fundido de salida', 'base': 'video de fondo', 'overlay': 'video que va en la ventanita', '--opacidad': 'opacidad de la marca de agua (0–1)', '--grados': 'rotación en grados (sentido horario)', '--eje': 'eje del espejo', '--contraste': 'contraste (1 = igual; 1.1 = +10 %)', '--saturacion': 'saturación (1 = igual; 0 = gris)', '--factor': 'velocidad: 2 = el doble de rápido, 0.5 = cámara lenta', '--similitud': 'chroma: qué tan parecido al color clave se quita (0.1 estricto – 0.4 amplio)', '--mezcla': 'chroma: suavidad del borde recortado'})
     a = ap.parse_args()
     apply_common(a)
     {"unir": cmd_unir, "cortar": cmd_cortar, "fundido": cmd_fundido,

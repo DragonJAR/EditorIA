@@ -401,6 +401,10 @@ def main():
     ap.add_argument("--plan", help="medir un plan.json entero (secuencia, cortes, transiciones) antes de renderizar")
     ap.add_argument("--video", nargs="+", help="medir videos YA renderizados (captions, films, pases, entregas)")
     ap.add_argument("--cortes", action="store_true", help="medir el corte entre cada par consecutivo del catálogo")
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
+    from _comun import ayudar
+    ayudar(ap, {'--formato': 'v (9:16), h (16:9) o ambos', '--fps': 'cuadros por segundo del análisis (30 = el del render)'})
     a = ap.parse_args()
     if a.historial and (a.solo or a.formato != "ambos" or a.plan or a.video):
         sys.exit("ERROR: --historial solo registra corridas del catálogo completo (o --cortes) en los dos "

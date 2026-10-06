@@ -820,3 +820,46 @@ def write_segmentos_json(cues, path: str) -> None:
             for s, e, t in cues]
     with open(path, "w", encoding="utf-8") as fh:
         _json.dump(segs, fh, ensure_ascii=False, indent=2)
+
+
+# ───────────── ayuda de CLI: ninguna opción sin explicar ─────────────
+# Un agente aprende la herramienta por --help: una opción sin texto es una
+# opción que adivina. Las que se repiten en todo el kit se explican UNA vez.
+AYUDAS = {
+    "-o": "archivo de salida",
+    "--out": "archivo de salida",
+    "video": "video de entrada",
+    "videos": "videos de entrada, en orden",
+    "plan": "plan.json (references/plan-video.md)",
+    "imagen": "imagen de entrada (PNG/JPG; PNG con alfa para logos)",
+    "carpeta": "carpeta de entrada",
+    "--crf": "calidad x264: menor = mejor y más pesado (18 visualmente sin pérdida, 23 default web)",
+    "--fps": "cuadros por segundo de la salida",
+    "--ancho": "ancho de salida en px (el alto sigue la proporción)",
+    "--jobs": "procesos en paralelo (default: núcleos de la máquina)",
+    "--dur": "duración en segundos",
+    "--duracion": "duración en segundos",
+    "--formato": "formato: 9:16 (vertical, Reels/TikTok/Shorts) o 16:9 (YouTube)",
+    "--titulo": "título que aparece en pantalla",
+    "--subtitulo": "subtítulo bajo el título",
+    "--posicion": "posición en el cuadro",
+}
+
+
+def ayudar(parser: "argparse.ArgumentParser", propias: Optional[Dict[str, str]] = None) -> "argparse.ArgumentParser":
+    """Completa el help de toda opción (y subcomando) que no lo tenga: primero
+    `propias` (las de este script), luego AYUDAS (las del kit). Recorre los
+    subcomandos. Llamar antes de parse_args(). Devuelve el parser."""
+    textos = dict(AYUDAS, **(propias or {}))
+    for act in parser._actions:
+        if isinstance(act, argparse._SubParsersAction):
+            for ch in act._choices_actions:   # help del subcomando en la lista {gen,mix,…}
+                if not ch.help and ch.dest in textos:
+                    ch.help = textos[ch.dest]
+            for sub in act.choices.values():
+                ayudar(sub, propias)
+            continue
+        if act.help is None or act.help == "":
+            claves = list(act.option_strings) + [act.dest]
+            act.help = next((textos[c] for c in claves if c in textos), act.help)
+    return parser

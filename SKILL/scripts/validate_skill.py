@@ -100,7 +100,7 @@ except ImportError:
 
 # toda CLI arranca: --help sin traceback (una dependencia opcional ausente se
 # avisa con un mensaje claro, nunca un ModuleNotFoundError crudo)
-crudas = []
+crudas, mudas = [], []
 for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpeg_tools")):
     for _f in sorted(os.listdir(_dir)):
         if not _f.endswith(".py") or _f.startswith("_") or _f == "validate_skill.py":
@@ -111,7 +111,31 @@ for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpe
         _r = subprocess.run([sys.executable, _ruta, "--help"], capture_output=True, text=True, timeout=60)
         if "Traceback" in _r.stderr:
             crudas.append(f"{_f}: {_r.stderr.strip().splitlines()[-1]}")
+            continue
+        # un agente aprende la herramienta por --help: ninguna opción ni
+        # subcomando sin explicar (ffmpeg_tools/_comun.ayudar completa las comunes)
+        _subs = re.findall(r"^\s+\{([\w\-]+(?:,[\w\-]+)+)\}", _r.stdout, re.M)
+        _textos = [_r.stdout]
+        for _sc in (_subs[0].split(",") if _subs else []):
+            if not re.search(rf"^\s{{4}}{re.escape(_sc)}\s+\S", _r.stdout, re.M):
+                mudas.append(f"{_f} {_sc} (subcomando)")
+            _textos.append(subprocess.run([sys.executable, _ruta, _sc, "--help"], capture_output=True,
+                                          text=True, timeout=60).stdout)
+        for _t in _textos:
+            _ls = _t.splitlines()
+            _en = False
+            for _i, _l in enumerate(_ls):
+                if re.match(r"^(options|optional arguments|positional arguments)", _l, re.I):
+                    _en = True
+                    continue
+                _m = re.match(r"^  (\S.*?)(\s{2,}\S.*)?$", _l)
+                if not _en or not _m or _l.startswith("   ") or _m.group(1).startswith(("-h, --help", "{")):
+                    continue
+                _sig = _ls[_i + 1] if _i + 1 < len(_ls) else ""
+                if not _m.group(2) and not re.match(r"^\s{6,}\S", _sig):
+                    mudas.append(f"{_f} {_m.group(1).split(',')[0].split()[0]}")
 check(not crudas, f"toda CLI arranca con --help ({'; '.join(crudas) or 'todas'})")
+check(not mudas, f"toda opción y subcomando de toda CLI se explica en --help ({', '.join(mudas[:8]) or 'todas'})")
 
 # 2. archivos requeridos
 req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",

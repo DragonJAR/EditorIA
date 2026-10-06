@@ -78,7 +78,9 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   `scripts/ffmpeg_tools/_comun.py` (utilidades compartidas: probe, runners,
   puente ASR `transcribir_medio`; `codificar_frames` = ÚNICO encoder de
   frames RGB(A): H.264 BT.709 exacto o alfa ProRes 4444/VP9 con
-  `verificar_alfa`; `VF_RGB_A_BT709` para cadenas de filtros).
+  `verificar_alfa`; `VF_RGB_A_BT709` para cadenas de filtros; `ayudar(parser,
+  propias)` completa el `--help` de toda opción y subcomando con `AYUDAS`, las
+  del kit, más las propias del script: un agente aprende la CLI por `--help`).
 - **scripts/beat_grid.py** — estima BPM, fase y energía por compás de un MP3
   (para cortes al beat). **scripts/beat_sync.py** — ajusta tiempos de corte
   o bordes de EDL a la rejilla de beats. **scripts/medir_mezcla.py** — QA

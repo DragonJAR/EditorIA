@@ -178,6 +178,10 @@ def main():
     g.add_argument("--barras", type=int, default=32, help="barras en total (espejadas; default 32)")
     g.add_argument("--inicio", type=float, default=0.0, help="segundo de inicio del fragmento")
     g.add_argument("--duracion", type=float, help="duración del fragmento (≤90 s recomendado)")
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
+    from _comun import ayudar
+    ayudar(ap, {'--titulo': 'título del audiograma (arriba de la onda)', '--subtitulo': 'línea secundaria bajo el título (episodio, invitado)'})
     a = ap.parse_args()
 
     if not os.path.exists(a.audio):

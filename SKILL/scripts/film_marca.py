@@ -298,6 +298,10 @@ def main():
     ap=argparse.ArgumentParser(description="Film de marca v1, 16:9 o 9:16 (referencia; preferir film_marca_v2.py).")
     ap.add_argument("-o","--out",required=True)
     args_identidad(ap); args_formato(ap)
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
+    from _comun import ayudar
+    ayudar(ap, {})
     a=ap.parse_args()
     configurar(a)
     ctx=Ctx()

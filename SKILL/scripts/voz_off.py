@@ -84,6 +84,10 @@ def main():
     ap.add_argument("--idioma", default="es", choices=["es", "en"],
                     help="idioma de la voz por defecto: la que hable el usuario")
     ap.add_argument("--model", default=MODEL)
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
+    from _comun import ayudar
+    ayudar(ap, {'-o': 'audio de salida con la voz de todas las escenas (mp3)', '--model': 'modelo de voz de ElevenLabs'})
     a = ap.parse_args()
     voz_id = VOCES.get(a.voz, a.voz) if a.voz else VOCES[DEFAULT_POR_IDIOMA[a.idioma]]
     plan=json.load(open(a.plan, encoding="utf-8"))

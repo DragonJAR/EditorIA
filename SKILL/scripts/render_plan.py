@@ -2719,6 +2719,10 @@ def main():
     ap.add_argument("--datos",help="tabla CSV/TSV/JSON: un video por fila; el plan usa {columna}")
     ap.add_argument("--fila",type=int,help="con --datos: renderizar solo esta fila (1 = primera) "
                     "para verificarla antes del lote")
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
+    from _comun import ayudar
+    ayudar(ap, {'--fps': 'cuadros por segundo (30 default; 24 para look de cine)'})
     a=ap.parse_args()
     plan=json.load(open(a.plan, encoding="utf-8"))
     base=os.path.dirname(os.path.abspath(a.plan))

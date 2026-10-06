@@ -77,6 +77,10 @@ def main():
     ap.add_argument("video")
     ap.add_argument("--cortes", default=None,
                     help="tiempos de corte en segundos, ej. 0,1.6,3.0,4.8")
+    import os as _os, sys as _sys
+    _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
+    from _comun import ayudar
+    ayudar(ap, {'video': 'video renderizado a verificar'})
     a = ap.parse_args()
 
     fps, diffs = frame_diffs(a.video)
