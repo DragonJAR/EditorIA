@@ -252,6 +252,32 @@ def ass_color(hex_rgb, alpha=0):
     return f"&H{alpha:02X}{b}{g}{r}".upper()
 
 
+def _envolver(ln, font, avail_w):
+    """Una línea física → las líneas en que se parte, por palabras completas y
+    de ancho parejo (como el wrap inteligente de libass): el MÍNIMO de líneas
+    en que CADA una cabe. Una sola medida para encoger (_fit_cue_size) y para
+    fijar los saltos (_partir_fijo): nunca prometen líneas distintas."""
+    pal = ln.split()
+    if not pal or font.getlength(ln) <= avail_w:
+        return [ln]
+
+    def en(n):   # n líneas de ancho parejo (cada corte, cerca de su parte)
+        restante, lineas = pal, []
+        for k in range(n, 1, -1):
+            if len(restante) < 2:
+                break
+            meta = font.getlength(" ".join(restante)) / k
+            corte = min(range(1, len(restante)),
+                        key=lambda c: abs(font.getlength(" ".join(restante[:c])) - meta))
+            lineas.append(" ".join(restante[:corte]))
+            restante = restante[corte:]
+        return lineas + [" ".join(restante)]
+    n = 2
+    while n < len(pal) and max(font.getlength(x) for x in en(n)) > avail_w:
+        n += 1
+    return en(n)
+
+
 def _fit_cue_size(text, base_size, min_size, max_lines, avail_w, font_file):
     """Tamano para que el cue quepa en avail_w px y en max_lines lineas.
 
@@ -259,7 +285,6 @@ def _fit_cue_size(text, base_size, min_size, max_lines, avail_w, font_file):
     confabulacion). Devuelve (tamano, encogido). Si no hay como medir
     (sin PIL o sin fuente), devuelve el tamano base.
     """
-    import math
     try:
         from PIL import ImageFont
     except ImportError:
@@ -271,22 +296,28 @@ def _fit_cue_size(text, base_size, min_size, max_lines, avail_w, font_file):
             font = ImageFont.truetype(font_file, size)
         except Exception:
             return base_size, False
-        getlength = getattr(font, "getlength", None)
-        def w(ln):
-            return getlength(ln) if getlength else font.getsize(ln)[0]
-        lines = plain.split("\n") or [""]
-        # lineas que ocuparia cada linea fisica con el wrap inteligente de ASS
-        # (WrapStyle 0: envuelve en espacios, nunca parte palabras)
-        needed = 0
-        for ln in lines:
-            needed += max(1, math.ceil(w(ln) / avail_w)) if avail_w > 0 else 1
+        # líneas REALES (las mismas que fijará _partir_fijo), no ancho/área
+        needed = sum(len(_envolver(ln, font, avail_w)) for ln in (plain.split("\n") or [""]))
         # solo una palabra mas ancha que el area es irrompible y fuerza encogido
-        too_wide = any(w(pal) > avail_w for pal in plain.split() if pal.strip())
+        too_wide = any(font.getlength(pal) > avail_w for pal in plain.split() if pal.strip())
         if (max_lines and needed > max_lines) or too_wide:
             size -= 2
             continue
         break
     return size, (size < base_size)
+
+
+def _partir_fijo(text, size, avail_w, font_file):
+    """Saltos de línea FIJOS (\\N) medidos con la fuente real (_envolver). Con
+    {\\q2} libass ya no re-envuelve: si la animación escala el texto (pop
+    80 → 108 %), una línea no salta a 3 durante un frame. Sin PIL o sin
+    fuente: el texto tal cual."""
+    try:
+        from PIL import ImageFont
+        font = ImageFont.truetype(font_file, size)
+    except Exception:
+        return text, False
+    return "\n".join(x for ln in text.split("\n") for x in _envolver(ln, font, avail_w)), True
 
 
 def write_ass(cues, path, args, play_w, play_h, video=None):
@@ -306,11 +337,26 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
     # Nunca reescribe el texto; si no se puede medir, no se encoge.
     font_file = None
     if getattr(args, "max_lines", 2):
-        try:
-            from _plataforma import resolver_fuente
-            font_file = resolver_fuente(args.font)
-        except Exception:
-            font_file = None
+        # medir con el MISMO archivo que usará libass: en fonts_dir, el de la
+        # familia pedida (la variable empaquetada se llama "Montserrat Thin" y
+        # mide más angosta que la Bold estática que libass dibuja)
+        if getattr(args, "fonts_dir", None) and os.path.isdir(args.fonts_dir):
+            try:
+                from PIL import ImageFont
+                for f_ in sorted(os.listdir(args.fonts_dir)):
+                    if f_.lower().endswith((".ttf", ".otf")):
+                        ruta_ = os.path.join(args.fonts_dir, f_)
+                        if ImageFont.truetype(ruta_, 12).getname()[0] == args.font:
+                            font_file = ruta_
+                            break
+            except Exception:
+                font_file = None
+        if not font_file:
+            try:
+                from _plataforma import resolver_fuente
+                font_file = resolver_fuente(args.font)
+            except Exception:
+                font_file = None
     avail_w = max(50, play_w - 2 * margin)
     fit_min = int(round(args.min_size * scale))
     fit_reducidos = 0
@@ -342,17 +388,28 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
                 text, size, fit_min, args.max_lines, avail_w, font_file)
             if encogido:
                 fit_reducidos += 1
+        fijo = False
+        if font_file and args.animate in ("pop", "slide"):   # escalan o se mueven: saltos fijos
+            text, fijo = _partir_fijo(text, cue_size, avail_w, font_file)
         text = text.replace("\n", "\\N")
         fx = "{\\fs%d}" % cue_size if cue_size != size else ""
+        if fijo:
+            fx += "{\\q2}"
+        def fundido(ms_in, ms_out):
+            # alfa con ease-in (\\t con accel 2): \\fad es lineal y arranca a
+            # velocidad plena (arranque en la métrica); entrar y salir empiezan suave
+            dur_ms = int(round((end - start) * 1000))
+            return ("\\alpha&HFF&\\t(0,%d,2,\\alpha&H00&)\\t(%d,%d,2,\\alpha&HFF&)"
+                    % (ms_in, max(ms_in, dur_ms - ms_out), dur_ms))
         if args.animate == "fade":
-            fx += "{\\fad(200,200)}"
+            fx += "{%s}" % fundido(200, 200)
         elif args.animate == "pop":
             # pop con punch pero sin aparecer de golpe: 160 ms de fundido, 80 → 108 → 100 %
             # (80 ms y 60 → 110 % lo volcaba entero en 2 frames: pop en la métrica)
-            fx += ("{\\fad(160,120)\\fscx80\\fscy80\\t(0,160,\\fscx108\\fscy108)"
-                   "\\t(160,260,\\fscx100\\fscy100)}")
+            fx += ("{%s\\fscx80\\fscy80\\t(0,160,\\fscx108\\fscy108)"
+                   "\\t(160,260,\\fscx100\\fscy100)}" % fundido(160, 120))
         elif args.animate == "slide":
-            fx += ("{\\fad(150,150)\\move(%d,%d,%d,%d,0,250)}"
+            fx += ("{" + fundido(150, 150) + "\\move(%d,%d,%d,%d,0,250)}"
                   % (play_w // 2, play_h - margin + int(30 * scale),
                      play_w // 2, play_h - margin))
         body = text

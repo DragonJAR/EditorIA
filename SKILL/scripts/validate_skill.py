@@ -144,6 +144,18 @@ _cap = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "ffmpeg_too
                        _vcap, "--text", "hola", "--dry-run"], capture_output=True, text=True, timeout=60)
 check("FontName=Montserrat" in _cap.stdout + _cap.stderr and "fontsdir=" in _cap.stdout + _cap.stderr,
       "subtítulos sin marca en la tipografía empaquetada (Montserrat Bold estática, fontsdir del kit)")
+# pop/slide: saltos de línea FIJOS (\N + \q2) — con el wrap de libass, el
+# sobrepaso a 108 % re-envolvía 2 líneas en 3 durante un frame — y alfa con
+# ease (\t con accel), no \fad lineal (arranca a velocidad plena)
+_ass = os.path.join(os.path.dirname(_vcap), "pop.ass")
+_vv = os.path.join(os.path.dirname(_vcap), "v916.mp4")
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=1080x1920:d=1", _vv])
+subprocess.run([sys.executable, os.path.join(BASE, "scripts", "ffmpeg_tools", "caption.py"), _vv,
+                "--text", "Un lugar para volver cuando el mundo va demasiado rápido", "--animate", "pop",
+                "--size", "60", "--write-ass", _ass, "--dry-run"], capture_output=True, text=True, timeout=60)
+_dlg = [l_ for l_ in open(_ass, encoding="utf-8-sig") if l_.startswith("Dialogue")] if os.path.isfile(_ass) else []
+check(_dlg and all("\\q2" in l_ and "\\N" in l_ and "\\fad" not in l_ and ",2,\\alpha" in l_ for l_ in _dlg),
+      "subtítulos pop: saltos fijos (no re-envuelven al escalar) y fundido con ease")
 
 # 2. archivos requeridos
 req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
