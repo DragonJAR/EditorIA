@@ -41,6 +41,7 @@ LADO = 180             # lado CORTO de análisis (misma escala en 9:16 y 16:9: 1
 BLOQUE = 10            # px del bloque para detectar pops
 POP_SALTO = 70.0       # luma media de un bloque que cambia en UN frame = pop
 TEXTURA = 12.0         # desvío de luma de un bloque con contenido (no fondo liso)
+CELDA_MOV = 1.0      # niveles de gris/frame: una celda que se mueve de verdad (la respiración no llega)
 POP_PROPORCION = 0.35  # fracción de bloques abruptos sin origen para llamarlo aparición
 MOV_RADIO = 10         # px de análisis (≈ 60 px a 1080, 1800 px/s): lo que se mueve más rápido
                        # que esto se lee como teletransporte (aparición), no como movimiento
@@ -231,16 +232,26 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
         if bajo[i:i + racha].all():
             muertas[i:i + racha] = True
     muerto = float(muertas[hold].mean()) if hold.any() else 0.0
-    # densidad: picos de movimiento (eventos) por segundo, energía suavizada 0.2 s
-    k = max(1, int(0.2 * fps))
-    sua = np.convolve(energia, np.ones(k) / k, mode="same")
-    umbral = max(0.4, float(np.percentile(sua, 60))) if len(sua) else 0.4
-    picos = [i for i in range(1, len(sua) - 1)
-             if sua[i] > umbral and sua[i] >= sua[i - 1] and sua[i] > sua[i + 1]]
+    # densidad: eventos = ARRANQUES de movimiento en una zona del cuadro. Una
+    # celda de la grilla que empieza a moverse (> CELDA_MOV niveles/frame) tras
+    # ≥ 0.3 s quieta es algo NUEVO que pasa; arranques a < 0.35 s son el mismo
+    # evento. Solo la parte activa: la salida común no es un evento. (Contar
+    # picos de energía global fallaba: barras escalonadas se funden en una sola
+    # loma y la salida sumaba un evento falso en cada escena.)
+    G = 8
+    ch, cw = max(1, alto_a // G), max(1, ancho_a // G)
+    celdas = d[:, :ch * G, :cw * G].reshape(len(d), G, ch, G, cw).mean(axis=(2, 4))
+    k = max(1, int(0.1 * fps))
+    celdas = np.apply_along_axis(lambda v: np.convolve(v, np.ones(k) / k, mode="same"), 0, celdas)
+    mov = celdas > CELDA_MOV
+    calma = max(1, int(0.3 * fps))
+    fin = max(1, int((dur - 0.6) * fps))
+    arr_celda = sorted(i for i in range(1, min(len(mov), fin))
+                       for gy, gx in zip(*np.nonzero(mov[i] & ~mov[max(0, i - calma):i].any(axis=0))))
     eventos = []
-    for p in picos:   # dos picos a menos de 0.4 s son el mismo evento
-        if not eventos or (p - eventos[-1]) / fps > 0.4:
-            eventos.append(p)
+    for i in arr_celda:
+        if not eventos or (i - eventos[-1]) / fps > 0.35:
+            eventos.append(i)
     densidad = len(eventos) / max(0.5, dur - 0.6)
     return {"pops": pops, "tirones": len(tir_t), "t_tirones": tir_t, "arranques": arr_t,
             "jerk": round(jerk, 3),

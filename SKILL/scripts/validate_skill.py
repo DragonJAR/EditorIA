@@ -402,6 +402,21 @@ try:
         _MA.metricas(_arranque(lambda i_: 9 * i_), 30, 2)["arranques"])
     casos["acelera (ease-in) = no"] = not _MA.metricas(
         _arranque(lambda i_: 9 * i_ * min(1, i_ / 6) ** 2), 30, 2)["arranques"]
+    # densidad: 3 cajas que entran (fundido 0.2 s) en 0.5/1.5/2.5 s = 3 eventos;
+    # una flotación de 1 px (respiración) = 0 eventos
+    def _entradas(n_, t_):
+        fr = []
+        for i_ in range(int(3.6 * 30)):
+            def dib(d_, i_=i_):
+                for j_ in range(n_):
+                    a_ = min(1, max(0, (i_ / 30 - (0.5 + j_)) / 0.2))
+                    if a_ > 0:
+                        d_.rectangle([20, 20 + j_ * 100, 160, 100 + j_ * 100], fill=int(12 + 228 * a_))
+                    d_.rectangle([70, 300 + round(_np.sin(i_ / 30 * 3)), 110, 310], fill=60)
+            fr.append(_cuadro(dib))
+        return _MA.metricas(_np.stack(fr), 30, t_)["densidad"]
+    casos["3 entradas = 3 eventos"] = abs(_entradas(3, 3.6) * 3.0 - 3) < 0.01
+    casos["solo respiración = 0 eventos"] = _entradas(0, 3.6) == 0
     check(all(casos.values()), f"detector de pops calibrado ({casos})")
 except Exception as ex:
     check(False, f"detector de pops: {ex}")

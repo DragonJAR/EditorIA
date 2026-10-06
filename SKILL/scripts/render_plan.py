@@ -5,7 +5,7 @@ sin pack, usa los defaults neutros del renderer.
 Uso: python render_plan.py plan.json -o salida.mp4 [--fps 30] [--brand brand/otro.json]
 """
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 import os, math, json, random, re, sys, argparse
 
 # ---------- identidad: defaults NEUTROS; el brand pack los sobreescribe ----------
@@ -674,9 +674,13 @@ def sc_apertura(ctx,e,t):
             pts.append((W/2+rr*math.cos(a),H*0.44+rr*math.sin(a)))
         d.polygon(pts,fill=ACENTO+(58,))
     # micro-idle: el titular asentado respira (±5 px), nunca queda congelado
-    if t < cambio:
-        cy=H*0.44+flota(t,e["at"]["p1"][-1]+0.5,5,0.45)
-        titular(ctx,layer,t,e["texto1"],e["at"]["p1"],tam=150,cy=cy)
+    if t < cambio:   # el primer titular se va (fundido + sube) en vez de desaparecer de golpe
+        ks=prog(t,cambio-0.35,cambio)   # cúbica: arranca suave
+        cy=H*0.44+flota(t,e["at"]["p1"][-1]+0.5,5,0.45)-ks*30
+        sub,_=grupo()
+        titular(ctx,sub,t,e["texto1"],e["at"]["p1"],tam=150,cy=cy)
+        if ks>0: sub.putalpha(sub.split()[3].point(lambda v:int(v*(1-ks))))
+        layer.alpha_composite(sub)
     else:
         cy=H*0.44+flota(t,e["at"]["p2"][-1]+0.5,5,0.45)
         titular(ctx,layer,t,e["texto2"],e["at"]["p2"],tam=124,cy=cy)
@@ -746,9 +750,21 @@ def sc_medianoche(ctx,e,t):
         ph=Image.new("RGBA",(tw,th),(0,0,0,0)); dp=ImageDraw.Draw(ph)
         dp.rounded_rectangle([0,0,tw,th],radius=86,fill=(12,12,12,255))
         dp.rounded_rectangle([18,18,tw-18,th-18],radius=70,fill=(16,22,34,255))
+        # fondo de pantalla vivo: un halo del acento deriva despacio (la pantalla
+        # bloqueada no queda congelada entre notificación y notificación)
+        hx=tw/2+130*math.sin(0.9*t); hy=th*0.70+90*math.cos(0.7*t)
+        q=8   # se pinta a 1/8 y se desenfoca: halo suave sin borde, barato
+        halo=Image.new("L",(tw//q,th//q),0)
+        ImageDraw.Draw(halo).ellipse([(hx-260)/q,(hy-260)/q,(hx+260)/q,(hy+260)/q],fill=110)
+        halo=halo.filter(ImageFilter.GaussianBlur(120/q)).resize((tw,th),Image.BILINEAR)
+        masc=Image.new("L",(tw,th),0)
+        ImageDraw.Draw(masc).rounded_rectangle([18,18,tw-18,th-18],radius=70,fill=255)
+        brillo=Image.new("RGBA",(tw,th),ACENTO+(0,))
+        brillo.putalpha(ImageChops.multiply(halo,masc))
+        ph.alpha_composite(brillo)
         dp.rounded_rectangle([tw/2-85,42,tw/2+85,90],radius=24,fill=(0,0,0,255))
-        dp.text((tw/2,190),e["fecha"],font=ctx.fX(30,600),fill=(255,255,255,200),anchor="ma")
-        dp.text((tw/2,330),e["hora"],font=ctx.fT(150,700),fill=BLANCO,anchor="ma")
+        dp.text((tw/2,160),e["fecha"],font=ctx.fX(30,600),fill=(255,255,255,200),anchor="ma")
+        dp.text((tw/2,280),e["hora"],font=ctx.fT(150,700),fill=BLANCO,anchor="ma")   # dígitos hasta y≈438
         nots=e["notificaciones"]
         for i,n in enumerate(nots):
             kn=spring(t,n["at"],120,16)
@@ -756,7 +772,7 @@ def sc_medianoche(ctx,e,t):
             # cada notificación nueva EMPUJA a las anteriores con resorte (antes
             # saltaban 170 px en un frame: el conteo era un escalón)
             despues=sum(min(1.0,spring(t,m["at"],120,16)) for m in nots[i+1:])
-            ny=500+despues*170+(1-min(1,kn))*-90
+            ny=480+despues*170+(1-min(1,kn))*-24   # baja apenas: nunca cruza la hora
             nw=Image.new("RGBA",(tw-44,140),(0,0,0,0)); dn=ImageDraw.Draw(nw)
             dn.rounded_rectangle([0,0,tw-44,140],radius=30,fill=(255,255,255,36))
             dn.ellipse([22,38,86,102],fill=ACENTO+(255,))
@@ -767,7 +783,10 @@ def sc_medianoche(ctx,e,t):
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((int(tw*sc),int(th*sc)),Image.LANCZOS)
         # giro 3D real al entrar: rotateY de -70° a -12° con el resorte (perspectiva)
-        ph=perspectiva_y(ph,lerp(-70,-12,min(1.0,k)))
+        # y sigue girando despacio mientras llegan las notificaciones (-12° → 0°):
+        # pantalla oscura = la respiración común no alcanza a leerse como vida
+        giro=12*clamp01((t-e["from"])/max(0.1,e["to"]-e["from"]))   # lineal: nace dentro del resorte de entrada
+        ph=perspectiva_y(ph,lerp(-70,-12,min(1.0,k))+giro)
         al=clamp01(k*1.6)   # entra fundido, no de golpe en el primer frame
         if al<1: ph.putalpha(ph.split()[3].point(lambda v:int(v*al)))
         layer.alpha_composite(ph,(int(W/2-ph.width/2),int(cy_tel-ph.height/2)))
@@ -822,8 +841,10 @@ def sc_chat(ctx,e,t):
     # al acercarse el link, el hilo sube con suavidad (antes el límite cambiaba en
     # un escalón y toda la conversación saltaba ~30 px en un frame)
     kl=smoothstep(clamp01((t-(lk.get("at",1e9)-0.4))/0.35)) if lk else 0.0
-    limite=lerp(H-SAFE["bottom"]-20,H*0.70,kl)
-    y=y0-max(0.0,y0+alto-limite)
+    # se interpola el DESPLAZAMIENTO, no el límite: con max(0,…) sobre un límite
+    # que baja, el scroll arrancaba a mitad de curva (a velocidad plena)
+    sube=lambda lim: max(0.0,y0+alto-lim)
+    y=y0-lerp(sube(H-SAFE["bottom"]-20),sube(H*0.70),kl)
     for mm in msgs:
         k=spring(t,mm["at"],140,15)
         lado_x=lambda w_: zx0+12 if not mm["ia"] else zx1-12-w_
@@ -2026,8 +2047,10 @@ def sc_demo(ctx, e, t):
     for i, p_ in enumerate(pasos):
         a_ = p_.get("at", 0)
         nxt = pasos[i + 1].get("at", 1e9) if i + 1 < len(pasos) else 1e9
-        # zoom de cámara en 0.9 s smoothstep (0.7 s ease_in_out barría ~40 px/frame)
-        zin = smoothstep(clamp01((t - (a_ + 0.15)) / 0.9))
+        # zoom de cámara en 1 s smoothstep (0.7 s ease_in_out barría ~40 px/frame);
+        # nace EN el clic, encima del fundido de pantalla: si esperaba a que el
+        # fundido terminara, quedaba un frame quieto y el zoom arrancaba en seco
+        zin = smoothstep(clamp01((t - a_) / 1.0))
         zout = smoothstep(clamp01((t - (nxt - 1.4)) / 0.9))
         s_ = zin * (1 - zout)
         if s_ > 0:
@@ -2292,8 +2315,8 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)
-    if dur-t<0.8:
-        k=clamp01((0.8-(dur-t))/0.8)
+    if dur-t<0.8:   # fundido al cierre con ease-in-out: no arranca a velocidad plena
+        k=smoothstep(clamp01((0.8-(dur-t))/0.8))
         if ALFA:   # un overlay se va por transparencia, no a negro
             bg.putalpha(bg.split()[3].point(lambda v:int(v*(1-k))))
         else:
