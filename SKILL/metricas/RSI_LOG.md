@@ -182,3 +182,30 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
   al cargar (solo `gen` usa la red).
 - **Proceso**: comparar ruff contra la línea base REAL (346), no contra la
   medición intermedia del ciclo anterior (348, tomada antes de su corrección).
+
+### Ciclo 6 — DESCARTADO (revertido) · rendimiento: transformar solo la caja con contenido
+- **Perfil (antes de la hipótesis)**: 90 frames de `demo_plan` con cProfile:
+  `encajar()` → `Image.transform` = 12.2 s de 17.1 s (**72 %** del costo del
+  frame): la respiración de cámara transforma el lienzo entero aunque la capa
+  es casi toda transparente.
+- **Hipótesis**: transformar solo el rectángulo con contenido (alfa, mapeado a
+  la salida + 3 px de soporte bicúbico) da la misma imagen mucho más rápido.
+- **Medida (definida antes)**: mediana de 3 renders ≥ 4 % más rápida;
+  diferencia de imagen ≤ 1 nivel por píxel; banco ±0.05.
+- **Resultado**:
+  - velocidad: 151.05 s → **124.52 s (−17.6 %)**, dispersión 3.2 %; los 3 MP4
+    idénticos entre sí (determinista).
+  - capa (336 casos, 28 escenas × 2 formatos): alfa idéntico; RGB difiere hasta
+    12 solo en píxeles con alfa 0 (invisibles); compuesta sobre fondo: ≤ 1.
+  - frames PNG del render (antes de codificar): 47 de 900 distintos, **máx 2
+    niveles** (6 píxeles de 1 frame); en el MP4 el H.264 lo amplifica a 78 en
+    puntos aislados (PSNR 56.1 dB).
+- **Decisión**: el criterio fijado era ≤ 1 nivel y el resultado es 2. Causa:
+  redondeo de punto flotante al reagrupar los coeficientes de la afín (no se
+  puede hacer exacto). No se cambia la tolerancia después de ver el dato →
+  **revertido** (solo `encajar`). Queda como **decisión pendiente del autor**:
+  si acepta «≤ 2 niveles / PSNR ≥ 50 dB» como tolerancia, se reaplica con ese
+  criterio declarado de antemano.
+- **Proceso**: para cambios de rendimiento en el render, declarar la
+  tolerancia de imagen en términos de lo visible (PNG pre-codificación, PSNR)
+  y no solo «bit a bit/≤1», porque el reordenamiento de flotantes es inevitable.
