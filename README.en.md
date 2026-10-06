@@ -8,7 +8,9 @@ Create, edit, summarize and improve videos (`.mp4`): animated meeting summaries,
 
 ## Version
 
-`v1.3.0` — 28 scenes (new: `oferta` sale spot, product `demo`, `countdown`, `rotulo_inferior` lower third), alpha-channel overlays for Premiere/Resolve/OBS, template × table (one video per row), audiograms, karaoke from real word timings, exact brand color (BT.709) and photosensitivity/startle QA.
+`v1.5.0` — **measured animation, not opinions**: a benchmark (`scripts/medir_animacion.py`) scores every scene in 9:16 and 16:9 —things popping in, stutters, motion starting without ease-in, dead time, event density, type size, safe zone and overlapping text— and logs the history in `SKILL/metricas/historial.jsonl` (catalog 80 → 99.35/100, 0 pops). Agent-proof plans: optional `at` (timing derived from each scene's sample), misspelled fields flagged with a suggestion, clear errors in < 1 s, long copy that shrinks or wraps to two lines. Locale-aware numbers (`"numeros": "es"`), a reserved subtitle band (`"subtitulos": true`) and subtitles in the kit's own typeface. Every option of every CLI explained in `--help`.
+
+Previously, `v1.3.0`: 28 scenes (`oferta`, `demo`, `countdown`, `rotulo_inferior`), alpha overlays, template × table, audiograms, word-level karaoke, exact BT.709 color and photosensitivity QA.
 
 ## Structure
 

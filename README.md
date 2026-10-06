@@ -8,7 +8,9 @@ Crea, edita, resume y mejora videos (`.mp4`): resúmenes animados de reuniones, 
 
 ## Versión
 
-`v1.3.0` — 28 escenas (nuevas: `oferta`, `demo` de producto, `countdown`, `rotulo_inferior`), overlays con canal alfa para Premiere/Resolve/OBS, plantilla × tabla (un video por fila), audiogramas, karaoke con tiempo real por palabra, color de marca exacto (BT.709) y QA de fotosensibilidad y sobresaltos.
+`v1.5.0` — **animación medida, no opinada**: un banco (`scripts/medir_animacion.py`) puntúa cada escena en 9:16 y 16:9 —apariciones de golpe, tirones, arranques sin ease-in, tiempo muerto, densidad de eventos, letra, zona segura y textos que se pisan— y guarda la historia en `SKILL/metricas/historial.jsonl` (catálogo 80 → 99.35/100, 0 pops). Planes de agente robustos: `at` opcional (tiempos desde la muestra de cada escena), avisos de campos mal escritos con sugerencia, error claro en < 1 s, copy largo que encoge o parte en dos líneas. Cifras por idioma (`"numeros": "es"`), banda de subtítulos (`"subtitulos": true`) y subtítulos en la tipografía del kit. Toda opción de toda CLI explicada en `--help`.
+
+Antes, `v1.3.0`: 28 escenas (`oferta`, `demo`, `countdown`, `rotulo_inferior`), overlays con alfa, plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto y QA de fotosensibilidad.
 
 ## Estructura
 

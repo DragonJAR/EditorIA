@@ -1,7 +1,7 @@
 ---
 name: editoria
 description: EditorIA, navaja suiza de creación y edición de video con IA, en vertical (Reels, TikTok, Shorts) u horizontal (YouTube), para cualquier marca o sin marca. Anuncios por escenas, resúmenes animados de reuniones, tipografía cinética, films de marca, rótulos y overlays con transparencia, subtítulos animados y karaoke, pases de fotos, audiogramas, thumbnails, shorts desde videos largos, voz en off y música con ducking; mide y corrige su propia animación antes de entregar. Úsalo cuando pidan "hazme un video", "un reel", "resume esta reunión en video", "ponle subtítulos", "ponle música", "edita/corta/mejora este video", "un lower third", "make a video", "add captions" o "edit this clip".
-metadata: { "author": "Jaime Andrés Restrepo", "version": "1.4.0" }
+metadata: { "author": "Jaime Andrés Restrepo", "version": "1.5.0" }
 ---
 
 # EditorIA
