@@ -26,8 +26,12 @@ transiciones *dentro* de la escena.)
   máximo, nunca como costura por defecto. La fluidez manda en entradas,
   salidas y transiciones *dentro* de la escena; la costura *entre* escenas
   la fija el idioma de transición elegido.
-- **Salidas con anticipación**: cada escena empieza su salida 0.5s antes del fin
-  (fade + deriva), la siguiente ya está entrando.
+- **Salidas que cruzan el corte**: cada escena empieza a irse 0.25 s antes de
+  su fin y termina de irse 0.45 s DESPUÉS, debajo de la siguiente que ya
+  entra (`capa_salida` + `SOLAPE` en `componer`). Nunca un frame de fondo
+  vacío entre escenas: eso es un parpadeo (medido con
+  `medir_animacion.py --plan`; validate_skill lo exige). El fondo es UN mundo
+  continuo para todo el video: no salta de lugar en los cortes.
 - **Objetos de ambiente**: 2-4 elementos sutiles con deriva lenta y rotación
   mínima durante toda la escena (atmósfera, no decoración gratuita).
 

@@ -1,7 +1,7 @@
 ---
 name: editoria
-description: EditorIA, navaja suiza de edición de video con IA. Crea, edita, resume o mejora videos (.mp4): resúmenes animados de reuniones, tipografía cinética, anuncios por plan, films cinematográficos y piezas verticales para redes, para cualquier marca o sin marca. Úsalo cuando el usuario pida "hazme un video", "resume esta reunión", "edita este anuncio", "mejora este video" o "ponle música".
-metadata: { "author": "Jaime Andrés Restrepo", "version": "1.3.0" }
+description: EditorIA, navaja suiza de creación y edición de video con IA, en vertical (Reels, TikTok, Shorts) u horizontal (YouTube), para cualquier marca o sin marca. Anuncios por escenas, resúmenes animados de reuniones, tipografía cinética, films de marca, rótulos y overlays con transparencia, subtítulos animados y karaoke, pases de fotos, audiogramas, thumbnails, shorts desde videos largos, voz en off y música con ducking; mide y corrige su propia animación antes de entregar. Úsalo cuando pidan "hazme un video", "un reel", "resume esta reunión en video", "ponle subtítulos", "ponle música", "edita/corta/mejora este video", "un lower third", "make a video", "add captions" o "edit this clip".
+metadata: { "author": "Jaime Andrés Restrepo", "version": "1.4.0" }
 ---
 
 # EditorIA
@@ -171,7 +171,9 @@ Un video está terminado solo si cumple TODO:
 5. **Audio**: si lleva música, con cadencia acorde al ritmo visual; si lleva voz,
    ducking aplicado y niveles verificados con `scripts/medir_mezcla.py`
    (música ~15 dB bajo la voz durante el habla).
-6. **QA visual**: frames extraídos en los tiempos clave y mirados. Sin defectos.
+6. **QA visual y medido**: `scripts/medir_animacion.py --plan plan.json` con nota
+   ≥ 90 y 0 pops (o cada pop justificado tras `--ver`), y frames extraídos en
+   los tiempos clave y mirados. Sin defectos.
 7. **Rúbrica de premios**: `references/rubrica-premios.md` puntuada sobre el
    render final — ningún eje bajo 4, media ≥ 4.3.
 8. **Aprendizaje**: cada fix dejó su lección registrada según
@@ -222,7 +224,9 @@ Resultado: `final.mp4` con música de fondo y fade de salida, niveles en rango.
 
 El skill debe activarse con:
 - Obvias: "hazme un video", "resume esta reunión", "edita este anuncio",
-  "mejora este video", "ponle música", "créame un reel".
+  "mejora este video", "ponle música", "créame un reel", "ponle subtítulos",
+  "hazme un lower third para OBS", "convierte estas fotos en un video",
+  "make a video", "add captions to this clip".
 - Paráfrasis: "necesito una pieza para redes", "convierte esta transcripción
   en video", "el video está soso, dale vida", "hazlo más dinámico",
   "quiero un bumper de marca".
@@ -271,7 +275,8 @@ Nunca dentro de la carpeta de la skill ni junto a los entregables del usuario.
    puro según el brief — el listón es "digno de un festival de cine".
    Nunca inventar identidad de marca.
 2. **Fluidez suprema** (`references/fluidez.md`): resortes en toda entrada, fondo
-   siempre vivo, salidas anticipadas, micro-fade de 30ms en cada corte.
+   siempre vivo y continuo, salidas que CRUZAN el corte (la escena saliente
+   termina de irse debajo de la entrante: nunca un frame vacío entre escenas).
    Nada se queda quieto sin propósito; ningún corte es brusco o accidental.
    El idioma de transición lo fija el brand pack o el tono de la pieza
    (ver `references/brand-packs.md`).

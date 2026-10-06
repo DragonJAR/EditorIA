@@ -37,7 +37,7 @@ confirman, tú corriges. Nada llega al usuario sin pasar el loop.
 4. **Márgenes**: todo dentro del 8% de margen seguro en 1080×1920.
 5. **Fotogramas**: extraer ≥1 por segmento y mirarlos (`ffmpeg -ss T -frames:v 1`).
 6. **Ritmo**: cada tarjeta 2,5–3 s (cinético) u 8–13 s por bloque (resumen animado).
-7. **Cortes**: según `reglas.transiciones` del brand pack (default: secos); micro-fade de 30ms en cada corte contra pops
+7. **Cortes**: según `reglas.transiciones` del brand pack (default: corte que cruza — la saliente se va debajo de la entrante, sin frames vacíos — con micro-fade de 30 ms en la entrada contra pops)
    (ver `reglas-tecnicas.md`); fades largos (0,3–0,45 s) solo en entradas/
    salidas de elementos.
 8. **Color**: neutro oscuro dominante; el acento del brand pack (o el elegido

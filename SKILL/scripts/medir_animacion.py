@@ -133,6 +133,18 @@ def medir(job):
         R.cifra = cifra_orig
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
+    m = metricas(F, fps, dur, zonas_cifra, k_)
+    letra = int(min(tamanos) * 1080 / min(w, h)) if tamanos else 0
+    if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
+        m["muerto"] = 0.0
+    return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3),
+                costo=round(costo, 3))
+
+
+def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
+    """Las métricas de movimiento sobre frames en gris (n, alto, ancho) a la
+    escala de análisis. Una sola implementación para escenas, planes y videos."""
+    alto_a, ancho_a = F.shape[1], F.shape[2]
     d = np.abs(np.diff(F, axis=0))                       # (n-1, h, w)
     energia = d.mean(axis=(1, 2))
     # pops: bloque que cambia mucho en un frame, fuera de la salida (fade común)
@@ -145,51 +157,63 @@ def medir(job):
     contenido = (std[:-1] > TEXTURA) & (std[1:] > TEXTURA)
     candidatos = (bloques > POP_SALTO) & ~contenido
     for i in range(len(candidatos)):   # zonas de cifras que cuentan (con un bloque de margen)
-        for x0_, y0_, x1_, y1_ in zonas_cifra[i + 1] if i + 1 < len(zonas_cifra) else []:
+        zs = zonas_cifra[i + 1] if zonas_cifra and i + 1 < len(zonas_cifra) else []
+        for x0_, y0_, x1_, y1_ in zs:
             by0, by1 = int(y0_ * k_ / BLOQUE) - 1, int(y1_ * k_ / BLOQUE) + 2
             bx0, bx1 = int(x0_ * k_ / BLOQUE) - 1, int(x1_ * k_ / BLOQUE) + 2
             candidatos[i, max(0, by0):by1, max(0, bx0):bx1] = False
-    fin_activo = int((e["to"] - 0.6) * fps)
+    fin_activo = int((dur - 0.6) * fps)
     pops = []
     for i in range(min(len(candidatos), fin_activo - 1)):
         for by, bx in zip(*np.nonzero(candidatos[i])):
             if not _movido(F[i], F[i + 1], by * BLOQUE, bx * BLOQUE):
                 pops.append(round((i + 1) / fps, 2))
                 break
-    # tirones: frame casi quieto entre dos que se mueven (movimiento entrecortado)
     tir_t = []   # un frame quieto entre dos que se mueven: salto o congelado de un frame
     for i in range(1, len(energia) - 1):
         vec = (energia[i - 1] + energia[i + 1]) / 2
         if vec > 1.0 and energia[i] < 0.15 * vec:
             tir_t.append(round((i + 1) / fps, 2))
-    tir = len(tir_t)
-    jerk = float(np.mean(np.abs(np.diff(energia, 2)))) / max(1e-6, float(np.mean(energia)))
-    # tiempo muerto en el hold (desde 0.5 s hasta la salida), ventana de 0.25 s
+    jerk = float(np.mean(np.abs(np.diff(energia, 2)))) / max(1e-6, float(np.mean(energia))) \
+        if len(energia) > 2 else 0.0
+    # tiempo muerto en el hold (desde 0.5 s hasta la salida), ventana de auto_qa
     import auto_qa as QA
     paso = max(1, int(fps / QA.FPS_MUESTREO))
     muestras = F[::paso]
-    escala_qa = 1.0   # diferencia media de luma: no depende del tamaño de análisis
-    dm = np.abs(np.diff(muestras, axis=0)).mean(axis=(1, 2)) * escala_qa
+    dm = np.abs(np.diff(muestras, axis=0)).mean(axis=(1, 2))
     t_m = np.arange(1, len(muestras)) * paso / fps
-    hold = (t_m > 0.5) & (t_m < e["to"] - 0.6)
+    hold = (t_m > 0.5) & (t_m < dur - 0.6)
     muerto = float((dm[hold] < QA.FROZEN_DIFF).mean()) if hold.any() else 0.0
     # densidad: picos de movimiento (eventos) por segundo, energía suavizada 0.2 s
     k = max(1, int(0.2 * fps))
     sua = np.convolve(energia, np.ones(k) / k, mode="same")
-    umbral = max(0.4, float(np.percentile(sua, 60)))
+    umbral = max(0.4, float(np.percentile(sua, 60))) if len(sua) else 0.4
     picos = [i for i in range(1, len(sua) - 1)
              if sua[i] > umbral and sua[i] >= sua[i - 1] and sua[i] > sua[i + 1]]
     eventos = []
     for p in picos:   # dos picos a menos de 0.4 s son el mismo evento
         if not eventos or (p - eventos[-1]) / fps > 0.4:
             eventos.append(p)
-    densidad = len(eventos) / max(0.5, e["to"] - 0.6)
-    letra = int(min(tamanos) * 1080 / min(w, h)) if tamanos else 0
-    if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
-        muerto = 0.0
-    return {"escena": nombre, "formato": f, "pops": pops, "tirones": tir, "t_tirones": tir_t,
-            "jerk": round(jerk, 3), "muerto": round(muerto, 3), "densidad": round(densidad, 2),
-            "letra_min": letra, "zona": round(zona, 3), "costo": round(costo, 3)}
+    densidad = len(eventos) / max(0.5, dur - 0.6)
+    return {"pops": pops, "tirones": len(tir_t), "t_tirones": tir_t, "jerk": round(jerk, 3),
+            "muerto": round(muerto, 3), "densidad": round(densidad, 2)}
+
+
+def frames_de_video(ruta, fps=30):
+    """Frames de un video ya renderizado, en gris a la escala de análisis
+    (lado corto = LADO). Para medir captions, films, pases, audiogramas o una
+    entrega final con la misma vara que las escenas."""
+    import subprocess
+    from _comun import probe
+    v = probe(ruta)["video"]
+    w, h = v["width"], v["height"]
+    k_ = LADO / min(w, h)
+    aw, ah = int(w * k_) // 2 * 2, int(h * k_) // 2 * 2
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", ruta, "-vf",
+                          f"fps={fps},scale={aw}:{ah},format=gray", "-f", "rawvideo", "-"],
+                         capture_output=True).stdout
+    F = np.frombuffer(raw, np.uint8).reshape(-1, ah, aw).astype(np.float32)
+    return F, len(F) / fps
 
 
 def ver(e, f, t, fps, salida):
@@ -251,6 +275,7 @@ def main():
     ap.add_argument("--nota", default="", help="qué cambió en esta corrida (para el historial)")
     ap.add_argument("--ver", metavar="ESCENA:F:SEG", help="diagnosticar un pop: guarda el par de frames marcado")
     ap.add_argument("--plan", help="medir un plan.json entero (secuencia, cortes, transiciones) antes de renderizar")
+    ap.add_argument("--video", nargs="+", help="medir videos YA renderizados (captions, films, pases, entregas)")
     a = ap.parse_args()
     muestras = json.load(open(os.path.join(AQUI, "escenas_muestra.json"), encoding="utf-8"))["escenas"]
     solo = set(a.solo.split(",")) if a.solo else None
@@ -264,6 +289,19 @@ def main():
     galeria.assets(medios, NEUTRO["acento"])
     for e in muestras.values():
         R.resolver_medios(e, medios)
+    if a.video:   # misma vara para cualquier video (sin letra ni zona: no hay plan que leer)
+        res = []
+        for ruta in a.video:
+            F, dur = frames_de_video(ruta, a.fps)
+            r = dict({"escena": os.path.basename(ruta), "formato": "-"}, **metricas(F, a.fps, dur),
+                     letra_min=0, zona=1.0, costo=0.0)
+            r["nota"] = nota(r)
+            res.append(r)
+            print(f"{r['nota']:5.1f}  {r['escena']}  pops={r['pops'][:6]} tirones={r['t_tirones'][:6]} "
+                  f"muerto={r['muerto']} densidad={r['densidad']}")
+        if a.json:
+            json.dump(res, open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+        return 0
     if a.ver:
         n_, f_, t_ = a.ver.split(":")
         ver(dict(muestras[n_], tipo=n_), f_, float(t_), a.fps,

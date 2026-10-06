@@ -49,7 +49,9 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
   propia marca (`marca` == `nombre` del pack); nunca acompaña a otro nombre.
 - **Presupuesto de "mancha"**: como máximo 2 por pieza (1 si el pack fija
   `transiciones: corte_seco`); `"mancha_max"` lo cambia. El resto se
-  renderiza como corte seco con micro-fade de 30 ms.
+  renderiza como corte que cruza: la escena saliente termina de irse debajo
+  de la entrante (sin frames vacíos) y la entrante arranca con micro-fade de
+  30 ms.
 
 ## Render
 
