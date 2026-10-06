@@ -285,3 +285,78 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
   54.0 → 54.2 %. Banco no corrido: solo cambia `main()` de render_plan, que el
   banco no llama (grep). Excluidas de la sonda, con razón: medir_animacion
   (lanzaría el banco), registrar_aprendizaje (escribe docs), galeria, check_env.
+
+## 9. Informe final
+
+**Estado: PARCIAL — presupuesto de ciclos agotado (10/10).** No se alcanzó el
+criterio de convergencia (3 ciclos consecutivos distintos sin mejora
+aceptable): el último ciclo descartado fue el 6 y los ciclos 7–10 encontraron
+mejoras. Toda la validación obligatoria cerró en verde.
+
+### Evolución de métricas (línea base e70fe4a → cierre 3343879)
+
+| Métrica | Línea base | Cierre | Nota |
+|---|---|---|---|
+| Compilación | 44/44 | 44/44 | |
+| Suite de validación | 290 OK, 0 FAIL | **296 OK, 0 FAIL** | +6 chequeos nuevos |
+| ruff F (errores lógicos) | 0 | 0 | |
+| ruff total (E4/E7/E9/F) | 346 | 346 | 4 regresiones propias detectadas y corregidas en su ciclo |
+| bandit HIGH / MEDIUM | 1 / 1 | **0 / 0** | LOW 134 → 140 (subprocess y `random` en pruebas) |
+| Cobertura total (suite + subprocesos) | 52 % (e70fe4a) | **55.18 %** | 53.93 % justo antes del ciclo 7 |
+| Cobertura `delivery_check` | 19 % | **63 %** | |
+| Complejidad (media / máx / > 20) | 6.72 / 96 / 26 | 6.71 / 96 / 26 | sin cambio relevante |
+| Mantenibilidad media | 47.7 | 47.6 | |
+| Duplicación | 0.42 % | 0.41 % | |
+| Docstrings públicas | 53.6 % | 54.2 % | |
+| Render `demo_plan` (30 s, mediana de 3) | 151.05 s | **103.49 s (−31.5 %)** | MP4 bit a bit idéntico (MD5) |
+| Banco de animación | 99.35 / 96.9 | 99.35 / 96.9 | idéntico (determinista) |
+| Cortes | 99.57 | 99.57 | idéntico |
+| Sincronía con la música (entradas / cortes) | no evaluado → 11.8 % / 0 % | **100 % / 60 %** | demo_plan sin voz + musica_demo |
+| Dependencias fantasma / sin declarar | 1 / 1 | **0 / 0** | |
+| CLIs con traceback ante entrada inexistente | 3 | **0** | |
+| Galería real (83 piezas + auto_qa) | 83/83 PASS | **no evaluado al cierre** | no se corrió: excedía el presupuesto de cómputo |
+
+### Cambios conservados (un commit por mejora)
+1. `06727b1` MD5 de caché declarado no criptográfico (bandit HIGH 1 → 0).
+2. `440f40f` archivo temporal sin carrera en la suite (bandit MEDIUM 1 → 0).
+3. `e9c0c90` métrica de sincronía con la música (v1) y su línea base.
+4. `049963c` la animación se edita al ritmo de la música.
+5. `575cf4c` el MP4 sale con esa música, del largo del video, a −14 LUFS.
+7. `deb3357` pruebas de `delivery_check` (19 % → 63 %).
+8. `58cb2ab` PNG de cuadro con compresión 1 (render −31.5 %, salida idéntica).
+9. `0c508d2` check_env declara exactamente las dependencias reales.
+10. `3343879` entrada inexistente = error claro en toda CLI.
+
+### Cambios descartados
+6. Transformar solo la caja con contenido en `encajar()`: −17.6 % de render
+   pero diferencia de 2 niveles en 6 píxeles de 1 frame (criterio fijado: ≤ 1).
+   Revertido (`f045500` registra el experimento).
+
+### Evidencia de validación
+Cada ciclo conservado: instrumento estático v1 antes/después, suite completa
+en verde y, si el cambio tocaba el render, banco (y cortes) idénticos; las
+mejoras de rendimiento con 3 repeticiones y MD5; las métricas nuevas con
+calibración (casos conocidos) y prueba negativa sobre el commit previo. Cierre:
+suite 296 OK bajo cobertura, banco 99.35/96.9, cortes 99.57.
+
+### Riesgos residuales
+- **Galería no re-ejecutada al cierre**: los ciclos 4, 5 y 8 tocan el render; lo
+  cubren la suite (renders reales multiproceso, con y sin música) y el MD5 del
+  ciclo 8, pero no las 83 piezas con auto_qa. Recomendado: `galeria.py`.
+- **Disco temporal** del render +41 % por la compresión PNG 1 (≈ 16 MB por
+  segundo de video a 1080×1920): en videos largos con poco disco puede faltar.
+- **Sincronía de cortes 60 %** por diseño (un corte va al «uno» solo si está a
+  ≤ 1 beat, para no deformar duraciones); y con voz en off los cortes no se
+  mueven. La rejilla asume tempo constante (`beat_grid`).
+- La sonda de entrada inexistente excluye 5 CLIs (razones en el ciclo 10).
+- Cobertura 55 %: módulos de herramientas como `scenes`, `retakes`,
+  `film_marca*` siguen por debajo del 20 %.
+
+### Decisiones pendientes del autor
+- **Ciclo 6**: ¿aceptar «≤ 2 niveles / PSNR ≥ 50 dB» como tolerancia de imagen?
+  Si sí, se reaplica (−17.6 % adicional sobre el render).
+- **CI** (criterio de MoviePy/Remotion): requiere `.github/`, que la lista
+  blanca de `.gitignore` excluye.
+- **Rama remota `iart-motion-skills`** y **tag `v1.5.0`**: el proxy de la sesión
+  rechaza borrar ramas y subir tags (HTTP 403); se hacen desde GitHub.
+- Correr la galería completa para cerrar el riesgo residual principal.
