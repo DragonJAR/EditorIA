@@ -205,6 +205,14 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
         # teletransporta: p. ej. notificaciones que bajaban 170 px de golpe)
         elif energia[i] > 2.0 and energia[i] > 4 * max(energia[i - 1], energia[i + 1]):
             tir_t.append(round((i + 1) / fps, 2))
+    # arranque brusco: de casi quieto a movimiento fuerte en UN frame y SOSTENIDO
+    # (no vuelve a bajar: no es un salto) = algo arranca a velocidad plena, sin
+    # ease-in. La animación con oficio acelera (fluidez.md, animacion.md).
+    arr_t = []
+    for i in range(1, len(energia) - 2):
+        if (energia[i] > 1.5 and energia[i - 1] < 0.25 * energia[i]
+                and min(energia[i + 1], energia[i + 2]) > 0.6 * energia[i]):
+            arr_t.append(round((i + 1) / fps, 2))
     jerk = float(np.mean(np.abs(np.diff(energia, 2)))) / max(1e-6, float(np.mean(energia))) \
         if len(energia) > 2 else 0.0
     # tiempo muerto en el hold (desde 0.5 s hasta la salida), ventana de auto_qa
@@ -234,7 +242,8 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
         if not eventos or (p - eventos[-1]) / fps > 0.4:
             eventos.append(p)
     densidad = len(eventos) / max(0.5, dur - 0.6)
-    return {"pops": pops, "tirones": len(tir_t), "t_tirones": tir_t, "jerk": round(jerk, 3),
+    return {"pops": pops, "tirones": len(tir_t), "t_tirones": tir_t, "arranques": arr_t,
+            "jerk": round(jerk, 3),
             "muerto": round(muerto, 3), "densidad": round(densidad, 2)}
 
 
@@ -306,6 +315,7 @@ def nota(m):
     p = 0.0
     p += 12 * min(3, len(m["pops"]))                       # cada pop: algo aparece de golpe
     p += 4 * min(5, m["tirones"])                          # movimiento entrecortado
+    p += 2 * min(5, len(m.get("arranques", [])))           # arranca sin ease-in (mecánico)
     p += 25 * m["muerto"]                                  # hold congelado
     dens = m["densidad"]
     if dens < 0.5:                                         # menos de un evento cada 2 s: aburre

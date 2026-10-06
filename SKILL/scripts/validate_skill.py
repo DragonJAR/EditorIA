@@ -394,6 +394,14 @@ try:
              "escala 8 % = no": not _pop(txt_a, txt_b),
              "movimiento parejo = sin tirones": _MA.metricas(_seq(), 30, 14 / 30 + 1)["tirones"] == 0,
              "teletransporte = salto": _MA.metricas(_seq(7), 30, 14 / 30 + 1)["tirones"] >= 1}
+    def _arranque(curva):   # caja quieta 4 frames y luego se mueve según la curva
+        xs = [20] * 4 + [20 + curva(i_) for i_ in range(1, 14)]
+        return _np.stack([_cuadro(lambda d_, x0=x0: d_.rectangle([x0, 100, x0 + 60, 160], fill=240))
+                          for x0 in xs])
+    casos["arranca a velocidad plena = arranque"] = bool(
+        _MA.metricas(_arranque(lambda i_: 9 * i_), 30, 2)["arranques"])
+    casos["acelera (ease-in) = no"] = not _MA.metricas(
+        _arranque(lambda i_: 9 * i_ * min(1, i_ / 6) ** 2), 30, 2)["arranques"]
     check(all(casos.values()), f"detector de pops calibrado ({casos})")
 except Exception as ex:
     check(False, f"detector de pops: {ex}")
