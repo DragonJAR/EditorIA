@@ -78,15 +78,19 @@ def _movido(prev, cur, y, x, radio=MOV_RADIO):
 
 
 def medir(job):
-    """Mide una escena en un formato. Devuelve el dict de métricas."""
-    nombre, f, e, fps = job
+    """Mide una escena (o un plan entero: escenas en secuencia, cortes y
+    transiciones) en un formato. Devuelve el dict de métricas."""
+    nombre, f, escenas, dur, fps = job
     R = _W["R"]
     ctx = _ctx(f)
     R._ESCALA.clear()
+    escenas = sorted(escenas, key=lambda s_: s_["from"])
     import io
     import contextlib
     with contextlib.redirect_stdout(io.StringIO()):
-        zona = R.escala_segura(ctx, e, 0)
+        zona = min(R.escala_segura(ctx, s_, i) for i, s_ in enumerate(escenas))
+        manchas = R.presupuesto_manchas(escenas, 1 if R.TRANSICIONES == "corte_seco" else 2, avisar=False)
+    e = {"to": dur}
     # tamaños de letra REALES: se instrumenta ImageDraw.text durante el render
     from PIL import ImageDraw
     tamanos = []
@@ -99,6 +103,18 @@ def medir(job):
         return original(self, xy, text, fill, font, *a, **k)
     ImageDraw.ImageDraw.text = espia
     en_hold = [False]   # la letra se juzga ASENTADA: en una entrada todo pasa por tamaños chicos
+    # cifras que cuentan: cambian de golpe POR DISEÑO (un contador no se funde);
+    # sus zonas no cuentan como pop
+    zonas_cifra = []
+    cifra_orig = R.cifra
+
+    def cifra_espia(d, xy, texto, font, fill, anchor="mm", final=None):
+        try:
+            zonas_cifra[-1].append(d.textbbox(xy, final or texto, font=font, anchor=anchor))
+        except Exception:
+            pass
+        return cifra_orig(d, xy, texto, font, fill, anchor, final)
+    R.cifra = cifra_espia
     w, h = FORMATOS[f]
     k_ = LADO / min(w, h)
     ancho_a, alto_a = int(w * k_), int(h * k_)
@@ -106,11 +122,15 @@ def medir(job):
     n = int(e["to"] * fps)
     try:
         for i in range(n):
-            en_hold[0] = e["to"] * 0.5 <= i / fps <= e["to"] - 0.6
-            im = R.componer(ctx, [e], e["to"], i / fps, set()).convert("L").resize((ancho_a, alto_a))
+            ti = i / fps
+            en_hold[0] = any(s_["from"] + (s_["to"] - s_["from"]) * 0.5 <= ti <= s_["to"] - 0.6
+                             for s_ in escenas)
+            zonas_cifra.append([])
+            im = R.componer(ctx, escenas, dur, ti, manchas).convert("L").resize((ancho_a, alto_a))
             frames.append(np.asarray(im, dtype=np.float32))
     finally:
         ImageDraw.ImageDraw.text = original
+        R.cifra = cifra_orig
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
     d = np.abs(np.diff(F, axis=0))                       # (n-1, h, w)
@@ -124,6 +144,11 @@ def medir(job):
     std = F[:, :hb * BLOQUE, :wb * BLOQUE].reshape(len(F), hb, BLOQUE, wb, BLOQUE).std(axis=(2, 4))
     contenido = (std[:-1] > TEXTURA) & (std[1:] > TEXTURA)
     candidatos = (bloques > POP_SALTO) & ~contenido
+    for i in range(len(candidatos)):   # zonas de cifras que cuentan (con un bloque de margen)
+        for x0_, y0_, x1_, y1_ in zonas_cifra[i + 1] if i + 1 < len(zonas_cifra) else []:
+            by0, by1 = int(y0_ * k_ / BLOQUE) - 1, int(y1_ * k_ / BLOQUE) + 2
+            bx0, bx1 = int(x0_ * k_ / BLOQUE) - 1, int(x1_ * k_ / BLOQUE) + 2
+            candidatos[i, max(0, by0):by1, max(0, bx0):bx1] = False
     fin_activo = int((e["to"] - 0.6) * fps)
     pops = []
     for i in range(min(len(candidatos), fin_activo - 1)):
@@ -132,11 +157,12 @@ def medir(job):
                 pops.append(round((i + 1) / fps, 2))
                 break
     # tirones: frame casi quieto entre dos que se mueven (movimiento entrecortado)
-    tir = 0
+    tir_t = []   # un frame quieto entre dos que se mueven: salto o congelado de un frame
     for i in range(1, len(energia) - 1):
         vec = (energia[i - 1] + energia[i + 1]) / 2
         if vec > 1.0 and energia[i] < 0.15 * vec:
-            tir += 1
+            tir_t.append(round((i + 1) / fps, 2))
+    tir = len(tir_t)
     jerk = float(np.mean(np.abs(np.diff(energia, 2)))) / max(1e-6, float(np.mean(energia)))
     # tiempo muerto en el hold (desde 0.5 s hasta la salida), ventana de 0.25 s
     import auto_qa as QA
@@ -159,9 +185,9 @@ def medir(job):
             eventos.append(p)
     densidad = len(eventos) / max(0.5, e["to"] - 0.6)
     letra = int(min(tamanos) * 1080 / min(w, h)) if tamanos else 0
-    if nombre in R.QUIETAS:   # quieta POR DISEÑO mientras se lee: su hold no es tiempo muerto
+    if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
         muerto = 0.0
-    return {"escena": nombre, "formato": f, "pops": pops, "tirones": tir,
+    return {"escena": nombre, "formato": f, "pops": pops, "tirones": tir, "t_tirones": tir_t,
             "jerk": round(jerk, 3), "muerto": round(muerto, 3), "densidad": round(densidad, 2),
             "letra_min": letra, "zona": round(zona, 3), "costo": round(costo, 3)}
 
@@ -224,6 +250,7 @@ def main():
     ap.add_argument("--historial", action="store_true", help="agregar la corrida a metricas/historial.jsonl")
     ap.add_argument("--nota", default="", help="qué cambió en esta corrida (para el historial)")
     ap.add_argument("--ver", metavar="ESCENA:F:SEG", help="diagnosticar un pop: guarda el par de frames marcado")
+    ap.add_argument("--plan", help="medir un plan.json entero (secuencia, cortes, transiciones) antes de renderizar")
     a = ap.parse_args()
     muestras = json.load(open(os.path.join(AQUI, "escenas_muestra.json"), encoding="utf-8"))["escenas"]
     solo = set(a.solo.split(",")) if a.solo else None
@@ -242,8 +269,16 @@ def main():
         ver(dict(muestras[n_], tipo=n_), f_, float(t_), a.fps,
             os.path.join(tempfile.gettempdir(), f"pop_{n_}_{f_}_{t_}.png"))
         return 0
-    jobs = [(n, f, dict(e, tipo=n), a.fps) for f in fmts for n, e in muestras.items()
-            if not solo or n in solo]
+    if a.plan:
+        plan = json.load(open(a.plan, encoding="utf-8"))
+        R.resolver_medios(plan, os.path.dirname(os.path.abspath(a.plan)))
+        nombre = os.path.splitext(os.path.basename(a.plan))[0]
+        fmts_plan = fmts if a.formato != "ambos" else (
+            ["h"] if str(plan.get("tamano", "")).startswith("1920") else ["v"])
+        jobs = [(nombre, f, plan["escenas"], plan["duracion"], a.fps) for f in fmts_plan]
+    else:
+        jobs = [(n, f, [dict(e, tipo=n)], e["to"], a.fps) for f in fmts for n, e in muestras.items()
+                if not solo or n in solo]
     with Pool(a.jobs, initializer=_init) as pool:
         res = pool.map(medir, jobs, chunksize=1)
     for r in res:

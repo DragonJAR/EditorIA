@@ -68,9 +68,12 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
 **A. Por plan (anuncios y piezas con escenas)** — el flujo principal:
 0. **Capacidades**: `python scripts/check_env.py` (`references/capacidades.md`).
    Validar primero, prometer después; degradar con honestidad si algo falta.
-1. **Plan**: escribir `plan.json` según `references/plan-video.md` (13 tipos de escena,
-   tiempos absolutos, `at` por elemento, campo `voz` por escena si hay narración).
-   Ver `scripts/demo_plan.json` como ejemplo.
+1. **Plan**: escribir `plan.json` según `references/plan-video.md` (28 tipos de escena,
+   en 9:16 o 16:9, tiempos absolutos, `at` por elemento, campo `voz` por escena si
+   hay narración). Ver `scripts/demo_plan.json` como ejemplo.
+   **Medir antes de renderizar**: `python scripts/medir_animacion.py --plan plan.json`
+   (pops, saltos en los cortes, tiempo muerto, letra, zona segura; nota 0–100 en
+   ~2 min sin codificar). Bajo 90, `--ver escena:v:segundo` muestra el defecto.
 2. **Render**: `python scripts/render_plan.py plan.json -o salida.mp4`
    (motor de fluidez: resortes, fondo vivo, transiciones según el brand pack
    o el tono; `--force` para re-renderizar, sin él retoma donde iba).

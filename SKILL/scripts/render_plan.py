@@ -160,9 +160,14 @@ def mancha_mask(ctx,t,t0,dur=0.7,fx=0.5,fy=0.45):
     d.polygon(pts,fill=255)
     return mask
 
+SOLAPE=0.45  # s que la salida de una escena se superpone con la entrada de la siguiente
+
 def capa_salida(layer,t,to_):
-    """Salida anticipada 0.5s: fade + deriva."""
-    s=prog(t,to_-0.5,to_,ease_in_out)
+    """Salida anticipada que se SOLAPA con la escena siguiente: empieza 0.25 s
+    antes del fin y termina SOLAPE s después, debajo de lo que ya entra (antes
+    terminaba en `to` y quedaban frames de fondo vacío en cada corte: un
+    parpadeo que fluidez.md prohíbe)."""
+    s=prog(t,to_-0.25,to_+SOLAPE,smoothstep)   # cruza el corte: sin hueco vacío
     if s<=0: return layer
     a=layer.split()[3].point(lambda v:int(v*(1-s)))
     layer.putalpha(a)
@@ -2243,7 +2248,9 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     for i,e in enumerate(escenas):
         if e["from"]<=t<e["to"]: s=e; si=i; break
     if s is None: s=escenas[-1]; si=len(escenas)-1
-    bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=si+1)
+    # un solo mundo continuo para todo el video (con una semilla por escena el
+    # fondo saltaba de lugar en cada corte)
+    bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=1)
     fr,dy=respiracion(s,t)
     layer=encajar(pintar(ctx,s,t).copy(),escala_segura(ctx,s,si)*fr,dy)
     if si in manchas_ok and t-s["from"]<0.9:
@@ -2257,6 +2264,10 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         bg.alpha_composite(Image.composite(prev,nada,inv))
         bg.alpha_composite(Image.composite(layer,nada,mask))
     else:
+        if si>0 and t-s["from"]<SOLAPE:   # la anterior termina de irse DEBAJO de la nueva
+            ep=escenas[si-1]
+            fp,dyp=respiracion(ep,t)
+            bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp))
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)

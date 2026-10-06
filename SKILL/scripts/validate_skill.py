@@ -200,6 +200,14 @@ try:
     # muestras realistas: fuente única con galeria.py (scripts/escenas_muestra.json)
     muestras = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"),
                               encoding="utf-8"))["escenas"]
+    # la doc dice cuántas escenas hay: debe coincidir con el código (las cuentas se pudren)
+    malas = []
+    for doc in ("SKILL.md", "references/escenas.md", "references/plan-video.md"):
+        txt_ = open(os.path.join(BASE, doc), encoding="utf-8").read()
+        for m_ in re.finditer(r"(\d+) tipos (?:de escena|del plan)", txt_):
+            if int(m_.group(1)) != n_total:
+                malas.append(f"{doc}: {m_.group(0)}")
+    check(not malas, f"la doc cuenta {n_total} escenas como el código ({'; '.join(malas) or 'coincide'})")
     sin_muestra = sorted(set(R.SCENES) - set(muestras))
     check(not sin_muestra, f"cada escena tiene muestra en escenas_muestra.json "
                            f"({', '.join(sin_muestra) or 'todas'})")
@@ -296,6 +304,23 @@ try:
                           f"({', '.join(saltos) or 'todas suaves'})")
     R.formato(1080, 1920)
     ctx = R.Ctx()
+    # cortes sin parpadeo: al cambiar de escena la anterior termina de irse DEBAJO
+    # de la nueva (antes quedaban frames de fondo vacío en cada corte)
+    R.formato(1080, 1920)
+    ctx = R.Ctx()
+    e1 = dict(muestras["stats"], tipo="stats")
+    e2 = dict(muestras["quote"], tipo="quote", **{"from": e1["to"], "to": e1["to"] + 6},
+              at={k_: v_ + e1["to"] for k_, v_ in muestras["quote"]["at"].items()})
+    _alfa_prev, R.ALFA = R.ALFA, True
+    try:
+        R._ESCALA.clear()
+        _cob = lambda tc: float(_np.asarray(R.componer(ctx, [e1, e2], e2["to"], tc, set()).split()[3]).mean())  # noqa: E731
+        antes = _cob(e1["to"] - 0.6)
+        hueco = min(_cob(e1["to"] + dt_) for dt_ in (0.0, 0.1, 0.2, 0.3))
+    finally:
+        R.ALFA = _alfa_prev
+    check(hueco > 0.2 * antes, f"corte sin parpadeo: el contenido nunca cae a vacío en el corte "
+                               f"(mínimo {hueco:.1f} vs {antes:.1f} antes)")
     # cifras tabulares: un número que cuenta no tiembla de lado (nativo y sin raqm)
     from PIL import ImageDraw as _ID, Image as _IMG
     _f = R.Ctx().fT(150, 800)
