@@ -101,3 +101,12 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
   Banco no corrido: `voz_off` no lo importa ni el render ni el banco (grep vacío).
 - **Proceso**: la validación de un cambio que no toca el render puede omitir el
   banco si se demuestra (grep) que no hay dependencia; se registra la razón.
+
+### Ciclo 2 — CONSERVADO · seguridad: archivo temporal sin carrera en la suite
+- **Hipótesis**: `tempfile.mktemp` (validate_skill, smoke de shorts_plan) solo
+  devuelve un nombre: carrera CWE-377. Una carpeta privada (`mkdtemp`) la elimina.
+- **Medida (definida antes)**: bandit MEDIUM 1 → 0; el chequeo afectado sigue
+  probando lo mismo y en verde; suite en verde.
+- **Resultado**: MEDIUM 1 → 0 (bandit medio/alto total: 2 → 0); «shorts_plan:
+  retimea SRT al timeline de salida» OK; demás métricas iguales; SKILL VALIDO 290 OK.
+  Banco no corrido: solo cambia la suite, no el render.

@@ -638,7 +638,8 @@ except Exception as ex:
 try:
     import shorts_plan as SP
     import tempfile as _tf
-    _srt = _tf.mktemp(suffix=".srt")
+    _ti = _tf.mkdtemp()   # carpeta privada (mktemp solo devuelve un nombre: carrera CWE-377)
+    _srt = os.path.join(_ti, "subs.srt")
     open(_srt, "w", encoding="utf-8").write(
         "1\n00:00:11,000 --> 00:00:12,000\nHola\n\n"
         "2\n00:00:50,000 --> 00:00:51,000\nFuera\n\n")
@@ -651,7 +652,7 @@ try:
           "shorts_plan: retimea SRT al timeline de salida")
     import shutil as _sh
     _sh.rmtree(_td, ignore_errors=True)
-    os.remove(_srt)
+    _sh.rmtree(_ti, ignore_errors=True)
 except Exception as ex:
     check(False, f"smoke shorts_plan retime: {ex}")
 
