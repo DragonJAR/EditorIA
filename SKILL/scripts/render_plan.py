@@ -2306,7 +2306,7 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
 # El resto se diseñó para 9:16: en 16:9 se solapan (verificado en frames).
 # ================= MAIN =================
 # hex_a_rgb vive en _comun (unica fuente; DRY). Reusar aquí:
-from _comun import hex_a_rgb, info  # noqa: E402,F401  # sys.path ya apunta a ffmpeg_tools
+from _comun import hex_a_rgb, info, leer_json  # noqa: E402,F401  # sys.path ya apunta a ffmpeg_tools
 
 def aplicar_brand(brand_path):
     """Instala la identidad del pack: colores, tipografías, logos y reglas.
@@ -2800,7 +2800,7 @@ def main():
     from _comun import ayudar
     ayudar(ap, {'--fps': 'cuadros por segundo (30 default; 24 para look de cine)'})
     a=ap.parse_args()
-    plan=json.load(open(a.plan, encoding="utf-8"))
+    plan=leer_json(a.plan,"el plan")
     base=os.path.dirname(os.path.abspath(a.plan))
     if not a.datos:
         medios_o_morir(plan,base)

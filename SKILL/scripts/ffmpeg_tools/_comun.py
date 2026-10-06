@@ -49,6 +49,18 @@ ERROR_KINDS = ("input", "ffmpeg", "output", "missing_tool", "timeout",
                  "verification", "interrupted", "error")
 
 
+def leer_json(ruta: str, que: str = "el archivo") -> Any:
+    """Carga un JSON con error CLARO si no existe o está mal formado (con
+    línea y columna): un agente lee el mensaje y corrige, no un traceback."""
+    if not os.path.isfile(ruta):
+        sys.exit(f"ERROR: {que} no existe: {ruta}")
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            return json.load(fh)
+    except json.JSONDecodeError as exc:
+        sys.exit(f"ERROR: {que} no es JSON válido ({ruta}, línea {exc.lineno}, columna {exc.colno}): {exc.msg}")
+
+
 def die(msg: str, code: int = 1, kind: str = "error") -> "None":
     """Imprime el error en stderr y sale con codigo distinto de 0.
 

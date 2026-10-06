@@ -13,7 +13,7 @@ La narración manda el reloj: mide cada segmento y falla si una voz pisa a la
 siguiente (antes de mezclar). Pre-TTS, auditar_plan.py estima lo mismo.
 La API key sale de $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
-import os, sys, json, argparse, subprocess, hashlib, requests
+import os, sys, argparse, subprocess, hashlib, requests
 
 VOCES = {  # roster probado con audio real (ver references/sonido.md)
     "fernanda": "1aJyZpkt0vxhGPBnPyrs",  # ES fem, latam neutra (default ES)
@@ -91,7 +91,8 @@ def main():
     ayudar(ap, {'-o': 'audio de salida con la voz de todas las escenas (mp3)', '--model': 'modelo de voz de ElevenLabs'})
     a = ap.parse_args()
     voz_id = VOCES.get(a.voz, a.voz) if a.voz else VOCES[DEFAULT_POR_IDIOMA[a.idioma]]
-    plan=json.load(open(a.plan, encoding="utf-8"))
+    from _comun import leer_json
+    plan=leer_json(a.plan,"el plan")
     segs=[]
     for i,e in enumerate(sorted(plan["escenas"],key=lambda s:s["from"])):
         vox=e.get("voz")

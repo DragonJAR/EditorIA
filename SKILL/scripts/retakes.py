@@ -85,6 +85,8 @@ def parse_srt_time(s):
 
 def load_segments(path):
     """-> lista de dicts {start, end, text}."""
+    if not os.path.isfile(path):
+        die(f"no existe el archivo de segmentos: {path}")
     if path.lower().endswith(".srt"):
         segs = []
         block = []
@@ -105,8 +107,11 @@ def load_segments(path):
         if not segs:
             die(f"no se encontraron cues en {path}")
         return segs
-    with open(path, encoding="utf-8") as fh:
-        data = json.load(fh)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except json.JSONDecodeError as exc:
+        die(f"{path} no es JSON válido (línea {exc.lineno}, columna {exc.colno}): {exc.msg}")
     items = data["segments"] if isinstance(data, dict) and "segments" in data else data
     segs = []
     for i, it in enumerate(items):

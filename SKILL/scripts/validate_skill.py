@@ -136,6 +136,26 @@ for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpe
                     mudas.append(f"{_f} {_m.group(1).split(',')[0].split()[0]}")
 check(not crudas, f"toda CLI arranca con --help ({'; '.join(crudas) or 'todas'})")
 check(not mudas, f"toda opción y subcomando de toda CLI se explica en --help ({', '.join(mudas[:8]) or 'todas'})")
+# una entrada que no existe (el error más común de un agente) se responde con un
+# mensaje claro, nunca con un traceback (render_plan, retakes y voz_off lo
+# hacían). Se excluyen las CLIs donde la sonda tendría efectos o costo: el banco
+# completo, el registro de aprendizajes, la galería y check_env (sin entrada)
+_sin_sonda = {"validate_skill.py", "medir_animacion.py", "registrar_aprendizaje.py", "galeria.py", "check_env.py"}
+_tmp10 = tempfile.mkdtemp(prefix="editoria_sonda_")
+_crudas10 = []
+for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpeg_tools")):
+    for _f in sorted(os.listdir(_dir)):
+        _ruta = os.path.join(_dir, _f)
+        if (not _f.endswith(".py") or _f.startswith("_") or _f in _sin_sonda
+                or "argparse" not in open(_ruta, encoding="utf-8").read()):
+            continue
+        _r = subprocess.run([sys.executable, _ruta, os.path.join(_tmp10, "no_existe.mp4"),
+                             "-o", os.path.join(_tmp10, "salida.mp4")],
+                            capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL)
+        if "Traceback" in _r.stderr:
+            _crudas10.append(f"{_f}: {_r.stderr.strip().splitlines()[-1][:70]}")
+check(not _crudas10, f"una entrada inexistente da un error claro, sin traceback ({'; '.join(_crudas10) or 'todas'})")
+
 # check_env (paso 0 del agente) declara EXACTAMENTE las librerías de terceros que
 # importan los scripts: reportaba scipy, que nadie usa ya (mandaba a instalarla),
 # y no reportaba faster_whisper, que sí se usa

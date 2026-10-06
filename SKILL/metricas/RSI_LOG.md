@@ -267,3 +267,21 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
   de scipy; chequeo «check_env declara exactamente las librerías que se
   importan» en verde (la versión anterior no tenía la lista: no era verificable).
   Suite 294 → 295 OK; ruff 346; demás iguales. Banco no corrido: no toca render.
+
+### Ciclo 10 — CONSERVADO · entrada inexistente = error claro, no traceback
+- **Medición previa**: sonda a cada CLI con un archivo que no existe (el error
+  más común de un agente): 3 tracebacks crudos — `render_plan.py` (el motor
+  principal), `retakes.py`, `voz_off.py`; un JSON mal formado también rompía.
+- **Hipótesis**: `_comun.leer_json(ruta, qué)` (error claro con línea y columna
+  si el JSON es inválido) en render_plan y voz_off, y el mismo control en
+  retakes (que es autónomo, con su propio `die`), eliminan los tracebacks; un
+  chequeo genérico (como el de `--help`) impide que reaparezcan en cualquier CLI.
+- **Medida (definida antes)**: tracebacks 3 → 0; chequeo en verde y que falle en
+  la versión anterior (prueba negativa); suite en verde.
+- **Resultado**: tracebacks **3 → 0**; prueba negativa sobre el commit previo:
+  el chequeo detecta exactamente esas 3 CLIs; JSON inválido → «no es JSON
+  válido (…, línea 1, columna 9)». Suite 295 → 296 OK; ruff 346 (pyflakes
+  atrapó un `import json` que quedó sin uso en voz_off: quitado); docstrings
+  54.0 → 54.2 %. Banco no corrido: solo cambia `main()` de render_plan, que el
+  banco no llama (grep). Excluidas de la sonda, con razón: medir_animacion
+  (lanzaría el banco), registrar_aprendizaje (escribe docs), galeria, check_env.
