@@ -166,6 +166,7 @@ def medir(job):
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
         m["muerto"] = 0.0
+        m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
                 costo=round(costo, 3))
 
@@ -374,7 +375,9 @@ def nota(m):
     p += 25 * m["muerto"]                                  # hold congelado
     p += 10 * min(3, len(m.get("solapes", [])))           # un texto pisa a otro (composición)
     dens = m["densidad"]
-    if dens < 0.5:                                         # menos de un evento cada 2 s: aburre
+    if m.get("quieta"):                                    # quieta por diseño (lower third)
+        pass
+    elif dens < 0.5:                                       # menos de un evento cada 2 s: aburre
         p += 20 * (0.5 - dens) / 0.5
     elif dens > 2.0:                                       # más de 2 eventos/s: abruma
         p += min(10, 8 * (dens - 2.0))
@@ -399,6 +402,9 @@ def main():
     ap.add_argument("--video", nargs="+", help="medir videos YA renderizados (captions, films, pases, entregas)")
     ap.add_argument("--cortes", action="store_true", help="medir el corte entre cada par consecutivo del catálogo")
     a = ap.parse_args()
+    if a.historial and (a.solo or a.formato != "ambos" or a.plan or a.video):
+        sys.exit("ERROR: --historial solo registra corridas del catálogo completo (o --cortes) en los dos "
+                 "formatos: una corrida parcial falsea la nota global de la historia")
     muestras = json.load(open(os.path.join(AQUI, "escenas_muestra.json"), encoding="utf-8"))["escenas"]
     solo = set(a.solo.split(",")) if a.solo else None
     fmts = ["v", "h"] if a.formato == "ambos" else [a.formato]
