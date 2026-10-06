@@ -104,6 +104,12 @@ validador la renderiza en cada corrida y exige que quepa en la zona segura
   fija el valor FINAL (no salta mientras cuenta).
 - `columnas_grilla()` / `cuadricula()`: 1 columna en 9:16 hasta 3 tarjetas.
 - `pie_fuente()`: la fuente del dato en el borde inferior de la zona segura.
+- **Copy largo**: todo texto encoge para caber en su caja (`fuente_que_cabe`)
+  y el rótulo, si ni a 30 px cabe, se parte en dos líneas equilibradas
+  (`partir_segs`, conserva el énfasis). El validador renderiza cada escena con
+  cada texto ×2 en los dos formatos: sin solapes y sin que la red encoja bajo
+  x0.90. Las temperaturas de `leads` aceptan sinónimos (caliente/hot,
+  tibio/warm, frío/cold) o `color` explícito.
 - `bajo_rotulo(y)`: primer y libre bajo un rótulo; lo que va debajo se mide
   desde ahí, nunca con una fracción fija de H (en 16:9 H*0.04 son 43 px y el
   rótulo mide ~55: «24 leads hoy» y la ventana de `demo` lo pisaban).

@@ -50,6 +50,7 @@ Qué mide cada número (calibrado con casos sintéticos en `validate_skill.py`):
 - **muerto**: % del hold con quietud SOSTENIDA (≥ 0.5 s bajo el umbral de
   auto_qa); el punto de giro de una flotación no cuenta.
 - **densidad**: eventos de movimiento por segundo en la parte activa (sin la salida común), con umbral relativo al pico propio de la escena (30 %, piso 0.15: la respiración sola no es un evento). Doctrina: 0.5–2.
+- **solapes**: textos visibles que se pisan con cada escena asentada (55 % y 80 %), por caja de tinta real; −10 por cada uno (máx. 3). Las métricas de movimiento no ven composición: este sí. Con `--plan` mide los textos REALES del agente, antes de renderizar.
 - **letra**: tamaño mínimo de texto ya asentado (≥ 26 px sobre 1080).
 - **zona**: factor de `escala_segura` (1 = compuesta dentro de la zona segura).
 Causas que encontró (y su fix en la primitiva): ease aplicado dos veces

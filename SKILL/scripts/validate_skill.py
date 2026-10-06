@@ -318,44 +318,42 @@ try:
         check(not saltos, f"{ancho}x{alto}: entradas sin destello (salto ≤ {_QA.FLASH_JUMP}) "
                           f"({', '.join(saltos) or 'todas suaves'})")
         # composición: ningún texto visible pisa a otro con la escena asentada
-        # (55 % y 80 %). Caja de TINTA real (la tipográfica de “ abarca aire): el
-        # 00 bajo «¡EN VIVO!» o «24 leads hoy» sobre su rótulo pasaban todas las
-        # métricas de movimiento
-        from PIL import ImageDraw as _IDs, Image as _Is
-        _txt_orig = _IDs.ImageDraw.text
-        cajas_t = []
+        # (55 % y 80 %; una sola implementación: medir_animacion.solapes). El 00
+        # bajo «¡EN VIVO!» o «24 leads hoy» sobre su rótulo pasaban todas las
+        # métricas de movimiento. Y lo mismo con COPY LARGO (cada texto ×2): un
+        # agente escribe marcas, montos y títulos más largos que la muestra; la
+        # escena debe encoger o partir su texto, no salirse ni pisarse
+        import medir_animacion as _MAs
+        _NO = {"canal", "de", "tipo", "captura", "imagen", "url", "formato", "transicion",
+               "moneda", "fecha", "hora", "codigo"}
 
-        def _espia_txt(self, xy, text, fill=None, font=None, *a_, **k_):
-            al_ = fill[3] if isinstance(fill, tuple) and len(fill) == 4 else 255
-            if font is not None and str(text).strip() and al_ > 60 and self.im.size == (R.W, R.H):
-                x0_, y0_, x1_, y1_ = (int(v_) for v_ in self.textbbox(xy, text, font=font, anchor=k_.get("anchor")))
-                m_ = _Is.new("L", (max(1, x1_ - x0_ + 4), max(1, y1_ - y0_ + 4)))
-                _IDs.Draw(m_).text((xy[0] - x0_ + 2, xy[1] - y0_ + 2), text, font=font, fill=255,
-                                   anchor=k_.get("anchor"))
-                b_ = m_.getbbox()
-                if b_:
-                    cajas_t.append(((x0_ - 2 + b_[0], y0_ - 2 + b_[1], x0_ - 2 + b_[2], y0_ - 2 + b_[3]), str(text)))
-            return _txt_orig(self, xy, text, fill, font, *a_, **k_)
-        pisados = set()
-        _IDs.ImageDraw.text = _espia_txt
-        try:
-            for nombre in R.SCENES:
+        def _x2(n_, k_=""):
+            if isinstance(n_, dict):
+                return {a_: (b_ if a_ in _NO else _x2(b_, a_)) for a_, b_ in n_.items()}
+            if isinstance(n_, list):
+                return [_x2(x_, k_) for x_ in n_]
+            if isinstance(n_, str) and len(n_) > 1 and not n_.endswith((".png", ".jpg")) \
+                    and not n_.startswith("#"):
+                return n_ + " " + n_.replace("*", "")
+            return n_
+        pisados, largos = set(), []
+        for nombre in R.SCENES:
+            for copia in ("", "x2"):
                 e = dict(muestras[nombre], tipo=nombre)
+                if copia:
+                    e = dict(_x2(e), tipo=nombre)
                 if "imagen" in e:
                     e["imagen"] = foto
                 R._ESCALA.clear()
-                for fr_ in (0.55, 0.8):
-                    R.componer(ctx, [e], e["to"] + 5, e["to"] * fr_, set())   # calienta escala_segura
-                    cajas_t.clear()
-                    R.componer(ctx, [e], e["to"] + 5, e["to"] * fr_, set())
-                    for i_, ((a0, b0, a1, b1), ta) in enumerate(cajas_t):
-                        for (c0, d0, c1, d1), tb in cajas_t[i_ + 1:]:
-                            iw, ih = min(a1, c1) - max(a0, c0), min(b1, d1) - max(b0, d0)
-                            menor = max(1, min((a1 - a0) * (b1 - b0), (c1 - c0) * (d1 - d0)))
-                            if iw > 0 and ih > 0 and iw * ih > 0.2 * menor:
-                                pisados.add(f"{nombre}: «{ta[:12]}»/«{tb[:12]}»")
-        finally:
-            _IDs.ImageDraw.text = _txt_orig
+                try:
+                    pisados.update(f"{x_}{' (copy x2)' if copia else ''}"
+                                   for x_ in _MAs.solapes(R, ctx, [e], e["to"] + 5))
+                    if copia and R.escala_segura(ctx, e, 0) < 0.9:
+                        largos.append(nombre)
+                except Exception as ex:
+                    largos.append(f"{nombre} {type(ex).__name__}: {ex}")
+        check(not largos, f"{ancho}x{alto}: con copy x2 cada escena encoge o parte su texto "
+                          f"(sin red bajo x0.90, sin errores) ({', '.join(largos) or 'todas'})")
         check(not pisados, f"{ancho}x{alto}: ningún texto pisa a otro con la escena asentada "
                            f"({', '.join(sorted(pisados)) or 'limpio'})")
     R.formato(1080, 1920)

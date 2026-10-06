@@ -72,8 +72,10 @@ Mapa completo del skill: `references/arquitectura.md` — qué hace cada script
    en 9:16 o 16:9, tiempos absolutos, `at` por elemento, campo `voz` por escena si
    hay narración). Ver `scripts/demo_plan.json` como ejemplo.
    **Medir antes de renderizar**: `python scripts/medir_animacion.py --plan plan.json`
-   (pops, saltos en los cortes, tiempo muerto, letra, zona segura; nota 0–100 en
-   ~2 min sin codificar). Bajo 90, `--ver escena:v:segundo` muestra el defecto.
+   (pops, saltos en los cortes, tiempo muerto, letra, zona segura y **textos que
+   se pisan** con TU copy; nota 0–100 en ~2 min sin codificar; cada `SOLAPE` sale
+   con escena, segundo y los dos textos). Bajo 90, `--ver escena:v:segundo`
+   muestra el defecto.
 2. **Render**: `python scripts/render_plan.py plan.json -o salida.mp4`
    (motor de fluidez: resortes, fondo vivo, transiciones según el brand pack
    o el tono; `--force` para re-renderizar, sin él retoma donde iba).

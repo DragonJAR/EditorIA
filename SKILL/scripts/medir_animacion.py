@@ -163,9 +163,10 @@ def medir(job):
     F = np.stack(frames)
     m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_)
     letra = int(min(tamanos) * 1080 / min(w, h)) if tamanos else 0
+    pisan = [] if ventana else solapes(R, ctx, escenas, dur)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
         m["muerto"] = 0.0
-    return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3),
+    return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
                 costo=round(costo, 3))
 
 
@@ -258,6 +259,49 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
             "muerto": round(muerto, 3), "densidad": round(densidad, 2)}
 
 
+def solapes(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
+    """Textos visibles que se pisan con cada escena ASENTADA (a 55 % y 80 % de
+    su duración). Caja de TINTA real (la tipográfica de “ abarca aire), alfa
+    > 60, solape > 20 % del menor. Las métricas de movimiento no ven
+    composición: el 00 bajo «¡EN VIVO!» o un total sobre su rótulo sacaban
+    99/100. Devuelve ["escena@t: «a»/«b»", ...]."""
+    from PIL import Image, ImageDraw
+    original = ImageDraw.ImageDraw.text
+    cajas = []
+
+    def espia(self, xy, text, fill=None, font=None, *a, **k):
+        al = fill[3] if isinstance(fill, tuple) and len(fill) == 4 else 255
+        if font is not None and str(text).strip() and al > 60 and self.im.size == (R.W, R.H):
+            x0, y0, x1, y1 = (int(v) for v in self.textbbox(xy, text, font=font, anchor=k.get("anchor")))
+            m = Image.new("L", (max(1, x1 - x0 + 4), max(1, y1 - y0 + 4)))
+            ImageDraw.Draw(m).text((xy[0] - x0 + 2, xy[1] - y0 + 2), text, font=font, fill=255,
+                                   anchor=k.get("anchor"))
+            b = m.getbbox()
+            if b:
+                cajas.append(((x0 - 2 + b[0], y0 - 2 + b[1], x0 - 2 + b[2], y0 - 2 + b[3]), str(text)))
+        return original(self, xy, text, fill, font, *a, **k)
+    hallados = []
+    ImageDraw.ImageDraw.text = espia
+    try:
+        for s_ in escenas:
+            for fr in fracs:
+                t = s_["from"] + (s_["to"] - s_["from"]) * fr
+                R.componer(ctx, escenas, dur, t, set())   # calienta escala_segura (dibuja otros instantes)
+                cajas.clear()
+                R.componer(ctx, escenas, dur, t, set())
+                for i, ((a0, b0, a1, b1), ta) in enumerate(cajas):
+                    for (c0, d0, c1, d1), tb in cajas[i + 1:]:
+                        iw, ih = min(a1, c1) - max(a0, c0), min(b1, d1) - max(b0, d0)
+                        menor = max(1, min((a1 - a0) * (b1 - b0), (c1 - c0) * (d1 - d0)))
+                        if iw > 0 and ih > 0 and iw * ih > 0.2 * menor:
+                            par = f"{s_.get('tipo')}@{t:.1f}s: «{ta[:14]}»/«{tb[:14]}»"
+                            if par not in hallados:
+                                hallados.append(par)
+    finally:
+        ImageDraw.ImageDraw.text = original
+    return hallados
+
+
 def frames_de_video(ruta, fps=None):
     """Frames de un video ya renderizado, en gris a la escala de análisis
     (lado corto = LADO), a SU fps (remuestrear 24 → 30 duplica un frame de
@@ -328,6 +372,7 @@ def nota(m):
     p += 4 * min(5, m["tirones"])                          # movimiento entrecortado
     p += 2 * min(5, len(m.get("arranques", [])))           # arranca sin ease-in (mecánico)
     p += 25 * m["muerto"]                                  # hold congelado
+    p += 10 * min(3, len(m.get("solapes", [])))           # un texto pisa a otro (composición)
     dens = m["densidad"]
     if dens < 0.5:                                         # menos de un evento cada 2 s: aburre
         p += 20 * (0.5 - dens) / 0.5
@@ -415,6 +460,9 @@ def main():
         print(f"{r['escena']:18s} {r['formato']}  {r['nota']:5.1f} {len(r['pops']):4d} {r['tirones']:3d} "
               f"{r['jerk']:5.2f} {r['muerto']:6.2f} {r['densidad']:4.2f} {r['letra_min']:5d} "
               f"{r['zona']:5.2f} {r['costo']:6.3f}")
+    for r in res:
+        for x in r.get("solapes", []):
+            print(f"  SOLAPE {r['formato']} {x}")
     global_ = round(float(np.mean([r["nota"] for r in res])), 2)
     minima = min(res, key=lambda r: r["nota"])
     print(f"\nNOTA GLOBAL {global_} · mínima {minima['nota']} ({minima['escena']} {minima['formato']}) · "
