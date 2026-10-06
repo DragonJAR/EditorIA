@@ -49,6 +49,14 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 - **Cifras**: `"numeros": "es"` (1.240 · 4,8), `"en"` (default: 1,240 · 4.8),
   `"fr"` o `{"miles": ".", "decimal": ","}` a nivel de plan: aplica a toda
   cifra animada y a los precios que no fijen los suyos. Público hispano → `"es"`.
+- **Música (edición al ritmo)**: `"musica": "pista.mp3"` (ruta relativa al
+  plan) analiza el tempo (`beat_grid.analizar`: BPM, beat y el «uno» del
+  compás) y, en la puerta única del render, lleva cada entrada (`at`) al medio
+  beat más cercano y cada corte entre escenas al «uno» del compás (si está a
+  ≤ 1 beat; si no, al beat). Con voz en off solo se ajustan las entradas (la
+  voz va por los tiempos originales). `"ritmo": false` lo apaga.
+  `medir_animacion --plan` imprime la SINCRONÍA: % de entradas en medio beat
+  y de cortes en el uno, frente al azar.
 - **Subtítulos quemados**: `"subtitulos": true` reserva una banda abajo (12 %
   del alto, sobre la UI de la plataforma): toda escena compone encima y el
   render imprime el `--margin` exacto para `caption.py`. Sin banda, los

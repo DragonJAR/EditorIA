@@ -72,7 +72,7 @@ def mapear_at(nodo, f, es_at=False):
     return nodo
 
 
-def sincronizar_escenas(escenas, grid, duracion):
+def sincronizar_escenas(escenas, grid, duracion, mover_cortes=True):
     """Edición al ritmo de la música, sobre escenas ya completas (con `at`):
     - cada CORTE entre escenas cae en el "uno" del compás más cercano si está
       a ≤ 1 beat; si no, en el beat más cercano (el inicio y el final del
@@ -81,6 +81,8 @@ def sincronizar_escenas(escenas, grid, duracion):
       de mensajes, pasos o notificaciones) cae en el medio beat más cercano:
       corcheas, no negras, para no fundir entradas escalonadas en un mismo
       golpe. El orden se conserva y toda entrada queda dentro de su escena.
+    Con mover_cortes=False (hay voz en off ubicada por los tiempos originales
+    de cada escena) solo se ajustan las entradas.
     Devuelve (escenas nuevas, informe {cortes, entradas, desvio_max})."""
     beat = 60.0 / grid["bpm"]
     b0 = grid["beat0"]
@@ -91,7 +93,7 @@ def sincronizar_escenas(escenas, grid, duracion):
     compases = [c0 + i * 4 * beat for i in range(-1, n // 4 + 2)]
     escenas = sorted((dict(e) for e in escenas), key=lambda e: e["from"])
     # cortes: el mismo instante para el `to` de una y el `from` de la siguiente
-    cortes = sorted({round(e["from"], 3) for e in escenas[1:]})
+    cortes = sorted({round(e["from"], 3) for e in escenas[1:]}) if mover_cortes else []
     mapa = {}
     for t in cortes:
         uno = _cerca(t, compases)

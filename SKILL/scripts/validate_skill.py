@@ -610,6 +610,25 @@ try:
           and abs(_m7b["entradas_pct"] - _m7b["azar_pct"]) < 6 and abs(_bpm7 - 100) <= 1,
           f"sincronía con la música calibrada (alineado {_m7a['entradas_pct']} %, azar "
           f"{_m7b['entradas_pct']} % vs teórico {_m7b['azar_pct']} %, rejilla {_bpm7} BPM)")
+    # el plan con "musica" se edita al ritmo en la puerta única (preparar_escenas):
+    # entradas al medio beat y cortes al compás; "ritmo": false no toca nada;
+    # con voz en off los cortes no se mueven (la voz va por los tiempos originales)
+    import render_plan as _R7
+    _R7.formato(1080, 1920)
+    _c7 = _R7.Ctx()
+    _mus7 = os.path.join(BASE, "film", "musica_demo.mp3")
+    _m7 = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
+    _p7 = {"duracion": 10.0, "musica": _mus7, "escenas": [
+        dict(_m7["stats"], tipo="stats", **{"from": 0, "to": 4.1}),
+        dict(_BS.mapear_at(_m7["bars"], lambda t: t + 4.1), tipo="bars", **{"from": 4.1, "to": 10.0})]}
+    _g8 = _BG.analizar(_mus7)
+    _con = _BS.medir_sincronia(_R7.preparar_escenas(_c7, _p7), _g8, 10.0)
+    _sin = _BS.medir_sincronia(_R7.preparar_escenas(_c7, dict(_p7, ritmo=False)), _g8, 10.0)
+    _voz = _R7.preparar_escenas(_c7, dict(_p7, escenas=[dict(e, voz="hola") for e in _p7["escenas"]]))
+    check(_con["entradas_pct"] == 100 and _sin["entradas_pct"] < 60
+          and sorted(e["from"] for e in _voz) == [0, 4.1],
+          f"plan con \"musica\" editado al ritmo (entradas {_sin['entradas_pct']} → {_con['entradas_pct']} %; "
+          f"\"ritmo\": false intacto; con voz los cortes no se mueven)")
 except Exception as ex:
     check(False, f"sincronía con la música: {type(ex).__name__}: {ex}")
 

@@ -2677,6 +2677,24 @@ def error_de_escena(e,i,ex):
     return (f"ERROR: escena {i+1} ({tipo}, {e.get('from')}–{e.get('to')} s): {que}.\n"
             f"  Ejemplo completo de `{tipo}` (scripts/escenas_muestra.json):\n  {ej}")
 
+_REJILLAS={}
+def al_ritmo(escenas,plan):
+    """Cortes al "uno" del compás y entradas al medio beat de `musica`
+    (beat_sync.sincronizar_escenas). Con voz en off, solo las entradas: la voz
+    se ubica por los tiempos originales de cada escena. `"ritmo": false` lo
+    apaga. La rejilla se analiza una vez por archivo."""
+    import beat_grid
+    import beat_sync
+    ruta=plan["musica"]
+    if ruta not in _REJILLAS:
+        _REJILLAS[ruta]=beat_grid.analizar(ruta)
+    hay_voz=any(e.get("voz") for e in escenas)
+    escenas,info=beat_sync.sincronizar_escenas(escenas,_REJILLAS[ruta],plan["duracion"],mover_cortes=not hay_voz)
+    print(f"al ritmo de la música: {info['bpm']} BPM · {info['entradas']} entradas al medio beat"
+          +("" if hay_voz else f" · {info['cortes']} cortes al compás")
+          +f" (desvío máx {info['desvio_max']} s)",file=sys.stderr,flush=True)
+    return escenas
+
 def preparar_escenas(ctx,plan):
     """Escenas del plan listas para componer: tiempos completados desde la
     muestra, en orden, y cada una compuesta UNA vez (escala_segura) para fallar
@@ -2684,6 +2702,8 @@ def preparar_escenas(ctx,plan):
     puerta para render_plan y medir_animacion --plan."""
     aplicar_globales(plan)
     escenas=sorted((completar_escena(e,i) for i,e in enumerate(plan["escenas"])),key=lambda s:s["from"])
+    if plan.get("musica") and plan.get("ritmo",True):   # edición al ritmo de la música
+        escenas=al_ritmo(escenas,plan)
     for i,e in enumerate(escenas):
         for av in avisos_de_campos(e,i): print(av,file=sys.stderr,flush=True)
     for i,e in enumerate(escenas):

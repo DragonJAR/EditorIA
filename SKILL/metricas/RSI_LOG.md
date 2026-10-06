@@ -130,3 +130,32 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
 - **Línea base nueva (antes de cualquier ajuste)**: `demo_plan.json` +
   `film/musica_demo.mp3`: entradas en medio beat **11.8 %** (azar 22.2 %),
   cortes en el uno **0 %**. Peor que el azar: hoy la animación ignora la música.
+
+### Ciclo 4 — CONSERVADO · la animación se edita al ritmo de la música
+- **Hipótesis**: si el plan declara `"musica"`, ajustar en la puerta única
+  (`preparar_escenas`: render, workers y banco) las entradas al medio beat y los
+  cortes al «uno» del compás lleva la sincronía muy por encima del azar sin
+  costo en la animación. Riesgo previsto: con voz en off, mover cortes
+  desfasaría la voz (se ubica por los tiempos originales) → con voz solo
+  entradas. `"ritmo": false` lo apaga.
+- **Medida (definida antes)**: entradas 11.8 % → ≥ 90 %; cortes 0 % → ≥ 50 %;
+  banco del plan ≥ su base (97.6); catálogo y cortes idénticos; suite en verde.
+- **Resultado** (`demo_plan` sin voz + `film/musica_demo.mp3`, 100 BPM):
+
+  | | `"ritmo": false` | al ritmo |
+  |---|---|---|
+  | entradas en medio beat | 11.8 % | **100 %** |
+  | cortes en el uno del compás | 0 % | **60 %** |
+  | banco del plan | 97.6 | **98.4** |
+
+  Con voz (demo_plan tal cual): entradas 11.8 → 100 %, cortes intactos, banco
+  97.6 → 98.9. Catálogo 99.35/96.9 y cortes 99.57 idénticos (no traen música);
+  suite 292 OK (+1: «plan con "musica" editado al ritmo»). El 60 % de cortes es
+  por diseño: un corte va al «uno» solo si está a ≤ 1 beat (no se deforman las
+  duraciones); si no, al beat.
+- **Ajuste dentro del ciclo**: ruff subió 346 → 348 por un import doble y un
+  `if` en una línea míos; corregido (346 = base). Cambio solo sintáctico:
+  verificado con el escenario de sincronía (mismo 100 % / 60 % / 98.4), sin
+  repetir la suite completa.
+- **Proceso**: medir el criterio de cortes exigió un plan sin voz; los criterios
+  de éxito deben declarar de qué plan dependen.
