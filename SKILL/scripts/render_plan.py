@@ -2576,7 +2576,7 @@ def render(plan_path,plan,out,a):
         print(f"  alfa verificado: el frame central decodifica {res['transparente']:.0%} transparente",flush=True)
     print("OK",out)
 
-MEDIOS=("imagen","captura")   # campos del plan que apuntan a un archivo
+MEDIOS=("imagen","captura","musica")   # campos del plan que apuntan a un archivo
 
 def resolver_medios(nodo,base):
     """Rutas de imagen/captura relativas al PLAN (no al cwd), absolutas y

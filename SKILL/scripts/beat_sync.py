@@ -59,6 +59,19 @@ def _cerca(t, rejilla):
     return min(cand, key=lambda b: abs(b - t)) if cand else t
 
 
+def mapear_at(nodo, f, es_at=False):
+    """Aplica f a todo número que viva bajo una clave `at` (también dentro de
+    listas y dicts anidados: mensajes, pasos, link…). Un solo recorrido para
+    sincronizar y para medir: nunca cuentan entradas distintas."""
+    if isinstance(nodo, dict):
+        return {k: mapear_at(v, f, es_at or k == "at") for k, v in nodo.items()}
+    if isinstance(nodo, list):
+        return [mapear_at(v, f, es_at) for v in nodo]
+    if es_at and isinstance(nodo, (int, float)) and not isinstance(nodo, bool):
+        return f(nodo)
+    return nodo
+
+
 def sincronizar_escenas(escenas, grid, duracion):
     """Edición al ritmo de la música, sobre escenas ya completas (con `at`):
     - cada CORTE entre escenas cae en el "uno" del compás más cercano si está
@@ -90,21 +103,45 @@ def sincronizar_escenas(escenas, grid, duracion):
     desvio = [abs(mapa[t] - t) for t in cortes]
     entradas = [0]
 
-    def ajustar_at(nodo, e, es_at=False):
-        if isinstance(nodo, dict):
-            return {k: ajustar_at(v, e, es_at or k == "at") for k, v in nodo.items()}
-        if isinstance(nodo, list):
-            return [ajustar_at(v, e, es_at) for v in nodo]
-        if es_at and isinstance(nodo, (int, float)) and not isinstance(nodo, bool):
-            t = min(max(_cerca(nodo, medios), e["from"]), e["to"] - 0.05)
-            desvio.append(abs(t - nodo))
+    def ajustar(e):
+        def f(t0):
+            t = min(max(_cerca(t0, medios), e["from"]), e["to"] - 0.05)
+            desvio.append(abs(t - t0))
             entradas[0] += 1
             return round(t, 3)
-        return nodo
-    escenas = [dict(ajustar_at({k: v for k, v in e.items() if k not in ("from", "to")}, e),
+        return f
+    escenas = [dict(mapear_at({k: v for k, v in e.items() if k not in ("from", "to")}, ajustar(e)),
                     **{"from": e["from"], "to": e["to"]}) for e in escenas]
     return escenas, {"cortes": len(cortes), "entradas": entradas[0], "bpm": grid["bpm"],
                      "desvio_max": round(max(desvio, default=0.0), 3)}
+
+
+def medir_sincronia(escenas, grid, duracion, fps=30):
+    """Qué tan editado al ritmo está un plan, sobre sus tiempos REALES (exactos,
+    no detectados en el video: la detección de movimiento llega unos frames
+    tarde por los resortes). Tolerancia: ±1 frame.
+    - entradas_pct: % de entradas (todo número bajo `at`) en un medio beat;
+    - cortes_compas_pct: % de cortes entre escenas en el "uno" de un compás;
+    - azar_pct: lo que daría el azar (ventana de ±1 frame cada medio beat).
+    Versión de la métrica: 1."""
+    beat = 60.0 / grid["bpm"]
+    tol = 1.0 / fps
+    b0, c0 = grid["beat0"], grid.get("compas0", grid["beat0"])
+
+    def en_rejilla(t, origen, paso):
+        k = round((t - origen) / paso)
+        return abs(t - (origen + k * paso)) <= tol + 1e-9
+
+    ats = []
+    for e in escenas:
+        mapear_at({k: v for k, v in e.items() if k not in ("from", "to")},
+                  lambda t: ats.append(float(t)) or t)
+    cortes = sorted({float(e["from"]) for e in escenas} - {min(float(e["from"]) for e in escenas)})
+    ent = sum(en_rejilla(t, b0, beat / 2) for t in ats)
+    cmp_ = sum(en_rejilla(t, c0, 4 * beat) for t in cortes)
+    return {"entradas": len(ats), "entradas_pct": round(100 * ent / max(1, len(ats)), 1),
+            "cortes": len(cortes), "cortes_compas_pct": round(100 * cmp_ / max(1, len(cortes)), 1),
+            "azar_pct": round(100 * min(1.0, 2 * tol / (beat / 2)), 1), "bpm": grid["bpm"]}
 
 
 def main():

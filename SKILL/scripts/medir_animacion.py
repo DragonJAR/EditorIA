@@ -481,6 +481,13 @@ def main():
             print(f"  SOLAPE {r['formato']} {x}")
     global_ = round(float(np.mean([r["nota"] for r in res])), 2)
     minima = min(res, key=lambda r: r["nota"])
+    if a.plan and plan.get("musica"):   # edición al ritmo: tiempos reales del plan vs la rejilla
+        import beat_grid
+        import beat_sync
+        s_ = beat_sync.medir_sincronia(plan["escenas"], beat_grid.analizar(plan["musica"]), plan["duracion"], a.fps)
+        print(f"SINCRONÍA con la música ({s_['bpm']} BPM): entradas en medio beat {s_['entradas_pct']} % "
+              f"de {s_['entradas']} (azar ≈ {s_['azar_pct']} %) · cortes en el uno del compás "
+              f"{s_['cortes_compas_pct']} % de {s_['cortes']}")
     print(f"\nNOTA GLOBAL {global_} · mínima {minima['nota']} ({minima['escena']} {minima['formato']}) · "
           f"pops {sum(len(r['pops']) for r in res)} · tirones {sum(r['tirones'] for r in res)}")
     if a.json:

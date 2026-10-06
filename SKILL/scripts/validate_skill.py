@@ -592,6 +592,27 @@ except SystemExit:
 except Exception as ex:
     check(False, f"limpieza de salidas parciales: {type(ex).__name__}: {ex}")
 
+# 5e. sincronía con la música (métrica v1, beat_sync.medir_sincronia): calibrada
+#     con casos conocidos — alineado a mano = 100 %, al azar ≈ el azar teórico —
+#     y la rejilla detectada en la música de ejemplo (100 BPM)
+try:
+    import beat_sync as _BS
+    import beat_grid as _BG
+    import random as _rnd
+    _g7 = {"bpm": 120.0, "beat0": 0.0, "compas0": 0.0}
+    _al = [{"from": 0, "to": 4, "at": {"a": 0.25, "b": [0.5, 1.0]}},
+           {"from": 4, "to": 8, "at": {"a": 4.75}, "items": [{"at": 6.0}]}]
+    _rnd.seed(7)
+    _az = [{"from": 0, "to": 8, "at": {str(k): _rnd.uniform(0, 8) for k in range(400)}}]
+    _m7a, _m7b = _BS.medir_sincronia(_al, _g7, 8), _BS.medir_sincronia(_az, _g7, 8)
+    _bpm7 = _BG.analizar(os.path.join(BASE, "film", "musica_demo.mp3"))["bpm"]
+    check(_m7a["entradas_pct"] == 100 and _m7a["entradas"] == 5 and _m7a["cortes_compas_pct"] == 100
+          and abs(_m7b["entradas_pct"] - _m7b["azar_pct"]) < 6 and abs(_bpm7 - 100) <= 1,
+          f"sincronía con la música calibrada (alineado {_m7a['entradas_pct']} %, azar "
+          f"{_m7b['entradas_pct']} % vs teórico {_m7b['azar_pct']} %, rejilla {_bpm7} BPM)")
+except Exception as ex:
+    check(False, f"sincronía con la música: {type(ex).__name__}: {ex}")
+
 # 6. nuevos módulos de post-producción (smoke tests con datos sintéticos)
 sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 try:

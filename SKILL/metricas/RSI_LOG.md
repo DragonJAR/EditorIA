@@ -110,3 +110,23 @@ exploran oportunidades distintas no encuentran mejoras aceptables.
 - **Resultado**: MEDIUM 1 → 0 (bandit medio/alto total: 2 → 0); «shorts_plan:
   retimea SRT al timeline de salida» OK; demás métricas iguales; SKILL VALIDO 290 OK.
   Banco no corrido: solo cambia la suite, no el render.
+
+### Ciclo 3 — CONSERVADO · medición nueva: sincronía con la música (métrica v1)
+- **Hipótesis**: el pedido «animaciones sincronizadas con la música» no se puede
+  mejorar sin medirlo. La métrica usa los tiempos REALES del plan (exactos y
+  deterministas), no el movimiento detectado (llega unos frames tarde por los
+  resortes y distorsionaría): % de entradas a ±1 frame de un medio beat y % de
+  cortes en el «uno» del compás. Azar teórico = 2 × (1/fps) / (medio beat).
+- **Medida (definida antes)**: separa los casos conocidos (alineado = 100 %,
+  azar ≈ teórico), detecta la rejilla de `film/musica_demo.mp3` (100 BPM) y no
+  altera nada más.
+- **Resultado**: alineado 100 % (5/5 entradas, corte en el uno); azar 25.2 % vs
+  teórico 26.7 %; rejilla 100.0 BPM. Corrección durante el ciclo: la métrica y el
+  ajuste recorrían el plan distinto (33 vs 34 entradas); ahora comparten
+  `beat_sync.mapear_at` (DRY). `"musica"` se resuelve relativa al plan y falla
+  fuerte si no existe (MEDIOS, igual que imágenes). Banco 99.35 / 96.9
+  idéntico; suite 291 OK (+1 chequeo); bandit LOW 134 → 135 (uso de `random`
+  en la calibración; LOW está fuera de los umbrales fijados).
+- **Línea base nueva (antes de cualquier ajuste)**: `demo_plan.json` +
+  `film/musica_demo.mp3`: entradas en medio beat **11.8 %** (azar 22.2 %),
+  cortes en el uno **0 %**. Peor que el azar: hoy la animación ignora la música.
