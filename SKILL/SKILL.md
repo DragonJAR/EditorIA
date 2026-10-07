@@ -1,7 +1,7 @@
 ---
 name: editoria
 description: EditorIA, the Swiss Army knife for AI video editing. Create, edit, summarize or improve videos (.mp4): animated meeting summaries, kinetic typography, plan-driven ads, cinematic films, and vertical social pieces — for any brand or no brand at all. Use when the user asks "make me a video", "summarize this meeting", "edit this ad", "improve this video", or "add music to it".
-metadata: { "author": "Jaime Andrés Restrepo", "version": "1.3.0" }
+metadata: { "author": "Jaime Andrés Restrepo", "version": "1.5.0" }
 ---
 
 # EditorIA
