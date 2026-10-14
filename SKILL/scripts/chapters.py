@@ -20,6 +20,11 @@ import sys
 
 
 def fmt_tiempo(s):
+    """Convierte segundos a formato YouTube `H:MM:SS` o `MM:SS`.
+
+    YouTube exige el primer capítulo en `00:00`. Si `s` es negativo o
+    no-numérico, se redondea a 0.
+    """
     s = max(0, int(round(s)))
     h, r = divmod(s, 3600)
     m, sec = divmod(r, 60)
@@ -29,10 +34,22 @@ def fmt_tiempo(s):
 
 
 def humanizar(txt):
+    """Convierte un identificador `snake_case` o `kebab-case` en un título legible.
+
+    - Reemplaza `_` y `-` por espacio
+    - Quita espacios al borde
+    - Capitaliza la primera letra
+    """
     return str(txt).replace("_", " ").strip().capitalize()
 
 
 def capitulos_desde_plan(plan):
+    """Extrae capítulos de un `plan.json` (formato render_plan).
+
+    Lee `plan.escenas[]` y devuelve `[(tiempo_seg, titulo), ...]`.
+    El título sale de `titulo`/`capitulo` si existe; si no, del `tipo`
+    de la escena humanizado (ej. `apertura` → `Apertura`).
+    """
     escenas = plan.get("escenas") or []
     caps = []
     for i, e in enumerate(escenas):
@@ -46,8 +63,11 @@ def capitulos_desde_plan(plan):
 
 
 def capitulos_desde_shorts(plan):
-    # El short final concatena los segmentos EN ORDEN DE ARCHIVO: los tiempos
-    # de capitulo son acumulativos sobre la salida, no los `from` de la fuente.
+    """Extrae capítulos de un `shorts-plan.json`.
+
+    El short final concatena los segmentos EN ORDEN DE ARCHIVO: los tiempos
+    de capítulo son acumulativos sobre la salida, no los `from` de la fuente.
+    """
     segs = plan.get("segmentos") or []
     caps = []
     t = 0.0
@@ -63,6 +83,13 @@ def capitulos_desde_shorts(plan):
 
 
 def main():
+    """CLI: lee un plan, emite capítulos de YouTube a stdout o a archivo.
+
+    Reglas validadas (YouTube):
+    - El primer capítulo debe ser `00:00` (se fuerza si arranca después).
+    - Mínimo 3 capítulos para que YouTube los muestre.
+    - Cada capítulo debe durar al menos 10s (se avisa si no).
+    """
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("plan", help="plan.json o shorts-plan.json")
