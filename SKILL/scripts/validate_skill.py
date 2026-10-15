@@ -72,10 +72,36 @@ check(not ajenas, f"sin atribuciones de terceros ({', '.join(ajenas) or 'ninguna
 # marca blanca: ninguna marca concreta vive en el código; los packs solo en brand/
 packs = glob.glob(os.path.join(BASE, "brand", "*.json"))
 check(bool(packs), f"al menos un brand pack de ejemplo en brand/ ({len(packs)})")
+# brand packs validos: cada pack es JSON parseable y tiene los campos minimos
+# (nombre + acento). El check de "marcas quemadas" de abajo lee estos campos,
+# pero silenciosamente skipea packs malformados. Lo hacemos explicito aqui
+# para que un pack roto se detecte al validar, no al ejecutar.
+pack_malos = []
+for x in packs:
+    try:
+        data = json.load(open(x, encoding="utf-8"))
+    except (OSError, ValueError) as ex:
+        pack_malos.append(f"{os.path.basename(x)}: JSON invalido ({ex})")
+        continue
+    if not isinstance(data.get("nombre"), str) or not data.get("nombre").strip():
+        pack_malos.append(f"{os.path.basename(x)}: falta 'nombre'")
+        continue
+    colores = data.get("colores") or {}
+    colors = data.get("colors") or {}
+    acento = colores.get("acento") or colors.get("primary")
+    if not isinstance(acento, str) or not acento.startswith("#"):
+        pack_malos.append(f"{os.path.basename(x)}: falta acento (colores.acento o colors.primary)")
+check(not pack_malos, f"brand packs validos: JSON + nombre + acento "
+      + (f"({len(packs) - len(pack_malos)}/{len(packs)} OK; {chr(59).join(pack_malos[:3])})"
+         if pack_malos else f"({len(packs)}/{len(packs)} OK)"))
 marcas = [os.path.splitext(os.path.basename(x))[0] for x in packs]
 colores = []
 for x in packs:
-    c = (json.load(open(x, encoding="utf-8")).get("colores") or {}).get("acento")
+    try:
+        data = json.load(open(x, encoding="utf-8"))
+    except (OSError, ValueError):
+        continue
+    c = (data.get("colores") or data.get("colors") or {}).get("acento") or (data.get("colors") or {}).get("primary")
     if isinstance(c, str):
         colores.append(c.lstrip("#"))
 literal = re.compile("|".join(re.escape(m) for m in marcas + colores) or r"$^", re.I)
