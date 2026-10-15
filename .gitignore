@@ -5,6 +5,7 @@
 !/SKILL/
 !/README.md
 !/README.en.md
+!/RSI_LOG.md
 
 # Dentro de SKILL/: nunca secretos ni basura generada
 SKILL/**/.env
