@@ -249,6 +249,7 @@ Never inside the skill folder or next to the user's deliverables.
    that solves something real, repeatable and verified is logged with
    `python scripts/registrar_aprendizaje.py --title "..." --detail "..."`.
    The content lives in a single place (DRY).
+   Tests live in `scripts/_tests/test_chapters.py` (run with `python3 -m unittest`).
 5. Zero confabulation: numbers, names and quotes come from the source or
    are marked `[PENDING]`.
 6. **Self-correction before the user** (`references/auto-qa.md`): the model
