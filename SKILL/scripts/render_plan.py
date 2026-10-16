@@ -290,6 +290,69 @@ def tarjeta(ctx,img,x,y,w,h,radio=28,alpha=255):
     d.rounded_rectangle([x,y,x+w,y+h],radius=radio,fill=PANEL+(alpha,))
     d.rounded_rectangle([x,y,x+w,y+h],radius=radio,outline=borde)
 
+
+def tarjeta_cristal(ctx, img, x, y, w, h, radio=28, alpha=255, tinte=None, brillo=1.0):
+    """Superficie Liquid Glass (inspirada en glass.samasante.com, MIT):
+    panel translúcido esmerilado con tinte sutil, reflejo diagonal y borde
+    especular superior-izquierdo (liseré spéculaire). DRY: `hero`, `bento`."""
+    d = ImageDraw.Draw(img)
+    col_t = tinte or ACENTO
+    base_r = int(PANEL[0] * 0.82 + col_t[0] * 0.18)
+    base_g = int(PANEL[1] * 0.82 + col_t[1] * 0.18)
+    base_b = int(PANEL[2] * 0.82 + col_t[2] * 0.18)
+    fill_a = int(min(242, 218 * alpha / 255))
+    borde_suave = (255, 255, 255, int(44 * alpha / 255 * brillo))
+    borde_especular = (255, 255, 255, int(115 * alpha / 255 * brillo))
+    r_ = min(radio, max(1, int(min(w, h) // 2)))
+    d.rounded_rectangle([x, y, x + w, y + h], radius=r_, fill=(base_r, base_g, base_b, fill_a),
+                        outline=borde_suave, width=2)
+    if w > 2 * r_ + 16 and h > 24:
+        d.line([(x + r_, y + 1.5), (x + w - r_, y + 1.5)], fill=borde_especular, width=2)
+        d.line([(x + 1.5, y + r_), (x + 1.5, y + h * 0.55)], fill=borde_especular, width=2)
+
+
+def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255):
+    """Botón CTA en píldora con anillo de halo pulsante (inspirado en
+    scrolltide.co 'Glow Ring Button' / 'Send Halo' y cta.gallery). DRY: `hero`."""
+    col = color or ACENTO
+    pulso = 0.5 + 0.5 * math.sin(max(0.0, t - t0) * 3.6)
+    exp = 6 + 6 * pulso
+    halo_a = int((38 + 34 * pulso) * alpha / 255)
+    r_h = int((h + 2 * exp) // 2)
+    d.rounded_rectangle([cx - w / 2 - exp, cy - h / 2 - exp, cx + w / 2 + exp, cy + h / 2 + exp],
+                        radius=r_h, outline=col + (halo_a,), width=3)
+    r_ = int(h // 2)
+    d.rounded_rectangle([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2],
+                        radius=r_, fill=col + (int(alpha),),
+                        outline=(255, 255, 255, int(95 * alpha / 255)), width=2)
+    d.text((cx, cy), texto, font=fnt, fill=BLANCO + (int(alpha),), anchor="mm")
+
+
+def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
+    """Insignia 3D táctil extruida con sombra de contacto, bisel inferior y
+    brillo especular superior (inspirada en 3dicons.co, CC0). DRY: `bento`."""
+    col = color or ACENTO
+    osc = tuple(max(0, int(c * 0.58)) for c in col)
+    claro = tuple(min(255, int(c + (255 - c) * 0.42)) for c in col)
+    dy = flota(t, 0.0, amp=3.5, freq=0.55)
+    cy_f = cy + dy
+    # sombra de contacto
+    d.ellipse([cx - r * 0.82, cy + r * 0.78, cx + r * 0.82, cy + r * 1.12],
+              fill=(0, 0, 0, int(90 * alpha / 255)))
+    # extrusión inferior (volumen 3D)
+    rr = max(8, int(r * 0.42))
+    d.rounded_rectangle([cx - r, cy_f - r + 7, cx + r, cy_f + r + 7],
+                        radius=rr, fill=osc + (int(alpha),))
+    # cara principal
+    d.rounded_rectangle([cx - r, cy_f - r, cx + r, cy_f + r],
+                        radius=rr, fill=col + (int(alpha),),
+                        outline=claro + (int(140 * alpha / 255),), width=2)
+    # reflejo especular superior
+    d.ellipse([cx - r * 0.55, cy_f - r * 0.72, cx + r * 0.55, cy_f - r * 0.18],
+              fill=claro + (int(75 * alpha / 255),))
+    if icono:
+        d.text((cx, cy_f), str(icono)[:3], font=fnt, fill=BLANCO + (int(alpha),), anchor="mm")
+
 # ───────────────────────── primitivas DRY para escenas de datos/UI ─────────────────────────
 # Cada nueva escena se compone de estas primitivas. DRY: las escenas NO duplican lógica
 # de barras / anillos / círculos / partículas / grids; la llaman aquí.
@@ -2297,6 +2360,140 @@ def sc_rotulo_inferior(ctx, e, t):
     return layer
 
 
+def sc_hero(ctx, e, t):
+    """Hero de lanzamiento de producto/SaaS (supahero.io + navbar.gallery +
+    scrolltide.co + glass.samasante.com + cta.gallery): píldora de navegación
+    o anuncio superior, titular cinético con subtítulo, tarjeta Liquid Glass
+    con métrica clave y botón CTA con halo pulsante.
+    Params: `badge?`, `titulo`, `subtitulo?`, `metrica?`, `etiqueta_metrica?`,
+    `cta?`, `at{badge, titulo, card, cta}`."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    at = e.get("at", {})
+    x0, y0, x1, y1 = caja_segura()
+    ancho_u = x1 - x0
+    u = unidad()
+    # 1. Píldora de anuncio / navbar superior (navbar.gallery Announcement/Tabs)
+    t_b = at.get("badge", e["from"] + 0.15)
+    badge_txt = e.get("badge", "NUEVO LANZAMIENTO")
+    kb = spring(t, t_b, 140, 15)
+    yb = y0 + int((y1 - y0) * 0.08)
+    if kb > 0 and badge_txt:
+        sub, ds = grupo()
+        fb = fuente_que_cabe(ctx.fM, badge_txt.upper(), int(u * 0.028), int(ancho_u * 0.78), 700, minimo=26)
+        wb = int(largo(badge_txt.upper(), fb) + 64)
+        hb = int(fb.size * 1.9)
+        tarjeta_cristal(ctx, sub, W / 2 - wb / 2, yb - hb / 2, wb, hb, radio=hb // 2, alpha=255)
+        ds.ellipse([W / 2 - wb / 2 + 20, yb - 6, W / 2 - wb / 2 + 32, yb + 6], fill=ACENTO + (255,))
+        ds.text((W / 2 + 10, yb), badge_txt.upper(), font=fb, fill=BLANCO + (255,), anchor="mm")
+        fundir(layer, sub, kb, dy=18)
+    # 2. Titular + subtítulo (supahero.io + scrolltide.co Focus Reveal)
+    t_t = at.get("titulo", e["from"] + 0.45)
+    yt = yb + int((y1 - y0) * 0.14)
+    rotulo(ctx, layer, t, e.get("titulo", "Tu producto en *movimiento*"), t_t, y=yt, tam=int(u * 0.052))
+    sub_txt = e.get("subtitulo", "")
+    if sub_txt and t >= t_t + 0.2:
+        ks = spring(t, t_t + 0.2, 130, 16)
+        als = int(255 * clamp01(ks * 1.4))
+        fs = fuente_que_cabe(ctx.fX, sub_txt, int(u * 0.032), int(ancho_u * 0.90), 600, minimo=26)
+        ys = bajo_rotulo(yt, int(u * 0.052), aire=0.65)
+        ImageDraw.Draw(layer).text((W / 2, ys), sub_txt, font=fs, fill=GRIS + (als,), anchor="ma")
+    # 3. Tarjeta Liquid Glass central con métrica (glass.samasante.com)
+    t_c = at.get("card", e["from"] + 1.05)
+    kc = spring(t, t_c, 125, 14)
+    yc = y0 + int((y1 - y0) * 0.54)
+    hc = int((y1 - y0) * 0.24)
+    wc = min(int(ancho_u * 0.92), 860)
+    if kc > 0:
+        sub, ds = grupo()
+        tarjeta_cristal(ctx, sub, W / 2 - wc / 2, yc - hc / 2, wc, hc, radio=32, alpha=255)
+        met = e.get("metrica", "3.4x")
+        etq = e.get("etiqueta_metrica", "más conversión en 30 días")
+        fm = fuente_que_cabe(ctx.fT, str(met), int(u * 0.082), int(wc * 0.84), 800, minimo=36)
+        fe = fuente_que_cabe(ctx.fX, str(etq), int(u * 0.032), int(wc * 0.86), 600, minimo=26)
+        ds.text((W / 2, yc - hc * 0.14), str(met), font=fm, fill=ACENTO + (255,), anchor="mm")
+        ds.text((W / 2, yc + hc * 0.24), str(etq), font=fe, fill=BLANCO + (255,), anchor="mm")
+        fundir(layer, sub, kc, dy=26)
+    # 4. CTA con anillo de halo pulsante (cta.gallery + scrolltide.co)
+    t_cta = at.get("cta", e["from"] + 1.75)
+    cta_txt = e.get("cta", "Empieza hoy")
+    k_cta = spring(t, t_cta, 135, 15)
+    if k_cta > 0 and cta_txt:
+        sub, ds = grupo()
+        y_cta = y0 + int((y1 - y0) * 0.84)
+        f_cta = fuente_que_cabe(ctx.fT, cta_txt, int(u * 0.036), int(ancho_u * 0.72), 800, minimo=28)
+        w_cta = max(280, int(largo(cta_txt, f_cta) + 96))
+        h_cta = max(76, int(f_cta.size * 2.1))
+        boton_halo(ds, W / 2, y_cta, w_cta, h_cta, cta_txt, f_cta, t, t_cta)
+        fundir(layer, sub, k_cta, dy=20)
+    return capa_salida(layer, t, e["to"])
+
+
+def sc_bento(ctx, e, t):
+    """Grilla Bento con iconos 3D táctiles, tarjetas Liquid Glass y cierre
+    tipográfico (3dicons.co + glass.samasante.com + scrolltide.co + footer.design).
+    Params: `rotulo?`, `items[{icono?, titulo, texto, acento?}]`, `pie?`,
+    `at{rotulo, item0..n, pie}`."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    at = e.get("at", {})
+    x0, y0, x1, y1 = caja_segura()
+    u = unidad()
+    yr = y0 + int((y1 - y0) * 0.04)
+    rotulo(ctx, layer, t, e.get("rotulo", "Todo en *una grilla*"), at.get("rotulo", e["from"] + 0.15), y=yr)
+    items = (e.get("items") or [
+        {"icono": "01", "titulo": "Rápido", "texto": "Render en minutos", "acento": True},
+        {"icono": "02", "titulo": "Fiel", "texto": "Tu marca exacta"},
+        {"icono": "03", "titulo": "Limpio", "texto": "QA cuadro a cuadro"}
+    ])[:4]
+    n = len(items)
+    top_grid = bajo_rotulo(yr, 44, aire=0.55)
+    bot_grid = y1 - (76 if e.get("pie") else 20)
+    cols = 1 if (H > W and n <= 3) else 2
+    cajas = cuadricula(x0, int(top_grid), x1 - x0, int(bot_grid - top_grid), cols, n)
+    for i, (it, (cx0, cy0, cw, ch)) in enumerate(zip(items, cajas)):
+        t_i = it.get("at", at.get(f"item{i}", e["from"] + 0.65 + i * 0.35))
+        ki = spring(t, t_i, 130, 15)
+        if ki <= 0:
+            continue
+        sub, ds = grupo()
+        es_ac = bool(it.get("acento")) or i == 0
+        tarjeta_cristal(ctx, sub, cx0, cy0, cw, ch, radio=26, alpha=255,
+                        tinte=ACENTO if es_ac else PANEL2, brillo=1.2 if es_ac else 0.85)
+        r_ico = min(38, max(26, int(min(cw, ch) * 0.20)))
+        f_ico = ctx.fM(max(26, int(r_ico * 0.78)), 700)
+        ico_txt = it.get("icono") or f"{i + 1:02d}"
+        if cols == 1 or cw > ch * 1.45:
+            ix = cx0 + 28 + r_ico
+            iy = cy0 + ch / 2
+            insignia_3d(ds, ix, iy, r_ico, ico_txt, f_ico,
+                        color=ACENTO if es_ac else PANEL2, t=t - t_i)
+            tx0 = ix + r_ico + 26
+            tw_max = max(80, cw - (tx0 - cx0) - 24)
+            ft = fuente_que_cabe(ctx.fT, it.get("titulo", ""), int(u * 0.036), tw_max, 800, minimo=28)
+            fx = fuente_que_cabe(ctx.fX, it.get("texto", ""), int(u * 0.028), tw_max, 600, minimo=26)
+            ds.text((tx0, cy0 + ch * 0.36), it.get("titulo", ""), font=ft, fill=BLANCO + (255,), anchor="lm")
+            ds.text((tx0, cy0 + ch * 0.68), it.get("texto", ""), font=fx, fill=GRIS + (255,), anchor="lm")
+        else:
+            ix = cx0 + cw / 2
+            iy = cy0 + ch * 0.30
+            insignia_3d(ds, ix, iy, r_ico, ico_txt, f_ico,
+                        color=ACENTO if es_ac else PANEL2, t=t - t_i)
+            tw_max = max(80, cw - 36)
+            ft = fuente_que_cabe(ctx.fT, it.get("titulo", ""), int(u * 0.034), tw_max, 800, minimo=28)
+            fx = fuente_que_cabe(ctx.fX, it.get("texto", ""), int(u * 0.027), tw_max, 600, minimo=26)
+            ds.text((ix, cy0 + ch * 0.64), it.get("titulo", ""), font=ft, fill=BLANCO + (255,), anchor="mm")
+            ds.text((ix, cy0 + ch * 0.83), it.get("texto", ""), font=fx, fill=GRIS + (255,), anchor="mm")
+        fundir(layer, sub, ki, dy=22)
+    pie_txt = e.get("pie", "")
+    t_pie = at.get("pie", e["from"] + 0.8 + n * 0.35)
+    if pie_txt and t >= t_pie:
+        kp = spring(t, t_pie, 130, 16)
+        alp = int(255 * clamp01(kp * 1.4))
+        fp = fuente_que_cabe(ctx.fM, pie_txt.upper(), 28, x1 - x0 - 20, 700, minimo=26)
+        ImageDraw.Draw(layer).text((W / 2, y1 - 24), pie_txt.upper(), font=fp,
+                                   fill=ACENTO + (alp,), anchor="mb")
+    return capa_salida(layer, t, e["to"])
+
+
 SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "chat":sc_chat,"leads":sc_leads,"handoff":sc_handoff,"pago":sc_pago,
         "listo":sc_listo,"pildoras":sc_pildoras,"hoy":sc_hoy,"recupera":sc_recupera,
@@ -2308,7 +2505,9 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "typewriter":sc_typewriter,"kenburns":sc_kenburns,"pasos":sc_pasos,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
-        "rotulo_inferior":sc_rotulo_inferior}
+        "rotulo_inferior":sc_rotulo_inferior,
+        # Ronda 4: UI/Hero/Bento/Glass/3D-Icons (supahero, scrolltide, glass.samasante, 3dicons, cta.gallery, footer.design)
+        "hero":sc_hero,"bento":sc_bento}
 
 # Escenas cuya composición está verificada también en horizontal (W > H).
 # El resto se diseñó para 9:16: en 16:9 se solapan (verificado en frames).

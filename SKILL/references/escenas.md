@@ -1,4 +1,4 @@
-# Catálogo de escenas (28 tipos del plan)
+# Catálogo de escenas (30 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -82,9 +82,9 @@ Barrido orgánico: un blob con borde ondulado que crece desde un punto
 (`transicionX/Y`) con un agujero central, cubre la escena anterior y revela la
 nueva. Implementación: polígono de 72 puntos con radio modulado por senos.
 
-## Catálogo unificado de escenas (28 tipos del plan)
+## Catálogo unificado de escenas (30 tipos del plan)
 
-El catálogo integra las 13 escenas originales más 15 escenas de
+El catálogo integra las 13 escenas originales más 17 escenas de
 datos/UI/tipo/cinemática/oferta validadas externamente (ver
 `references/scene-patterns-from-internet.md`). Cada escena nueva se compone
 con las primitivas DRY de `render_plan.py` (lista al final de este archivo).
@@ -226,6 +226,25 @@ sale del panel. `nombre`, `rol?`, `lado?`, `at{entra}`. Con `-o rotulo.mov`
 (o `.webm`) sale como overlay con alfa para el NLE u OBS; con `--datos` se
 renderiza uno por ponente (ver `plan-video.md`).
 
+### 29-30. Ronda 4 — Hero SaaS, Bento 3D, Liquid Glass y CTAs con halo (supahero.io, scrolltide.co, glass.samasante.com, 3dicons.co, cta.gallery, navbar.gallery, footer.design)
+
+**`hero`** — Apertura estilo Hero SaaS / lanzamiento de producto: píldora de
+anuncio superior en cristal (`badge`, inspirada en `navbar.gallery` Announcement
+y `supahero.io`), titular cinético con palabra clave en acento (`titulo`) y
+subtítulo (`subtitulo`), tarjeta central Liquid Glass (`tarjeta_cristal`,
+`glass.samasante.com`) con métrica destacada (`metrica`, `etiqueta_metrica`) y
+botón CTA en píldora con anillo de halo pulsante (`boton_halo`, `cta.gallery` +
+`scrolltide.co` Glow Ring Button). `badge?`, `titulo`, `subtitulo?`,
+`metrica?`, `etiqueta_metrica?`, `cta?`, `at{badge, titulo, card, cta}`.
+
+**`bento`** — Grilla Bento de 2–4 tarjetas Liquid Glass (`tarjeta_cristal`),
+cada una con insignia 3D táctil extruida (`insignia_3d` con sombra de contacto,
+bisel y brillo especular, inspirada en `3dicons.co` CC0), título y beneficio
+conciso en cascada con resorte, más firma/wordmark tipográfico al pie (`pie`,
+inspirado en `footer.design` Wordmark Bleed y `scrolltide.co` Service/Ledger
+Bento). `rotulo?`, `items[{icono?, titulo, texto, acento?, at?}]`, `pie?`,
+`at{rotulo, item0..n, pie}`.
+
 ## Ideas de escenas futuras (NO implementadas — no usar como `tipo`)
 
 ⚠️ Estos nombres **no existen** en `SCENES` (`scripts/render_plan.py`): usar uno
@@ -237,5 +256,5 @@ en `plan.json` produce `KeyError`. Son ideas para implementar, no tipos válidos
 Para añadir una nueva escena: componer con las primitivas DRY (`barra_h`,
 `cuenta_up`, `arco`, `cuadricula`, `linewrap`, `particulas`, `text_reveal`,
 `kenburns`, `cursor`, `onda_clic`, `smoothstep`, `odometro`, `estrellas`,
-`imagen_ajustada`) — NO duplicar lógica. Ver `references/scene-patterns-from-internet.md`
-para portar escenas validadas de las fuentes MIT documentadas allí.
+`imagen_ajustada`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`) — NO duplicar lógica.
+Ver `references/scene-patterns-from-internet.md` para portar escenas validadas.

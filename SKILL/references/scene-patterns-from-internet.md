@@ -58,11 +58,13 @@ línea, skill por skill (2026-10-05). Casi toda la doctrina ya estaba en
 | accessible-animation, soundtrack | `auto_qa.py`: fotosensible y sobresalto |
 | youtube-intro-outro | zonas de pantalla final (`_delivery.py`, `--end-screen`) |
 
-Lo que NO se portó (y por qué): reduced-motion, GSAP, Lottie, glass y
-transiciones de página (web, no video renderizado); Three.js/GLSL/Manim
-(otro stack; `remotion.md` y `hyperframes.md` cubren los motores opcionales);
-precios de freelance (cotizar no es editar); `layout-check` por `claim()`
-(exigiría instrumentar cada dibujo del renderer).
+Lo que NO se portó (y por qué): reduced-motion, GSAP, Lottie y transiciones
+de página puramente DOM; Three.js/GLSL/Manim (otro stack; `remotion.md` y
+`hyperframes.md` cubren los motores opcionales); precios de freelance (cotizar
+no es editar); `layout-check` por `claim()` (exigiría instrumentar cada dibujo
+del renderer). El efecto óptico Liquid Glass sí se portó en Ronda 4 como
+primitiva `tarjeta_cristal` en PIL y como receta `@samasante/liquid-glass`
+para HyperFrames/Remotion.
 
 ## Cómo se mapean a EditorIA (DRY)
 
@@ -75,7 +77,7 @@ que viven en `scripts/render_plan.py`:
 | `cuenta_up(desde, hasta, t, t0, dur, fmt)` | número animado `desde`→`hasta` (acepta strings) | `bars`, `gauge`, `ranking`, `stats`, `remate` |
 | `arco(d, cx, cy, r, desde, hasta, color, grosor)` | arco de círculo | `gauge`, `pie` (futuro) |
 | `particulas(d, t, t0, cx, cy, n, color, semilla)` | confeti determinista (seeded) | `confetti` |
-| `cuadricula(x0, y0, ancho, alto, cols, n)` | layout en grilla | `stats`, `lineup` (futuro) |
+| `cuadricula(x0, y0, ancho, alto, cols, n)` | layout en grilla | `stats`, `bento`, `lineup` (futuro) |
 | `linewrap(text, fnt, max_width, tmp)` | word-wrap con medida real | `quote`, `versus`, `stats` |
 | `text_reveal(d, text, fnt, x, y, t, t0, dur, color)` | typewriter (carácter a carácter) | `typewriter` |
 | `kenburns(img, t, t0, dur, zoom_from, zoom_to, pan_x, pan_y)` | zoom + paneo progresivo (afín sub-píxel: no tiembla) | `kenburns`, `demo` |
@@ -84,6 +86,9 @@ que viven en `scripts/render_plan.py`:
 | `odometro(layer, texto, texto_prev, rodar, cx, cy, fnt, color)` | dígitos tabulares que ruedan al cambiar | `countdown` |
 | `estrellas(layer, cx, cy, valor, maximo, k)` | puntaje con relleno fraccional exacto | `quote` |
 | `imagen_ajustada(ruta, ancho, alto)` | carga + cubrir + recorte, cacheado por proceso | `kenburns`, `demo` |
+| `tarjeta_cristal(ctx, img, x, y, w, h, radio, alpha, tinte, brillo)` | panel Liquid Glass esmerilado con borde especular superior-izquierdo (`liseré spéculaire`) | `hero`, `bento` |
+| `boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color, alpha)` | botón CTA en píldora con anillo de halo pulsante (`Glow Ring` / `Send Halo`) | `hero` |
+| `insignia_3d(d, cx, cy, r, icono, fnt, color, alpha, t)` | insignia 3D táctil extruida con sombra de contacto, bisel y brillo especular | `bento` |
 
 **Regla de oro**: al añadir una escena nueva, **componer** con estas primitivas.
 NO duplicar lógica de animación, NO hardcodear color (usar `ACENTO`, que el
@@ -109,6 +114,30 @@ determinista para que el render sea reproducible).
 | `oferta` | promo-video | ecommerce-video-skills (iart) |
 | `demo` | product-demo-video | ecommerce-video-skills (iart) |
 | `rotulo_inferior` | lower-thirds | lower-thirds-skills (iart) |
+| `hero` | SaaS Hero + Announcement Pill + Liquid Glass + Glow Ring CTA | `supahero.io` · `navbar.gallery` · `scrolltide.co` · `glass.samasante.com` · `cta.gallery` |
+| `bento` | Service/Ledger Bento + 3D Icons + Wordmark Bleed Footer | `scrolltide.co` · `3dicons.co` (CC0) · `glass.samasante.com` (MIT) · `footer.design` |
+
+## Ronda 4 — Galerías de UI, Hero, Bento, Liquid Glass, 3D Icons y Design Systems (2026-10)
+
+Se auditaron 8 sitios de referencia de diseño y animación web para extraer
+patrones que aporten valor real al video programático sin contaminar el cuadro
+con chrome web innecesario:
+
+| Sitio de referencia | Qué aporta a EditorIA | Dónde vive en la skill |
+|---|---|---|
+| [scrolltide.co](https://scrolltide.co) | `Glow Ring Button` / `Send Halo`, `Service Bento` / `Ledger Bento`, `Focus Reveal` y fondos de malla suave | Primitiva `boton_halo`, escenas `hero` y `bento`, Familia 6 en `references/prompt-motion-graphics.md` |
+| [navbar.gallery](https://www.navbar.gallery) | `Announcement Bar` (píldora superior de lanzamiento) y `Hover Tabs` minimalistas | Píldora `badge` en `sc_hero` (sin menús desplegables ni mega-menús que ensucian el video) |
+| [footer.design](https://www.footer.design) | `Wordmark Bleed` y cierres tipográficos audaces al pie | Banda de firma `pie` en `sc_bento` y cierres de `sc_final` (sin columnas de enlaces SEO) |
+| [cta.gallery](https://www.cta.gallery) | Jerarquía de conversión: métrica de prueba social + píldora CTA con halo pulsante | Primitiva `boton_halo` y composición de cierre en `sc_hero` |
+| [styles.refero.design](https://styles.refero.design) | 2.000+ sistemas de diseño reales expuestos como `DESIGN.md` (tokens de color, escalas tipográficas y radios) | Mapeo `DESIGN.md` → `brand/*.json` y style packs en `references/estilos.md` |
+| [supahero.io](https://supahero.io) | Anatomía de apertura SaaS (Linear, Raycast, Stripe): badge → titular con keyword → tarjeta central → CTA | Escena `sc_hero` en `scripts/render_plan.py` |
+| [3dicons.co](https://3dicons.co) | 1.440+ iconos 3D open-source (CC0, Vijay Verma) en 4 estilos y 3 ángulos | Primitiva `insignia_3d` (volumen extruido determinista en PIL) + guía de assets CC0 en `sc_bento` |
+| [glass.samasante.com](https://glass.samasante.com) | Liquid Glass óptico (`@samasante/liquid-glass`, MIT): esmerilado, tinte sutil y borde especular (`liseré spéculaire`) | Primitiva `tarjeta_cristal` en PIL (`render_plan.py`) y receta web para HyperFrames/Remotion |
+
+**Lo que deliberadamente NO se portó de los 8 sitios**:
+- Mega-menús, breadcrumbs y barras de búsqueda completas de `navbar.gallery` (violan la regla "sin chrome" en video).
+- Footers multicolumna con enlaces legales/mapa de sitio de `footer.design` (ilegibles en 9:16 y 16:9).
+- Scrolljacking dependiente del puntero DOM en vivo cuando se renderiza a MP4 fijo: en video la cámara y el foco los conduce el timeline (`spring`, `smoothstep`, `flota`).
 
 ## Cómo portar una escena nueva (procedimiento)
 
@@ -191,10 +220,11 @@ def sc_pie(ctx, e, t):
 - 8 escenas del catálogo extendido vienen de `lifeprompt-team/remotion-scenes` (MIT).
 - 3 escenas de la ronda 2 vienen de `reactvideoeditor/remotion-templates` (MIT, 81 templates).
 - 4 escenas de la ronda 3 (+ mejoras a `chat` y `quote`) vienen de `iart-ai/motion-skills` (MIT).
-- Estan implementadas en `render_plan.py` (PIL/ffmpeg, sin Node).
-- Compuestas con 14 primitivas DRY (no hay logica de animacion duplicada).
-- Defensivas: el smoke test pasa con defaults genericos.
+- 2 escenas de la ronda 4 (`hero`, `bento`) + 3 primitivas DRY (`tarjeta_cristal`, `boton_halo`, `insignia_3d`) sintetizan patrones verificados de `scrolltide.co`, `supahero.io`, `glass.samasante.com`, `3dicons.co`, `cta.gallery`, `navbar.gallery`, `footer.design` y `styles.refero.design`.
+- Están implementadas en `render_plan.py` (30 escenas en total, PIL/ffmpeg, sin Node).
+- Compuestas con 17 primitivas DRY (no hay lógica de animación duplicada).
+- Defensivas: el smoke test pasa con defaults genéricos.
 - Marca-blanca: el color sale del brand pack o del `ACENTO` neutro.
-- Reproducibles: las particulas usan semilla determinista (no `random()` en runtime).
-- **El modelo puede agregar mas**: el procedimiento de esta guia + las primitivas
-  DRY permiten portar cualquier escena de las fuentes listadas en ~30 lineas.
+- Reproducibles: las partículas usan semilla determinista (no `random()` en runtime).
+- **El modelo puede agregar más**: el procedimiento de esta guía + las primitivas
+  DRY permiten portar cualquier escena de las fuentes listadas en ~30 líneas.

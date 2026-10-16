@@ -99,7 +99,7 @@ python scripts/render_plan.py plan.json -o final.mp4 --blur 5 --force  # entrega
 los frames que ya existen.
 
 **Tamaño**: `"tamano": "1920x1080"` en el plan (o `--tamano`) para 16:9; la
-zona segura pasa a la de YouTube. Default 1080×1920. Las 28 escenas se
+zona segura pasa a la de YouTube. Default 1080×1920. Las 30 escenas se
 componen en los dos formatos (validadas en 9:16 y 16:9 por `validate_skill.py`
 y `galeria.py`): los tamaños de letra van en `unidad()` (lado corto), las
 pilas se miden con `pila()` y las escenas de lectura en columna (`chat`,
@@ -143,12 +143,12 @@ python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mo
 - El plan resuelto de cada fila queda junto a su video (`*.plan.json`).
 - Una variante por variable: en tests A/B, la tabla cambia UNA columna.
 
-## Tipos de escena (28)
+## Tipos de escena (30)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·
 `listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final` · `bars` ·
 `gauge` · `ranking` · `stats` · `timeline` · `quote` · `versus` · `confetti` ·
 `typewriter` · `kenburns` · `pasos` · `countdown` · `oferta` · `demo` ·
-`rotulo_inferior`
+`rotulo_inferior` · `hero` · `bento`
 
 Ver `references/escenas.md` para los parámetros de cada una.
 Ver `scripts/render_plan.py` para el renderizador de referencia.

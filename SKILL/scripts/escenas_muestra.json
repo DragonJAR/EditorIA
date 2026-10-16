@@ -113,6 +113,16 @@
              {"x": 0.3, "y": 0.62, "at": 4.0, "zoom": 1.5, "texto": "Exporta con un clic"}],
    "at": {"rotulo": 0.1, "ventana": 0.3}},
   "rotulo_inferior": {"from": 0, "to": 5, "nombre": "Laura Martínez", "rol": "Directora de marketing",
-   "at": {"entra": 0.3}}
+   "at": {"entra": 0.3}},
+  "hero": {"from": 0, "to": 5, "badge": "NUEVO MOTOR 2.0",
+   "titulo": "Videos con *física real*", "subtitulo": "Del guion al corte final en minutos",
+   "metrica": "3.4x", "etiqueta_metrica": "más retención en redes", "cta": "Pruébalo hoy",
+   "at": {"badge": 0.15, "titulo": 0.45, "card": 1.05, "cta": 1.75}},
+  "bento": {"from": 0, "to": 5, "rotulo": "Todo en *una grilla*",
+   "items": [{"icono": "01", "titulo": "Motor fluido", "texto": "Resortes y cámara viva", "acento": true},
+             {"icono": "02", "titulo": "Marca blanca", "texto": "Fidelidad total al pack"},
+             {"icono": "03", "titulo": "Auto-QA", "texto": "Verificado cuadro a cuadro"}],
+   "pie": "PRODUCCIÓN LISTA PARA REDES",
+   "at": {"rotulo": 0.15, "item0": 0.65, "item1": 1.0, "item2": 1.35, "pie": 2.1}}
  }
 }

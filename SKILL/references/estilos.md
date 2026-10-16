@@ -112,3 +112,32 @@ packs en la misma pieza. Con brand pack, todos los packs comparten los colores,
 logos y tipografías del pack; lo que cambia es la personalidad de movimiento
 y el lenguaje gráfico (ej. con un mismo pack, una pieza de comunidad puede ser
 más juguetona en motion que un film de marca).
+
+## 7. Mapeo de sistemas de diseño reales (`styles.refero.design` / `DESIGN.md`) a EditorIA
+
+Cuando el usuario pida el look de un producto real o entregue un archivo
+`DESIGN.md` extraído de [styles.refero.design](https://styles.refero.design)
+(catálogo de 2.000+ sistemas de diseño de productos reales para agentes IA):
+
+1. **Nunca adivinar de memoria** ("hazlo estilo Linear/Stripe/Raycast"): extraer
+   primero los tokens verificados del `DESIGN.md` o del brand pack.
+2. **Traducción canónica `DESIGN.md` → `brand/*.json` / `render_plan.py`**:
+   - `background.canvas` / `surface.primary` → `colores.negro` (lienzo base).
+   - `surface.elevated` / `glass` → `PANEL` / `tarjeta_cristal` (tarjetas y contenedores).
+   - `text.primary` → `colores.blanco` (titulares y cifras).
+   - `text.secondary` / `muted` → `colores.gris` (subtítulos, fuentes y etiquetas).
+   - `accent.primary` / `brand` → `colores.acento` (énfasis `*...*`, `boton_halo`, `insignia_3d`).
+   - `typography.display` / `sans` / `mono` → `tipografias.titulares`, `texto`, `etiquetas_mono`.
+3. **Superficies y componentes modernos** (ver `references/scene-patterns-from-internet.md`):
+   - **Liquid Glass** ([glass.samasante.com](https://glass.samasante.com)): usar
+     `tarjeta_cristal` en PIL (`sc_hero`, `sc_bento`) o `@samasante/liquid-glass`
+     en HyperFrames/Remotion cuando el fondo vivo pase por debajo de tarjetas.
+   - **Iconografía 3D táctil** ([3dicons.co](https://3dicons.co), CC0): usar
+     `insignia_3d` para insignias extruidas con sombra de contacto y brillo
+     especular, o PNGs CC0 con alfa de `3dicons.co` con `flota()`.
+   - **Hero, Navbar, CTA y Footer** ([supahero.io](https://supahero.io),
+     [navbar.gallery](https://www.navbar.gallery), [cta.gallery](https://www.cta.gallery),
+     [footer.design](https://www.footer.design)): llevar al video solo la
+     **píldora de anuncio/tab activa** (`badge`), el **botón CTA con halo**
+     (`boton_halo`) y la **firma tipográfica al pie** (`pie`), descartando
+     menús complejos o pies de página llenos de enlaces SEO.

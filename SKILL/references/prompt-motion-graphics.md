@@ -228,6 +228,33 @@ iteración; el que promete "una sola toma y listo" vende humo.
 | Música por secciones | La música cambia con la estructura (drums en el dark switch) | `scripts/musica.py gen`; beat file compartido (`references/recetas-ai-video.md`) |
 | Master medido | -14 LUFS, TP según plataforma, re-medir tras AAC | `scripts/ffmpeg_tools/delivery_check.py`; `scripts/medir_mezcla.py` |
 
+## Familia 6 — Lanzamiento SaaS con Hero Liquid Glass, Bento 3D y Halo CTA (scrolltide.co + supahero.io + glass.samasante.com)
+
+Para piezas de lanzamiento en HyperFrames, Remotion o el motor por plan
+(`hero` + `bento` en `scripts/render_plan.py`), combinando los patrones de
+[scrolltide.co](https://scrolltide.co), [supahero.io](https://supahero.io),
+[glass.samasante.com](https://glass.samasante.com), [3dicons.co](https://3dicons.co),
+[cta.gallery](https://www.cta.gallery), [navbar.gallery](https://www.navbar.gallery) y
+[footer.design](https://www.footer.design):
+
+```
+Build a 20-second product launch video for {{PRODUCT}} using tokens from
+{{DESIGN_MD_OR_BRAND_PACK}}:
+1. Opening Hero (0–5s): top announcement pill badge (navbar.gallery style),
+   focus-reveal kinetic headline ({{HEADLINE}}), and a tilted Liquid Glass
+   metric card (liseré spéculaire rim highlight + frosted surface) with a
+   pulsing Glow Ring CTA pill button.
+2. Bento Feature Grid (5–11s): 3–4 asymmetric Liquid Glass cards entering
+   with spring stagger; each card pairs a tactile 3D icon badge (3dicons.co
+   extruded style with contact shadow and idle float) with a 3-word title
+   and concrete metric.
+3. Interactive Product Demo (11–16s): smoothstep cursor path, click ripple
+   on the exact frame the state changes, and 1.6x spotlight zoom.
+4. Bold Typographic Sign-off (16–20s): oversized wordmark bleed footer with
+   final CTA pill and real URL. No web browser scrollbars, mega-menus, or
+   invented metrics.
+```
+
 ## Lo que NO se trae
 
 - Voces/SFX generados sin provenance cuando el proyecto exige derechos
