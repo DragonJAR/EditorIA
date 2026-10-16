@@ -33,11 +33,19 @@ else:
 check(name and "claude" not in name.group(1) and "anthropic" not in name.group(1),
       "name sin 'claude'/'anthropic' (reservados)")
 desc = re.search(r"description:\s*(.*)", fm)
-check(bool(desc), "frontmatter tiene description")
-check(desc and len(desc.group(1)) < 1024,
-      f"description < 1024 chars ({len(desc.group(1)) if desc else '?'})")
-check(desc and ("cuando" in desc.group(1).lower() or "use when" in desc.group(1).lower()),
+desc_val = desc.group(1).strip().strip("'\"") if desc else ""
+check(bool(desc_val), "frontmatter tiene description")
+check(bool(desc_val) and len(desc_val) < 1024,
+      f"description < 1024 chars ({len(desc_val) if desc else '?'})")
+check(bool(desc_val) and ("cuando" in desc_val.lower() or "use when" in desc_val.lower()),
       "description incluye WHEN (condición de uso)")
+check(bool(desc_val) and ("do not use" in desc_val.lower() or "no usar" in desc_val.lower()),
+      "description incluye negative triggers ('Do NOT use...')")
+lic_fm = re.search(r"^license:\s*(\S+)", fm, re.M)
+compat_fm = re.search(r"^compatibility:\s*(.+)$", fm, re.M)
+compat_val = compat_fm.group(1).strip().strip("'\"") if compat_fm else ""
+check(bool(lic_fm) and bool(compat_val) and 1 <= len(compat_val) <= 500,
+      f"frontmatter declara license ({lic_fm.group(1) if lic_fm else '?'}) y compatibility ({len(compat_val)} chars)")
 check(not re.search(r"<[^/!][^>]*>", fm), "sin angle brackets en frontmatter")
 def _yaml_fm_valido(texto):
     try:
@@ -342,28 +350,37 @@ for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
             check(False, f"compila {rel}: {e}")
 check(n_py > 0, f"scripts compilados: {n_py}")
 
+# 4b. paridad estática AST de SCENES, escenas_muestra.json y conteos en documentación (ES/EN)
+_rp_tree = ast.parse(open(os.path.join(BASE, "scripts", "render_plan.py"), encoding="utf-8").read())
+_scenes_ast = []
+for _node in _rp_tree.body:
+    if isinstance(_node, ast.Assign) and any(getattr(t, "id", "") == "SCENES" for t in _node.targets):
+        if isinstance(_node.value, ast.Dict):
+            _scenes_ast = [k.value for k in _node.value.keys if isinstance(k, ast.Constant)]
+_muestras_dict = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
+_n_sc = len(_scenes_ast)
+_malas_doc = []
+for _doc in ("SKILL.md", "references/escenas.md", "references/plan-video.md", "references/arquitectura.md"):
+    _txt_d = open(os.path.join(BASE, _doc), encoding="utf-8").read()
+    _pat_d = (r"(\d+)\s+escenas\s+\(references/escenas\.md\)" if _doc.endswith("arquitectura.md") else
+              r"(\d+)\s+(?:tipos\s+(?:de\s+escena|del\s+plan)|scene\s+types)|(\d+)/\2\s+(?:escenas|scenes)")
+    for _m in re.finditer(_pat_d, _txt_d):
+        _num = int(_m.group(1) or _m.group(2))
+        if _num != _n_sc:
+            _malas_doc.append(f"{_doc}: {_m.group(0)}")
+check(not _malas_doc, f"la doc (ES/EN) cuenta {_n_sc} escenas como el código ({'; '.join(_malas_doc) or 'coincide'})")
+_sin_m = sorted(set(_scenes_ast) - set(_muestras_dict))
+check(not _sin_m, f"cada escena tiene muestra en escenas_muestra.json ({', '.join(_sin_m) or 'todas'})")
+_sobran_m = sorted(set(_muestras_dict) - set(_scenes_ast))
+check(not _sobran_m, f"escenas_muestra.json sin tipos inexistentes ({', '.join(_sobran_m) or 'ninguno'})")
+
 # 5. las N escenas renderizan con su muestra realista (escenas_muestra.json)
 #    en 9:16 y 16:9, compuestas DENTRO de la zona segura (sin que escala_segura las encoja)
 try:
     import numpy as _np
     import render_plan as R
     n_total = len(R.SCENES)
-    # muestras realistas: fuente única con galeria.py (scripts/escenas_muestra.json)
-    muestras = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"),
-                              encoding="utf-8"))["escenas"]
-    # la doc dice cuántas escenas hay: debe coincidir con el código (las cuentas se pudren)
-    malas = []
-    for doc in ("SKILL.md", "references/escenas.md", "references/plan-video.md"):
-        txt_ = open(os.path.join(BASE, doc), encoding="utf-8").read()
-        for m_ in re.finditer(r"(\d+) tipos (?:de escena|del plan)", txt_):
-            if int(m_.group(1)) != n_total:
-                malas.append(f"{doc}: {m_.group(0)}")
-    check(not malas, f"la doc cuenta {n_total} escenas como el código ({'; '.join(malas) or 'coincide'})")
-    sin_muestra = sorted(set(R.SCENES) - set(muestras))
-    check(not sin_muestra, f"cada escena tiene muestra en escenas_muestra.json "
-                           f"({', '.join(sin_muestra) or 'todas'})")
-    sobran = sorted(set(muestras) - set(R.SCENES))
-    check(not sobran, f"escenas_muestra.json sin tipos inexistentes ({', '.join(sobran) or 'ninguno'})")
+    muestras = _muestras_dict
     # 9:16 y 16:9: toda escena funciona en los dos formatos
     for ancho, alto in ((1080, 1920), (1920, 1080)):
         R.formato(ancho, alto)

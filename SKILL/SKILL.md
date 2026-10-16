@@ -1,7 +1,9 @@
 ---
 name: editoria
-description: 'EditorIA, the Swiss Army knife for AI video editing. Create, edit, summarize or improve videos (.mp4): animated meeting summaries, kinetic typography, plan-driven ads, cinematic films, and vertical social pieces — for any brand or no brand at all. Use when the user asks "make me a video", "summarize this meeting", "edit this ad", "improve this video", or "add music to it".'
-metadata: { "author": "Jaime Andrés Restrepo", "version": "1.5.0" }
+description: 'EditorIA, the Swiss Army knife for AI video editing. Create, edit, summarize or improve videos (.mp4, .mov, .webm, .srt): animated meeting summaries, kinetic typography, plan-driven ads, cinematic films, and vertical social pieces — for any brand or no brand at all. Use when the user asks "make me a video", "summarize this meeting", "edit this ad", "improve this video", or "add music to it". Do NOT use for static images, text-only PDF summaries, or document editing.'
+license: MIT
+compatibility: 'Python 3.9+, FFmpeg, Pillow, NumPy; optional ElevenLabs API, Node 18+/22+ for Remotion/HyperFrames'
+metadata: { "author": "Jaime Andrés Restrepo", "version": "1.6.0", "category": "video-editing" }
 ---
 
 # EditorIA
@@ -43,7 +45,7 @@ pack present → total fidelity.
 
 | Brief | Motor |
 |---|---|
-| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (24 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
+| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (28 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
 | Meeting / transcript summary | **Composition**: `references/pipeline-resumen.md` + styles from `references/estilos.md` |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` for DragonJAR) |
 | Quick kinetic card (one phrase) | **Quick**: recipe `quick-kinetic` in `references/modos-rapidos.md` |
@@ -70,7 +72,7 @@ Complete skill map: `references/arquitectura.md` — what each script does
 **A. By plan (ads and scene-driven pieces)** — the main flow:
 0. **Capabilities**: `python scripts/check_env.py` (`references/capacidades.md`).
    Validate first, promise later; degrade honestly if something is missing.
-1. **Plan**: write `plan.json` per `references/plan-video.md` (24 scene types,
+1. **Plan**: write `plan.json` per `references/plan-video.md` (28 scene types,
    absolute times, `at` per element, `voz` field per scene if there is
    narration). See `scripts/demo_plan.json` as an example.
 2. **Render**: `python scripts/render_plan.py plan.json -o out.mp4`
@@ -155,7 +157,7 @@ A video is done only if it meets ALL of the following:
 - **Triggering**: ≥90% on relevant queries, 0% on unrelated ones.
 - **Execution**: 0 failed API calls per workflow.
 - **Consistency**: same brief produces same structure across sessions
-  (`scripts/validate_skill.py`: 24/24 scenes always render).
+  (`scripts/validate_skill.py`: 28/28 scenes always render).
 
 ## Examples
 
@@ -209,7 +211,7 @@ The skill should activate on:
 3. **Music only**: `musiconly` produces video + music with fade-out, no voice.
 4. **Resume**: interrupt `render_plan.py` mid-way and re-run without `--force`
    resumes the missing frames.
-5. **Validation**: `python scripts/validate_skill.py` exits 0 (24/24 scenes
+5. **Validation**: `python scripts/validate_skill.py` exits 0 (28/28 scenes
    render, scripts compile, references exist).
 
 ## Troubleshooting
