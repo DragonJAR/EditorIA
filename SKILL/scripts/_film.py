@@ -9,8 +9,13 @@ marca). El logo se lleva a un lienzo cuadrado transparente SIN deformarlo
 import os
 import sys
 
-import numpy as np
-from PIL import Image, ImageDraw
+try:
+    import numpy as np
+    from PIL import Image, ImageDraw
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install pillow numpy")
+    np = Image = ImageDraw = None
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _comun import die, identidad_pieza, leer_pack, segmentos_enfasis  # noqa: E402

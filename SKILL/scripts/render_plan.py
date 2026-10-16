@@ -4,9 +4,14 @@ Identidad desde brand pack opcional (--brand o campo "brand" en el plan);
 sin pack, usa los defaults neutros del renderer.
 Uso: python render_plan.py plan.json -o salida.mp4 [--fps 30] [--brand brand/otro.json]
 """
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 import os, math, json, random, re, sys, argparse
+try:
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install pillow numpy")
+    np = Image = ImageDraw = ImageFont = ImageFilter = ImageChops = None
 
 # ---------- identidad: defaults NEUTROS; el brand pack los sobreescribe ----------
 # Sin pack (modo libre) nada de marca: acento neutro y fuentes empaquetadas.
@@ -460,8 +465,11 @@ def cuadricula(x0, y0, ancho_total, alto_total, cols, n):
     return out
 
 
-from PIL import features as _features
-TNUM = ["tnum"] if _features.check("raqm") else None   # cifras tabulares nativas
+try:
+    from PIL import features as _features
+    TNUM = ["tnum"] if _features.check("raqm") else None   # cifras tabulares nativas
+except ModuleNotFoundError:
+    TNUM = None
 
 
 def largo(texto, font, tabular=False):

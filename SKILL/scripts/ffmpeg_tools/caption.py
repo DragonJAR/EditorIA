@@ -278,24 +278,35 @@ def _envolver(ln, font, avail_w):
     return en(n)
 
 
+class _FontEst:
+    """Estimador proporcional de ancho de fuente cuando PIL no está instalado."""
+    def __init__(self, size):
+        self.size = size
+    def getlength(self, s):
+        return len(s) * self.size * 0.56
+
+
+def _cargar_fuente_medida(font_file, size):
+    try:
+        from PIL import ImageFont
+        if font_file:
+            return ImageFont.truetype(font_file, size)
+    except Exception:
+        pass
+    return _FontEst(size)
+
+
 def _fit_cue_size(text, base_size, min_size, max_lines, avail_w, font_file):
     """Tamano para que el cue quepa en avail_w px y en max_lines lineas.
 
     Nunca reescribe ni acorta el texto: solo encoge la fuente (cero
-    confabulacion). Devuelve (tamano, encogido). Si no hay como medir
-    (sin PIL o sin fuente), devuelve el tamano base.
+    confabulacion). Devuelve (tamano, encogido). Si no hay PIL, usa el
+    estimador proporcional _FontEst para conservar el ajuste determinista.
     """
-    try:
-        from PIL import ImageFont
-    except ImportError:
-        return base_size, False
     plain = re.sub(r"\{[^}]*\}", "", text).replace("\\N", "\n")
     size = base_size
     while size > min_size:
-        try:
-            font = ImageFont.truetype(font_file, size)
-        except Exception:
-            return base_size, False
+        font = _cargar_fuente_medida(font_file, size)
         # líneas REALES (las mismas que fijará _partir_fijo), no ancho/área
         needed = sum(len(_envolver(ln, font, avail_w)) for ln in (plain.split("\n") or [""]))
         # solo una palabra mas ancha que el area es irrompible y fuerza encogido
@@ -308,15 +319,11 @@ def _fit_cue_size(text, base_size, min_size, max_lines, avail_w, font_file):
 
 
 def _partir_fijo(text, size, avail_w, font_file):
-    """Saltos de línea FIJOS (\\N) medidos con la fuente real (_envolver). Con
-    {\\q2} libass ya no re-envuelve: si la animación escala el texto (pop
-    80 → 108 %), una línea no salta a 3 durante un frame. Sin PIL o sin
-    fuente: el texto tal cual."""
-    try:
-        from PIL import ImageFont
-        font = ImageFont.truetype(font_file, size)
-    except Exception:
-        return text, False
+    """Saltos de línea FIJOS (\\N) medidos con la fuente real (_envolver) o
+    con _FontEst si PIL no está disponible. Con {\\q2} libass ya no re-envuelve:
+    si la animación escala el texto (pop 80 → 108 %), una línea no salta a 3
+    durante un frame."""
+    font = _cargar_fuente_medida(font_file, size)
     return "\n".join(x for ln in text.split("\n") for x in _envolver(ln, font, avail_w)), True
 
 

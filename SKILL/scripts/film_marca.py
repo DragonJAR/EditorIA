@@ -8,8 +8,13 @@ Este v1 se conserva solo como referencia histórica.
 Uso: python film_marca.py --brand brand/mi_marca.json -o film.mp4
 """
 import os, sys, math, argparse, random
-import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+try:
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install pillow numpy")
+    np = Image = ImageDraw = ImageFilter = ImageFont = None
 
 W,H=1920,1080; FPS=24; DUR=15.0; N=int(DUR*FPS)
 BASE=os.path.dirname(os.path.abspath(__file__))

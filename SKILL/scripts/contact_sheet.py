@@ -20,7 +20,12 @@ import subprocess
 import sys
 import tempfile
 
-from PIL import Image, ImageDraw
+try:
+    from PIL import Image, ImageDraw
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install pillow")
+    Image = ImageDraw = None
 
 
 def extraer_frames(video, n, tmpdir):

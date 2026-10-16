@@ -30,7 +30,12 @@ import sys
 import time
 from multiprocessing import Pool
 
-import numpy as np
+try:
+    import numpy as np
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install numpy")
+    np = None
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(AQUI)

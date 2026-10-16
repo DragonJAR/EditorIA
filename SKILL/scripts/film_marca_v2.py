@@ -8,13 +8,16 @@ El ancla del logo (pack logos.ancla, o su centro de masa) es el ancla compositiv
 el logo nunca se deforma ni rota.
 Uso: python film_marca_v2.py --brand brand/mi_marca.json -o film.mp4
 """
-import os, math, argparse, random
-import numpy as np
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
-
+import os, sys, math, argparse, random
+try:
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install pillow numpy")
+    np = Image = ImageDraw = ImageFilter = ImageFont = None
 W,H=1920,1080; FPS=24; DUR=15.0; N=int(DUR*FPS)
 BASE=os.path.dirname(os.path.abspath(__file__))
-import sys
 sys.path.insert(0, BASE)
 from _film import (LADO, args_formato, args_identidad, clamp01, dibujar_lema,  # noqa: E402
                    draw_glow, lerp, lienzo, lineas_lema, preparar, prog, rejilla, smooth,

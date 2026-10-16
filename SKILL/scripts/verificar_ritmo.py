@@ -19,7 +19,12 @@ Uso:
 Salida: una línea PASS/WARN/FAIL por prueba; exit 1 si alguna FAIL.
 """
 import argparse, subprocess, sys
-import numpy as np
+try:
+    import numpy as np
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install numpy")
+    np = None
 
 STILL_THRESH = 0.5     # diff media (0-255, a 320px) bajo la cual el cuadro es "quieto"
 BIG_THRESH = 8.0       # diff media que cuenta como "cambio grande"

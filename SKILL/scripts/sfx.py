@@ -12,7 +12,13 @@ Uso:
 """
 import argparse
 import os
-import numpy as np
+import sys
+try:
+    import numpy as np
+except ModuleNotFoundError as _e_dep:
+    if "-h" not in sys.argv and "--help" not in sys.argv:
+        sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install numpy")
+    np = None
 
 SR = 44100
 SEED = 7
