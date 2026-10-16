@@ -1,7 +1,7 @@
 # EditorIA
 
 [![Licencia](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Versión](https://img.shields.io/badge/version-1.5.0-green.svg)](SKILL/SKILL.md)
+[![Versión](https://img.shields.io/badge/version-1.5.0-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Plataformas](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#instalación)
 
@@ -42,13 +42,13 @@ git clone https://github.com/DragonJAR/EditorIA editoria
 
 ```bash
 git clone https://github.com/DragonJAR/EditorIA.git
-# La skill vive en SKILL/. Apunta el path de tu agente allí.
+# La skill vive en editoria/. Apunta el path de tu agente allí.
 ```
 
 ### Verificación
 
 ```bash
-python3 SKILL/scripts/check_env.py
+python3 editoria/scripts/check_env.py
 ```
 
 Salida esperada: `ENTORNO LISTO`. Si falta algo crítico, el script lo reporta y sugiere el fix.
@@ -66,7 +66,7 @@ Salida esperada: `ENTORNO LISTO`. Si falta algo crítico, el script lo reporta y
 | Remotion 4 | opcional | Animación HTML/CSS/JS programática (requiere Node 22+, React 19) |
 | HyperFrames | opcional | Plantillas HTML deterministas (requiere Node 22+) |
 
-Instalación detallada por SO: `SKILL/references/instalacion.md`.
+Instalación detallada por SO: `editoria/references/instalacion.md`.
 
 ## 🎬 Ejemplos de uso
 
@@ -220,7 +220,7 @@ EditorIA/
 ├── README.md                          # Este archivo
 ├── README.en.md                       # English version
 ├── LICENSE                             # MIT
-├── SKILL/                             # Contenido de la skill (todo aquí)
+├── editoria/                             # Contenido de la skill (todo aquí)
 │   ├── SKILL.md                       # Definición + Language Rule + selector
 │   ├── scripts/                       # 25 motores raíz + 19 en ffmpeg_tools/
 │   │   ├── render_plan.py             # Motor principal de render por plan
@@ -325,15 +325,14 @@ EditorIA/
 │   │   └── fonts/                     # Plus Jakarta Sans + Montserrat (OFL)
 │   ├── brand/                         # Marca-blanca: packs solo aquí
 │   │   ├── dragonjar.json             # Pack de ejemplo
-│   │   ├── assets/                    # Assets de marca (logos, etc.)
-│   │   └── README.md                  # Cómo crear un pack nuevo
+│   │   └── assets/                    # Assets de marca (logos, etc.)
 │   ├── film/                          # Música de ejemplo para film de marca
 │   │   ├── musica_film.mp3
 │   │   ├── musica_film_v2.mp3
 │   │   └── musica_demo.mp3
 │   └── metricas/                      # Métricas de la skill (RSI)
 │       └── historial.jsonl
-└── .gitignore                         # Restringe el repo a SKILL/ y READMEs
+└── .gitignore                         # Restringe el repo a editoria/ y READMEs
 ```
 
 ## 🎯 Frases trigger

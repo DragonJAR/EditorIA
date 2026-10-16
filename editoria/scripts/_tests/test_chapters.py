@@ -8,8 +8,8 @@ Covers the 5 functions documented in chapters.py:
 - capitulos_desde_shorts: extracts chapters from shorts-plan.json
 - main: CLI (smoke-tested by running with --help)
 
-Run with: python3 SKILL/scripts/_tests/test_chapters.py
-Or:       python3 -m unittest SKILL/scripts/_tests/test_chapters.py
+Run with: python3 editoria/scripts/_tests/test_chapters.py
+Or:       python3 -m unittest editoria/scripts/_tests/test_chapters.py
 """
 
 import os

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Tests unitarios deterministas de utilidades core, frontmatter, subtítulos
-y catálogo de escenas (30 escenas, primitivas DRY de Ronda 4).
+"""Tests unitarios deterministas de utilidades core, frontmatter, nombres,
+subtítulos y catálogo de escenas (30 escenas, primitivas DRY de Ronda 4).
 
-Se ejecutan con: python3 -m unittest discover -s SKILL/scripts/_tests -v
+Se ejecutan con: python3 -m unittest discover -s editoria/scripts/_tests -v
 """
 import ast
 import json
@@ -31,8 +31,23 @@ class TestFrontmatterYCatalogo(unittest.TestCase):
 
     def test_frontmatter_present_and_valid_yaml_scalars(self):
         self.assertTrue(self.fm)
+        en_bloque = False
         for ln in self.fm.splitlines():
             if not ln.strip() or ln.lstrip().startswith("#"):
+                continue
+            if ln.startswith("  ") and en_bloque:
+                sub = re.match(r"^\s+[A-Za-z0-9_-]+:\s*(.+)$", ln)
+                self.assertIsNotNone(sub, f"subclave inválida en bloque YAML: {ln}")
+                sv = sub.group(1).strip()
+                if (sv.startswith("'") and sv.endswith("'")) or (sv.startswith('"') and sv.endswith('"')):
+                    continue
+                if sv.startswith("[") and sv.endswith("]"):
+                    continue
+                self.assertNotIn(": ", sv, f"sub-escalar YAML sin comillas contiene ': ': {ln}")
+                continue
+            en_bloque = False
+            if re.match(r"^[A-Za-z0-9_-]+:\s*$", ln):
+                en_bloque = True
                 continue
             kv = re.match(r"^[A-Za-z0-9_-]+:\s*(.+)$", ln)
             self.assertIsNotNone(kv, f"línea inválida en frontmatter: {ln}")
@@ -53,6 +68,28 @@ class TestFrontmatterYCatalogo(unittest.TestCase):
         self.assertLess(len(val), 1024)
         self.assertIn("use when", val.lower())
         self.assertIn("do not use", val.lower())
+
+    def test_naming_and_structure_compliance_with_guide(self):
+        # 1. SKILL.md exact case-sensitive spelling
+        self.assertIn("SKILL.md", os.listdir(SKILL))
+        # 2. Folder name in strict kebab-case and matching frontmatter name
+        folder_name = os.path.basename(SKILL)
+        self.assertRegex(folder_name, r"^[a-z0-9]+(-[a-z0-9]+)*$")
+        self.assertEqual(folder_name, "editoria")
+        # 3. No README.md or .zip anywhere inside skill folder
+        for dp, _, fn in os.walk(SKILL):
+            if "__pycache__" in dp:
+                continue
+            for f in fn:
+                self.assertFalse(f.lower().startswith("readme"), f"README prohibido dentro de la skill: {f}")
+                self.assertFalse(f.lower().endswith(".zip"), f".zip prohibido dentro de la skill: {f}")
+        # 4. All references in strict kebab-case
+        for f in os.listdir(os.path.join(SKILL, "references")):
+            if not f.startswith("."):
+                self.assertRegex(f, r"^[a-z0-9]+(-[a-z0-9]+)*\.(md|json)$")
+        # 5. Required sections from Skill-for-Claude.txt
+        for sec in ("## Instructions", "## Examples", "## Troubleshooting", "## Performance Notes"):
+            self.assertIn(sec, self.sk)
 
     def test_scenes_ast_matches_muestras_and_ronda4_primitives(self):
         with open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8") as fh:

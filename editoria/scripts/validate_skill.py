@@ -15,24 +15,23 @@ def check(cond, msg):
     print(("OK  " if cond else "FAIL") + " " + msg)
     if not cond: fails.append(msg)
 
-# 1. frontmatter
+# 1. frontmatter y reglas de nombres de Skill-for-Claude.txt
+check("SKILL.md" in os.listdir(BASE), "archivo principal nombrado exactamente SKILL.md (case-sensitive)")
 sk = open(os.path.join(BASE, "SKILL.md"), encoding="utf-8").read()
 m = re.match(r"^---\n(.*?)\n---\n", sk, re.S)
-check(bool(m), "frontmatter presente")
+check(bool(m), "frontmatter presente con delimitadores ---")
 fm = m.group(1) if m else ""
 check("name:" in fm, "frontmatter tiene name")
-name = re.search(r"name:\s*(\S+)", fm)
-if name and name.group(1) == os.path.basename(BASE):
-    check(True, f"name == carpeta ({name.group(1)})")
-elif name and os.path.basename(BASE) == "SKILL":
-    # Layout de repositorio: la skill vive en SKILL/ y se instala con su nombre.
-    print(f"AVISO name '{name.group(1)}' != carpeta 'SKILL' (layout del repo): "
-          f"al instalar, copiar como ~/.claude/skills/{name.group(1)}/")
-else:
-    check(False, f"name == carpeta ({name.group(1) if name else '?'})")
-check(name and "claude" not in name.group(1) and "anthropic" not in name.group(1),
+name = re.search(r"^name:\s*(\S+)\s*$", fm, re.M)
+name_val = name.group(1) if name else ""
+folder_val = os.path.basename(BASE)
+check(bool(name_val) and bool(re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name_val)),
+      f"name en kebab-case estricto sin espacios, guiones bajos ni mayúsculas ({name_val or '?'})")
+check(bool(re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", folder_val)) and name_val == folder_val,
+      f"carpeta de la skill en kebab-case y coincide exactamente con name ({folder_val} == {name_val or '?'})")
+check(bool(name_val) and "claude" not in name_val.lower() and "anthropic" not in name_val.lower(),
       "name sin 'claude'/'anthropic' (reservados)")
-desc = re.search(r"description:\s*(.*)", fm)
+desc = re.search(r"^description:\s*(.+)$", fm, re.M)
 desc_val = desc.group(1).strip().strip("'\"") if desc else ""
 check(bool(desc_val), "frontmatter tiene description")
 check(bool(desc_val) and len(desc_val) < 1024,
@@ -46,7 +45,7 @@ compat_fm = re.search(r"^compatibility:\s*(.+)$", fm, re.M)
 compat_val = compat_fm.group(1).strip().strip("'\"") if compat_fm else ""
 check(bool(lic_fm) and bool(compat_val) and 1 <= len(compat_val) <= 500,
       f"frontmatter declara license ({lic_fm.group(1) if lic_fm else '?'}) y compatibility ({len(compat_val)} chars)")
-check(not re.search(r"<[^/!][^>]*>", fm), "sin angle brackets en frontmatter")
+check(not re.search(r"[<>]", fm), "sin angle brackets (< >) en frontmatter")
 def _yaml_fm_valido(texto):
     try:
         import yaml
@@ -56,8 +55,25 @@ def _yaml_fm_valido(texto):
         pass
     except Exception:
         return False
+    en_bloque = False
     for ln in texto.splitlines():
         if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        if ln.startswith("  ") and en_bloque:
+            sub = re.match(r"^\s+[A-Za-z0-9_-]+:\s*(.+)$", ln)
+            if not sub:
+                return False
+            sv = sub.group(1).strip()
+            if (sv.startswith("'") and sv.endswith("'")) or (sv.startswith('"') and sv.endswith('"')):
+                continue
+            if sv.startswith("[") and sv.endswith("]"):
+                continue
+            if ": " in sv or sv.endswith(":"):
+                return False
+            continue
+        en_bloque = False
+        if re.match(r"^[A-Za-z0-9_-]+:\s*$", ln):
+            en_bloque = True
             continue
         kv = re.match(r"^[A-Za-z0-9_-]+:\s*(.+)$", ln)
         if not kv:
@@ -83,14 +99,18 @@ for mf in md_files:
 check(not bad_tags, f"sin angle brackets en markdown ({len(bad_tags)} hallados)")
 for b in bad_tags[:5]:
     print("      ", b)
-check(len(sk.split()) < 5000, f"SKILL.md < 5000 palabras ({len(sk.split())})")
+check(len(sk.split()) < 5000 and len(sk.splitlines()) < 500,
+      f"SKILL.md < 5000 palabras ({len(sk.split())}) y < 500 líneas ({len(sk.splitlines())})")
+for _sec in ("## Instructions", "## Examples", "## Troubleshooting", "## Performance Notes"):
+    check(_sec in sk, f"SKILL.md incluye sección {_sec} (Skill-for-Claude.txt)")
 # autoría única: el autor del frontmatter es el de la LICENSE; ningún archivo
 # de la skill lleva atribuciones de terceros (agentes, co-autores, "generado con")
 lic = open(os.path.join(os.path.dirname(BASE), "LICENSE"), encoding="utf-8").read() \
     if os.path.exists(os.path.join(os.path.dirname(BASE), "LICENSE")) else ""
-autor = re.search(r'"author":\s*"([^"]+)"', fm)
-check(bool(autor) and (not lic or autor.group(1) in lic),
-      f"author del frontmatter = titular de la LICENSE ({autor.group(1) if autor else '?'})")
+autor = re.search(r'(?:"author":\s*"([^"]+)"|^\s*author:\s*["\']?([^"\'\n]+)["\']?\s*$)', fm, re.M)
+autor_val = (autor.group(1) or autor.group(2)).strip() if autor else ""
+check(bool(autor_val) and (not lic or autor_val in lic),
+      f"author del frontmatter = titular de la LICENSE ({autor_val or '?'})")
 ajenas = []
 for dp, dn, fn in os.walk(BASE):
     if "__pycache__" in dp:
@@ -220,6 +240,33 @@ check(not _crudas10, f"una entrada inexistente da un error claro, sin traceback 
 _locales9 = {f_[:-3] for d_ in ("", "ffmpeg_tools") for f_ in os.listdir(os.path.join(BASE, "scripts", d_))
              if f_.endswith(".py")}
 _terceros9 = set()
+_stdlib9 = set(getattr(sys, "stdlib_module_names", ())) | {
+    "abc", "argparse", "array", "ast", "asyncio", "base64", "binascii", "bisect",
+    "builtins", "cmath", "collections", "concurrent", "contextlib", "copy", "csv",
+    "ctypes", "dataclasses", "datetime", "decimal", "difflib", "dis", "email",
+    "encodings", "enum", "errno", "faulthandler", "fcntl", "filecmp", "fileinput",
+    "fnmatch", "fractions", "ftplib", "functools", "gc", "getopt", "getpass",
+    "gettext", "glob", "gzip", "hashlib", "heapq", "hmac", "html", "http",
+    "imaplib", "imghdr", "imp", "importlib", "inspect", "io", "ipaddress",
+    "itertools", "json", "keyword", "linecache", "locale", "logging", "lzma",
+    "mailbox", "mailcap", "marshal", "math", "mimetypes", "mmap", "modulefinder",
+    "multiprocessing", "netrc", "nis", "nntplib", "numbers", "operator", "optparse",
+    "os", "ossaudiodev", "pathlib", "pdb", "pickle", "pickletools", "pipes",
+    "pkgutil", "platform", "plistlib", "poplib", "posix", "posixpath", "pprint",
+    "profile", "pstats", "pty", "pwd", "py_compile", "pyclbr", "pydoc", "queue",
+    "quopri", "random", "re", "readline", "reprlib", "resource", "rlcompleter",
+    "runpy", "sched", "secrets", "select", "selectors", "shelve", "shlex",
+    "shutil", "signal", "site", "smtpd", "smtplib", "sndhdr", "socket",
+    "socketserver", "spwd", "sqlite3", "ssl", "stat", "statistics", "string",
+    "stringprep", "struct", "subprocess", "sunau", "symtable", "sys", "sysconfig",
+    "syslog", "tabnanny", "tarfile", "telnetlib", "tempfile", "termios", "test",
+    "textwrap", "threading", "time", "timeit", "tkinter", "token", "tokenize",
+    "trace", "traceback", "tracemalloc", "tty", "turtle", "turtledemo", "types",
+    "typing", "unicodedata", "unittest", "urllib", "uu", "uuid", "venv",
+    "warnings", "wave", "weakref", "webbrowser", "winreg", "winsound", "wsgiref",
+    "xdrlib", "xml", "xmlrpc", "zipapp", "zipfile", "zipimport", "zlib", "_thread",
+    "__future__",
+}
 for d_ in ("", "ffmpeg_tools"):
     for f_ in os.listdir(os.path.join(BASE, "scripts", d_)):
         if not f_.endswith(".py") or f_ == "validate_skill.py":   # pyflakes: solo para validar
@@ -227,7 +274,7 @@ for d_ in ("", "ffmpeg_tools"):
         for n_ in ast.walk(ast.parse(open(os.path.join(BASE, "scripts", d_, f_), encoding="utf-8").read())):
             mods_ = [a_.name for a_ in n_.names] if isinstance(n_, ast.Import) else (
                 [n_.module] if isinstance(n_, ast.ImportFrom) and n_.module and n_.level == 0 else [])
-            _terceros9 |= {m_.split(".")[0] for m_ in mods_} - set(sys.stdlib_module_names) - _locales9
+            _terceros9 |= {m_.split(".")[0] for m_ in mods_} - _stdlib9 - _locales9
 _declaradas9 = set()
 for n_ in ast.parse(open(os.path.join(BASE, "scripts", "check_env.py"), encoding="utf-8").read()).body:
     if isinstance(n_, ast.Assign) and getattr(n_.targets[0], "id", "") in ("LIBS_CRITICAS", "LIBS_OPCIONALES"):
@@ -296,7 +343,22 @@ req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
        "scripts/demo_plan.json", "scripts/validate_skill.py"]
 for f in req:
     check(os.path.exists(os.path.join(BASE, f)), f"existe {f}")
-check(not os.path.exists(os.path.join(BASE, "README.md")), "sin README.md")
+readmes_internos, zips_internos = [], []
+for dp, dn, fn in os.walk(BASE):
+    if "__pycache__" in dp:
+        continue
+    for f in fn:
+        rel_f = os.path.relpath(os.path.join(dp, f), BASE)
+        if f.lower().startswith("readme"):
+            readmes_internos.append(rel_f)
+        if f.lower().endswith(".zip") or f == ".DS_Store":
+            zips_internos.append(rel_f)
+check(not readmes_internos, f"sin README.md en ninguna subcarpeta de la skill ({', '.join(readmes_internos) or 'ninguno'})")
+check(not zips_internos, f"sin archivos .zip ni .DS_Store dentro de la skill ({', '.join(zips_internos) or 'ninguno'})")
+refs_mal_nombradas = [f for f in os.listdir(os.path.join(BASE, "references"))
+                      if not f.startswith(".") and not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*\.(md|json)", f)]
+check(not refs_mal_nombradas,
+      f"referencias en kebab-case estricto sin espacios, guiones bajos ni mayúsculas ({', '.join(refs_mal_nombradas) or 'todas'})")
 
 # 3. referencias enlazadas existen (en SKILL.md y en toda referencia)
 all_md = [os.path.join(BASE, "SKILL.md")] + \
