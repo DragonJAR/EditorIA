@@ -39,6 +39,30 @@ check(desc and len(desc.group(1)) < 1024,
 check(desc and ("cuando" in desc.group(1).lower() or "use when" in desc.group(1).lower()),
       "description incluye WHEN (condición de uso)")
 check(not re.search(r"<[^/!][^>]*>", fm), "sin angle brackets en frontmatter")
+def _yaml_fm_valido(texto):
+    try:
+        import yaml
+        if not isinstance(yaml.safe_load(texto), dict):
+            return False
+    except ImportError:
+        pass
+    except Exception:
+        return False
+    for ln in texto.splitlines():
+        if not ln.strip() or ln.lstrip().startswith("#"):
+            continue
+        kv = re.match(r"^[A-Za-z0-9_-]+:\s*(.+)$", ln)
+        if not kv:
+            return False
+        v = kv.group(1).strip()
+        if (v.startswith("'") and v.endswith("'")) or (v.startswith('"') and v.endswith('"')):
+            continue
+        if (v.startswith("{") and v.endswith("}")) or (v.startswith("[") and v.endswith("]")):
+            continue
+        if ": " in v or v.endswith(":"):
+            return False
+    return True
+check(bool(fm) and _yaml_fm_valido(fm), "frontmatter es YAML válido (sin ': ' sin entrecomillar)")
 # guía: sin XML tags en ningún .md del skill (los placeholders usan {…})
 md_files = [os.path.join(BASE, "SKILL.md")] + \
     [os.path.join(BASE, "references", f) for f in os.listdir(os.path.join(BASE, "references"))
