@@ -13,7 +13,11 @@ La narración manda el reloj: mide cada segmento y falla si una voz pisa a la
 siguiente (antes de mezclar). Pre-TTS, auditar_plan.py estima lo mismo.
 La API key sale de $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
-import os, sys, argparse, subprocess, hashlib, requests
+import os, sys, argparse, subprocess, hashlib
+try:
+    import requests
+except ImportError:
+    requests = None
 
 VOCES = {  # roster probado con audio real (ver references/sonido.md)
     "fernanda": "1aJyZpkt0vxhGPBnPyrs",  # ES fem, latam neutra (default ES)
@@ -41,6 +45,8 @@ def cache_path(texto, voz_id, model):
     return f"{d}/vo_{h}.mp3"
 
 def tts(texto, out, voz_id, model):
+    if requests is None:
+        sys.exit("Falta instalar requests (pip install requests) para sintetizar voz con ElevenLabs")
     key = os.environ.get("ELEVENLABS_API_KEY")
     if not key: sys.exit("Falta ELEVENLABS_API_KEY en el entorno")
     settings = {} if model == "eleven_v3" else \
