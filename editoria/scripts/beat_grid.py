@@ -64,15 +64,23 @@ HOP = 128
 FPS = SR / HOP
 
 
+for _extra_bin in ("/opt/homebrew/bin", "/usr/local/bin"):
+    if Path(_extra_bin).is_dir() and _extra_bin not in sys.modules["os"].environ.get("PATH", "").split(sys.modules["os"].pathsep):
+        sys.modules["os"].environ["PATH"] = _extra_bin + sys.modules["os"].pathsep + sys.modules["os"].environ.get("PATH", "")
+
+
 def decodificar(ruta, af):
     """Decodifica audio a f32le mono a SR Hz aplicando el filtro af."""
     if not Path(ruta).is_file():
         sys.exit(f"No existe el archivo: {ruta}")
-    r = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", str(ruta), "-af", af, "-ac", "1",
-         "-ar", str(SR), "-f", "f32le", "-"],
-        capture_output=True,
-    )
+    try:
+        r = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", str(ruta), "-af", af, "-ac", "1",
+             "-ar", str(SR), "-f", "f32le", "-"],
+            capture_output=True,
+        )
+    except FileNotFoundError:
+        sys.exit("ERROR: no se encontró 'ffmpeg' en el PATH")
     if r.returncode != 0:
         sys.exit(f"ERROR: ffmpeg no pudo leer {ruta}")
     crudo = r.stdout
@@ -107,18 +115,23 @@ def onset(x):
 def ajustar_rejilla(env, dur, min_bpm, max_bpm):
     """Devuelve (bpm, beat0): la rejilla constante cuyos beats acumulan más energía de onset."""
     n = len(env)
+    if n == 0:
+        return float(min_bpm), 0.0
     mejor = None
     if np is not None:
         for bpm in np.arange(min_bpm, max_bpm + 0.01, 0.02):
             beat = 60 / bpm
+            nb = int((dur - beat) / beat)
+            if nb <= 0:
+                continue
             b0s = np.arange(0, beat, 0.004)
-            k = np.arange(int((dur - beat) / beat))
+            k = np.arange(nb)
             idx = np.clip(np.round((b0s[:, None] + beat * k[None, :]) * FPS).astype(int), 0, n - 1)
             s = env[idx].mean(axis=1)
             j = int(s.argmax())
             if mejor is None or s[j] > mejor[0]:
                 mejor = (float(s[j]), float(bpm), float(b0s[j]))
-        return mejor[1], mejor[2]
+        return (mejor[1], mejor[2]) if mejor is not None else (float(min_bpm), 0.0)
 
     env_list = list(env)
     n_1 = n - 1
@@ -144,7 +157,7 @@ def ajustar_rejilla(env, dur, min_bpm, max_bpm):
             mean_s = s / nb
             if mejor is None or mean_s > mejor[0]:
                 mejor = (mean_s, bpm, b0)
-    return mejor[1], mejor[2]
+    return (mejor[1], mejor[2]) if mejor is not None else (float(min_bpm), 0.0)
 
 
 def analizar(ruta, min_bpm=90, max_bpm=140):

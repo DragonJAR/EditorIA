@@ -34,13 +34,21 @@ TARGET_DB = 15.0
 TOLERANCIA_DB = 2.0
 
 
+for _extra_bin in ("/opt/homebrew/bin", "/usr/local/bin"):
+    if Path(_extra_bin).is_dir() and _extra_bin not in sys.modules["os"].environ.get("PATH", "").split(sys.modules["os"].pathsep):
+        sys.modules["os"].environ["PATH"] = _extra_bin + sys.modules["os"].pathsep + sys.modules["os"].environ.get("PATH", "")
+
+
 def decodificar(ruta):
     """Decodifica audio a f32le mono a SR Hz."""
-    r = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", str(ruta), "-ac", "1",
-         "-ar", str(SR), "-f", "f32le", "-"],
-        capture_output=True,
-    )
+    try:
+        r = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", str(ruta), "-ac", "1",
+             "-ar", str(SR), "-f", "f32le", "-"],
+            capture_output=True,
+        )
+    except FileNotFoundError:
+        sys.exit("ERROR: no se encontró 'ffmpeg' en el PATH")
     if r.returncode != 0:
         sys.exit(f"ERROR: ffmpeg no pudo leer {ruta}")
     crudo = r.stdout
@@ -93,7 +101,12 @@ def main():
 
     ventanas = []
     if a.ventanas:
-        ventanas = json.loads(Path(a.ventanas).read_text(encoding="utf-8"))
+        if not Path(a.ventanas).is_file():
+            sys.exit(f"No existe el archivo de ventanas: {a.ventanas}")
+        try:
+            ventanas = json.loads(Path(a.ventanas).read_text(encoding="utf-8"))
+        except (OSError, ValueError) as ex:
+            sys.exit(f"ERROR: JSON inválido en {a.ventanas}: {ex}")
     inicio_idx = max(0, int(a.inicio * SR))
     fin_idx = min(n, int((a.fin if a.fin is not None else n / SR) * SR))
     if fin_idx <= inicio_idx:

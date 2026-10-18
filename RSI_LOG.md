@@ -108,6 +108,9 @@ python3 editoria/scripts/validate_skill.py
 - **Medición (3 repeticiones)**: Aunque el sub-bucle `--help` aislado baja de mediana `2.318s` (`[2.567, 2.175, 2.318]`) a `1.267s` (`[1.278, 1.242, 1.267]`), el ahorro de `1.05s` sobre el tiempo total de `validate_skill.py` (`~13.8s`, dominado por las pruebas de `ffmpeg` `loudnorm`, `.webm`/`.mov` y `montaje.py pase`) representa solo un `~7.6%` (inferior al umbral del `15%`) y complica la traza secuencial determinista del validador.
 - **Decisión**: **DISCARD** (no supera el umbral del 15% en el tiempo total del validador; se alcanza el criterio de parada de 3 ciclos consecutivos explorando oportunidades distintas sin mejoras adicionales aceptables).
 
+- **RESULTADO**:
+  - **7a**: `validate_skill.py` pasa de `0` fugas temporales garantizadas mediante `atexit` (`_mkdtemp`), `beat_grid.ajustar_rejilla` soporta entradas vacías o sub-beat sin `TypeError`, `medir_mezcla.py` valida la existencia y el JSON de `--ventanas`, `_comun.py`/`beat_grid.py`/`medir_mezcla.py` normalizan `/opt/homebrew/bin` y `/usr/local/bin` en `PATH` incluso desde subshells mínimos, y se registra el aprendizaje verificado en `references/reglas-tecnicas.md` mediante `registrar_aprendizaje.py`.
+
 ---
 
 ## Anexo: Registro Histórico Ronda 1 (v1.7.0 — Ciclos 1 a 5 previos)

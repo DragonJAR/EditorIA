@@ -20,6 +20,10 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+for _extra_bin in ("/opt/homebrew/bin", "/usr/local/bin"):
+    if os.path.isdir(_extra_bin) and _extra_bin not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = _extra_bin + os.pathsep + os.environ.get("PATH", "")
+
 INSTALL_HINTS = {
     "Linux": "  Debian/Ubuntu: sudo apt install ffmpeg\n  Fedora:        sudo dnf install ffmpeg",
     "Darwin": "  brew install ffmpeg",

@@ -7,7 +7,14 @@ sin angle brackets en frontmatter ni markdown, SKILL.md < 5000 palabras,
 TODOS los scripts compilan y las 30 escenas renderizan.
 Sale 0 si todo pasa, 1 si algo falla.
 """
-import os, sys, re, ast, glob, json, subprocess, tempfile
+import atexit, os, shutil, sys, re, ast, glob, json, subprocess, tempfile
+
+_TMP_DIRS = []
+def _mkdtemp(prefix="editoria_"):
+    d = tempfile.mkdtemp(prefix=prefix)
+    _TMP_DIRS.append(d)
+    return d
+atexit.register(lambda: [shutil.rmtree(d, ignore_errors=True) for d in _TMP_DIRS])
 
 for _extra_bin in ("/opt/homebrew/bin", "/usr/local/bin"):
     if os.path.isdir(_extra_bin) and _extra_bin not in os.environ.get("PATH", "").split(os.pathsep):
@@ -224,7 +231,7 @@ check(not mudas, f"toda opción y subcomando de toda CLI se explica en --help ({
 # hacían). Se excluyen las CLIs donde la sonda tendría efectos o costo: el banco
 # completo, el registro de aprendizajes, la galería y check_env (sin entrada)
 _sin_sonda = {"validate_skill.py", "medir_animacion.py", "registrar_aprendizaje.py", "galeria.py", "check_env.py"}
-_tmp10 = tempfile.mkdtemp(prefix="editoria_sonda_")
+_tmp10 = _mkdtemp(prefix="editoria_sonda_")
 _crudas10 = []
 for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpeg_tools")):
     for _f in sorted(os.listdir(_dir)):
@@ -300,7 +307,7 @@ check(_terceros9 == _declaradas9,
 
 # subtítulos sin marca: la tipografía de las escenas (Montserrat empaquetada,
 # instancia estática para libass), no DejaVu del sistema
-_vcap = os.path.join(tempfile.mkdtemp(prefix="editoria_cap_"), "v.mp4")
+_vcap = os.path.join(_mkdtemp(prefix="editoria_cap_"), "v.mp4")
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=320x180:d=1", _vcap])
 _cap = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "ffmpeg_tools", "caption.py"),
                        _vcap, "--text", "hola", "--dry-run"], capture_output=True, text=True, timeout=60)
@@ -517,7 +524,7 @@ try:
         # (mismo umbral, mismo ancho de análisis): ningún plano queda congelado
         import auto_qa as _QA
         from PIL import Image as _Im
-        foto = os.path.join(tempfile.mkdtemp(prefix="editoria_foto_"), "foto.png")
+        foto = os.path.join(_mkdtemp(prefix="editoria_foto_"), "foto.png")
         _Im.linear_gradient("L").resize((1600, 1200)).convert("RGB").save(foto)
         congeladas = []
         for nombre in sorted(set(R.SCENES) - R.QUIETAS):
@@ -755,7 +762,7 @@ try:
         print("AVISO [no evaluado sin PIL/numpy]: render real multiproceso e2e (5c)")
     else:
         import subprocess as _sp5
-        _d5 = tempfile.mkdtemp(prefix="editoria_e2e_")
+        _d5 = _mkdtemp(prefix="editoria_e2e_")
         _p5 = os.path.join(_d5, "plan.json")
         json.dump({"duracion": 2.0, "numeros": "es", "escenas": [
             {"tipo": "stats", "from": 0, "to": 2.0, "titulo": "Prueba",
@@ -805,7 +812,7 @@ except (Exception, SystemExit) as ex:
 try:
     sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
     import _comun as _C5
-    _d6 = tempfile.mkdtemp(prefix="editoria_borra_")
+    _d6 = _mkdtemp(prefix="editoria_borra_")
     _f6 = os.path.join(_d6, "plan.json")
     open(_f6, "w").write('{"no": "es video"}')
     _C5.run(["ffprobe", "-v", "error", _f6], quiet=True, check=False)
@@ -862,7 +869,7 @@ except (Exception, SystemExit) as ex:
 try:
     sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
     import delivery_check as _DC
-    _d8 = tempfile.mkdtemp(prefix="editoria_entrega_")
+    _d8 = _mkdtemp(prefix="editoria_entrega_")
 
     def _fixture(nombre, tam, pix="yuv420p", audio="loudnorm=I=-14:TP=-2"):
         ruta = os.path.join(_d8, nombre)
@@ -1065,7 +1072,7 @@ for cli in ["scripts/beat_sync.py", "scripts/chapters.py",
 try:
     import json as _json
     import _comun as _C
-    tmp = tempfile.mkdtemp(prefix="editoria_val_")
+    tmp = _mkdtemp(prefix="editoria_val_")
     # 7a. color de marca exacto tras H.264 (BT.709, no BT.601)
     ref = _C.NEUTRO["acento"]
     ref_hex = "%02x%02x%02x" % ref

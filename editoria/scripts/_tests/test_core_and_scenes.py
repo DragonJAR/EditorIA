@@ -250,6 +250,8 @@ class TestStdlibAudioFallbacks(unittest.TestCase):
     def test_beat_grid_stdlib_helpers_and_demo_bpm(self):
         self.assertEqual(BG.maximum_filter1d([1.0, 5.0, 2.0, 0.0], 3), [5.0, 5.0, 5.0, 2.0])
         self.assertAlmostEqual(BG._percentil_std([10.0, 20.0, 30.0, 40.0], 50), 25.0)
+        self.assertEqual(BG.ajustar_rejilla([], 0.0, 90, 140), (90.0, 0.0))
+        self.assertEqual(BG.ajustar_rejilla([0.1, 0.2], 0.2, 90, 140), (90.0, 0.0))
         mus_demo = os.path.join(SKILL, "film", "musica_demo.mp3")
         if os.path.isfile(mus_demo):
             g = BG.analizar(mus_demo)
