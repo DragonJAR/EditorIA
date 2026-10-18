@@ -4,10 +4,14 @@ Verifica: frontmatter válido, name == carpeta, archivos requeridos,
 referencias enlazadas existen (en SKILL.md y en toda referencia),
 scripts enlazados existen, sin archivos huérfanos, sin README.md,
 sin angle brackets en frontmatter ni markdown, SKILL.md < 5000 palabras,
-TODOS los scripts compilan y las 13 escenas renderizan.
+TODOS los scripts compilan y las 30 escenas renderizan.
 Sale 0 si todo pasa, 1 si algo falla.
 """
 import os, sys, re, ast, glob, json, subprocess, tempfile
+
+for _extra_bin in ("/opt/homebrew/bin", "/usr/local/bin"):
+    if os.path.isdir(_extra_bin) and _extra_bin not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = _extra_bin + os.pathsep + os.environ.get("PATH", "")
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 fails = []
@@ -143,7 +147,7 @@ for x in packs:
     acento = colores.get("acento") or colors.get("primary")
     if not isinstance(acento, str) or not acento.startswith("#"):
         pack_malos.append(f"{os.path.basename(x)}: falta acento (colores.acento o colors.primary)")
-check(not pack_malos, f"brand packs validos: JSON + nombre + acento "
+check(not pack_malos, "brand packs validos: JSON + nombre + acento "
       + (f"({len(packs) - len(pack_malos)}/{len(packs)} OK; {chr(59).join(pack_malos[:3])})"
          if pack_malos else f"({len(packs)}/{len(packs)} OK)"))
 marcas = [os.path.splitext(os.path.basename(x))[0] for x in packs]
@@ -187,8 +191,9 @@ for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpe
         if "argparse" not in open(_ruta, encoding="utf-8").read():
             continue
         _r = subprocess.run([sys.executable, _ruta, "--help"], capture_output=True, text=True, timeout=60)
-        if "Traceback" in _r.stderr:
-            crudas.append(f"{_f}: {_r.stderr.strip().splitlines()[-1]}")
+        if "Traceback" in _r.stderr or _r.returncode != 0 or "usage" not in _r.stdout.lower():
+            _motivo = (_r.stderr.strip().splitlines()[-1] if _r.stderr.strip() else f"rc={_r.returncode}")
+            crudas.append(f"{_f}: {_motivo}")
             continue
         # un agente aprende la herramienta por --help: ninguna opción ni
         # subcomando sin explicar (ffmpeg_tools/_comun.ayudar completa las comunes)
@@ -638,7 +643,7 @@ try:
     # cifras: los intermedios llevan los decimales del valor final (nunca 3.4999…)
     cu = [R.cuenta_up(0, 3.5, 0.3, 0), R.cuenta_up(0, 3.5, 9, 0), R.cuenta_up(0, 1500, 9, 0)]
     check(cu[1] == "3.5" and len(cu[0]) == 3 and cu[2] == "1,500", f"cuenta_up con decimales ({cu})")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke test escenas: {ex}")
 
 # 5b. el detector de pops distingue aparición de movimiento y escalado (con casos
@@ -695,7 +700,7 @@ try:
     casos["3 entradas = 3 eventos"] = abs(_entradas(3, 3.6) * 3.0 - 3) < 0.01
     casos["solo respiración = 0 eventos"] = _entradas(0, 3.6) == 0
     check(all(casos.values()), f"detector de pops calibrado ({casos})")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"detector de pops: {ex}")
 
 # 5c. plan de agente, de punta a punta: render REAL multiproceso de un plan sin
@@ -759,7 +764,7 @@ try:
     check(_base5 < _R5.caja_segura()[3] and not _apret,
           f"\"subtitulos\": true sube el borde seguro y las escenas caben encima (≥ x0.85) "
           f"({', '.join(_apret) or 'todas'})")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"plan de agente de punta a punta: {type(ex).__name__}: {ex}")
 
 # 5d. ningún comando fallido borra lo que LEE: _comun.run limpiaba cmd[-1] tras
@@ -776,7 +781,7 @@ try:
     check(os.path.isfile(_f6), "un ffprobe/ffmpeg fallido no borra su entrada (solo la salida parcial de ffmpeg)")
 except SystemExit:
     check(os.path.isfile(_f6), "un ffprobe/ffmpeg fallido no borra su entrada (solo la salida parcial de ffmpeg)")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"limpieza de salidas parciales: {type(ex).__name__}: {ex}")
 
 # 5e. sincronía con la música (métrica v1, beat_sync.medir_sincronia): calibrada
@@ -816,7 +821,7 @@ try:
           and sorted(e["from"] for e in _voz) == [0, 4.1],
           f"plan con \"musica\" editado al ritmo (entradas {_sin['entradas_pct']} → {_con['entradas_pct']} %; "
           f"\"ritmo\": false intacto; con voz los cortes no se mueven)")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"sincronía con la música: {type(ex).__name__}: {ex}")
 
 # 5f. delivery_check (el veredicto en que confía el agente antes de entregar),
@@ -859,7 +864,7 @@ try:
                                  f"({', '.join(k_ for k_, v_ in _casos8.items() if not v_) or 'todas'})")
     import shutil as _sh8
     _sh8.rmtree(_d8, ignore_errors=True)
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"delivery_check: {type(ex).__name__}: {ex}")
 
 # 6. nuevos módulos de post-producción (smoke tests con datos sintéticos)
@@ -872,7 +877,7 @@ try:
     check(b == 0.25 and ta == 0.25, "beat_sync: ajuste al beat cercano")
     ta2, b2, _ = BS.ajustar(2.0, beats, 0.01)
     check(b2 is None and ta2 == 2.0, "beat_sync: fuera de ventana queda intacto")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke beat_sync: {ex}")
 
 try:
@@ -889,7 +894,7 @@ try:
     # timeline de SALIDA (concatenado en orden de archivo), no from de la fuente
     check(caps2 == [(0.0, "Hook"), (3.0, "El dato")],
           "chapters: desde shorts-plan (timeline acumulativo)")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke chapters: {ex}")
 
 try:
@@ -902,7 +907,7 @@ try:
     check("[v0][a0][v1][a1]concat=n=2:v=1:a=1" in fc, "aplicar_edl: concat intercalado")
     check("afade=t=in" in fc, "aplicar_edl: micro-fundidos")
     os.remove(edl_tmp)
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke aplicar_edl: {ex}")
 
 try:
@@ -923,7 +928,7 @@ try:
     import shutil as _sh
     _sh.rmtree(_td, ignore_errors=True)
     _sh.rmtree(_ti, ignore_errors=True)
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke shorts_plan retime: {ex}")
 
 try:
@@ -945,7 +950,7 @@ try:
                        {"id": "b", "from": 1.0, "to": 2.0}]}, 30.0)
     check(errores4 and not any("solape" in e for e in errores4),
           "shorts_plan: from invalido no rompe solapes")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke shorts_plan: {ex}")
 
 try:
@@ -955,7 +960,7 @@ try:
     check("vignette" in f1 and "vignette" not in f0, "grade: vineta opcional")
     check("colorbalance" in f1 and "eq=" in f1, "grade: filtros de marca")
     check("contrast=1.000" in f0, "grade: intensidad 0 = neutro")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke grade: {ex}")
 
 try:
@@ -979,7 +984,7 @@ try:
         os.remove(os.path.join(tempfile.gettempdir(), "editoria_val_lufs.m4a"))
     else:
         check(False, "variantes: no se pudo sintetizar audio de prueba")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke variantes: {ex}")
 
 try:
@@ -1003,7 +1008,7 @@ try:
     for p in (_base, os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")):
         if os.path.exists(p):
             os.remove(p)
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"smoke thumbnail: {ex}")
 
 # 6b. los nuevos CLIs responden --help
@@ -1094,7 +1099,7 @@ try:
     r = subprocess.run([sys.executable, os.path.join(BASE, "scripts/auditar_plan.py"), f"{tmp}/pv.json"],
                        capture_output=True, text=True)
     check(r.returncode == 1 and "pisaría" in r.stdout, "auditar_plan: voz que pisa a la siguiente = ERROR")
-except Exception as ex:
+except (Exception, SystemExit) as ex:
     check(False, f"regresiones ronda iart: {type(ex).__name__}: {ex}")
 
 print()

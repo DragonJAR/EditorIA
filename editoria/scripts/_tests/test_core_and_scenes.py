@@ -8,6 +8,7 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 import unittest
 
@@ -147,6 +148,33 @@ class TestCaptionHelpers(unittest.TestCase):
         wrapped, fijo = CAP._partir_fijo(txt, 160, 680, None)
         self.assertTrue(fijo)
         self.assertIn("\n", wrapped)
+
+
+class TestCliHelpAndModularImports(unittest.TestCase):
+    def test_previously_failing_clis_exit_zero_with_usage_on_help(self):
+        for rel in (
+            "alinear.py",
+            "beat_grid.py",
+            "medir_mezcla.py",
+            os.path.join("ffmpeg_tools", "thumbnail.py"),
+        ):
+            p = os.path.join(SCRIPTS, rel)
+            r = subprocess.run([sys.executable, p, "--help"], capture_output=True, text=True, timeout=15)
+            self.assertEqual(r.returncode, 0, f"{rel} --help falló con rc={r.returncode}: {r.stderr}")
+            self.assertIn("usage", r.stdout.lower(), f"{rel} --help no imprimió usage:")
+
+    def test_pure_functions_importable_without_numpy_or_pil(self):
+        import alinear as AL
+        import render_plan as RP
+        self.assertEqual(AL.normalizar_palabras("¡Hola, Vídeo 100%!"), ["hola", "video", "100"])
+        emp = AL.emparejar(["hola", "mundo"], [("Hola!", 0.1, 0.4, 0.9), ("mundo.", 0.5, 0.9, 0.8)])
+        self.assertEqual(emp, [("hola", 0.1, 0.4, 0.9), ("mundo", 0.5, 0.9, 0.8)])
+        self.assertEqual(RP.cuenta_up(0, 3.5, 9.0, 0.0), "3.5")
+        self.assertEqual(RP.cuenta_up(0, 1500, 9.0, 0.0), "1,500")
+        faltan = set()
+        res = RP.sustituir({"n": "{n}", "s": "Hola {nombre}", "m": "{x}"}, {"n": "42", "nombre": "Ana"}, faltan)
+        self.assertEqual(res, {"n": 42, "s": "Hola Ana", "m": "{x}"})
+        self.assertEqual(faltan, {"x"})
 
 
 if __name__ == "__main__":

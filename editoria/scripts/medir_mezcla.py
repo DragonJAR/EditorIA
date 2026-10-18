@@ -25,7 +25,7 @@ from pathlib import Path
 try:
     import numpy as np
 except ImportError:
-    sys.exit("Falta numpy: python -m pip install numpy")
+    np = None
 
 SR = 8000
 TARGET_DB = 15.0
@@ -69,6 +69,8 @@ def main():
     ap.add_argument("--target-db", type=float, default=TARGET_DB,
                     help=f"diferencia objetivo música bajo voz en dB (def: {TARGET_DB})")
     a = ap.parse_args()
+    if np is None:
+        sys.exit("Falta numpy: python -m pip install numpy")
 
     for etiqueta, ruta in (("voz", a.voz), ("música", a.musica)):
         if not Path(ruta).is_file():

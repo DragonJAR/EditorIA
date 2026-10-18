@@ -9,7 +9,7 @@ try:
     import numpy as np
     from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageChops
 except ModuleNotFoundError as _e_dep:
-    if "-h" not in sys.argv and "--help" not in sys.argv:
+    if __name__ == "__main__" and "-h" not in sys.argv and "--help" not in sys.argv:
         sys.exit(f"ERROR: falta dependencia ({_e_dep.name}): pip install pillow numpy")
     np = Image = ImageDraw = ImageFont = ImageFilter = ImageChops = None
 
@@ -101,6 +101,8 @@ def draw_seg(d,xy,sg,fnt,fill,emph_fill,anchor="la",spacing=0):
 
 class Ctx:
     def __init__(self):
+        if Image is None or np is None:
+            sys.exit("ERROR: falta dependencia (PIL/numpy): pip install pillow numpy")
         self.fT=lambda s,w=800: font(FJ,s,w)
         self.fX=lambda s,w=600: font(FM,s,w)
         self.fM=lambda s,w=700: font(MONO,s,w)
@@ -2379,37 +2381,40 @@ def sc_hero(ctx, e, t):
     yb = y0 + int((y1 - y0) * 0.08)
     if kb > 0 and badge_txt:
         sub, ds = grupo()
-        fb = fuente_que_cabe(ctx.fM, badge_txt.upper(), int(u * 0.028), int(ancho_u * 0.78), 700, minimo=26)
-        wb = int(largo(badge_txt.upper(), fb) + 64)
-        hb = int(fb.size * 1.9)
+        fb = fuente_que_cabe(ctx.fM, badge_txt.upper(), int(u * 0.028), int(ancho_u * 0.76), 700, minimo=14)
+        wb = min(int(ancho_u * 0.94), int(largo(badge_txt.upper(), fb) + 64))
+        hb = max(44, int(fb.size * 1.9))
         tarjeta_cristal(ctx, sub, W / 2 - wb / 2, yb - hb / 2, wb, hb, radio=hb // 2, alpha=255)
         ds.ellipse([W / 2 - wb / 2 + 20, yb - 6, W / 2 - wb / 2 + 32, yb + 6], fill=ACENTO + (255,))
         ds.text((W / 2 + 10, yb), badge_txt.upper(), font=fb, fill=BLANCO + (255,), anchor="mm")
         fundir(layer, sub, kb, dy=18)
     # 2. Titular + subtítulo (supahero.io + scrolltide.co Focus Reveal)
     t_t = at.get("titulo", e["from"] + 0.45)
-    yt = yb + int((y1 - y0) * 0.14)
-    rotulo(ctx, layer, t, e.get("titulo", "Tu producto en *movimiento*"), t_t, y=yt, tam=int(u * 0.052))
+    yt = yb + int((y1 - y0) * 0.13)
+    rotulo(ctx, layer, t, e.get("titulo", "Tu producto en *movimiento*"), t_t, y=yt, tam=int(u * 0.050))
     sub_txt = e.get("subtitulo", "")
     if sub_txt and t >= t_t + 0.2:
         ks = spring(t, t_t + 0.2, 130, 16)
         als = int(255 * clamp01(ks * 1.4))
-        fs = fuente_que_cabe(ctx.fX, sub_txt, int(u * 0.032), int(ancho_u * 0.90), 600, minimo=26)
-        ys = bajo_rotulo(yt, int(u * 0.052), aire=0.65)
-        ImageDraw.Draw(layer).text((W / 2, ys), sub_txt, font=fs, fill=GRIS + (als,), anchor="ma")
+        fs = fuente_que_cabe(ctx.fX, sub_txt, int(u * 0.032), int(ancho_u * 0.90), 600, minimo=20)
+        ys = bajo_rotulo(yt, int(u * 0.050), aire=1.15)
+        lns_s = linewrap(sub_txt, fs, int(ancho_u * 0.92), ctx.tmp)[:2]
+        for li, ln_s in enumerate(lns_s):
+            ImageDraw.Draw(layer).text((W / 2, ys + li * int(fs.size * 1.22)), ln_s,
+                                       font=fs, fill=GRIS + (als,), anchor="ma")
     # 3. Tarjeta Liquid Glass central con métrica (glass.samasante.com)
     t_c = at.get("card", e["from"] + 1.05)
     kc = spring(t, t_c, 125, 14)
-    yc = y0 + int((y1 - y0) * 0.54)
-    hc = int((y1 - y0) * 0.24)
+    yc = y0 + int((y1 - y0) * 0.56)
+    hc = int((y1 - y0) * 0.23)
     wc = min(int(ancho_u * 0.92), 860)
     if kc > 0:
         sub, ds = grupo()
         tarjeta_cristal(ctx, sub, W / 2 - wc / 2, yc - hc / 2, wc, hc, radio=32, alpha=255)
         met = e.get("metrica", "3.4x")
         etq = e.get("etiqueta_metrica", "más conversión en 30 días")
-        fm = fuente_que_cabe(ctx.fT, str(met), int(u * 0.082), int(wc * 0.84), 800, minimo=36)
-        fe = fuente_que_cabe(ctx.fX, str(etq), int(u * 0.032), int(wc * 0.86), 600, minimo=26)
+        fm = fuente_que_cabe(ctx.fT, str(met), int(u * 0.080), int(wc * 0.84), 800, minimo=28)
+        fe = fuente_que_cabe(ctx.fX, str(etq), int(u * 0.032), int(wc * 0.86), 600, minimo=18)
         ds.text((W / 2, yc - hc * 0.14), str(met), font=fm, fill=ACENTO + (255,), anchor="mm")
         ds.text((W / 2, yc + hc * 0.24), str(etq), font=fe, fill=BLANCO + (255,), anchor="mm")
         fundir(layer, sub, kc, dy=26)
@@ -2420,9 +2425,9 @@ def sc_hero(ctx, e, t):
     if k_cta > 0 and cta_txt:
         sub, ds = grupo()
         y_cta = y0 + int((y1 - y0) * 0.84)
-        f_cta = fuente_que_cabe(ctx.fT, cta_txt, int(u * 0.036), int(ancho_u * 0.72), 800, minimo=28)
-        w_cta = max(280, int(largo(cta_txt, f_cta) + 96))
-        h_cta = max(76, int(f_cta.size * 2.1))
+        f_cta = fuente_que_cabe(ctx.fT, cta_txt, int(u * 0.036), int(ancho_u * 0.72), 800, minimo=18)
+        w_cta = min(int(ancho_u - 32), max(280, int(largo(cta_txt, f_cta) + 88)))
+        h_cta = max(68, int(f_cta.size * 2.1))
         boton_halo(ds, W / 2, y_cta, w_cta, h_cta, cta_txt, f_cta, t, t_cta)
         fundir(layer, sub, k_cta, dy=20)
     return capa_salida(layer, t, e["to"])
@@ -2445,8 +2450,8 @@ def sc_bento(ctx, e, t):
         {"icono": "03", "titulo": "Limpio", "texto": "QA cuadro a cuadro"}
     ])[:4]
     n = len(items)
-    top_grid = bajo_rotulo(yr, 44, aire=0.55)
-    bot_grid = y1 - (76 if e.get("pie") else 20)
+    top_grid = bajo_rotulo(yr, 44, aire=1.15)
+    bot_grid = y1 - (82 if e.get("pie") else 20)
     cols = 1 if (H > W and n <= 3) else 2
     cajas = cuadricula(x0, int(top_grid), x1 - x0, int(bot_grid - top_grid), cols, n)
     for i, (it, (cx0, cy0, cw, ch)) in enumerate(zip(items, cajas)):
@@ -2459,8 +2464,10 @@ def sc_bento(ctx, e, t):
         tarjeta_cristal(ctx, sub, cx0, cy0, cw, ch, radio=26, alpha=255,
                         tinte=ACENTO if es_ac else PANEL2, brillo=1.2 if es_ac else 0.85)
         r_ico = min(38, max(26, int(min(cw, ch) * 0.20)))
-        f_ico = ctx.fM(max(26, int(r_ico * 0.78)), 700)
+        f_ico = ctx.fM(max(24, int(r_ico * 0.78)), 700)
         ico_txt = it.get("icono") or f"{i + 1:02d}"
+        tit_i = it.get("titulo", "")
+        txt_i = it.get("texto", "")
         if cols == 1 or cw > ch * 1.45:
             ix = cx0 + 28 + r_ico
             iy = cy0 + ch / 2
@@ -2468,27 +2475,27 @@ def sc_bento(ctx, e, t):
                         color=ACENTO if es_ac else PANEL2, t=t - t_i)
             tx0 = ix + r_ico + 26
             tw_max = max(80, cw - (tx0 - cx0) - 24)
-            ft = fuente_que_cabe(ctx.fT, it.get("titulo", ""), int(u * 0.036), tw_max, 800, minimo=28)
-            fx = fuente_que_cabe(ctx.fX, it.get("texto", ""), int(u * 0.028), tw_max, 600, minimo=26)
-            ds.text((tx0, cy0 + ch * 0.36), it.get("titulo", ""), font=ft, fill=BLANCO + (255,), anchor="lm")
-            ds.text((tx0, cy0 + ch * 0.68), it.get("texto", ""), font=fx, fill=GRIS + (255,), anchor="lm")
+            ft = fuente_que_cabe(ctx.fT, tit_i, int(u * 0.036), tw_max, 800, minimo=18)
+            fx = fuente_que_cabe(ctx.fX, txt_i, int(u * 0.028), tw_max, 600, minimo=16)
+            ds.text((tx0, cy0 + ch * 0.36), tit_i, font=ft, fill=BLANCO + (255,), anchor="lm")
+            ds.text((tx0, cy0 + ch * 0.68), txt_i, font=fx, fill=GRIS + (255,), anchor="lm")
         else:
             ix = cx0 + cw / 2
             iy = cy0 + ch * 0.30
             insignia_3d(ds, ix, iy, r_ico, ico_txt, f_ico,
                         color=ACENTO if es_ac else PANEL2, t=t - t_i)
             tw_max = max(80, cw - 36)
-            ft = fuente_que_cabe(ctx.fT, it.get("titulo", ""), int(u * 0.034), tw_max, 800, minimo=28)
-            fx = fuente_que_cabe(ctx.fX, it.get("texto", ""), int(u * 0.027), tw_max, 600, minimo=26)
-            ds.text((ix, cy0 + ch * 0.64), it.get("titulo", ""), font=ft, fill=BLANCO + (255,), anchor="mm")
-            ds.text((ix, cy0 + ch * 0.83), it.get("texto", ""), font=fx, fill=GRIS + (255,), anchor="mm")
+            ft = fuente_que_cabe(ctx.fT, tit_i, int(u * 0.034), tw_max, 800, minimo=18)
+            fx = fuente_que_cabe(ctx.fX, txt_i, int(u * 0.027), tw_max, 600, minimo=16)
+            ds.text((ix, cy0 + ch * 0.64), tit_i, font=ft, fill=BLANCO + (255,), anchor="mm")
+            ds.text((ix, cy0 + ch * 0.83), txt_i, font=fx, fill=GRIS + (255,), anchor="mm")
         fundir(layer, sub, ki, dy=22)
     pie_txt = e.get("pie", "")
     t_pie = at.get("pie", e["from"] + 0.8 + n * 0.35)
     if pie_txt and t >= t_pie:
         kp = spring(t, t_pie, 130, 16)
         alp = int(255 * clamp01(kp * 1.4))
-        fp = fuente_que_cabe(ctx.fM, pie_txt.upper(), 28, x1 - x0 - 20, 700, minimo=26)
+        fp = fuente_que_cabe(ctx.fM, pie_txt.upper(), 28, x1 - x0 - 20, 700, minimo=13)
         ImageDraw.Draw(layer).text((W / 2, y1 - 24), pie_txt.upper(), font=fp,
                                    fill=ACENTO + (alp,), anchor="mb")
     return capa_salida(layer, t, e["to"])
@@ -2775,8 +2782,14 @@ def render(plan_path,plan,out,a):
         from multiprocessing import Pool
         init=(brand_path if brand_path else None, None if brand_path else plan.get("acento"),
               dict(plan,escenas=escenas), plan.get("mancha_max"), dict(SAFE), dict(_ESCALA), ALFA, (W,H,MARGEN))   # escenas YA preparadas
-        with Pool(a.jobs,initializer=_init_worker,initargs=init) as pool:
-            for i,_ in enumerate(pool.imap_unordered(_render_worker,jobs,chunksize=4)):
+        try:
+            with Pool(a.jobs,initializer=_init_worker,initargs=init) as pool:
+                for i,_ in enumerate(pool.imap_unordered(_render_worker,jobs,chunksize=4)):
+                    if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
+        except (PermissionError, OSError):
+            _init_worker(*init)
+            for i,j in enumerate(jobs):
+                _render_worker(j)
                 if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
     if ALFA:
         for av in revisar_overlay(tmpd,n,fps): print("AVISO overlay:",av,flush=True)

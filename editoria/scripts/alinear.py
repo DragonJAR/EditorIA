@@ -47,7 +47,7 @@ from _comun import die, info  # noqa: E402
 try:
     import numpy as np
 except ImportError:
-    die("numpy es requerido (pip install numpy)")
+    np = None
 
 SR = 16000  # Whisper trabaja a 16 kHz mono
 
@@ -273,6 +273,8 @@ def main() -> int:
     ap.add_argument("--sin-refinar", action="store_true",
                     help="omite la pasada de refinamiento por energía")
     args = ap.parse_args()
+    if np is None:
+        die("numpy es requerido (pip install numpy)", kind="missing_tool")
 
     audio = Path(args.audio)
     if not audio.is_file():

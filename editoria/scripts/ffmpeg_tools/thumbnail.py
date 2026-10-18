@@ -25,7 +25,7 @@ from _comun import add_common, apply_common, colores_marca, die, emit, fuente_ma
 try:
     from PIL import Image, ImageDraw, ImageFont, ImageFilter
 except ImportError:
-    sys.exit("thumbnail.py necesita Pillow (pip install pillow)")
+    Image = ImageDraw = ImageFont = ImageFilter = None
 
 
 FORMATOS = {"16:9": (1280, 720), "9:16": (1080, 1920)}
@@ -73,6 +73,8 @@ def main():
             f"(ver references/thumbnails.md): {args.texto!r}")
     if args.resaltar and args.resaltar not in palabras:
         die(f"--resaltar {args.resaltar!r} no es una palabra del texto")
+    if Image is None:
+        die("thumbnail.py necesita Pillow (pip install pillow)", kind="missing_tool")
 
     pal = colores_marca(args.brand)
     NEGRO, ACENTO, BLANCO = pal["negro"], pal["acento"], pal["blanco"]

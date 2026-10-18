@@ -26,7 +26,7 @@ from pathlib import Path
 try:
     import numpy as np
 except ImportError:
-    sys.exit("Falta numpy: python -m pip install numpy")
+    np = None
 
 
 def maximum_filter1d(x, k):
@@ -121,6 +121,8 @@ def main():
     ap.add_argument("--json", dest="salida_json", default=None,
                     help="guarda {bpm, beat0, compas0, duracion, compases} en este archivo JSON")
     a = ap.parse_args()
+    if np is None:
+        sys.exit("Falta numpy: python -m pip install numpy")
     if not Path(a.archivo).is_file():
         sys.exit(f"No existe el archivo: {a.archivo}")
     g = analizar(a.archivo, a.min_bpm, a.max_bpm)
