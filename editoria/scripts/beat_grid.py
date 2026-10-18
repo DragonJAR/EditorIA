@@ -15,10 +15,12 @@ Importable: analizar(ruta) → {bpm, beat0, compas0, duracion, compases}
 (render_plan lo usa con "musica" en el plan). compas0 = primer tiempo
 fuerte (el "uno" del compás: la fase de 4 con más kick).
 
-Requiere: ffmpeg, numpy.
+Requiere: ffmpeg (usa numpy si está disponible; fallback determinista en stdlib).
 """
 import argparse
 import json
+import math
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -29,14 +31,33 @@ except ImportError:
     np = None
 
 
+def _percentil_std(vals, q):
+    if not vals:
+        return 0.0
+    s = sorted(vals)
+    pos = (q / 100.0) * (len(s) - 1)
+    lo = int(pos)
+    hi = min(len(s) - 1, lo + 1)
+    frac = pos - lo
+    return s[lo] * (1.0 - frac) + s[hi] * frac
+
+
 def maximum_filter1d(x, k):
-    """Máximo local centrado de ancho k (lo que se usaba de scipy, en numpy)."""
-    x = np.asarray(x, dtype=np.float64)
-    if k <= 1 or len(x) == 0:
-        return x
+    """Máximo local centrado de ancho k (lo que se usaba de scipy, en numpy o stdlib)."""
+    if np is not None:
+        x = np.asarray(x, dtype=np.float64)
+        if k <= 1 or len(x) == 0:
+            return x
+        m = k // 2
+        pad = np.pad(x, (m, k - 1 - m), mode="edge")
+        return np.lib.stride_tricks.sliding_window_view(pad, k).max(axis=1)
+    xs = list(x)
+    n = len(xs)
+    if k <= 1 or n == 0:
+        return xs
     m = k // 2
-    pad = np.pad(x, (m, k - 1 - m), mode="edge")
-    return np.lib.stride_tricks.sliding_window_view(pad, k).max(axis=1)
+    return [max(xs[max(0, i - m):min(n, i + k - m)]) for i in range(n)]
+
 
 SR = 11025
 HOP = 128
@@ -45,37 +66,84 @@ FPS = SR / HOP
 
 def decodificar(ruta, af):
     """Decodifica audio a f32le mono a SR Hz aplicando el filtro af."""
-    crudo = subprocess.run(
+    if not Path(ruta).is_file():
+        sys.exit(f"No existe el archivo: {ruta}")
+    r = subprocess.run(
         ["ffmpeg", "-v", "error", "-i", str(ruta), "-af", af, "-ac", "1",
          "-ar", str(SR), "-f", "f32le", "-"],
-        capture_output=True, check=True,
-    ).stdout
-    return np.frombuffer(crudo, dtype=np.float32)
+        capture_output=True,
+    )
+    if r.returncode != 0:
+        sys.exit(f"ERROR: ffmpeg no pudo leer {ruta}")
+    crudo = r.stdout
+    if np is not None:
+        return np.frombuffer(crudo, dtype=np.float32)
+    n = len(crudo) // 4
+    return struct.unpack(f"<{n}f", crudo[:n * 4])
 
 
 def rms_por_frame(x):
     n = len(x) // HOP
-    return np.sqrt((x[: n * HOP].reshape(n, HOP) ** 2).mean(axis=1) + 1e-12)
+    if np is not None:
+        return np.sqrt((x[: n * HOP].reshape(n, HOP) ** 2).mean(axis=1) + 1e-12)
+    out = []
+    for i in range(n):
+        seg = x[i * HOP:(i + 1) * HOP]
+        out.append(math.sqrt(sum(v * v for v in seg) / HOP + 1e-12))
+    return out
 
 
 def onset(x):
-    e = np.log(rms_por_frame(x) + 1e-5)
-    return np.maximum(0, np.diff(e, prepend=e[0]))
+    rms = rms_por_frame(x)
+    if np is not None:
+        e = np.log(rms + 1e-5)
+        return np.maximum(0, np.diff(e, prepend=e[0]))
+    logs = [math.log(r + 1e-5) for r in rms]
+    if not logs:
+        return []
+    return [0.0] + [max(0.0, logs[i] - logs[i - 1]) for i in range(1, len(logs))]
 
 
 def ajustar_rejilla(env, dur, min_bpm, max_bpm):
     """Devuelve (bpm, beat0): la rejilla constante cuyos beats acumulan más energía de onset."""
     n = len(env)
     mejor = None
-    for bpm in np.arange(min_bpm, max_bpm + 0.01, 0.02):
-        beat = 60 / bpm
-        b0s = np.arange(0, beat, 0.004)
-        k = np.arange(int((dur - beat) / beat))
-        idx = np.clip(np.round((b0s[:, None] + beat * k[None, :]) * FPS).astype(int), 0, n - 1)
-        s = env[idx].mean(axis=1)
-        j = int(s.argmax())
-        if mejor is None or s[j] > mejor[0]:
-            mejor = (float(s[j]), float(bpm), float(b0s[j]))
+    if np is not None:
+        for bpm in np.arange(min_bpm, max_bpm + 0.01, 0.02):
+            beat = 60 / bpm
+            b0s = np.arange(0, beat, 0.004)
+            k = np.arange(int((dur - beat) / beat))
+            idx = np.clip(np.round((b0s[:, None] + beat * k[None, :]) * FPS).astype(int), 0, n - 1)
+            s = env[idx].mean(axis=1)
+            j = int(s.argmax())
+            if mejor is None or s[j] > mejor[0]:
+                mejor = (float(s[j]), float(bpm), float(b0s[j]))
+        return mejor[1], mejor[2]
+
+    env_list = list(env)
+    n_1 = n - 1
+    steps_bpm = int(round((max_bpm - min_bpm) / 0.02)) + 1
+    for ib in range(steps_bpm):
+        bpm = min_bpm + ib * 0.02
+        beat = 60.0 / bpm
+        nb = int((dur - beat) / beat)
+        if nb <= 0:
+            continue
+        step_f = beat * FPS
+        k_offs = [k * step_f for k in range(nb)]
+        nb_b0 = int(math.ceil(beat / 0.004))
+        for j0 in range(nb_b0):
+            b0 = j0 * 0.004
+            base_f = b0 * FPS + 0.5
+            s = 0.0
+            for ko in k_offs:
+                idx = int(base_f + ko)
+                if idx > n_1:
+                    idx = n_1
+                s += env_list[idx]
+            mean_s = s / nb
+            if mejor is None or mean_s > mejor[0]:
+                mejor = (mean_s, bpm, b0)
     return mejor[1], mejor[2]
 
 
@@ -88,24 +156,49 @@ def analizar(ruta, min_bpm=90, max_bpm=140):
     dur = len(banda_completa) / SR
     on_baja, on_full, rms = onset(banda_baja), onset(banda_completa), rms_por_frame(banda_completa)
     n = min(len(on_baja), len(on_full))
-    env = maximum_filter1d(
-        on_baja[:n] / (on_baja.max() + 1e-9) + 0.5 * on_full[:n] / (on_full.max() + 1e-9), 3)
-    bpm, b0 = ajustar_rejilla(env, dur, min_bpm, max_bpm)
-    beat = 60 / bpm
-    nb = max(1, int((dur - b0) / beat))
-    lo = maximum_filter1d(on_baja, 5)
-    kick = np.array([lo[min(len(lo) - 1, int(round((b0 + i * beat) * FPS)))] for i in range(nb)])
-    fase = int(np.argmax([kick[f::4].mean() if len(kick[f::4]) else 0 for f in range(4)]))
-    c0 = b0 + fase * beat
-    umbral = np.percentile(kick, 70) * 0.4
-    compases = []
-    for c in range((nb - fase) // 4):
-        ks = kick[fase + c * 4: fase + c * 4 + 4]
-        t = c0 + c * 4 * beat
-        i0_, i1_ = int(t * FPS), int((t + 4 * beat) * FPS)
-        db = 20 * np.log10(rms[i0_:i1_].mean() + 1e-9)
-        compases.append({"compas": c, "t": round(t, 3), "kick": "".join("K" if k > umbral else "." for k in ks),
-                         "db": round(float(db), 1)})
+    if np is not None:
+        env = maximum_filter1d(
+            on_baja[:n] / (on_baja.max() + 1e-9) + 0.5 * on_full[:n] / (on_full.max() + 1e-9), 3)
+        bpm, b0 = ajustar_rejilla(env, dur, min_bpm, max_bpm)
+        beat = 60 / bpm
+        nb = max(1, int((dur - b0) / beat))
+        lo = maximum_filter1d(on_baja, 5)
+        kick = np.array([lo[min(len(lo) - 1, int(round((b0 + i * beat) * FPS)))] for i in range(nb)])
+        fase = int(np.argmax([kick[f::4].mean() if len(kick[f::4]) else 0 for f in range(4)]))
+        c0 = b0 + fase * beat
+        umbral = float(np.percentile(kick, 70) * 0.4)
+        compases = []
+        for c in range((nb - fase) // 4):
+            ks = kick[fase + c * 4: fase + c * 4 + 4]
+            t = c0 + c * 4 * beat
+            i0_, i1_ = int(t * FPS), int((t + 4 * beat) * FPS)
+            db = 20 * np.log10(rms[i0_:i1_].mean() + 1e-9)
+            compases.append({"compas": c, "t": round(t, 3), "kick": "".join("K" if k > umbral else "." for k in ks),
+                             "db": round(float(db), 1)})
+    else:
+        max_b = max(on_baja[:n]) + 1e-9 if n else 1.0
+        max_f = max(on_full[:n]) + 1e-9 if n else 1.0
+        raw_env = [on_baja[i] / max_b + 0.5 * on_full[i] / max_f for i in range(n)]
+        env = maximum_filter1d(raw_env, 3)
+        bpm, b0 = ajustar_rejilla(env, dur, min_bpm, max_bpm)
+        beat = 60.0 / bpm
+        nb = max(1, int((dur - b0) / beat))
+        lo = maximum_filter1d(on_baja, 5)
+        kick = [lo[min(len(lo) - 1, int(round((b0 + i * beat) * FPS)))] for i in range(nb)]
+        fases_m = [sum(kick[f::4]) / len(kick[f::4]) if kick[f::4] else 0.0 for f in range(4)]
+        fase = max(range(4), key=lambda f: fases_m[f])
+        c0 = b0 + fase * beat
+        umbral = _percentil_std(kick, 70) * 0.4
+        compases = []
+        for c in range((nb - fase) // 4):
+            ks = kick[fase + c * 4: fase + c * 4 + 4]
+            t = c0 + c * 4 * beat
+            i0_, i1_ = int(t * FPS), int((t + 4 * beat) * FPS)
+            seg_r = rms[i0_:i1_]
+            mean_r = (sum(seg_r) / len(seg_r)) if seg_r else 0.0
+            db = 20.0 * math.log10(mean_r + 1e-9)
+            compases.append({"compas": c, "t": round(t, 3), "kick": "".join("K" if k > umbral else "." for k in ks),
+                             "db": round(float(db), 1)})
     return {"bpm": round(float(bpm), 2), "beat0": round(float(b0), 3), "compas0": round(float(c0), 3),
             "duracion": round(dur, 2), "compases": compases}
 
@@ -121,8 +214,6 @@ def main():
     ap.add_argument("--json", dest="salida_json", default=None,
                     help="guarda {bpm, beat0, compas0, duracion, compases} en este archivo JSON")
     a = ap.parse_args()
-    if np is None:
-        sys.exit("Falta numpy: python -m pip install numpy")
     if not Path(a.archivo).is_file():
         sys.exit(f"No existe el archivo: {a.archivo}")
     g = analizar(a.archivo, a.min_bpm, a.max_bpm)

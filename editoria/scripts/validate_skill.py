@@ -410,6 +410,7 @@ for h in huerfanos[:8]:
 
 # 4. TODOS los scripts compilan
 sys.path.insert(0, os.path.join(BASE, "scripts"))
+sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 n_py = 0
 for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
     if "__pycache__" in dp:
@@ -453,9 +454,18 @@ check(not _sobran_m, f"escenas_muestra.json sin tipos inexistentes ({', '.join(_
 
 # 5. las N escenas renderizan con su muestra realista (escenas_muestra.json)
 #    en 9:16 y 16:9, compuestas DENTRO de la zona segura (sin que escala_segura las encoja)
+import render_plan as R
+cu = [R.cuenta_up(0, 3.5, 0.3, 0), R.cuenta_up(0, 3.5, 9, 0), R.cuenta_up(0, 1500, 9, 0)]
+check(cu[1] == "3.5" and len(cu[0]) == 3 and cu[2] == "1,500", f"cuenta_up con decimales ({cu})")
 try:
     import numpy as _np
-    import render_plan as R
+    from PIL import Image as _Im
+    _HAY_PIL_NP = True
+except ImportError:
+    _HAY_PIL_NP = False
+try:
+    if not _HAY_PIL_NP:
+        raise ImportError("PIL/numpy ausentes en entorno")
     n_total = len(R.SCENES)
     muestras = _muestras_dict
     # 9:16 y 16:9: toda escena funciona en los dos formatos
@@ -650,15 +660,16 @@ try:
             bordes.add(im_.getbbox()[0])
         R.TNUM = _orig
         check(len(bordes) == 1, f"cifra tabular {'tnum' if _tnum else 'celdas'}: borde fijo al contar ({sorted(bordes)})")
-    # cifras: los intermedios llevan los decimales del valor final (nunca 3.4999…)
-    cu = [R.cuenta_up(0, 3.5, 0.3, 0), R.cuenta_up(0, 3.5, 9, 0), R.cuenta_up(0, 1500, 9, 0)]
-    check(cu[1] == "3.5" and len(cu[0]) == 3 and cu[2] == "1,500", f"cuenta_up con decimales ({cu})")
+except ImportError:
+    print("AVISO [no evaluado sin PIL/numpy]: smoke test render en píxeles de las 30 escenas (5a)")
 except (Exception, SystemExit) as ex:
     check(False, f"smoke test escenas: {ex}")
 
 # 5b. el detector de pops distingue aparición de movimiento y escalado (con casos
 #     sintéticos conocidos: si el banco miente, toda la mejora recursiva miente)
 try:
+    if not _HAY_PIL_NP:
+        raise ImportError("PIL/numpy ausentes en entorno")
     import medir_animacion as _MA
     from PIL import Image as _I5, ImageDraw as _D5
     def _cuadro(dib):
@@ -707,9 +718,11 @@ try:
                     d_.rectangle([70, 300 + round(_np.sin(i_ / 30 * 3)), 110, 310], fill=60)
             fr.append(_cuadro(dib))
         return _MA.metricas(_np.stack(fr), 30, t_)["densidad"]
-    casos["3 entradas = 3 eventos"] = abs(_entradas(3, 3.6) * 3.0 - 3) < 0.01
-    casos["solo respiración = 0 eventos"] = _entradas(0, 3.6) == 0
-    check(all(casos.values()), f"detector de pops calibrado ({casos})")
+        casos["3 entradas = 3 eventos"] = abs(_entradas(3, 3.6) * 3.0 - 3) < 0.01
+        casos["solo respiración = 0 eventos"] = _entradas(0, 3.6) == 0
+        check(all(casos.values()), f"detector de pops calibrado ({casos})")
+except ImportError:
+    print("AVISO [no evaluado sin PIL/numpy]: detector de pops en frames sintéticos (5b)")
 except (Exception, SystemExit) as ex:
     check(False, f"detector de pops: {ex}")
 
@@ -718,33 +731,6 @@ except (Exception, SystemExit) as ex:
 #     render de verdad), campos mal escritos avisados con sugerencia y cifras
 #     con los separadores del idioma del plan
 try:
-    import subprocess as _sp5
-    _d5 = tempfile.mkdtemp(prefix="editoria_e2e_")
-    _p5 = os.path.join(_d5, "plan.json")
-    json.dump({"duracion": 2.0, "numeros": "es", "escenas": [
-        {"tipo": "stats", "from": 0, "to": 2.0, "titulo": "Prueba",
-         "cards": [{"valor": 1240, "etiqueta": "a"}, {"valor": 4.8, "etiqueta": "b"}]}]},
-        open(_p5, "w", encoding="utf-8"))
-    _r5 = _sp5.run([sys.executable, os.path.join(BASE, "scripts", "render_plan.py"), _p5, "-o",
-                    os.path.join(_d5, "e2e.mp4"), "--fps", "10", "--jobs", "2"], capture_output=True, text=True)
-    check(_r5.returncode == 0 and os.path.isfile(os.path.join(_d5, "e2e.mp4")),
-          f"render real multiproceso de un plan sin `at` ({(_r5.stderr or 'ok').strip().splitlines()[-1][:90]})")
-    # con "musica" (sin voz) el entregable lleva esa música, del largo exacto del
-    # video y normalizada a -14 LUFS (antes salía mudo: la sincronía no se oía)
-    _p5m = os.path.join(_d5, "plan_musica.json")
-    json.dump(dict(json.load(open(_p5, encoding="utf-8")),
-                   musica=os.path.join(BASE, "film", "musica_demo.mp3")), open(_p5m, "w", encoding="utf-8"))
-    _v5m = os.path.join(_d5, "e2e_musica.mp4")
-    _r5m = _sp5.run([sys.executable, os.path.join(BASE, "scripts", "render_plan.py"), _p5m, "-o", _v5m,
-                     "--fps", "10", "--jobs", "2"], capture_output=True, text=True)
-    _dur5 = _sp5.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "csv=p=0",
-                      _v5m], capture_output=True, text=True).stdout.split()
-    _ds5 = {l_.split(",")[0]: float(l_.split(",")[1]) for l_ in _dur5 if "," in l_}
-    import loudness as _LN5
-    _lufs5 = float(_LN5.measure(_v5m, -14, -1.5, 11)["input_i"]) if "audio" in _ds5 else None
-    check(_r5m.returncode == 0 and "audio" in _ds5 and abs(_ds5["audio"] - _ds5["video"]) <= 0.05
-          and abs(_lufs5 + 14) <= 1.0,
-          f"plan con \"musica\": el MP4 sale con ella, del largo del video y a -14 LUFS ({_ds5}, {_lufs5} LUFS)")
     import render_plan as _R5
     _m5 = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
     _ruido = [a_ for t_, e_ in _m5.items() for a_ in _R5.avisos_de_campos(dict(e_, tipo=t_))]
@@ -756,24 +742,60 @@ try:
     _R5.aplicar_globales({})
     check(_n5 == ("1.240", "4,8") and _R5.cuenta_up(0, 1240, 9, 0) == "1,240",
           f"\"numeros\": \"es\" separa 1.240 y 4,8 (default 1,240) ({_n5})")
-    # "subtitulos": true reserva la banda; las 28 escenas siguen cabiendo encima
-    _apret = []
-    _R5.aplicar_globales({"subtitulos": True})
-    try:
-        for _w5, _h5 in ((1080, 1920), (1920, 1080)):
-            _R5.formato(_w5, _h5)
+    if not _HAY_PIL_NP:
+        _R5.aplicar_globales({"subtitulos": True})
+        try:
+            _R5.formato(1080, 1920)
             _base5 = _R5.caja_segura()[3]
-            _c5 = _R5.Ctx()
-            for t_, e_ in _m5.items():
-                _R5._ESCALA.clear()
-                if _R5.escala_segura(_c5, dict(e_, tipo=t_), 0) < 0.85:
-                    _apret.append(f"{t_} {_w5}x{_h5}")
-    finally:
-        _R5.aplicar_globales({})
-        _R5.formato(1080, 1920)
-    check(_base5 < _R5.caja_segura()[3] and not _apret,
-          f"\"subtitulos\": true sube el borde seguro y las escenas caben encima (≥ x0.85) "
-          f"({', '.join(_apret) or 'todas'})")
+        finally:
+            _R5.aplicar_globales({})
+            _R5.formato(1080, 1920)
+        check(_base5 < _R5.caja_segura()[3],
+              "\"subtitulos\": true sube el borde seguro (geometría caja_segura)")
+        print("AVISO [no evaluado sin PIL/numpy]: render real multiproceso e2e (5c)")
+    else:
+        import subprocess as _sp5
+        _d5 = tempfile.mkdtemp(prefix="editoria_e2e_")
+        _p5 = os.path.join(_d5, "plan.json")
+        json.dump({"duracion": 2.0, "numeros": "es", "escenas": [
+            {"tipo": "stats", "from": 0, "to": 2.0, "titulo": "Prueba",
+             "cards": [{"valor": 1240, "etiqueta": "a"}, {"valor": 4.8, "etiqueta": "b"}]}]},
+            open(_p5, "w", encoding="utf-8"))
+        _r5 = _sp5.run([sys.executable, os.path.join(BASE, "scripts", "render_plan.py"), _p5, "-o",
+                        os.path.join(_d5, "e2e.mp4"), "--fps", "10", "--jobs", "2"], capture_output=True, text=True)
+        check(_r5.returncode == 0 and os.path.isfile(os.path.join(_d5, "e2e.mp4")),
+              f"render real multiproceso de un plan sin `at` ({(_r5.stderr or 'ok').strip().splitlines()[-1][:90]})")
+        _p5m = os.path.join(_d5, "plan_musica.json")
+        json.dump(dict(json.load(open(_p5, encoding="utf-8")),
+                       musica=os.path.join(BASE, "film", "musica_demo.mp3")), open(_p5m, "w", encoding="utf-8"))
+        _v5m = os.path.join(_d5, "e2e_musica.mp4")
+        _r5m = _sp5.run([sys.executable, os.path.join(BASE, "scripts", "render_plan.py"), _p5m, "-o", _v5m,
+                         "--fps", "10", "--jobs", "2"], capture_output=True, text=True)
+        _dur5 = _sp5.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "csv=p=0",
+                          _v5m], capture_output=True, text=True).stdout.split()
+        _ds5 = {l_.split(",")[0]: float(l_.split(",")[1]) for l_ in _dur5 if "," in l_}
+        import loudness as _LN5
+        _lufs5 = float(_LN5.measure(_v5m, -14, -1.5, 11)["input_i"]) if "audio" in _ds5 else None
+        check(_r5m.returncode == 0 and "audio" in _ds5 and abs(_ds5["audio"] - _ds5["video"]) <= 0.05
+              and abs(_lufs5 + 14) <= 1.0,
+              f"plan con \"musica\": el MP4 sale con ella, del largo del video y a -14 LUFS ({_ds5}, {_lufs5} LUFS)")
+        _apret = []
+        _R5.aplicar_globales({"subtitulos": True})
+        try:
+            for _w5, _h5 in ((1080, 1920), (1920, 1080)):
+                _R5.formato(_w5, _h5)
+                _base5 = _R5.caja_segura()[3]
+                _c5 = _R5.Ctx()
+                for t_, e_ in _m5.items():
+                    _R5._ESCALA.clear()
+                    if _R5.escala_segura(_c5, dict(e_, tipo=t_), 0) < 0.85:
+                        _apret.append(f"{t_} {_w5}x{_h5}")
+        finally:
+            _R5.aplicar_globales({})
+            _R5.formato(1080, 1920)
+        check(_base5 < _R5.caja_segura()[3] and not _apret,
+              f"\"subtitulos\": true sube el borde seguro y las escenas caben encima (≥ x0.85) "
+              f"({', '.join(_apret) or 'todas'})")
 except (Exception, SystemExit) as ex:
     check(False, f"plan de agente de punta a punta: {type(ex).__name__}: {ex}")
 
@@ -817,7 +839,7 @@ try:
     # con voz en off los cortes no se mueven (la voz va por los tiempos originales)
     import render_plan as _R7
     _R7.formato(1080, 1920)
-    _c7 = _R7.Ctx()
+    _c7 = _R7.Ctx() if _HAY_PIL_NP else None
     _mus7 = os.path.join(BASE, "film", "musica_demo.mp3")
     _m7 = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
     _p7 = {"duracion": 10.0, "musica": _mus7, "escenas": [
@@ -998,23 +1020,27 @@ except (Exception, SystemExit) as ex:
     check(False, f"smoke variantes: {ex}")
 
 try:
-    from PIL import Image as _I
     _base = os.path.join(tempfile.gettempdir(), "editoria_val_thumb.png")
-    _I.new("RGB", (640, 360), (30, 30, 40)).save(_base)
-    r = subprocess.run(
-        [sys.executable, os.path.join(BASE, "scripts/ffmpeg_tools/thumbnail.py"),
-         _base, "--texto", "PRUEBA UNO", "-o", os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")],
-        capture_output=True, timeout=60)
-    ok_thumb = r.returncode == 0 and os.path.exists(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
-    if ok_thumb:
-        im = _I.open(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
-        ok_thumb = im.size == (1280, 720)
-    check(ok_thumb, "thumbnail: compone 1280x720")
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                    "-i", "color=c=#1e1e28:s=640x360", "-frames:v", "1", _base], check=True)
     r2 = subprocess.run(
         [sys.executable, os.path.join(BASE, "scripts/ffmpeg_tools/thumbnail.py"),
          _base, "--texto", "una dos tres cuatro cinco"],
         capture_output=True, timeout=60)
     check(r2.returncode != 0, "thumbnail: rechaza >4 palabras")
+    if _HAY_PIL_NP:
+        from PIL import Image as _I
+        r = subprocess.run(
+            [sys.executable, os.path.join(BASE, "scripts/ffmpeg_tools/thumbnail.py"),
+             _base, "--texto", "PRUEBA UNO", "-o", os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")],
+            capture_output=True, timeout=60)
+        ok_thumb = r.returncode == 0 and os.path.exists(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
+        if ok_thumb:
+            im = _I.open(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
+            ok_thumb = im.size == (1280, 720)
+        check(ok_thumb, "thumbnail: compone 1280x720")
+    else:
+        print("AVISO [no evaluado sin PIL]: thumbnail: compone 1280x720")
     for p in (_base, os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")):
         if os.path.exists(p):
             os.remove(p)
@@ -1038,29 +1064,39 @@ for cli in ["scripts/beat_sync.py", "scripts/chapters.py",
 # 7. regresiones de la ronda iart (cada una reprodujo un bug real; ver reglas-tecnicas.md)
 try:
     import json as _json
-    import numpy as _np
-    from PIL import Image as _Img
-    sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
     import _comun as _C
     tmp = tempfile.mkdtemp(prefix="editoria_val_")
     # 7a. color de marca exacto tras H.264 (BT.709, no BT.601)
     ref = _C.NEUTRO["acento"]
+    ref_hex = "%02x%02x%02x" % ref
     for i in range(2):
-        _Img.new("RGB", (320, 180), ref).save(f"{tmp}/c_{i:04d}.png")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                        "-i", f"color=c=#{ref_hex}:s=320x180", "-frames:v", "1",
+                        f"{tmp}/c_{i:04d}.png"], check=True)
     _C.codificar_frames(f"{tmp}/c_%04d.png", 30, f"{tmp}/c.mp4")
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{tmp}/c.mp4", "-frames:v", "1",
-                          # como un player con HD: asume BT.709 (el encode viejo daba (244,82,6))
                           "-vf", "scale=in_color_matrix=bt709,format=rgb24", "-f", "rawvideo", "-"],
                          capture_output=True).stdout
     px = tuple(raw[(90 * 320 + 160) * 3:(90 * 320 + 160) * 3 + 3])
     check(all(abs(a - b) <= 4 for a, b in zip(px, ref)),
           f"color de marca fiel tras encode ({px} vs {ref})")
     # 7b. overlay con alfa: el alfa sobrevive en .webm y .mov
+    import struct as _st, zlib as _zl
+    def _png_rgba(ruta_p, w_p, h_p, rect_rgba=None):
+        filas = []
+        for y_ in range(h_p):
+            if rect_rgba and rect_rgba[1] <= y_ < rect_rgba[3]:
+                x0_, _, x1_, _, col_ = rect_rgba
+                filas.append(b"\x00" + b"\x00\x00\x00\x00" * x0_ + bytes(col_) * (x1_ - x0_) + b"\x00\x00\x00\x00" * (w_p - x1_))
+            else:
+                filas.append(b"\x00" + b"\x00\x00\x00\x00" * w_p)
+        raw_d = b"".join(filas)
+        def _chk(tp, dt):
+            return _st.pack(">I", len(dt)) + tp + dt + _st.pack(">I", _zl.crc32(tp + dt) & 0xffffffff)
+        with open(ruta_p, "wb") as fh_:
+            fh_.write(b"\x89PNG\r\n\x1a\n" + _chk(b"IHDR", _st.pack(">IIBBBBB", w_p, h_p, 8, 6, 0, 0, 0)) + _chk(b"IDAT", _zl.compress(raw_d)) + _chk(b"IEND", b""))
     for i in range(3):
-        im = _Img.new("RGBA", (320, 180), (0, 0, 0, 0))
-        if i == 1:
-            im.paste(ref + (255,), (20, 120, 160, 160))
-        im.save(f"{tmp}/a_{i:04d}.png")
+        _png_rgba(f"{tmp}/a_{i:04d}.png", 320, 180, (20, 120, 160, 160, ref + (255,)) if i == 1 else None)
     encoders = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True,
                               text=True).stdout
     for ext, enc in ((".webm", "libvpx-vp9"), (".mov", "prores_ks")):
@@ -1070,14 +1106,21 @@ try:
         r = _C.codificar_frames(f"{tmp}/a_%04d.png", 30, f"{tmp}/a{ext}")
         check(r.get("transparente", 0) > 0.5, f"alfa verificado en {ext} ({r.get('transparente')})")
     # 7c. kenburns muestra la imagen real (antes salía negra en silencio)
-    _Img.new("RGB", (400, 300), (40, 160, 90)).save(f"{tmp}/foto.png")
-    kb = R.sc_kenburns(ctx, {"tipo": "kenburns", "from": 0, "to": 5, "imagen": f"{tmp}/foto.png",
-                             "at": {"kenburns": 0}}, 1.0)
-    check(kb.getpixel((R.W // 2, R.H // 3))[1] > 120, "kenburns compone la imagen (no negro)")
+    if _HAY_PIL_NP:
+        from PIL import Image as _Img
+        _Img.new("RGB", (400, 300), (40, 160, 90)).save(f"{tmp}/foto.png")
+        kb = R.sc_kenburns(ctx, {"tipo": "kenburns", "from": 0, "to": 5, "imagen": f"{tmp}/foto.png",
+                                 "at": {"kenburns": 0}}, 1.0)
+        check(kb.getpixel((R.W // 2, R.H // 3))[1] > 120, "kenburns compone la imagen (no negro)")
+    else:
+        print("AVISO [no evaluado sin PIL/numpy]: 7c kenburns compone la imagen")
     # 7d. pase: duración exacta (zoompan por imagen, no por stream)
     os.makedirs(f"{tmp}/fotos")
     for i in (1, 2, 10):
-        _Img.new("RGB", (480, 360), (30 * i, 90, 140)).save(f"{tmp}/fotos/f{i}.jpg")
+        col_hex = "%02x%02x%02x" % (min(255, 30 * i), 90, 140)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                        "-i", f"color=c=#{col_hex}:s=480x360", "-frames:v", "1",
+                        f"{tmp}/fotos/f{i}.jpg"], check=True)
     subprocess.run([sys.executable, os.path.join(BASE, "scripts/ffmpeg_tools/montaje.py"), "pase",
                     f"{tmp}/fotos", "--duracion", "1", "--transicion", "0.4", "--tamano", "320x568",
                     "-o", f"{tmp}/pase.mp4"], capture_output=True, timeout=120)
@@ -1089,13 +1132,16 @@ try:
     check(p_["a"] == 42 and p_["b"] == "Hola Ana" and falt == {"x"},
           "plantilla: número tipado, texto sustituido y columna faltante detectada")
     # 7f. fotosensibilidad: 4 Hz falla, 1 Hz pasa
-    import auto_qa as _Q
-    t_ = _np.arange(90) / 30
-    def tren(hz):
-        on = ((t_ * hz) % 1) < 0.15
-        return _np.repeat(_np.where(on, 235, 16)[:, None, None], 36 * 64, axis=1).reshape(-1, 36, 64).astype(_np.float32)
-    check(bool(_Q.destellos(tren(4), 30)) and not _Q.destellos(tren(1), 30),
-          "fotosensibilidad: 4 destellos/s se marca, 1/s no")
+    if _HAY_PIL_NP:
+        import auto_qa as _Q
+        t_ = _np.arange(90) / 30
+        def tren(hz):
+            on = ((t_ * hz) % 1) < 0.15
+            return _np.repeat(_np.where(on, 235, 16)[:, None, None], 36 * 64, axis=1).reshape(-1, 36, 64).astype(_np.float32)
+        check(bool(_Q.destellos(tren(4), 30)) and not _Q.destellos(tren(1), 30),
+              "fotosensibilidad: 4 destellos/s se marca, 1/s no")
+    else:
+        print("AVISO [no evaluado sin PIL/numpy]: 7f fotosensibilidad sobre tensores numpy")
     # 7g. karaoke con tiempo real por palabra
     import caption as _K
     cues = _K.agrupar_palabras([["Hoy", 0.1, 0.35], ["vamos", 0.4, 0.7], ["a", 0.72, 0.78],

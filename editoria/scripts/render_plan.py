@@ -2944,12 +2944,13 @@ def preparar_escenas(ctx,plan):
         escenas=al_ritmo(escenas,plan)
     for i,e in enumerate(escenas):
         for av in avisos_de_campos(e,i): print(av,file=sys.stderr,flush=True)
-    for i,e in enumerate(escenas):
-        try:   # compone de verdad (escala_segura cachea por índice: no basta)
-            for t in (e["from"]+0.05,(e["from"]+e["to"])/2,e["to"]-0.05): pintar(ctx,e,t)
-            escala_segura(ctx,e,i)
-        except (KeyError,IndexError,TypeError) as ex:
-            sys.exit(error_de_escena(e,i,ex))
+    if ctx is not None and Image is not None:
+        for i,e in enumerate(escenas):
+            try:   # compone de verdad (escala_segura cachea por índice: no basta)
+                for t in (e["from"]+0.05,(e["from"]+e["to"])/2,e["to"]-0.05): pintar(ctx,e,t)
+                escala_segura(ctx,e,i)
+            except (KeyError,IndexError,TypeError) as ex:
+                sys.exit(error_de_escena(e,i,ex))
     return escenas
 
 def medios_o_morir(plan,base,quien="el plan"):

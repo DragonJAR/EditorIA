@@ -22,7 +22,9 @@ sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 import _comun as C  # noqa: E402
 import _delivery as D  # noqa: E402
 import auditar_plan as AP  # noqa: E402
+import beat_grid as BG  # noqa: E402
 import caption as CAP  # noqa: E402
+import medir_mezcla as MM  # noqa: E402
 
 
 class TestFrontmatterYCatalogo(unittest.TestCase):
@@ -213,6 +215,25 @@ class TestAuditarPlanAndCliInputGuards(unittest.TestCase):
                 r = subprocess.run([sys.executable] + cmd, capture_output=True, text=True, timeout=15)
                 self.assertNotEqual(r.returncode, 0)
                 self.assertNotIn("Traceback", r.stderr, f"Traceback en {cmd[0]}: {r.stderr}")
+
+
+class TestStdlibAudioFallbacks(unittest.TestCase):
+    def test_beat_grid_stdlib_helpers_and_demo_bpm(self):
+        self.assertEqual(BG.maximum_filter1d([1.0, 5.0, 2.0, 0.0], 3), [5.0, 5.0, 5.0, 2.0])
+        self.assertAlmostEqual(BG._percentil_std([10.0, 20.0, 30.0, 40.0], 50), 25.0)
+        mus_demo = os.path.join(SKILL, "film", "musica_demo.mp3")
+        if os.path.isfile(mus_demo):
+            g = BG.analizar(mus_demo)
+            self.assertAlmostEqual(g["bpm"], 100.0, delta=1.0)
+            self.assertGreater(len(g["compases"]), 0)
+
+    def test_medir_mezcla_rms_db_stdlib(self):
+        x = [0.5, 0.5, 0.1, 0.1]
+        mask = [True, True, False, False]
+        db = MM.rms_db(x, mask)
+        self.assertIsNotNone(db)
+        self.assertAlmostEqual(db, -6.02, places=1)
+        self.assertIsNone(MM.rms_db(x, [False, False, False, False]))
 
 
 if __name__ == "__main__":

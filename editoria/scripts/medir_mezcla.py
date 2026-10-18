@@ -14,10 +14,12 @@ Target de referencia: música ~15 dB por debajo de la voz durante el habla
 gaps sin tapar la entrada de la voz). Unos 10 dB bajo se percibe como
 "no hay música".
 
-Requiere: ffmpeg, numpy.
+Requiere: ffmpeg (usa numpy si está disponible; fallback determinista en stdlib).
 """
 import argparse
 import json
+import math
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -34,17 +36,28 @@ TOLERANCIA_DB = 2.0
 
 def decodificar(ruta):
     """Decodifica audio a f32le mono a SR Hz."""
-    crudo = subprocess.run(
+    r = subprocess.run(
         ["ffmpeg", "-v", "error", "-i", str(ruta), "-ac", "1",
          "-ar", str(SR), "-f", "f32le", "-"],
-        capture_output=True, check=True,
-    ).stdout
-    return np.frombuffer(crudo, dtype=np.float32)
+        capture_output=True,
+    )
+    if r.returncode != 0:
+        sys.exit(f"ERROR: ffmpeg no pudo leer {ruta}")
+    crudo = r.stdout
+    if np is not None:
+        return np.frombuffer(crudo, dtype=np.float32)
+    n = len(crudo) // 4
+    return struct.unpack(f"<{n}f", crudo[:n * 4])
 
 
 def rms_db(x, mascara):
-    seg = x[mascara]
-    return 10 * np.log10(np.mean(seg ** 2) + 1e-12) if seg.size else None
+    if np is not None:
+        seg = x[mascara]
+        return float(10 * np.log10(np.mean(seg ** 2) + 1e-12)) if seg.size else None
+    vals = [v * v for v, m in zip(x, mascara) if m]
+    if not vals:
+        return None
+    return 10.0 * math.log10(sum(vals) / len(vals) + 1e-12)
 
 
 def fmt_db(v):
@@ -69,8 +82,6 @@ def main():
     ap.add_argument("--target-db", type=float, default=TARGET_DB,
                     help=f"diferencia objetivo música bajo voz en dB (def: {TARGET_DB})")
     a = ap.parse_args()
-    if np is None:
-        sys.exit("Falta numpy: python -m pip install numpy")
 
     for etiqueta, ruta in (("voz", a.voz), ("música", a.musica)):
         if not Path(ruta).is_file():
@@ -83,26 +94,42 @@ def main():
     ventanas = []
     if a.ventanas:
         ventanas = json.loads(Path(a.ventanas).read_text(encoding="utf-8"))
-    habla = np.zeros(n, bool)
-    for inicio, fin in ventanas:
-        habla[int(inicio * SR): int(fin * SR)] = True
-    if not habla.any():
-        habla[:] = True  # sin ventanas: la voz se mide sobre todo el cuerpo
-
-    inicio, fin = a.inicio, a.fin if a.fin is not None else n / SR
-    cuerpo = np.zeros(n, bool)
-    cuerpo[int(inicio * SR): min(n, int(fin * SR))] = True
-    if not cuerpo.any():
+    inicio_idx = max(0, int(a.inicio * SR))
+    fin_idx = min(n, int((a.fin if a.fin is not None else n / SR) * SR))
+    if fin_idx <= inicio_idx:
         sys.exit("El rango --inicio/--fin no cubre ningún audio")
 
-    musica_bajo_habla = rms_db(musica, habla & cuerpo)
-    musica_en_gaps = rms_db(musica, cuerpo & ~habla)
-    nivel_voz = rms_db(voz, habla & cuerpo)
+    if np is not None:
+        habla = np.zeros(n, bool)
+        for ini_v, fin_v in ventanas:
+            habla[max(0, int(ini_v * SR)): min(n, int(fin_v * SR))] = True
+        if not habla.any():
+            habla[:] = True
+        cuerpo = np.zeros(n, bool)
+        cuerpo[inicio_idx:fin_idx] = True
+        musica_bajo_habla = rms_db(musica, habla & cuerpo)
+        musica_en_gaps = rms_db(musica, cuerpo & ~habla)
+        nivel_voz = rms_db(voz, habla & cuerpo)
+        pct_gaps = float(100 * np.mean(~habla[cuerpo]))
+    else:
+        habla = [False] * n
+        for ini_v, fin_v in ventanas:
+            for idx in range(max(0, int(ini_v * SR)), min(n, int(fin_v * SR))):
+                habla[idx] = True
+        if not any(habla):
+            habla = [True] * n
+        cuerpo = [inicio_idx <= idx < fin_idx for idx in range(n)]
+        mask_habla = [h and c for h, c in zip(habla, cuerpo)]
+        mask_gaps = [(not h) and c for h, c in zip(habla, cuerpo)]
+        musica_bajo_habla = rms_db(musica, mask_habla)
+        musica_en_gaps = rms_db(musica, mask_gaps)
+        nivel_voz = rms_db(voz, mask_habla)
+        pct_gaps = 100.0 * sum(1 for m in mask_gaps if m) / max(1, fin_idx - inicio_idx)
+
     if musica_bajo_habla is None or nivel_voz is None:
         sys.exit("Las ventanas de voz no se solapan con el rango --inicio/--fin: "
                  "nada que medir")
     diferencia = nivel_voz - musica_bajo_habla
-    pct_gaps = 100 * np.mean(~habla[cuerpo])
 
     print(f"OK mezcla:\n"
           f" música bajo el habla {fmt_db(musica_bajo_habla)} | "
