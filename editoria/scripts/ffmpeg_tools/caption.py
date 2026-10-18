@@ -402,10 +402,10 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
         fx = "{\\fs%d}" % cue_size if cue_size != size else ""
         if fijo:
             fx += "{\\q2}"
-        def fundido(ms_in, ms_out):
+        def fundido(ms_in, ms_out, _start=start, _end=end):
             # alfa con ease-in (\\t con accel 2): \\fad es lineal y arranca a
             # velocidad plena (arranque en la métrica); entrar y salir empiezan suave
-            dur_ms = int(round((end - start) * 1000))
+            dur_ms = int(round((_end - _start) * 1000))
             return ("\\alpha&HFF&\\t(0,%d,2,\\alpha&H00&)\\t(%d,%d,2,\\alpha&HFF&)"
                     % (ms_in, max(ms_in, dur_ms - ms_out), dur_ms))
         if args.animate == "fade":

@@ -21,10 +21,16 @@ sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
 import _comun as C  # noqa: E402
 import _delivery as D  # noqa: E402
+import aplicar_edl as AE  # noqa: E402
 import auditar_plan as AP  # noqa: E402
 import beat_grid as BG  # noqa: E402
+import beat_sync as BS  # noqa: E402
 import caption as CAP  # noqa: E402
+import grade as GR  # noqa: E402
 import medir_mezcla as MM  # noqa: E402
+import registrar_aprendizaje as RA  # noqa: E402
+import render_plan as RP  # noqa: E402
+import shorts_plan as SP  # noqa: E402
 
 
 class TestFrontmatterYCatalogo(unittest.TestCase):
@@ -131,11 +137,15 @@ class TestComunYDelivery(unittest.TestCase):
         self.assertEqual(C.fmt_srt_time(90.5), "00:01:30,500")
         self.assertEqual(C.fmt_smpte_time(1.5, 30.0), "00:00:01:15")
 
-    def test_safe_margins_px(self):
+    def test_safe_margins_px_and_end_screen_px(self):
         sm_v = D.safe_margins_px("reels", 1080, 1920)
         self.assertGreater(sm_v["bottom"], sm_v["top"])
         sm_h = D.safe_margins_px("youtube", 1920, 1080)
         self.assertGreater(sm_h["left"], 0)
+        es = D.end_screen_px(1920, 1080)
+        self.assertIn("suscribirse", es)
+        self.assertIn("video", es)
+        self.assertIn("marca", es)
 
 
 class TestCaptionHelpers(unittest.TestCase):
@@ -169,7 +179,6 @@ class TestCliHelpAndModularImports(unittest.TestCase):
 
     def test_pure_functions_importable_without_numpy_or_pil(self):
         import alinear as AL
-        import render_plan as RP
         self.assertEqual(AL.normalizar_palabras("¡Hola, Vídeo 100%!"), ["hola", "video", "100"])
         emp = AL.emparejar(["hola", "mundo"], [("Hola!", 0.1, 0.4, 0.9), ("mundo.", 0.5, 0.9, 0.8)])
         self.assertEqual(emp, [("hola", 0.1, 0.4, 0.9), ("mundo", 0.5, 0.9, 0.8)])
@@ -196,6 +205,26 @@ class TestAuditarPlanAndCliInputGuards(unittest.TestCase):
         self.assertEqual(len(errores), 1)
         self.assertIn("falta from/to", errores[0]["msg"])
         self.assertTrue(any("fuera de [0.0,5.0]" in h["msg"] for h in avisos))
+
+    def test_auditar_estructura_detects_overlaps_gaps_voice_and_short_final(self):
+        plan = {
+            "duracion": 12.0,
+            "escenas": [
+                {"tipo": "tipo_invalido", "from": 0.0, "to": 2.0, "voz": " ".join(["palabra"] * 18)},
+                {"tipo": "quote", "from": 1.5, "to": 1.7, "voz": "   "},
+                {"tipo": "final", "from": 4.0, "to": 5.0, "titulo": "Cierre"},
+            ],
+        }
+        hallazgos = AP.auditar_estructura(plan, tol=0.05, min_final=2.0)
+        msgs = [h["msg"] for h in hallazgos]
+        self.assertTrue(any("tipo desconocido" in m for m in msgs))
+        self.assertTrue(any("solapa con la anterior" in m for m in msgs))
+        self.assertTrue(any("muy corta" in m for m in msgs))
+        self.assertTrue(any("escena vacía" in m for m in msgs))
+        self.assertTrue(any("voz presente pero vacío" in m for m in msgs))
+        self.assertTrue(any("hueco de" in m for m in msgs))
+        self.assertTrue(any("mínimo 2.0s" in m for m in msgs))
+        self.assertTrue(any("termina en 5.00s" in m for m in msgs))
 
     def test_clis_with_real_flags_report_clean_error_on_missing_input(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -227,13 +256,154 @@ class TestStdlibAudioFallbacks(unittest.TestCase):
             self.assertAlmostEqual(g["bpm"], 100.0, delta=1.0)
             self.assertGreater(len(g["compases"]), 0)
 
-    def test_medir_mezcla_rms_db_stdlib(self):
+    def test_medir_mezcla_rms_db_and_fmt_db_stdlib(self):
         x = [0.5, 0.5, 0.1, 0.1]
         mask = [True, True, False, False]
         db = MM.rms_db(x, mask)
         self.assertIsNotNone(db)
         self.assertAlmostEqual(db, -6.02, places=1)
         self.assertIsNone(MM.rms_db(x, [False, False, False, False]))
+        self.assertIn("dB", MM.fmt_db(-14.0))
+        self.assertIn("—", MM.fmt_db(None))
+
+
+class TestPostProductionAndLearningModules(unittest.TestCase):
+    def test_beat_sync_and_sincronizar_escenas(self):
+        grid = {"bpm": 120.0, "beat0": 0.0, "compas0": 0.0}
+        beats, bd = BS.beats_hasta(grid, 8.0)
+        self.assertAlmostEqual(bd, 0.5)
+        self.assertEqual(beats[0], 0.0)
+        ta, b, _ = BS.ajustar(0.08, beats, 0.15)
+        self.assertAlmostEqual(ta, 0.0)
+        self.assertEqual(b, 0.0)
+        esc = [
+            {"tipo": "hero", "from": 0.0, "to": 3.9, "at": {"titulo": 0.24, "cta": [0.49, 1.02]}},
+            {"tipo": "bento", "from": 3.9, "to": 8.0, "at": {"rotulo": 4.24}, "items": [{"at": 5.01}]},
+        ]
+        sinc, info = BS.sincronizar_escenas(esc, grid, 8.0, mover_cortes=True)
+        self.assertEqual(info["bpm"], 120.0)
+        m = BS.medir_sincronia(sinc, grid, 8.0)
+        self.assertEqual(m["entradas_pct"], 100.0)
+        self.assertEqual(m["cortes_compas_pct"], 100.0)
+
+    def test_aplicar_edl_merge_and_filter_concat(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".edl", delete=False, encoding="utf-8") as tf:
+            tf.write("# comentario\n5.0-7.0\n1.0-3.0\n2.5-4.0\n")
+            edl_p = tf.name
+        try:
+            segs = AE.leer_edl(edl_p)
+            self.assertEqual(segs, [(1.0, 4.0), (5.0, 7.0)])
+            fc1 = AE.filtro_concat([(1.0, 4.0)], 0.08)
+            self.assertIn("trim=start=1.000:end=4.000", fc1)
+            fc2 = AE.filtro_concat(segs, 0.08)
+            self.assertIn("concat=n=2:v=1:a=1", fc2)
+            self.assertIn("afade=t=in", fc2)
+        finally:
+            os.remove(edl_p)
+
+    def test_grade_filter_and_shorts_plan_validation(self):
+        f_full = GR.filtro_grade(0.7, True)
+        self.assertIn("colorbalance", f_full)
+        self.assertIn("vignette", f_full)
+        f_zero = GR.filtro_grade(0.0, False)
+        self.assertNotIn("vignette", f_zero)
+
+        errs, avisos, tot = SP.validar(
+            {
+                "fuente": "in.mp4",
+                "formato": "1080x1920",
+                "lufs": -14.0,
+                "musica": {"volumen_db": -16.0},
+                "segmentos": [
+                    {"id": "s1", "from": 0.0, "to": 2.5, "hook_overlay": "UNO DOS TRES"},
+                    {"id": "s2", "from": 4.0, "to": 17.5},
+                ],
+            },
+            dur_fuente=30.0,
+        )
+        self.assertEqual(errs, [])
+        self.assertEqual(avisos, [])
+        self.assertAlmostEqual(tot, 16.0)
+
+        errs_bad, av_bad, _ = SP.validar(
+            {
+                "fuente": "in.mp4",
+                "formato": "999x999",
+                "lufs": -3.0,
+                "musica": {"ruta": "/no/existe.mp3", "volumen_db": -2.0},
+                "subtitulos": {"srt": "/no/existe.srt"},
+                "segmentos": [
+                    {"id": "dup", "from": 5.0, "to": 10.0, "hook_overlay": "UNO DOS TRES CUATRO CINCO SEIS SIETE"},
+                    {"id": "dup", "from": 8.0, "to": 40.0},
+                ],
+            },
+            dur_fuente=20.0,
+        )
+        self.assertTrue(len(errs_bad) >= 3)
+        self.assertTrue(len(av_bad) >= 1)
+        with tempfile.TemporaryDirectory() as tmp:
+            srt_in = os.path.join(tmp, "in.srt")
+            with open(srt_in, "w", encoding="utf-8") as fh:
+                fh.write("1\n00:00:05,000 --> 00:00:06,500\nHola mundo\n\n2\n00:00:40,000 --> 00:00:41,000\nFuera\n\n")
+            srt_out, ok_c, tot_c = SP.retimear_srt(
+                srt_in,
+                [{"id": "s1", "from": 4.0, "to": 8.0}, {"id": "s2", "from": 10.0, "to": 14.0}],
+                tmp,
+            )
+            self.assertEqual((ok_c, tot_c), (1, 2))
+            self.assertTrue(os.path.isfile(srt_out))
+
+    def test_registrar_aprendizaje_similarity_and_dry_run(self):
+        a = RA.palabras("Los subtítulos pop necesitan saltos fijos en libass")
+        b = RA.palabras("Subtítulos pop con saltos fijos para libass")
+        self.assertGreater(RA.jaccard(a, b), 0.5)
+        self.assertGreater(RA.overlap(a, b), 0.7)
+        dups = RA.buscar_duplicados(
+            os.path.join(SKILL, "references", "reglas-tecnicas.md"),
+            "Subtítulos pop con saltos fijos",
+            "En libass el sobrepaso a 108% re-envuelve líneas si no se usa \\N y \\q2.",
+        )
+        self.assertIsInstance(dups, list)
+        orig_argv = sys.argv
+        try:
+            sys.argv = [
+                "registrar_aprendizaje.py",
+                "--titulo",
+                "Aprendizaje unico de prueba XYZ987",
+                "--detalle",
+                "Evidencia sintetica aislada con dry-run sin tocar archivos.",
+                "--dry-run",
+            ]
+            RA.main()
+        finally:
+            sys.argv = orig_argv
+
+    def test_beat_file_cli_generates_valid_grid(self):
+        import beat_file as BF
+        with tempfile.TemporaryDirectory() as tmp:
+            out_json = os.path.join(tmp, "beats.json")
+            orig_argv = sys.argv
+            try:
+                sys.argv = [
+                    "beat_file.py",
+                    "--bpm",
+                    "120",
+                    "--beat0",
+                    "0.25",
+                    "--duracion",
+                    "4",
+                    "--seccion",
+                    "intro:0:2",
+                    "-o",
+                    out_json,
+                ]
+                BF.main()
+            finally:
+                sys.argv = orig_argv
+            with open(out_json, encoding="utf-8") as fh:
+                data = json.load(fh)
+            self.assertEqual(data["bpm"], 120.0)
+            self.assertEqual(data["secciones"][0]["nombre"], "intro")
 
 
 if __name__ == "__main__":

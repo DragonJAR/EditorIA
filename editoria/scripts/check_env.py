@@ -5,7 +5,7 @@ Revisa: herramientas locales (ffmpeg, python, libs), assets del skill
 puede hacer EditorIA en este entorno. Sale 0 si lo esencial está, 1 si
 falta algo crítico. Uso: python scripts/check_env.py
 """
-import os, sys, subprocess, platform
+import glob, json, os, sys, subprocess, platform
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ok_critico = True
@@ -71,10 +71,10 @@ print("== Assets del skill ==")
 for fam, arch in (("Plus Jakarta Sans", "PlusJakartaSans-wght.ttf"), ("Montserrat", "Montserrat-wght.ttf")):
     p = os.path.join(BASE, "assets", "fonts", arch)
     rep(f"fuente {fam} (empaquetada, OFL)", os.path.exists(p), f"assets/fonts/{arch}", critico=False)
-import glob, json
 for pack in sorted(glob.glob(os.path.join(BASE, "brand", "*.json"))):
     try:
-        logos = (json.load(open(pack, encoding="utf-8")).get("logos") or {})
+        with open(pack, encoding="utf-8") as fh:
+            logos = (json.load(fh).get("logos") or {})
     except ValueError as e:
         rep(f"pack {os.path.basename(pack)}", False, f"JSON inválido: {e}"); continue
     rutas = [v for v in logos.values() if isinstance(v, str) and v.lower().endswith((".png", ".svg", ".jpg"))]
@@ -84,31 +84,41 @@ for pack in sorted(glob.glob(os.path.join(BASE, "brand", "*.json"))):
         f"{len(rutas)} logo(s) OK" if not faltan else "faltan: " + ", ".join(faltan))
 
 print("== APIs ==")
+# Buscar key en entorno o en ~/.secrets.env
 key = os.environ.get("ELEVENLABS_API_KEY")
+if not key:
+    sec = os.path.expanduser("~/.secrets.env")
+    if os.path.exists(sec):
+        with open(sec, encoding="utf-8", errors="ignore") as fh:
+            for line in fh:
+                if line.strip().startswith("export ELEVENLABS_API_KEY="):
+                    key = line.split("=", 1)[1].strip().strip('"').strip("'")
 rep("ELEVENLABS_API_KEY", bool(key),
-    "voz en off + música disponibles" if key else "sin voz/música IA (degradar a entrega silenciosa)",
-    critico=False)
+    "disponible (voz en off + música IA)" if key else "sin voz/música IA (degradar a entrega silenciosa)")
 
 print("== Dependencias opcionales ==")
-ok, det = cmd_ver("whisper-cli", ["--version"])
-rep("whisper-cli", ok,
-    det if ok else "transcripción local no disponible (retakes.py acepta segmentos de cualquier fuente)",
-    critico=False)
+ok_w, det_w = cmd_ver("whisper-cli", ["--help"])
+if not ok_w:
+    ok_w, det_w = cmd_ver("whisper", ["--help"])
+rep("whisper-cli", ok_w,
+    "disponible (transcripción local para retakes.py)" if ok_w else
+    "transcripción local no disponible (retakes.py acepta segmentos de cualquier fuente)")
 
 print("== Motores opcionales (no requeridos) ==")
 ok_node, det_node = cmd_ver("node", ["--version"])
-rep("node/npx", ok_node,
-    det_node if ok_node else "Remotion requiere Node 18+; HyperFrames Node 22+ (ver references/remotion.md)",
-    critico=False)
-if ok_node:
-    ok_r, det_r = cmd_ver("npx", ["--no-install", "remotion", "--version"])
-    rep("remotion", ok_r,
-        det_r if ok_r else "animación programática en React — ver references/remotion.md",
-        critico=False)
-    ok_h, det_h = cmd_ver("npx", ["--no-install", "hyperframes", "--version"])
-    rep("hyperframes", ok_h,
-        det_h if ok_h else "HTML→video determinista (HeyGen, Apache 2.0) — ver references/hyperframes.md",
-        critico=False)
+ok_npx, _ = cmd_ver("npx", ["--version"])
+rep("node/npx", ok_node and ok_npx,
+    f"{det_node}" if (ok_node and ok_npx) else "necesario solo para Remotion o HyperFrames")
+# Remotion: opcional, se inicializa por proyecto con npx create-video@latest
+ok_rem = os.path.exists("node_modules/@remotion/cli")
+rep("remotion", ok_rem,
+    "instalado en este proyecto" if ok_rem else
+    "animación programática en React — ver references/remotion.md")
+# HyperFrames: opcional, CLI de HeyGen (npx hyperframes)
+ok_hf = os.path.exists("node_modules/hyperframes") or os.path.exists("node_modules/@heygen/hyperframes")
+rep("hyperframes", ok_hf,
+    "instalado en este proyecto" if ok_hf else
+    "HTML→video determinista (HeyGen, Apache 2.0) — ver references/hyperframes.md")
 
 print("== Capacidades del modelo (asumidas, verificar en sesión) ==")
 print("INFO visión multimodal — QA cuadro por cuadro (extraer frames y mirarlos)")
@@ -118,6 +128,7 @@ print("INFO browser/search — investigación web para referencias y datos")
 print()
 if ok_critico:
     print("ENTORNO LISTO")
+    sys.exit(0)
 else:
     print("FALTA ALGO CRÍTICO — instalar antes de renderizar")
     sys.exit(1)

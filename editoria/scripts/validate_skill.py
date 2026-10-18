@@ -116,7 +116,7 @@ autor_val = (autor.group(1) or autor.group(2)).strip() if autor else ""
 check(bool(autor_val) and (not lic or autor_val in lic),
       f"author del frontmatter = titular de la LICENSE ({autor_val or '?'})")
 ajenas = []
-for dp, dn, fn in os.walk(BASE):
+for dp, _dn, fn in os.walk(BASE):
     if "__pycache__" in dp:
         continue
     for f in fn:
@@ -162,7 +162,7 @@ for x in packs:
         colores.append(c.lstrip("#"))
 literal = re.compile("|".join(re.escape(m) for m in marcas + colores) or r"$^", re.I)
 quemadas = []
-for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
+for dp, _dn, fn in os.walk(os.path.join(BASE, "scripts")):
     for f in fn:
         if f.endswith((".py", ".json")):
             if literal.search(open(os.path.join(dp, f), encoding="utf-8", errors="ignore").read()):
@@ -359,7 +359,7 @@ req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
 for f in req:
     check(os.path.exists(os.path.join(BASE, f)), f"existe {f}")
 readmes_internos, zips_internos = [], []
-for dp, dn, fn in os.walk(BASE):
+for dp, _dn, fn in os.walk(BASE):
     if "__pycache__" in dp:
         continue
     for f in fn:
@@ -392,7 +392,7 @@ for s in sorted(scripts_mencionados):
 # 3b. sin huérfanos: todo archivo del skill debe ser encontrable desde algún .md
 mencionados_todos = set(re.findall(r"(?:references|scripts|film|demo)/[\w\-./]+\.(?:md|json|py|mp4|mp3|png)", corpus))
 huerfanos = []
-for dp, dn, fn in os.walk(BASE):
+for dp, _dn, fn in os.walk(BASE):
     if "__pycache__" in dp:
         continue
     for f in fn:
@@ -412,7 +412,7 @@ for h in huerfanos[:8]:
 sys.path.insert(0, os.path.join(BASE, "scripts"))
 sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 n_py = 0
-for dp, dn, fn in os.walk(os.path.join(BASE, "scripts")):
+for dp, _dn, fn in os.walk(os.path.join(BASE, "scripts")):
     if "__pycache__" in dp:
         continue
     for f in sorted(fn):
@@ -454,7 +454,7 @@ check(not _sobran_m, f"escenas_muestra.json sin tipos inexistentes ({', '.join(_
 
 # 5. las N escenas renderizan con su muestra realista (escenas_muestra.json)
 #    en 9:16 y 16:9, compuestas DENTRO de la zona segura (sin que escala_segura las encoja)
-import render_plan as R
+import render_plan as R  # noqa: E402
 cu = [R.cuenta_up(0, 3.5, 0.3, 0), R.cuenta_up(0, 3.5, 9, 0), R.cuenta_up(0, 1500, 9, 0)]
 check(cu[1] == "3.5" and len(cu[0]) == 3 and cu[2] == "1,500", f"cuenta_up con decimales ({cu})")
 try:
@@ -479,16 +479,16 @@ try:
                 # además de 3 instantes, CADA entrada del plan (at + 0/16/33/100 ms):
                 # ahí los resortes son diminutos y nacen las geometrías inválidas
                 ats = []
-                def _ats(nodo, clave=""):
+                def _ats(nodo, clave="", _ats_l=ats):
                     if isinstance(nodo, dict):
                         for k_, v_ in nodo.items():
-                            _ats(v_, k_)
+                            _ats(v_, k_, _ats_l)
                     elif isinstance(nodo, list):
                         for v_ in nodo:
-                            _ats(v_, clave)
+                            _ats(v_, clave, _ats_l)
                     elif isinstance(nodo, (int, float)) and clave in ("at", "palabras") or \
                             (isinstance(nodo, (int, float)) and clave.startswith(("item", "bar", "card"))):
-                        ats.append(float(nodo))
+                        _ats_l.append(float(nodo))
                 _ats(e.get("at", {}), "at")
                 _ats([m_.get("at") for m_ in (e.get("mensajes", []) + e.get("pasos", []) + e.get("items", [])
                                               + e.get("canales", []) + e.get("notificaciones", []))
@@ -527,11 +527,11 @@ try:
             R._ESCALA.clear()
             dt = 1 / _QA.FPS_MUESTREO
 
-            def _vivo(t0):   # dos pares: congelado = TODO el tramo quieto
+            def _vivo(t0, _dt=dt, _ctx=ctx, _e=e, _alto=alto, _ancho=ancho):   # dos pares: congelado = TODO el tramo quieto
                 difs = []
-                for ta in (t0, t0 + 2 * dt):
-                    fr = [R.componer(ctx, [e], e["to"], t, set()).convert("L")
-                          .resize((_QA.ANCHO, int(_QA.ANCHO * alto / ancho))) for t in (ta, ta + dt)]
+                for ta in (t0, t0 + 2 * _dt):
+                    fr = [R.componer(_ctx, [_e], _e["to"], t, set()).convert("L")
+                          .resize((_QA.ANCHO, int(_QA.ANCHO * _alto / _ancho))) for t in (ta, ta + _dt)]
                     difs.append(float(_np.abs(_np.asarray(fr[0], _np.int16)
                                               - _np.asarray(fr[1], _np.int16)).mean()))
                 return max(difs)
@@ -567,11 +567,11 @@ try:
         _NO = {"canal", "de", "tipo", "captura", "imagen", "url", "formato", "transicion",
                "moneda", "fecha", "hora", "codigo"}
 
-        def _x2(n_, k_=""):
+        def _x2(n_, k_="", _no=_NO):
             if isinstance(n_, dict):
-                return {a_: (b_ if a_ in _NO else _x2(b_, a_)) for a_, b_ in n_.items()}
+                return {a_: (b_ if a_ in _no else _x2(b_, a_, _no)) for a_, b_ in n_.items()}
             if isinstance(n_, list):
-                return [_x2(x_, k_) for x_ in n_]
+                return [_x2(x_, k_, _no) for x_ in n_]
             if isinstance(n_, str) and len(n_) > 1 and not n_.endswith((".png", ".jpg")) \
                     and not n_.startswith("#"):
                 return n_ + " " + n_.replace("*", "")

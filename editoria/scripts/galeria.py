@@ -306,7 +306,7 @@ def resumen(filas, out):
     alto_fila = 340
     img = Image.new("RGB", (220 + 4 * (tw + 8), max(1, len(videos)) * alto_fila), (18, 18, 18))
     d = ImageDraw.Draw(img)
-    for i, (_, nombre, ok, det, video, _, _) in enumerate(videos):
+    for i, (_, nombre, ok, _det, video, _, _) in enumerate(videos):
         y = i * alto_fila
         d.text((10, y + 10), nombre, fill=(255, 255, 255), font=fuente)
         d.text((10, y + 30), "PASS" if ok else "FAIL", fill=(90, 220, 120) if ok else (255, 80, 80),

@@ -131,7 +131,7 @@ def render_frame(ctx,t,state):
             y=(H+80-((t*spd+ph*40)%(H+240)))
             x=x0+18*math.sin(t*0.7+ph)
             a2=int(150*clamp01(1-abs(y-H/2)/(H*0.7)))
-            if bl: 
+            if bl:
                 s2=Image.new("RGBA",(24,24),(0,0,0,0))
                 ImageDraw.Draw(s2).ellipse([12-sz,12-sz,12+sz,12+sz],fill=BRASA+(a2,))
                 s2=s2.filter(ImageFilter.GaussianBlur(2))

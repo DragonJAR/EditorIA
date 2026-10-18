@@ -25,7 +25,7 @@ import tempfile
 
 KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KIT)
-from _comun import (add_common, apply_common, die, emit, info, probe,
+from _comun import (add_common, apply_common, die, emit, info, probe,  # noqa: E402
                     verify_output, ffmpeg_base, run, escape_filter_path,
                     default_font_file, parse_srt, write_srt, colores_marca,
                     fuente_marca, resolver_pack)

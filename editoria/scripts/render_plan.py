@@ -457,7 +457,7 @@ def particulas(d, t, t0, cx, cy, n=60, color=None, semilla=11):
     color = color or ACENTO
     rng = random.Random(semilla)
     dt = t - t0
-    for i in range(n):
+    for _ in range(n):
         # ángulo + velocidad fijos por semilla
         ang = rng.uniform(0, 6.283)
         vel = rng.uniform(280, 720)  # px/s
@@ -937,7 +937,7 @@ def sc_medianoche(ctx,e,t):
             dn.text((54,70),n["canal"][0].upper(),font=ctx.fT(34,800),fill=BLANCO,anchor="mm")
             dn.text((110,52),n["titulo"],font=ctx.fX(27,800),fill=BLANCO)
             dn.text((110,92),n["texto"][:30],font=ctx.fX(24,400),fill=(255,255,255,190))
-            a=nw.split()[3].point(lambda v:int(v*clamp01(kn*1.5))); nw.putalpha(a)
+            a=nw.split()[3].point(lambda v, _kn=kn:int(v*clamp01(_kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((int(tw*sc),int(th*sc)),Image.LANCZOS)
         # giro 3D real al entrar: rotateY de -70° a -12° con el resorte (perspectiva)
@@ -1005,7 +1005,7 @@ def sc_chat(ctx,e,t):
     y=y0-lerp(sube(H-SAFE["bottom"]-20),sube(H*0.70),kl)
     for mm in msgs:
         k=spring(t,mm["at"],140,15)
-        lado_x=lambda w_: zx0+12 if not mm["ia"] else zx1-12-w_
+        lado_x=lambda w_, _ia=mm["ia"]: zx0+12 if not _ia else zx1-12-w_
         visible=clamp01((y-H*0.24)/80)          # se desvanece bajo el rótulo
         if escribiendo(mm) and k<1:
             ke=min(1,spring(t,mm["at"]-mm["esc"],160,16))*(1-min(1,k))
