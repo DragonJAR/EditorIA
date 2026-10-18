@@ -18,8 +18,9 @@ AIRE_VOZ = 0.4      # voz_off.py coloca cada segmento en from + 0.4
 def tipos_validos():
     """Los tipos salen del dict SCENES de render_plan.py (fuente única): una
     lista copiada aquí quedaba vieja en cuanto se añadía una escena."""
-    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "render_plan.py"),
-               encoding="utf-8").read()
+    ruta_rp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "render_plan.py")
+    with open(ruta_rp, encoding="utf-8") as fh:
+        src = fh.read()
     bloque = re.search(r"^SCENES\s*=\s*\{(.*?)\}\s*$", src, re.S | re.M).group(1)
     return set(re.findall(r'"(\w+)"\s*:\s*sc_', bloque))
 
@@ -27,9 +28,17 @@ def tipos_validos():
 TIPOS_VALIDOS = tipos_validos()
 
 
+def _t_num(v):
+    """Convierte int/float (no bool) a float; devuelve None si no es numérico."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    return float(v)
+
+
 def palabras_voz(texto):
     """Palabras habladas: sin audio tags de dirección ([excited], [long pause]...)."""
     return len(re.sub(r"\[[^\]]*\]", " ", texto or "").split())
+
 
 def es_vacia(e):
     """Sin contenido propio: ningún campo (texto, datos, imagen, voz) más allá
@@ -45,9 +54,13 @@ def es_vacia(e):
             return False
     return True
 
+
 def at_fuera(at, fr, to):
     """Tiempos at: fuera de la ventana [from, to] de la escena."""
     mal = []
+    if fr is None or to is None:
+        return mal
+
     def walk(v):
         if isinstance(v, bool):
             return
@@ -63,6 +76,118 @@ def at_fuera(at, fr, to):
     walk(at)
     return mal
 
+
+def auditar_estructura(plan, tol=0.05, min_final=2.0):
+    """Audita un diccionario de plan ya cargado y devuelve lista de hallazgos."""
+    if not isinstance(plan, dict):
+        return [{"nivel": "ERROR", "t": 0.0, "msg": "el plan raíz debe ser un objeto JSON"}]
+    escenas = plan.get("escenas", [])
+    if not isinstance(escenas, list):
+        return [{"nivel": "ERROR", "t": 0.0, "msg": "el campo 'escenas' debe ser una lista"}]
+    hallazgos = []
+
+    def add(nivel, t, msg):
+        hallazgos.append({"nivel": nivel, "t": round(float(t or 0.0), 2), "msg": msg})
+
+    pares_validos = []
+    for idx, e in enumerate(escenas):
+        if not isinstance(e, dict):
+            add("ERROR", 0.0, f"escena {idx}: debe ser un objeto JSON")
+            continue
+        pares_validos.append((idx, e))
+
+    ordenadas = sorted(pares_validos, key=lambda p: _t_num(p[1].get("from")) or 0.0)
+    prev_to_val = None
+    prev_idx = None
+    for idx, e in ordenadas:
+        fr_raw, to_raw = e.get("from"), e.get("to")
+        fr, to = _t_num(fr_raw), _t_num(to_raw)
+        tipo = e.get("tipo", "?")
+        if tipo not in TIPOS_VALIDOS:
+            add("ERROR", fr if fr is not None else 0.0,
+                f"escena {idx} ({tipo}): tipo desconocido — "
+                f"válidos: {', '.join(sorted(TIPOS_VALIDOS))}")
+        if fr is None or to is None:
+            add("ERROR", fr if fr is not None else 0.0,
+                f"escena {idx} ({tipo}): falta from/to numérico")
+            continue
+        for donde, sub in (("at", e.get("at")),):
+            for v in at_fuera(sub, fr, to):
+                add("AVISO", fr,
+                    f"escena {idx} ({tipo}): {donde}={v} fuera de la ventana "
+                    f"[{fr},{to}] — el elemento nunca aparece")
+        for lista_k in ("mensajes", "canales", "pasos", "items", "notificaciones"):
+            items_l = e.get(lista_k)
+            if not isinstance(items_l, list):
+                continue
+            for j, m in enumerate(items_l):
+                if isinstance(m, dict) and "at" in m:
+                    for v in at_fuera(m["at"], fr, to):
+                        add("AVISO", fr,
+                            f"escena {idx} ({tipo}): sub-elemento {j} at={v} "
+                            f"fuera de [{fr},{to}]")
+        if to <= fr:
+            add("ERROR", fr, f"escena {idx} ({tipo}): duración no positiva (from={fr}, to={to})")
+        if to - fr < 0.4:
+            add("AVISO", fr, f"escena {idx} ({tipo}): muy corta ({to-fr:.2f}s)")
+        if es_vacia(e):
+            add("AVISO", fr, f"escena {idx} ({tipo}): escena vacía (sin texto ni voz)")
+        if "voz" in e and isinstance(e["voz"], str) and not e["voz"].strip():
+            add("AVISO", fr, f"escena {idx} ({tipo}): campo voz presente pero vacío")
+        if prev_to_val is not None:
+            if fr < prev_to_val - tol:
+                add("ERROR", fr, f"escena {idx} ({tipo}): solapa con la anterior "
+                                 f"(from={fr} < to_previo={prev_to_val})")
+            elif fr - prev_to_val > 1.0:
+                add("AVISO", prev_to_val, f"hueco de {fr-prev_to_val:.2f}s entre escena "
+                                          f"{prev_idx} y {idx}")
+        prev_to_val = to
+        prev_idx = idx
+
+    # La narración manda el reloj: la voz estimada debe caber en su escena y,
+    # sobre todo, no pisar la voz siguiente (voz_off mezcla con amix: dos
+    # voces a la vez). Estimación antes de pagar TTS; voz_off mide la real.
+    con_voz = [(idx, e) for idx, e in ordenadas
+               if isinstance(e.get("voz"), str) and e["voz"].strip()
+               and _t_num(e.get("from")) is not None]
+    for k, (idx, e) in enumerate(con_voz):
+        fr_v = _t_num(e.get("from"))
+        to_v = _t_num(e.get("to"))
+        n = palabras_voz(e["voz"])
+        fin = fr_v + AIRE_VOZ + n / RITMO_VOZ
+        sig = (_t_num(con_voz[k + 1][1]["from"]) + AIRE_VOZ) if k + 1 < len(con_voz) else None
+        # la estimación tiene ±0.3s de error: por debajo es aviso, no error
+        if sig is not None and fin > sig + 0.3:
+            add("ERROR", fr_v, f"escena {idx}: la voz ({n} palabras ≈ "
+                f"{n / RITMO_VOZ:.1f}s) pisaría la voz siguiente en {fin - sig:.1f}s — "
+                f"alargar la escena o recortar el texto")
+        elif sig is not None and fin > sig:
+            add("AVISO", fr_v, f"escena {idx}: la voz ({n} palabras ≈ "
+                f"{n / RITMO_VOZ:.1f}s) roza la voz siguiente — verificar con voz_off.py")
+        elif to_v is not None and fin > to_v:
+            add("AVISO", fr_v, f"escena {idx}: la voz ({n} palabras ≈ "
+                f"{n / RITMO_VOZ:.1f}s) se sale de la escena en {fin - to_v:.1f}s")
+
+    ordenadas_con_t = [(idx, e) for idx, e in ordenadas
+                       if _t_num(e.get("from")) is not None and _t_num(e.get("to")) is not None]
+    if ordenadas_con_t:
+        idx, e = ordenadas_con_t[-1]
+        dur_fin = _t_num(e.get("to")) - _t_num(e.get("from"))
+        if dur_fin < min_final:
+            add("AVISO", _t_num(e.get("from")),
+                f"escena final {idx} ({e.get('tipo','?')}): dura {dur_fin:.2f}s "
+                f"(mínimo {min_final}s para tarjeta final)")
+
+    dur_plan = _t_num(plan.get("duracion"))
+    if dur_plan is not None and ordenadas_con_t:
+        fin = max(_t_num(e.get("to")) for _, e in ordenadas_con_t)
+        if abs(fin - dur_plan) > 0.5:
+            add("AVISO", fin, f"plan['duracion']={plan['duracion']}s pero la última "
+                              f"escena termina en {fin:.2f}s")
+
+    return hallazgos
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Audita un plan.json: solapes, duraciones, escenas vacías, voz vacía, orden temporal.")
@@ -74,88 +199,26 @@ def main():
                     help="duración mínima de la escena final (default: 2.0s)")
     a = ap.parse_args()
 
-    plan = json.load(open(a.plan, encoding="utf-8"))
-    escenas = plan.get("escenas", [])
-    hallazgos = []
+    if not os.path.isfile(a.plan):
+        msg = f"ERROR: no existe el archivo de plan: {a.plan}"
+        if a.json:
+            print(json.dumps({"errores": 1, "hallazgos": [{"nivel": "ERROR", "t": 0.0, "msg": msg}]},
+                             ensure_ascii=False, indent=1))
+            sys.exit(1)
+        sys.exit(msg)
+    try:
+        with open(a.plan, encoding="utf-8") as fh:
+            plan = json.load(fh)
+    except (OSError, ValueError) as ex:
+        msg = f"ERROR: JSON inválido en {a.plan}: {ex}"
+        if a.json:
+            print(json.dumps({"errores": 1, "hallazgos": [{"nivel": "ERROR", "t": 0.0, "msg": msg}]},
+                             ensure_ascii=False, indent=1))
+            sys.exit(1)
+        sys.exit(msg)
 
-    def add(nivel, t, msg):
-        hallazgos.append({"nivel": nivel, "t": round(float(t), 2), "msg": msg})
-
-    ordenadas = sorted(enumerate(escenas), key=lambda p: p[1].get("from", 0))
-    for i, (idx, e) in enumerate(ordenadas):
-        fr, to = e.get("from"), e.get("to")
-        tipo = e.get("tipo", "?")
-        if tipo not in TIPOS_VALIDOS:
-            add("ERROR", fr if isinstance(fr, (int, float)) else 0,
-                f"escena {idx} ({tipo}): tipo desconocido — "
-                f"válidos: {', '.join(sorted(TIPOS_VALIDOS))}")
-        for donde, sub in (("at", e.get("at")),):
-            for v in at_fuera(sub, fr, to):
-                add("AVISO", fr,
-                    f"escena {idx} ({tipo}): {donde}={v} fuera de la ventana "
-                    f"[{fr},{to}] — el elemento nunca aparece")
-        for j, m in enumerate(e.get("mensajes", []) + e.get("canales", [])):
-            if "at" in m:
-                for v in at_fuera(m["at"], fr, to):
-                    add("AVISO", fr,
-                        f"escena {idx} ({tipo}): sub-elemento {j} at={v} "
-                        f"fuera de [{fr},{to}]")
-        if fr is None or to is None:
-            add("ERROR", 0, f"escena {idx} ({tipo}): falta from/to")
-            continue
-        if to <= fr:
-            add("ERROR", fr, f"escena {idx} ({tipo}): duración no positiva (from={fr}, to={to})")
-        if to - fr < 0.4:
-            add("AVISO", fr, f"escena {idx} ({tipo}): muy corta ({to-fr:.2f}s)")
-        if es_vacia(e):
-            add("AVISO", fr, f"escena {idx} ({tipo}): escena vacía (sin texto ni voz)")
-        if "voz" in e and isinstance(e["voz"], str) and not e["voz"].strip():
-            add("AVISO", fr, f"escena {idx} ({tipo}): campo voz presente pero vacío")
-        if i > 0:
-            prev_to = ordenadas[i-1][1].get("to", 0)
-            if fr < prev_to - a.tol:
-                add("ERROR", fr, f"escena {idx} ({tipo}): solapa con la anterior "
-                                 f"(from={fr} < to_previo={prev_to})")
-            elif fr - prev_to > 1.0:
-                add("AVISO", prev_to, f"hueco de {fr-prev_to:.2f}s entre escena "
-                                      f"{ordenadas[i-1][0]} y {idx}")
-
-    # La narración manda el reloj: la voz estimada debe caber en su escena y,
-    # sobre todo, no pisar la voz siguiente (voz_off mezcla con amix: dos
-    # voces a la vez). Estimación antes de pagar TTS; voz_off mide la real.
-    con_voz = [(idx, e) for idx, e in ordenadas
-               if isinstance(e.get("voz"), str) and e["voz"].strip()
-               and isinstance(e.get("from"), (int, float))]
-    for k, (idx, e) in enumerate(con_voz):
-        n = palabras_voz(e["voz"])
-        fin = e["from"] + AIRE_VOZ + n / RITMO_VOZ
-        sig = con_voz[k + 1][1]["from"] + AIRE_VOZ if k + 1 < len(con_voz) else None
-        # la estimación tiene ±0.3s de error: por debajo es aviso, no error
-        if sig is not None and fin > sig + 0.3:
-            add("ERROR", e["from"], f"escena {idx}: la voz ({n} palabras ≈ "
-                f"{n / RITMO_VOZ:.1f}s) pisaría la voz siguiente en {fin - sig:.1f}s — "
-                f"alargar la escena o recortar el texto")
-        elif sig is not None and fin > sig:
-            add("AVISO", e["from"], f"escena {idx}: la voz ({n} palabras ≈ "
-                f"{n / RITMO_VOZ:.1f}s) roza la voz siguiente — verificar con voz_off.py")
-        elif isinstance(e.get("to"), (int, float)) and fin > e["to"]:
-            add("AVISO", e["from"], f"escena {idx}: la voz ({n} palabras ≈ "
-                f"{n / RITMO_VOZ:.1f}s) se sale de la escena en {fin - e['to']:.1f}s")
-
-    if ordenadas:
-        idx, e = ordenadas[-1]
-        dur_fin = (e.get("to") or 0) - (e.get("from") or 0)
-        if dur_fin < a.min_final:
-            add("AVISO", e.get("from", 0),
-                f"escena final {idx} ({e.get('tipo','?')}): dura {dur_fin:.2f}s "
-                f"(mínimo {a.min_final}s para tarjeta final)")
-
-    if "duracion" in plan and ordenadas:
-        fin = max(e.get("to", 0) for _, e in ordenadas)
-        if abs(fin - plan["duracion"]) > 0.5:
-            add("AVISO", fin, f"plan['duracion']={plan['duracion']}s pero la última "
-                              f"escena termina en {fin:.2f}s")
-
+    hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
+    escenas = plan.get("escenas", []) if isinstance(plan, dict) and isinstance(plan.get("escenas"), list) else []
     errores = sum(1 for h in hallazgos if h["nivel"] == "ERROR")
     if a.json:
         print(json.dumps({"errores": errores, "hallazgos": hallazgos},
@@ -169,6 +232,7 @@ def main():
             for h in sorted(hallazgos, key=lambda x: x["t"]):
                 print(f"[{h['nivel']}] t={h['t']:.2f}s — {h['msg']}")
     sys.exit(1 if errores else 0)
+
 
 if __name__ == "__main__":
     main()

@@ -29,7 +29,10 @@ from _comun import VF_RGB_A_BT709, x264_args  # noqa: E402
 
 
 def run(cmd):
-    subprocess.run(cmd, check=True)
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        det = (r.stderr or "").strip().splitlines()[-1] if (r.stderr or "").strip() else f"exit {r.returncode}"
+        sys.exit(f"ERROR: ffmpeg falló: {det}")
 
 
 def main():
@@ -43,6 +46,9 @@ def main():
     ap.add_argument("-o", "--out", default=None,
                     help="mp4 de salida (def: sobrescribe con backup .bak)")
     args = ap.parse_args()
+
+    if not os.path.isfile(args.video):
+        sys.exit(f"ERROR: no existe el video: {args.video}")
 
     base, _ = os.path.splitext(args.video)
     jpg = args.jpg or f"{base}_poster.jpg"

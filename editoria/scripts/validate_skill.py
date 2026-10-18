@@ -237,6 +237,16 @@ for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpe
                             capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL)
         if "Traceback" in _r.stderr:
             _crudas10.append(f"{_f}: {_r.stderr.strip().splitlines()[-1][:70]}")
+for _lbl, _cmd10 in (
+    ("auditar_plan.py", [os.path.join(BASE, "scripts", "auditar_plan.py"), os.path.join(_tmp10, "no_existe.json")]),
+    ("musica.py musiconly", [os.path.join(BASE, "scripts", "musica.py"), "musiconly", "-v", os.path.join(_tmp10, "no_existe.mp4"), "-m", os.path.join(_tmp10, "no_existe.mp3"), "-o", os.path.join(_tmp10, "salida.mp4")]),
+    ("musica.py mix", [os.path.join(BASE, "scripts", "musica.py"), "mix", "-v", os.path.join(_tmp10, "no_existe.mp4"), "-a", os.path.join(_tmp10, "no_existe.mp3"), "-m", os.path.join(_tmp10, "no_existe.mp3"), "-o", os.path.join(_tmp10, "salida.mp4")]),
+    ("poster_frame.py", [os.path.join(BASE, "scripts", "poster_frame.py"), os.path.join(_tmp10, "no_existe.mp4"), "--t", "1.0", "-o", os.path.join(_tmp10, "salida.mp4")]),
+    ("contact_sheet.py", [os.path.join(BASE, "scripts", "contact_sheet.py"), "--dir", os.path.join(_tmp10, "no_existe_dir"), "-o", os.path.join(_tmp10, "salida.png")]),
+):
+    _r = subprocess.run([sys.executable] + _cmd10, capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+    if "Traceback" in _r.stderr or _r.returncode == 0:
+        _crudas10.append(f"{_lbl}: {(_r.stderr.strip().splitlines()[-1] if _r.stderr.strip() else f'rc={_r.returncode}')[:70]}")
 check(not _crudas10, f"una entrada inexistente da un error claro, sin traceback ({'; '.join(_crudas10) or 'todas'})")
 
 # check_env (paso 0 del agente) declara EXACTAMENTE las librerías de terceros que

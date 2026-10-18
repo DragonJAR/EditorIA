@@ -19,19 +19,31 @@ def gen(prompt,dur,out):
         json={"prompt":prompt,"music_length_ms":int(dur*1000),
               "model_id":"music_v1"},timeout=180)
     r.raise_for_status()
-    open(out,"wb").write(r.content)
+    with open(out,"wb") as fh:
+        fh.write(r.content)
     print("OK",out)
 
 def vdur(video):
+    if not os.path.isfile(video):
+        sys.exit(f"ERROR: no existe el video: {video}")
     r=subprocess.run(["ffprobe","-v","error","-show_entries","format=duration",
                       "-of","csv=p=0",video],capture_output=True,text=True)
-    return float(r.stdout.strip())
+    s=(r.stdout or "").strip()
+    if r.returncode != 0 or not s:
+        sys.exit(f"ERROR: ffprobe no pudo leer la duración de {video}")
+    try:
+        return float(s)
+    except ValueError:
+        sys.exit(f"ERROR: duración inválida en {video}: {s!r}")
 
 def mix(video,voz,musica,out,mus_vol=0.12):
     # música a volumen base + ducking por la voz; voz siempre al frente.
     # Defaults verificados (v4 AI Tinkerers): música ~15 dB bajo la voz
     # (medido con scripts/medir_mezcla.py). Ver reglas-tecnicas.md.
     # duración explícita del video (nada de -shortest: recorta si la voz es más corta)
+    for etq, ruta in (("video", video), ("voz", voz), ("música", musica)):
+        if not os.path.isfile(ruta):
+            sys.exit(f"ERROR: no existe el archivo de {etq}: {ruta}")
     dur=vdur(video)
     fc=(f"[2:a]volume={mus_vol},apad=whole_dur={dur}[mx];"
         f"[1:a]apad=whole_dur={dur},asplit=2[vox1][vox2];"
@@ -39,21 +51,28 @@ def mix(video,voz,musica,out,mus_vol=0.12):
         f"release=600:makeup=1[duck];"
         f"[duck][vox2]amix=inputs=2:normalize=0:duration=longest,"
         f"atrim=0:{dur}[aout]")
-    subprocess.run(["ffmpeg","-y","-v","error","-i",video,"-i",voz,"-i",musica,
-                    "-filter_complex",fc,"-map","0:v","-map","[aout]",
-                    "-c:v","copy","-c:a","aac","-b:a","160k",
-                    "-movflags","+faststart",out],check=True)
+    r=subprocess.run(["ffmpeg","-y","-v","error","-i",video,"-i",voz,"-i",musica,
+                      "-filter_complex",fc,"-map","0:v","-map","[aout]",
+                      "-c:v","copy","-c:a","aac","-b:a","160k",
+                      "-movflags","+faststart",out],capture_output=True,text=True)
+    if r.returncode != 0:
+        sys.exit(f"ERROR: ffmpeg falló al mezclar audio: {(r.stderr or '').strip()[:200]}")
     print("OK",out)
 
 def mix_music_only(video,musica,out,mus_vol=0.8,fade_out=2.0):
     """Video + música de fondo, sin voz. Fade de salida para cerrar limpio."""
+    for etq, ruta in (("video", video), ("música", musica)):
+        if not os.path.isfile(ruta):
+            sys.exit(f"ERROR: no existe el archivo de {etq}: {ruta}")
     dur=vdur(video)
     fc=(f"[1:a]volume={mus_vol},apad=whole_dur={dur},"
-        f"afade=t=out:st={dur-fade_out}:d={fade_out},atrim=0:{dur}[aout]")
-    subprocess.run(["ffmpeg","-y","-v","error","-i",video,"-i",musica,
-                    "-filter_complex",fc,"-map","0:v","-map","[aout]",
-                    "-c:v","copy","-c:a","aac","-b:a","160k",
-                    "-movflags","+faststart",out],check=True)
+        f"afade=t=out:st={max(0.0, dur-fade_out)}:d={fade_out},atrim=0:{dur}[aout]")
+    r=subprocess.run(["ffmpeg","-y","-v","error","-i",video,"-i",musica,
+                      "-filter_complex",fc,"-map","0:v","-map","[aout]",
+                      "-c:v","copy","-c:a","aac","-b:a","160k",
+                      "-movflags","+faststart",out],capture_output=True,text=True)
+    if r.returncode != 0:
+        sys.exit(f"ERROR: ffmpeg falló al mezclar música: {(r.stderr or '').strip()[:200]}")
     print("OK",out)
 
 def main():

@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -20,6 +21,7 @@ sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
 import _comun as C  # noqa: E402
 import _delivery as D  # noqa: E402
+import auditar_plan as AP  # noqa: E402
 import caption as CAP  # noqa: E402
 
 
@@ -175,6 +177,42 @@ class TestCliHelpAndModularImports(unittest.TestCase):
         res = RP.sustituir({"n": "{n}", "s": "Hola {nombre}", "m": "{x}"}, {"n": "42", "nombre": "Ana"}, faltan)
         self.assertEqual(res, {"n": 42, "s": "Hola Ana", "m": "{x}"})
         self.assertEqual(faltan, {"x"})
+
+
+class TestAuditarPlanAndCliInputGuards(unittest.TestCase):
+    def test_auditar_estructura_handles_missing_from_to_with_at_without_typeerror(self):
+        plan = {
+            "duracion": 5.0,
+            "escenas": [
+                {"tipo": "hero", "from": None, "to": 3.0, "at": {"titulo": 1.0}},
+                {"tipo": "bento", "from": 0.0, "to": 5.0, "titulo": "OK", "items": [{"titulo": "A", "at": 9.0}]},
+            ],
+        }
+        hallazgos = AP.auditar_estructura(plan)
+        errores = [h for h in hallazgos if h["nivel"] == "ERROR"]
+        avisos = [h for h in hallazgos if h["nivel"] == "AVISO"]
+        self.assertEqual(len(errores), 1)
+        self.assertIn("falta from/to", errores[0]["msg"])
+        self.assertTrue(any("fuera de [0.0,5.0]" in h["msg"] for h in avisos))
+
+    def test_clis_with_real_flags_report_clean_error_on_missing_input(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ne_json = os.path.join(tmp, "no_existe.json")
+            ne_mp4 = os.path.join(tmp, "no_existe.mp4")
+            ne_mp3 = os.path.join(tmp, "no_existe.mp3")
+            ne_dir = os.path.join(tmp, "no_existe_dir")
+            out_mp4 = os.path.join(tmp, "out.mp4")
+            out_png = os.path.join(tmp, "out.png")
+            for cmd in (
+                [os.path.join(SCRIPTS, "auditar_plan.py"), ne_json],
+                [os.path.join(SCRIPTS, "musica.py"), "musiconly", "-v", ne_mp4, "-m", ne_mp3, "-o", out_mp4],
+                [os.path.join(SCRIPTS, "musica.py"), "mix", "-v", ne_mp4, "-a", ne_mp3, "-m", ne_mp3, "-o", out_mp4],
+                [os.path.join(SCRIPTS, "poster_frame.py"), ne_mp4, "--t", "1.0", "-o", out_mp4],
+                [os.path.join(SCRIPTS, "contact_sheet.py"), "--dir", ne_dir, "-o", out_png],
+            ):
+                r = subprocess.run([sys.executable] + cmd, capture_output=True, text=True, timeout=15)
+                self.assertNotEqual(r.returncode, 0)
+                self.assertNotIn("Traceback", r.stderr, f"Traceback en {cmd[0]}: {r.stderr}")
 
 
 if __name__ == "__main__":

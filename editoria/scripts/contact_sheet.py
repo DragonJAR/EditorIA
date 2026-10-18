@@ -30,25 +30,34 @@ except ModuleNotFoundError as _e_dep:
 
 def extraer_frames(video, n, tmpdir):
     """Extrae n frames equidistantes con ffmpeg. Devuelve [(ruta, etiqueta)]."""
-    dur = subprocess.run(
+    if not os.path.isfile(video):
+        sys.exit(f"ERROR: no existe el video: {video}")
+    r = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
          "-of", "default=nw=1:nk=1", video],
-        capture_output=True, text=True, check=True).stdout.strip()
-    dur = float(dur)
+        capture_output=True, text=True)
+    dur_str = (r.stdout or "").strip()
+    if r.returncode != 0 or not dur_str:
+        sys.exit(f"ERROR: ffprobe no pudo leer {video}")
+    dur = float(dur_str)
     out = []
     for i in range(n):
         # i/n (no i/(n-1)): nunca pide t=duracion exacta, que ffmpeg no sirve
         t = dur * i / n
         ruta = os.path.join(tmpdir, f"frame_{i:03d}.png")
-        subprocess.run(
+        rf = subprocess.run(
             ["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.3f}", "-i", video,
-             "-frames:v", "1", ruta], check=True)
+             "-frames:v", "1", ruta], capture_output=True, text=True)
+        if rf.returncode != 0:
+            sys.exit(f"ERROR: ffmpeg no pudo extraer frame en t={t:.2f}s de {video}")
         out.append((ruta, f"t={t:.2f}s"))
     return out
 
 
 def mosaico(imagenes, cols, ancho_tile, salida):
     """imagenes: [(ruta, etiqueta)]. Mosaica en cols columnas."""
+    if Image is None or ImageDraw is None:
+        sys.exit("ERROR: falta dependencia (PIL): pip install pillow")
     thumbs = []
     for ruta, etiqueta in imagenes:
         im = Image.open(ruta).convert("RGB")
@@ -95,6 +104,8 @@ def main():
     a = ap.parse_args()
 
     if a.dir:
+        if not os.path.isdir(a.dir):
+            sys.exit(f"ERROR: no existe la carpeta: {a.dir}")
         pngs = sorted(f for f in os.listdir(a.dir)
                       if f.lower().endswith(".png"))
         if not pngs:
@@ -102,6 +113,8 @@ def main():
         imagenes = [(os.path.join(a.dir, f), f) for f in pngs]
         mosaico(imagenes, a.cols, a.ancho, a.salida)
     else:
+        if not os.path.isfile(a.video):
+            sys.exit(f"ERROR: no existe el video: {a.video}")
         with tempfile.TemporaryDirectory() as tmp:
             imagenes = extraer_frames(a.video, a.n, tmp)
             mosaico(imagenes, a.cols, a.ancho, a.salida)
