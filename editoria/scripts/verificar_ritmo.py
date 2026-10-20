@@ -18,7 +18,9 @@ Uso:
 
 Salida: una línea PASS/WARN/FAIL por prueba; exit 1 si alguna FAIL.
 """
-import argparse, subprocess, sys
+import argparse, os, subprocess, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import CV_MIN_CADENCIA  # noqa: E402
 try:
     import numpy as np
 except ModuleNotFoundError as _e_dep:
@@ -28,7 +30,7 @@ except ModuleNotFoundError as _e_dep:
 
 STILL_THRESH = 0.5     # diff media (0-255, a 320px) bajo la cual el cuadro es "quieto"
 BIG_THRESH = 8.0       # diff media que cuenta como "cambio grande"
-CV_MIN = 0.25          # coeficiente de variación mínimo de duraciones de toma
+CV_MIN = CV_MIN_CADENCIA   # coeficiente de variación mínimo de duraciones de toma (fuente: _comun)
 STILL_MIN = 0.25       # fracción mínima de cuadros quietos
 QUIET_STRETCH_MIN = 1.0  # segundos de la pausa más larga requerida
 BURST_WIN = 1.5        # ventana de ráfaga en segundos

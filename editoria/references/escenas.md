@@ -249,7 +249,7 @@ Bento). `rotulo?`, `items[{icono?, titulo, texto, acento?, at?}]`, `pie?`,
 
 **`buscador`** — Barra de búsqueda estilo Spotlight/Raycast: píldora de cristal con lupa vectorial de acento, cursor intermitente y consulta tipeada en tiempo real (`text_reveal`) + lista de resultados en tarjetas translúcidas con punto indicador y acento opcional. `query`, `resultados[{texto, desc?, acento?}]`, `rotulo?`, `at{rotulo, query, res0..n}`.
 
-**`notificacion`** — Cascada de notificaciones flotantes (estilo iOS/macOS push-down): entran desde arriba con resorte físico y desplazan a las anteriores hacia abajo sin colisión. Cada tarjeta incluye ícono de app, titular en negrita, texto descriptivo en wrap seguro y marca temporal ("ahora", "hace 2 min"). `rotulo?`, `items[{app, titulo, texto, hora?, icono?}]`, `at{rotulo, item0..n}`.
+**`notificacion`** — Cascada de notificaciones flotantes (estilo iOS/macOS push-down): entran desde arriba con resorte físico y desplazan a las anteriores hacia abajo sin colisión. Cada tarjeta incluye ícono de app, titular en negrita, texto descriptivo en wrap seguro y marca temporal ("ahora", "hace 2 min"). `rotulo?`, `items[{app, titulo, texto, hora?, icono?}]`, `at{rotulo, item0..n}`. `icono`: letra(s) del cuadro (default: inicial de `app`); **nunca emoji**: la tipografía del motor no los tiene y salen como cuadro de tofu (`auditar_plan.py` lo avisa como `[emoji]`).
 
 **`comentario`** — Tarjeta de prueba social / testimonio (Tweet / LinkedIn / Review): avatar circular con iniciales automáticas, titular de autor con insignia de verificación ("✓"), usuario/handle secundario, calificación de estrellas interactiva (`estrellas`), cuerpo con wrap y énfasis por palabras (`*...*`), contador animado de me gusta ("❤️ 1.420 Me gusta") y fecha de publicación. `autor`, `usuario?`, `iniciales?`, `verificado?`, `estrellas?`, `texto`, `likes?`, `fecha?`, `rotulo?`, `at{rotulo, card, texto, likes}`.
 
@@ -258,6 +258,37 @@ Bento). `rotulo?`, `items[{icono?, titulo, texto, acento?, at?}]`, `pie?`,
 **`orbita`** — Apertura cinemática tech / IA: núcleo central brillante con pulso y halo gaussiano suave, 3 anillos elípticos de partículas 3D en perspectiva con diferentes inclinaciones y velocidades orbitales continuas, kicker superior en acento, titular central con wrap y acento, y subtítulo descriptivo inferior. `kicker?`, `titulo`, `subtitulo?`, `at{kicker, titulo, subtitulo}`.
 
 **`audiowave`** — Tarjeta de reproductor / interceptación de audio: botón de reproducción, indicador de estado ("REC ● 00:14"), ecualizador visual de barras armónicas multi-frecuencia en vivo, barra de progreso temporal y transcripción subtitulada sincronizada con revelación progresiva. `archivo?`, `hablante?`, `estado?`, `transcripcion?`, `rotulo?`, `at{rotulo, tarjeta, onda, texto}`.
+
+## Qué escena para qué dato
+
+Elegir la escena por la forma del dato y por lo que el plano deja leer, no por
+la que se ve más vistosa. Criterios destilados de la guía de gráficos de
+UI/UX Pro Max (nextlevelbuilder, MIT); los límites de elementos son
+orientativos para video (cada plano vive 3-5 s y el espectador está en un
+teléfono).
+
+| El dato es... | Escena | Úsala cuando | No la uses cuando |
+|---|---|---|---|
+| Comparar categorías por magnitud | `bars` (pocas, verticales) o `ranking` (horizontal; el orden es el mensaje) | el mensaje es «cuál es mayor» o «cuánto más» | hay proporciones de un todo (usa `pie`), o más categorías de las que el plano deja leer (~6 barras, ~8 filas: el resto en «otros» o en un segundo plano) |
+| Parte de un todo | `pie` (dona) | 2-5 porciones con diferencias visibles (menos de 5 % entre porciones no se distingue) | más de 5-6 porciones, o importan los valores exactos (usa `ranking` con los porcentajes) |
+| Un valor frente a una meta | `gauge` | UN indicador con meta o máximo conocidos | no hay meta (usa `stats`) o hay varios KPI a la vez |
+| Cifras sueltas con contexto | `stats` | 1-4 cifras que importan, cada una con su etiqueta y fuente | una sola cifra sin contexto: es un titular (usa `remate`) |
+| Hitos en el tiempo | `timeline` | 3-6 hitos con fecha | una serie continua de muchos puntos |
+| Dos opciones lado a lado | `versus` | dos alternativas con 2-4 atributos | más de dos alternativas (una secuencia de planos) |
+| Pasos de un proceso | `pasos` | 1-5 pasos secuenciales | los pasos no son secuenciales (usa `bento`) |
+| Un plazo o una oferta | `countdown`, `oferta` | el valor es función del tiempo | — |
+
+**No hay escena de línea (tendencia o serie), de embudo ni de dispersión: no
+inventar un `tipo`.** Con menos de 4 puntos, una tendencia es una cifra con su
+delta (`stats`); una serie corta cabe en `bars` por periodo; si la serie es la
+protagonista de la pieza, es composición libre o una escena futura.
+
+Reglas de todo dato: ordenar de mayor a menor salvo que exista un orden
+natural (el tiempo); etiquetas directas en lugar de leyenda; **el color nunca
+es el único código** (etiqueta, posición o forma además); las cifras que
+cuentan llevan su valor exacto en cada frame (`direccion.md`); y el titular
+enuncia el hallazgo, no el tipo de gráfico («Las ventas se duplicaron», no
+«Gráfico de ventas»).
 
 ## Ideas de escenas futuras (NO implementadas — no usar como `tipo`)
 

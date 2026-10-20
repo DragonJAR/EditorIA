@@ -8,6 +8,11 @@ reemplaza el preset, pero siempre se mapea al más cercano para ritmo y estructu
 Elegir el tono en el brief, antes del guion. El tono manda sobre la técnica:
 una pieza "demo técnica" no usa las mismas transiciones que una "parodia".
 
+El tono (energía, voz, ritmo) no es el *modo* de la pieza (persuadir, explicar,
+demostrar o experiencia: para qué le sirve al espectador; ver
+`references/direccion-de-arte.md`). Se eligen los dos: un `demo` puede
+persuadir o explicar, y no pide lo mismo.
+
 ## Presets
 
 ### `demo` — el tono por defecto

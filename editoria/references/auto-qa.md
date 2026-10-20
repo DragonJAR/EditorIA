@@ -84,6 +84,112 @@ derecha): nada propio debe caer bajo las tarjetas.
 - **Coherencia espacial**: `references/coherencia-espacial.md`.
 - **Ritmo**: si se lee como diapositivas → `scripts/verificar_ritmo.py`.
 
+## Crítica por pasadas (mirar antes de medir)
+
+El barrido máquina dice que no se midió nada roto; no dice que la pieza sea
+buena. Esto es cómo se averigua. Se juzga sobre el contact sheet y los frames
+reales, nunca sobre el plan: quien escribió el plan lee en él sus intenciones.
+**Juzga primero, mide después**: la mirada de diseño va antes del reporte de
+detectores, porque la salida determinista ancla el juicio; después se
+sintetizan las dos (dónde coinciden, qué atrapó cada una que la otra no, qué
+detección es un falso positivo). Cada pasada se hace por separado; no se
+mezclan. Método destilado de la crítica de tasteskill (MIT) y de Impeccable
+(Apache 2.0).
+
+1. **Un segundo, luego cinco.** Mirar el frame 0 y el de 1 s, apartar la
+   vista: ¿qué viste? Debe haber UNA respuesta (una palabra, una imagen, un
+   objeto). Si la respuesta es «un video», no hay foco. Luego cinco segundos
+   como extraño: ¿sabes qué es, para quién y qué hacer a continuación?
+2. **Entrecerrar los ojos.** El plano se reduce a dos o tres masas de tamaños
+   claramente distintos. Muchas masas pequeñas parecidas: todo es mediano y
+   nada lidera.
+3. **Cubrir el logo.** ¿Podría ser de un competidor o de otra industria? Si
+   cambiar el nombre y el sustantivo del titular da una pieza igual de válida,
+   no tiene idea (vuelve a `SISTEMA.md`). Y avanzando: ¿la idea llega al cierre
+   o la pieza se vuelve plantilla tras el primer plano?
+4. **Bordes.** Seguir el borde izquierdo de cada bloque de texto a lo largo de
+   la pieza: una pieza compuesta tiene dos o tres posiciones x, reutilizadas a
+   propósito; seis significan colocación una a una.
+5. **Espacio y marco.** Lo relacionado cerca, lo distinto lejos. ¿Hay un hueco
+   accidental (junto a una columna corta, bajo algo que se quitó) en lugar de un
+   descanso decidido? Márgenes iguales a ambos lados; ninguna escena con el
+   texto en una mitad y la otra vacía; ningún tramo vacío de más de la mitad
+   del alto. Es lo primero que nombra un espectador («está pegado a un lado»,
+   «espacio vacío al azar»).
+6. **Tipografía.** ¿Salto decisivo entre texto y titular (3× o más)? ¿Más de
+   cinco tamaños? ¿Algún titular con una palabra huérfana? ¿Subtítulos de más de
+   dos líneas?
+7. **Color.** Nombrar las proporciones: qué color ocupa más superficie, cuál
+   apoya, dónde está el acento. Un acento en diez sitios no significa nada; en
+   la acción y un detalle significa «aquí».
+8. **Imagen.** ¿Hay material real del sujeto? ¿Cada imagen hace un trabajo
+   (muestra la cosa, sitúa el lugar, prueba la afirmación)? ¿Mismos recortes y
+   un solo tratamiento, o un mix de stock? ¿Algo es una caja gris, una foto
+   estirada o un dashboard de barras de relleno?
+9. **Igualdad.** Una palabra por escena para su composición (dividida, lista, a
+   sangre, cuadrícula, declaración...). La misma palabra dos veces seguidas o
+   tres en la pieza es la plantilla asomando (`escena-repetida`).
+10. **Teléfono.** Mirar el frame a tamaño de teléfono y dentro de la zona
+    segura de la plataforma (`--safe`): ¿composición propia o el 16:9
+    apretado? ¿el primer plano sigue siendo una sola cosa clara?
+11. **Plenitud.** Pasar los frames de uno en uno: ¿cada uno es un póster
+    compuesto o una columna pequeña con suelo muerto a los lados? Una pieza
+    austera no es una pieza contenida: si podría confundirse con un wireframe
+    sin terminar (formas grises, texto gris, una columna), está incompleta. Un
+    único motivo agrandado a toda la pantalla sin nada que leer también es un
+    agujero, por audaz que parezca.
+12. **Sustancia.** ¿Cada escena que pidió el brief entrega su información
+    completa y a tamaño legible? ¿El espectador sale sabiendo lo que venía a
+    saber? ¿La acción principal está en pantalla el tiempo suficiente?
+13. **Colisiones.** ¿Algo pisa un titular, una cifra o un botón en algún
+    instante? ¿Algo se sale del borde?
+14. **Competidor y momento firma.** Poner el nombre del competidor más cercano:
+    ¿la idea aún funciona? Nombrar el momento firma. Si cualquiera de las dos
+    respuestas es débil, es el primer problema de la ronda, antes que cualquier
+    detalle.
+15. **Pico y final.** Los espectadores recuerdan el punto más intenso y el
+    cierre (regla pico-final; el arco y la resonancia final, en `dramaturgia.md`):
+    ¿hay un pico recordable y un final que se sostiene como imagen? ¿Hay
+    valles emocionales sin consuelo?
+
+Una pieza más rica con recursos de plantilla le ganó siempre, en las pruebas
+ciegas de tasteskill con páginas web, a una más limpia pero delgada: las
+pasadas 11-13 son donde se comprueba que la pieza no perdió su sustancia al
+perder sus tells (`direccion-de-arte.md`).
+
+**Escribir la crítica**, no solo pensarla, con esta forma para poder comparar
+rondas:
+
+```
+RONDA n
+Visto en un segundo: …
+Idea (una frase): …
+Momento firma: …
+Composición por escena (una palabra cada una): …
+Puntuación (rubrica-premios.md): … · Topes aplicados: …
+Tres problemas principales (el más visible primero), cada uno con el frame donde se ve y el arreglo:
+1. …
+2. …
+3. …
+```
+
+Los problemas se nombran como los nombra un diseñador a un colega: «el apoyo
+de la escena 3 arranca 40 px a la izquierda del borde del titular», «el
+testimonio es la tercera composición dividida seguida». «Podría pulirse» no es
+un hallazgo.
+
+**Qué arreglar primero** (lo posterior no rescata lo anterior): la idea →
+la jerarquía (un elemento dominante por plano) → la composición → la
+tipografía → la imagen → el color → el detalle → el movimiento. Cuando quitar
+algo deja un hueco, no se rellena con un adorno: se cierra el hueco, se agranda
+lo que queda, o una imagen o un campo de color toma el espacio. Cada arreglo es
+una pasada con alcance (`references/pasadas.md`).
+
+**Cuándo parar**: máximo tres rondas (crítica → arreglar los tres primeros →
+re-verificar → crítica). Antes si una ronda no encuentra nada que un extraño
+notaría. Si la tercera sigue bajo el listón (media < 4.3), se dice claro con los
+problemas pendientes; no se redondea hacia arriba.
+
 ## Reglas del loop
 
 - Ningún video se entrega con defectos máquina sin descartar.

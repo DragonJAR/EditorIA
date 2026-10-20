@@ -16,6 +16,8 @@ festival de cine — cada frame intencional, nada decorativo, nada accidental.
 - Un solo sistema tipográfico: una familia para titulares, una para texto,
   una monoespaciada para kickers/datos. Kickers siempre en mayúsculas con
   letterspacing. (Sin pack: Plus Jakarta Sans / Montserrat, empaquetadas.)
+  El kicker es la firma del sistema, no un adorno para cada plano: el reflejo
+  de un rótulo sobre toda escena es un tell (`direccion-de-arte.md`).
 - Un solo sistema de componentes: badges, píldoras, tarjetas con radio
   consistente, iconografía geométrica simple. No mezclar estilos dentro del
   mismo video.

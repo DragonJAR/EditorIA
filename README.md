@@ -1,7 +1,7 @@
 # EditorIA
 
 [![Licencia](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Versión](https://img.shields.io/badge/version-1.8.0-green.svg)](editoria/SKILL.md)
+[![Versión](https://img.shields.io/badge/version-1.9.0-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Plataformas](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#instalación)
 
@@ -24,6 +24,8 @@ EditorIA convierte un agente en un editor de video completo. Puede:
 - **Clonar o adaptar un video de referencia** (método inspirado en Hypit): ingesta por archivo o enlace (`clonar_video.py analizar` / `referencia.py`, yt-dlp), transcripción con tiempo por palabra, mosaicos con las palabras dichas bajo cada cuadro (`contact_sheet.py --palabras --alrededor "frase"`), memoria del proyecto (`proyecto.py`: BRIEF, TRATAMIENTO, PROGRESO, TIMELINE) y lentes de transformación (`references/referencia-video.md`); variantes con `clonar_video.py variar`.
 - **Formatos**: podcast de dos, entrevista callejera, ranking, talking head, explainer con presentador, narración y drama corto (`references/formatos.md`), con pantalla dividida (`montaje.py dividir`) y subtítulos coloreados por hablante (`caption.py --hablantes`).
 - **Duración de voz por sílabas** antes de pagar TTS (`speech_estimate.py`: cifras dichas como palabras, es/en, calibrable con una voz real), fuente única de `auditar_plan.py`.
+- **Dirección de arte en vez de defaults**: `direccion_arte.py` reparte 3 direcciones de una biblioteca (paleta con contraste WCAG verificado, tipografías, personalidad de movimiento, escenas afines, qué evitar), el agente elige la que lleve algo que solo el sujeto tiene (prueba del competidor) y `elegir` escribe `SISTEMA.md` + un style pack usable con `--brand`. `auditar_plan.py` avisa de los «tells» de pieza generada (jerga, emoji como icono, placeholders, prueba inventada, escenas repetidas, metrónomo). Proceso en `references/direccion-de-arte.md`.
+- **Pasadas de refinamiento con alcance** (más audaz, más calmo, destilar, pulir, animar, adaptar...) y **crítica por quince pasadas** con topes en la rúbrica: se mira antes de medir (`references/pasadas.md`, `references/auto-qa.md`).
 - **Remotion opcional** (Node 22+, React 19) cuando se necesita animación HTML/CSS/JS programática.
 - **HyperFrames opcional** (Node 22+) para plantillas HTML deterministas.
 
@@ -267,6 +269,8 @@ EditorIA/
 │   │   ├── referencia.py              # Ingesta de referencias (archivo o enlace)
 │   │   ├── clonar_video.py            # Analizar y variar videos de referencia
 │   │   ├── proyecto.py                # Memoria del proyecto (brief, tratamiento, progreso)
+│   │   ├── direccion_arte.py          # Repartir, elegir y verificar la dirección visual
+│   │   ├── data/direcciones.json      # Biblioteca de 17 direcciones de arte
 │   │   ├── film_marca.py              # Film cinematográfico v1
 │   │   ├── film_marca_v2.py           # Film cinematográfico v2
 │   │   ├── _film.py                   # Utilidades compartidas de films
@@ -279,7 +283,9 @@ EditorIA/
 │   │   │   ├── test_core_and_scenes.py
 │   │   │   ├── test_speech_estimate_cifras.py
 │   │   │   ├── test_caption_hablantes.py
-│   │   │   └── test_referencia.py
+│   │   │   ├── test_referencia.py
+│   │   │   ├── test_beat_secciones.py
+│   │   │   └── test_direccion_arte.py
 │   │   └── ffmpeg_tools/              # 19 módulos de post-producción
 │   │       ├── montaje.py             # 19 operaciones de edición
 │   │       ├── caption.py             # Subtítulos burn-in y karaoke
@@ -315,6 +321,8 @@ EditorIA/
 │   │   ├── montaje.md                 # 19 operaciones
 │   │   ├── referencia-video.md        # Clonar/adaptar una referencia
 │   │   ├── formatos.md                # Qué sostiene cada formato
+│   │   ├── direccion-de-arte.md       # Idea del sujeto, modos, direcciones repartidas, tells
+│   │   ├── pasadas.md                 # Refinamientos con alcance
 │   │   ├── cine.md                    # Recetas cinematográficas
 │   │   ├── modos-rapidos.md           # Quick recipes (kinetic, montage, cut)
 │   │   ├── modos-produccion.md        # Modos real / animado / híbrido
@@ -413,6 +421,16 @@ Las contribuciones son bienvenidas. Áreas que necesitan expansión:
 - **Voice roster** (`scripts/voz_off.py VOCES`): añade voces ElevenLabs para nuevos idiomas
 - **Brand packs** (`brand/`): nuevos packs de ejemplo
 - **Validator** (`scripts/validate_skill.py`): nuevos checks de calidad
+
+## 🙏 Créditos y fuentes
+
+EditorIA destila métodos de proyectos abiertos y los reescribe para video con
+sus propias herramientas (no copia su código):
+
+- [Hypit](https://github.com/hypit-ai/hypit): lectura de referencias, memoria del proyecto, formatos y estimación de voz (licencia propia con condiciones; solo se tomaron ideas).
+- [tasteskill](https://github.com/Leonxlnx/taste-skill) (MIT): direcciones repartidas, idea desde el sujeto, registro de tells y crítica por pasadas.
+- [Impeccable](https://github.com/pbakaus/impeccable) (Apache 2.0): refinamientos con alcance, suelo de oficio y evaluación independiente de juicio y detector.
+- [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT): criterios de elección de gráfico, razonamiento por sector y contraste.
 
 ## 📄 Licencia
 

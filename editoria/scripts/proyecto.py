@@ -7,6 +7,7 @@ nada ni volver a pagar TTS (references/referencia-video.md).
   ├── BRIEF.md          lo que el usuario pidió: objetivo, hechos, límites, presupuesto acordado
   ├── TRATAMIENTO.md    tu respuesta creativa: premisa, arco, sistemas visuales y sonoros
   ├── PROGRESO.md       foto del ahora: pregunta viva, lo que falta, siguiente acción, renders útiles
+  │                     (SISTEMA.md —las decisiones visuales durables— lo escribe direccion_arte.py elegir)
   └── referencias/
       └── {nombre}/
           ├── TIMELINE.md   qué pasa cuándo y qué hace por el espectador
@@ -150,6 +151,10 @@ def main():
     for r in creados:
         print(f"creado {r}")
     print(f"OK proyecto en {raiz} ({len(creados)} archivo(s) nuevo(s); los existentes no se tocan)")
+    if not os.path.exists(os.path.join(raiz, "SISTEMA.md")):
+        print("Dirección de arte (references/direccion-de-arte.md): reparte y elige antes de escribir el plan:")
+        print(f"  python3 {os.path.join(KIT, 'direccion_arte.py')} repartir --brief \"...\" --sector S --tono T --modo M")
+        print(f"  python3 {os.path.join(KIT, 'direccion_arte.py')} elegir ID --out {raiz}")
     if pasos:
         print("Siguientes pasos para leer la referencia (references/referencia-video.md):")
         for p in pasos:

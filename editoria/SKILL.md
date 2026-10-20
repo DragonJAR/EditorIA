@@ -1,11 +1,11 @@
 ---
 name: editoria
-description: 'Creates, edits, summarizes, and improves videos (.mp4, .mov, .webm, .srt) including animated meeting summaries, kinetic typography, plan-driven ads, cinematic films, and vertical social clips for any brand or in free mode. Use when the user asks to "make me a video", "summarize this meeting", "edit this ad", "improve this video", "create a reel", "make one like this video", or "add music to it". Do NOT use for static images, text-only PDF summaries, or document editing.'
+description: 'Creates, edits, summarizes, and improves videos (.mp4, .mov, .webm, .srt) including animated meeting summaries, kinetic typography, plan-driven ads, cinematic films, and vertical social clips for any brand or in free mode. Use when the user asks to "make me a video", "summarize this meeting", "edit this ad", "improve this video", "create a reel", "make one like this video", "make it bolder", or "add music to it". Do NOT use for static images, text-only PDF summaries, or document editing.'
 license: MIT
 compatibility: 'Python 3.9+, FFmpeg, Pillow, NumPy; optional ElevenLabs API and Node 18+ for Remotion or HyperFrames'
 metadata:
   author: Jaime Andrés Restrepo
-  version: 1.8.0
+  version: 1.9.0
   category: video-editing
   tags: [video-editing, motion-graphics, ffmpeg, animation]
 ---
@@ -43,6 +43,8 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
 | "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
 | Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
+| New piece with no brand pack, or a piece that looks generic / "AI-made" | **Art direction**: Step 2 + `references/direccion-de-arte.md` (idea from the subject, dealt directions, tells registry) |
+| "Make it bolder / calmer / simpler", polish, animate, retype, recolor, adapt | **Passes**: `references/pasadas.md` (scoped refinements that change only what was named) |
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
 | Complex programmatic animation | **Remotion** (optional): `references/remotion.md` |
 | Deterministic HTML piece or data re-render | **HyperFrames** (optional): `references/hyperframes.md` |
@@ -64,6 +66,8 @@ Expected output: `ENTORNO LISTO` (or a clear diagnostic listing any missing opti
 
 ### Step 2: Author and Audit the Declarative Plan
 
+Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "..." --sector S --tono T --modo M --tiene fotos capturas` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (a style pack usable with `--brand`). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
+
 Write `plan.json` following `references/plan-video.md` (36 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
 
 ```bash
@@ -71,7 +75,7 @@ python scripts/auditar_plan.py plan.json
 python scripts/speech_estimate.py plan.json
 ```
 
-Expected output: `PLAN VALIDO` with zero overlapping voice segments or missing required scene fields.
+Expected output: `PLAN VALIDO` with zero overlapping voice segments or missing required scene fields. `auditar_plan.py` also warns about generated-look tells (marketing jargon, emoji as icons, placeholders, uncited social proof, long headlines, repeated scenes, uniform cadence); a deliberate exception is declared in the plan's `tells_ok`.
 
 ### Step 3: Render Video with Fluidity Motor
 
@@ -99,7 +103,7 @@ Expected output: `final.mp4` with voice on top and music ducked ~15 dB under act
 
 ### Step 5: Run Quality Assurance and Verify Delivery
 
-Run automated QA (`references/auto-qa.md`, `references/checklist-qa.md`, `references/coherencia-espacial.md`), verify rhythm (`references/ritmo.md`), score against the 8-axis awards rubric (`references/rubrica-premios.md`), and validate platform compliance.
+Run automated QA (`references/auto-qa.md`, `references/checklist-qa.md`, `references/coherencia-espacial.md`), verify rhythm (`references/ritmo.md`), score against the 8-axis awards rubric with its caps (`references/rubrica-premios.md`), and validate platform compliance. Judge the frames first and read the detector reports after (the fifteen looking passes in `references/auto-qa.md`); fix each finding with a scoped pass (`references/pasadas.md`) rather than touching the render with a vague note.
 
 ```bash
 python scripts/auto_qa.py final.mp4
@@ -139,7 +143,7 @@ When the user brings a video (file or link) and wants "one like this" (`referenc
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (36/36 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_referencia.py` and `scripts/_tests/test_beat_secciones.py` pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (36/36 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_referencia.py`, `scripts/_tests/test_beat_secciones.py` and `scripts/_tests/test_direccion_arte.py` pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 
@@ -205,6 +209,8 @@ Should trigger:
 - "create a brand bumper"
 - "make one like this video, but for my product"
 - "turn this podcast into a split-screen clip with colored captions"
+- "this video looks generic, make it feel designed"
+- "make this scene bolder but keep everything else"
 
 Should NOT trigger:
 

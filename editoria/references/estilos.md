@@ -113,6 +113,13 @@ logos y tipografías del pack; lo que cambia es la personalidad de movimiento
 y el lenguaje gráfico (ej. con un mismo pack, una pieza de comunidad puede ser
 más juguetona en motion que un film de marca).
 
+`scripts/direccion_arte.py` formaliza este paso: reparte direcciones ya
+escritas como style packs (paleta con contraste verificado, tipografías
+empaquetadas, personalidad de movimiento, escenas afines, qué evitar) y
+`elegir` escribe `SISTEMA.md` (las decisiones durables del proyecto) y
+`estilo.json` (un pack usable con `--brand`). Es estilo, no marca: con brand
+pack manda el pack. Proceso y registro de tells: `references/direccion-de-arte.md`.
+
 ## 7. Mapeo de sistemas de diseño reales (`styles.refero.design` / `DESIGN.md`) a EditorIA
 
 Cuando el usuario pida el look de un producto real o entregue un archivo

@@ -586,6 +586,33 @@ def hex_a_rgb(value: str) -> Tuple[int, int, int]:
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
+# Cadencia (references/ritmo.md, falla 1): coeficiente de variación mínimo de las
+# duraciones de toma. Debajo, la pieza es un metrónomo. Fuente única: la usan
+# verificar_ritmo.py (sobre el video) y auditar_plan.py (sobre el plan).
+CV_MIN_CADENCIA = 0.25
+
+
+def _como_rgb(c) -> Tuple[int, int, int]:
+    return hex_a_rgb(c) if isinstance(c, str) else tuple(int(v) for v in c[:3])
+
+
+def luminancia(color) -> float:
+    """Luminancia relativa WCAG 2.x (0 negro .. 1 blanco) de '#RRGGBB' o (r,g,b)."""
+    def lin(v: int) -> float:
+        s = v / 255.0
+        return s / 12.92 if s <= 0.03928 else ((s + 0.055) / 1.055) ** 2.4
+    r, g, b = (lin(v) for v in _como_rgb(color))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contraste(a, b) -> float:
+    """Relación de contraste WCAG entre dos colores (1.0 igual .. 21.0 negro/blanco).
+    Piso: texto 4.5:1, texto grande y acentos 3:1 (references/checklist-qa.md)."""
+    la, lb = luminancia(a), luminancia(b)
+    hi, lo = max(la, lb), min(la, lb)
+    return (hi + 0.05) / (lo + 0.05)
+
+
 # ---------- identidad: modo libre por defecto, el brand pack solo si se pide ----------
 # Paleta NEUTRA (modo libre): la usan todas las herramientas cuando el usuario
 # no nombró una marca. Ninguna marca concreta vive en el código; sus valores
