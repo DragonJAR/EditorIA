@@ -1,18 +1,28 @@
-# Whitelist: solo SKILL/ y los dos README van al repositorio.
+# Whitelist: solo editoria/ (nombre kebab-case exacto de la skill) y los README de repositorio van a git.
 # Todo lo demás (VIDEOS/, temporales, etc.) se ignora.
 /*
 !/.gitignore
-!/SKILL/
+!/LICENSE
+!/editoria/
 !/README.md
 !/README.en.md
-!/RSI_LOG.md
 
-# Dentro de SKILL/: nunca secretos ni basura generada
-SKILL/**/.env
-SKILL/**/.env.*
-SKILL/**/*.key
-SKILL/**/*.pem
-SKILL/**/__pycache__/
-SKILL/**/*.pyc
-SKILL/**/node_modules/
-SKILL/**/.DS_Store
+# Registros y logs locales nunca se publican al remoto
+RSI_LOG*
+RSI_LOG.md
+RSI_LOG_baseline.txt
+
+# Dentro de editoria/: nunca secretos, zips ni basura generada
+editoria/**/.env
+editoria/**/.env.*
+editoria/**/*.key
+editoria/**/*.pem
+editoria/**/__pycache__/
+editoria/**/*.pyc
+editoria/**/node_modules/
+editoria/**/.DS_Store
+editoria/**/*.zip
+editoria/**/.ruff_cache/
+editoria/**/.pytest_cache/
+editoria/**/*.log
+editoria/**/*.tmp

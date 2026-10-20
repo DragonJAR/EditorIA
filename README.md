@@ -1,7 +1,7 @@
 # EditorIA
 
 [![Licencia](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Versión](https://img.shields.io/badge/version-1.5.0-green.svg)](SKILL/SKILL.md)
+[![Versión](https://img.shields.io/badge/version-1.7.0-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Plataformas](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#instalación)
 
@@ -14,9 +14,9 @@
 
 EditorIA convierte un agente en un editor de video completo. Puede:
 
-- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con 28 tipos — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior` (13 originales de ad-explainers) más `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos` (15 unificadas de fuentes MIT validadas).
-- **Componer visualmente**: escena con `-datos` (CSV), escena sobre plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto, alfa overlay y rotación.
-- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 6 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`) que componen las 28 escenas.
+- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con 36 tipos — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita` y `audiowave`.
+- **Componer visualmente**: escena con `--datos` (CSV), escena sobre plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto, alfa overlay y rotación.
+- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 17 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 36 escenas.
 - **Voz en off y música con IA**: ElevenLabs TTS con cache content-addressed, música con ducking sidechain, alineación palabra-a-palabra (`alinear.py`) sobre Whisper local (whisper.cpp / faster-whisper / openai-whisper en cascada).
 - **Brand packs marca-blanca**: la identidad vive en `brand/*.json` (DragonJAR incluido como ejemplo). Sin pack, modo libre con criterio cinematográfico puro. Nunca identidad hardcoded en el código.
 - **QA automatizado**: máquina (`auto_qa.py` detecta negros, congelados, flashes, audio) + revisor visual del agente sobre contact sheet. Rúbrica de premios de 8 ejes (ninguno bajo 4/5).
@@ -28,27 +28,27 @@ EditorIA convierte un agente en un editor de video completo. Puede:
 
 ## 📦 Instalación
 
-### Opción 1 — Clonar al directorio de skills
+> **Por qué la skill vive en `editoria/` y no en la raíz del repo (`Skill-for-Claude.txt`)**: la guía oficial de Claude prohíbe incluir `README.md` dentro de la carpeta de la skill y exige que la carpeta se llame exactamente como `name: editoria` en `kebab-case` sin mayúsculas. Por eso el repositorio raíz (`EditorIA/`) contiene los README de GitHub y la carpeta lista para instalar es `editoria/` (y su paquete `editoria.zip`).
 
-```bash
-# Para Claude Code / OpenCode
-cd ~/.agents/skills/
-git clone https://github.com/DragonJAR/EditorIA editoria
+### Opción 1 — Subir a Claude.ai (ZIP listo)
 
-# Para otros agentes, adapta al path de skills correspondiente
-```
+1. Abre **Claude.ai > Settings > Capabilities > Skills**.
+2. Haz clic en **Upload skill** y selecciona `editoria.zip` (o comprime la carpeta `editoria/`).
 
-### Opción 2 — Instalar globalmente
+### Opción 2 — Instalar en Claude Code / OpenCode
 
 ```bash
 git clone https://github.com/DragonJAR/EditorIA.git
-# La skill vive en SKILL/. Apunta el path de tu agente allí.
+mkdir -p ~/.claude/skills/
+cp -R EditorIA/editoria ~/.claude/skills/editoria
+# Para OpenCode / ~/.agents:
+# mkdir -p ~/.agents/skills/ && cp -R EditorIA/editoria ~/.agents/skills/editoria
 ```
 
 ### Verificación
 
 ```bash
-python3 SKILL/scripts/check_env.py
+python3 editoria/scripts/check_env.py
 ```
 
 Salida esperada: `ENTORNO LISTO`. Si falta algo crítico, el script lo reporta y sugiere el fix.
@@ -66,7 +66,7 @@ Salida esperada: `ENTORNO LISTO`. Si falta algo crítico, el script lo reporta y
 | Remotion 4 | opcional | Animación HTML/CSS/JS programática (requiere Node 22+, React 19) |
 | HyperFrames | opcional | Plantillas HTML deterministas (requiere Node 22+) |
 
-Instalación detallada por SO: `SKILL/references/instalacion.md`.
+Instalación detallada por SO: `editoria/references/instalacion.md`.
 
 ## 🎬 Ejemplos de uso
 
@@ -151,12 +151,12 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 
 | Capacidad | Descripción |
 |---|---|
-| Plan declarativo | `plan.json` con 28 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
-| Catálogo unificado | 28 escenas compuestas con primitivas DRY (cero lógica duplicada) |
+| Plan declarativo | `plan.json` con 36 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
+| Catálogo unificado | 36 escenas compuestas con 17 primitivas DRY (cero lógica duplicada) |
 | `--blur 5` | Motion blur de obturador 180° en la entrega final |
 | `--force` | Re-renderiza todo (sin él retoma donde iba) |
 | `--datos` | CSV-driven (auto-fit de fuente, wrap, line break) |
-| `--jobs N` | Render multi-thread |
+| `--jobs N` | Render multi-proceso con fallback automático en sandboxes |
 | `mancha`-friendly | Resume incremental de renders interrumpidos |
 | `-r` aicolor | Color BT.709 exacto, no BT.601 |
 | Safe zone | `vela:` recorte para Reels dimensiones / Safe zones por plataforma |
@@ -217,66 +217,71 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 
 ```
 EditorIA/
-├── README.md                          # Este archivo
+├── README.md                          # Este archivo (Español)
 ├── README.en.md                       # English version
-├── LICENSE                             # MIT
-├── SKILL/                             # Contenido de la skill (todo aquí)
-│   ├── SKILL.md                       # Definición + Language Rule + selector
-│   ├── scripts/                       # 25 motores raíz + 19 en ffmpeg_tools/
-│   │   ├── render_plan.py             # Motor principal de render por plan
+├── LICENSE                            # MIT
+├── editoria.zip                       # Paquete listo para subir a Claude.ai
+├── editoria/                          # Carpeta de la skill (kebab-case == name: editoria)
+│   ├── SKILL.md                       # Definición + frontmatter YAML + flujo principal
+│   ├── scripts/                       # 25 motores raíz + 19 en ffmpeg_tools/ + 2 en _tests/
+│   │   ├── render_plan.py             # Motor principal de render por plan (36 escenas)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
 │   │   ├── alinear.py                 # Word-level voice alignment (Whisper)
 │   │   ├── check_env.py               # Preflight (valida el entorno)
 │   │   ├── auto_qa.py                 # QA máquina
 │   │   ├── contact_sheet.py           # Contact sheet filmstrip
-│   │   ├── medir_animacion.py          # Métricas de animación (9 ejes)
+│   │   ├── medir_animacion.py         # Métricas de animación (9 ejes)
 │   │   ├── medir_mezcla.py            # QA numérico del ducking
 │   │   ├── verificar_ritmo.py         # Anti-slideshow
 │   │   ├── poster_frame.py            # Frame 0 poster
 │   │   ├── sfx.py                     # SFX procedural (9 tipos)
-│   │   ├── beat_grid.py                # Beat detection
+│   │   ├── beat_grid.py               # Beat detection
 │   │   ├── beat_sync.py               # Cortar en beats
 │   │   ├── beat_file.py               # Bajo nivel para audio
 │   │   ├── chapters.py                # YouTube chapters
-│   │   ├── sfx.py                     # (ver arriba)
-│   │   ├── audio_viz.py               # Waveform visualization
-│   │   ├── retakes.py                  # Detección de false starts
-│   │   ├── registrar_aprendizaje.py   # Log de learnings (RSI)
+│   │   ├── audio_viz.py               # Waveform visualization y audiogramas
+│   │   ├── retakes.py                 # Detección de false starts
+│   │   ├── registrar_aprendizaje.py   # Log de learnings
 │   │   ├── auditar_plan.py            # Audita un plan.json
-│   │   ├── scripts/                   # (legacy, mantener)
-│   │   ├── ffmpeg_tools/              # 19 módulos de post-producción
-│   │   │   ├── montaje.py             # 18 operaciones de edición
-│   │   │   ├── caption.py             # Subtítulos burn-in
-│   │   │   ├── grade.py               # Color grading + presets
-│   │   │   ├── loudness.py            # -14 LUFS / -1.5 dBTP
-│   │   │   ├── delivery_check.py      # Verificar plataforma
-│   │   │   ├── alinear.py             # (igual a raíz)
-│   │   │   ├── aplicar_edl.py         # EDL → MP4
-│   │   │   ├── shorts_plan.py         # Generar shorts verticales
-│   │   │   ├── grade.py               # (igual al upper)
-│   │   │   ├── caption.py             # (igual al upper)
-│   │   │   ├── beat_grid.py           # (igual al upper)
-│   │   │   ├── beat_sync.py           # (igual al upper)
-│   │   │   ├── chapters.py            # (igual al upper)
-│   │   │   ├── thumbnail.py           # Thumbnail con tipografía
-│   │   │   ├── verticalizar.py        # Vertical desde horizontal
-│   │   │   ├── artesanal.py           # Modo artesanal (cards + imágenes)
-│   │   │   ├── scenes.py              # Editor de escenas
-│   │   │   ├── variants.py            # Variantes (diferentes aspect ratios)
-│   │   │   ├── look.py                # Look LUT
-│   │   │   ├── speedramp.py           # Time-lapse
-│   │   │   ├── silencio.py            # Quitar silencios
-│   │   │   ├── _comun.py              # Helpers DRY compartidos
-│   │   │   └── _plataforma.py         # Abstracciones de SO
-│   │   └── validate_skill.py          # Validador de la skill
-│   ├── references/                    # 45 referencias
+│   │   ├── film_marca.py              # Film cinematográfico v1
+│   │   ├── film_marca_v2.py           # Film cinematográfico v2
+│   │   ├── _film.py                   # Utilidades compartidas de films
+│   │   ├── galeria.py                 # Suite visual de las 36 escenas
+│   │   ├── validate_skill.py          # Validador determinista de la skill
+│   │   ├── demo_plan.json             # Plan de ejemplo
+│   │   ├── escenas_muestra.json       # Muestras canónicas de las 36 escenas
+│   │   ├── _tests/                    # Suite de tests unitarios (unittest)
+│   │   │   ├── test_chapters.py
+│   │   │   └── test_core_and_scenes.py
+│   │   └── ffmpeg_tools/              # 19 módulos de post-producción
+│   │       ├── montaje.py             # 18 operaciones de edición
+│   │       ├── caption.py             # Subtítulos burn-in y karaoke
+│   │       ├── grade.py               # Color grading + presets
+│   │       ├── loudness.py            # -14 LUFS / -1.5 dBTP
+│   │       ├── delivery_check.py      # Verificar plataforma
+│   │       ├── _delivery.py           # Tabla de especificaciones por plataforma
+│   │       ├── aplicar_edl.py         # EDL → MP4
+│   │       ├── shorts_plan.py         # Generar shorts verticales
+│   │       ├── thumbnail.py           # Thumbnail con tipografía
+│   │       ├── verticalizar.py        # Vertical desde horizontal
+│   │       ├── artesanal.py           # Acabado táctil (grano, papel, parpadeo)
+│   │       ├── scenes.py              # Detección de escenas
+│   │       ├── variantes.py           # Variantes hook × body para A/B
+│   │       ├── look.py                # Contact sheets para QA
+│   │       ├── speedramp.py           # Rampas de velocidad
+│   │       ├── silence.py             # Quitar silencios
+│   │       ├── transcribir.py         # ASR local → SRT + JSON
+│   │       ├── _comun.py              # Helpers DRY compartidos
+│   │       └── _plataforma.py         # Abstracciones de SO
+│   ├── references/                    # 45 referencias en kebab-case.md
 │   │   ├── instalacion.md             # Por SO (Win/macOS/Linux)
-│   │   ├── escenas.md                 # Catálogo de 28 escenas
+│   │   ├── escenas.md                 # Catálogo de 36 escenas
 │   │   ├── escenas-extendidas.md      # Conceptos portables
 │   │   ├── plan-video.md              # Schema del plan.json
+│   │   ├── shorts-plan-schema.md      # Schema del shorts-plan.json
 │   │   ├── estilos.md                 # Catálogo de estilos visuales
-│   │   ├── tecnicas-video.md          # Catálogo 2025-2026 de técnicas (FRESH/STANDARD/TIRED)
+│   │   ├── tecnicas-video.md          # Catálogo 2025-2026 de técnicas
 │   │   ├── scoring-shorts.md          # Rúbrica de selección de momentos
 │   │   ├── fluidez.md                 # Reglas de fluidez
 │   │   ├── animacion.md               # Oficio de animación (12 principios)
@@ -284,56 +289,49 @@ EditorIA/
 │   │   ├── montaje.md                 # 18 operaciones
 │   │   ├── cine.md                    # Recetas cinematográficas
 │   │   ├── modos-rapidos.md           # Quick recipes (kinetic, montage, cut)
-│   │   ├── modos-produccion.md        # Modos Real / producto / hybrid
+│   │   ├── modos-produccion.md        # Modos real / animado / híbrido
 │   │   ├── brand-packs.md             # Spec del brand pack
 │   │   ├── pipeline-resumen.md        # Pipeline de resumen
-│   │   ├── sound.md / sonido.md       # Diseño sonoro
-│   │   ├── tonos.md / tonos.md        # 6 tonos (demo, resumen, trailer, parodia, caos)
-│   │   ├── musica.md                   # Música de fondo
+│   │   ├── sonido.md                  # Diseño sonoro y voces TTS
+│   │   ├── tonos.md                   # 6 tonos (demo, resumen, anuncio, trailer, parodia, caos)
 │   │   ├── audio.md                   # Beat grid + SFX
-│   │   ├── sfx.md                      # Doctrina SFX (tono→energía, momento→sonido, timing)
+│   │   ├── sfx.md                     # Doctrina SFX
 │   │   ├── thumbnails.md              # Thumbnails conceptuales
 │   │   ├── share-copy.md              # Caption canónico
-│   │   ├── principios.md              # 3 pilares: coherencia, armonía, efectos deslumbrantes
-│   │   ├── directión.md / direccion.md # Dirección con métricas
-│   │   ├── dramaturgia.md             # Estructura de fábula
+│   │   ├── principios.md              # 3 pilares visuales
+│   │   ├── direccion.md               # Dirección con métricas
+│   │   ├── dramaturgia.md             # Estructura dramática
 │   │   ├── ritmo.md                   # Anti-slideshow
 │   │   ├── checklist-qa.md            # QA checklist
 │   │   ├── auto-mejora.md             # Protocolo de self-improvement
 │   │   ├── auto-qa.md                 # Loop de QA
 │   │   ├── lecciones-produccion.md    # Lecciones del sistema original
+│   │   ├── reglas-tecnicas.md         # Reglas técnicas de render y composición
+│   │   ├── capacidades.md             # Inventario de capacidades y fallbacks
 │   │   ├── remotion.md                # Integración Remotion (opcional)
 │   │   ├── hyperframes.md             # Integración HyperFrames (opcional)
-│   │   ├── prompt-motion-graphics.md  # Prompts verbatim para motion graphics
-│   │   ├── recetas-ai-video.md        # Recetas de IA (2 comentarios)
-│   │   ├── scoring-shorts.md          # (ver arriba)
+│   │   ├── prompt-motion-graphics.md  # Prompts para motion graphics
+│   │   ├── recetas-ai-video.md        # Recetas operativas de video con IA
 │   │   ├── tecnicas-reutilizables.md  # Técnicas reutilizables
 │   │   ├── cli-contract.md            # Contrato CLI de las herramientas
-│   │   ├── instalacion.md             # (ver arriba)
-│   │   ├── brand-packs.md             # (ver arriba)
-│   │   ├── arquitectura.md              # Mapa de scripts
+│   │   ├── arquitectura.md            # Mapa de scripts
 │   │   ├── i18n.md                    # Política de idioma (Language Rule)
 │   │   ├── media-hard-rules.md        # Mapeo de Hard Rules de media-tooling
 │   │   ├── scene-patterns-from-internet.md # Catálogo de fuentes externas
 │   │   ├── rubrica-premios.md         # Rúbrica de premios 8 ejes
-│   │   ├── video-real.md              # Grabación → post (flujo camera-first)
-│   │   └── thumbnails.png                # Thumbnail sample
-│   ├── references/schemas/             # 2 JSON schemas
-│   │   ├── plan-schema.json
-│   │   └── shorts-plan-schema.json
+│   │   └── video-real.md              # Grabación → post (flujo camera-first)
 │   ├── assets/
 │   │   └── fonts/                     # Plus Jakarta Sans + Montserrat (OFL)
 │   ├── brand/                         # Marca-blanca: packs solo aquí
 │   │   ├── dragonjar.json             # Pack de ejemplo
-│   │   ├── assets/                    # Assets de marca (logos, etc.)
-│   │   └── README.md                  # Cómo crear un pack nuevo
+│   │   └── assets/                    # Assets de marca (logos, etc.)
 │   ├── film/                          # Música de ejemplo para film de marca
 │   │   ├── musica_film.mp3
 │   │   ├── musica_film_v2.mp3
 │   │   └── musica_demo.mp3
-│   └── metricas/                      # Métricas de la skill (RSI)
+│   └── metricas/                      # Métricas de la skill y benchmarks de regresión
 │       └── historial.jsonl
-└── .gitignore                         # Restringe el repo a SKILL/ y READMEs
+└── .gitignore                         # Restringe el repo a editoria/ y READMEs
 ```
 
 ## 🎯 Frases trigger
@@ -353,31 +351,26 @@ La skill se activa cuando el usuario dice:
 - «quiero un bumper de marca» / «I want a brand bumper»
 
 NO debe activarse con: «edita este documento», «mejora este texto»,
-«hazme una imagen», «resume este PDF en texto», «qué video me recomiendas».
+«hazme una imagen», «resume este PDF en texto», «qué cámara de video me recomiendas».
 
-## ⚠️ Limitaciones
+## ⚠️ Limitaciones técnicas
 
-1. **WhatsApp API**: el cliente de WhatsApp Business tiene rate limits; respeta `--cooldown=120` en mensajes.
-2. **Localización ES + client-side hooks**: el bypass es client-side; server-side attestation (Play Integrity, SafetyNet, ApprovRoot) requiere un test tenant autorizado o mock verifier.
-3. **FFmpeg capabilities**: si `libvpx-vp9` o `prores_ks` no están disponibles, el validator avisa pero no falla (es el equipo, no la skill).
-4. **Línea de rojos intencional**: sin librerías externas (Remotion / HyperFrames) se utilizan React+CSS, no dependencias más allá del sistema.
-
-> **Disclaimer**: Esta skill está pensada para uso legítimo. **Nota:** los hooks
-> client-side no falsifican veredictos de attestation server-side. Para ApprovRoot,
-> Play Integrity, SafetyNet, o controles backend-enforced, usa un test tenant
-> autorizado, mock verifier o configuración de laboratorio aprobada.
+1. **Dependencias locales de render**: el motor Python requiere `ffmpeg`/`ffprobe`, `Pillow` y `NumPy` instalados en el intérprete activo (`python3 editoria/scripts/check_env.py` diagnostica cualquier faltante).
+2. **Codecs de transparencia (`libvpx-vp9` / `prores_ks`)**: si el build local de `ffmpeg` no incluye estos encoders, los overlays `.webm` o `.mov` con canal alfa emiten aviso sin afectar los entregables `.mp4` estándar.
+3. **Servicios opcionales de voz, música y transcripción**: la síntesis con ElevenLabs requiere `$ELEVENLABS_API_KEY` en el entorno; la alineación palabra a palabra (`alinear.py`) usa Whisper local si está disponible y cae a distribución proporcional por caracteres/energía cuando no está instalado.
+4. **Motores web opcionales**: Remotion 4 y HyperFrames son opt-in para casos específicos de animación HTML/CSS/React y requieren Node.js 18+/22+.
 
 ## 🔁 Source of truth
 
 Este repositorio (rama `main`) es la **fuente canónica** de la skill. Si
 mantienes copias en directorios de skills (por ejemplo
 `~/.claude/skills/editoria/` o `~/.config/opencode/skills/editoria/`),
-resincronízalas después de un pull:
+resincronízalas desde la subcarpeta `editoria/` después de un pull:
 
 ```bash
 git -C /path/to/EditorIA pull
-rsync -a --delete --exclude '.git' --exclude '__pycache__' --exclude '.pytest_cache' \
-  /path/to/EditorIA/ ~/.claude/skills/editoria/
+rsync -a --delete --exclude '__pycache__' --exclude '.pytest_cache' \
+  /path/to/EditorIA/editoria/ ~/.claude/skills/editoria/
 ```
 
 Las copias no sincronizadas se quedan desactualizadas en silencio.
