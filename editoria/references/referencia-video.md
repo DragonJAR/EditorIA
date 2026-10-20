@@ -148,8 +148,11 @@ Transformarlo en **todas** sus manifestaciones. Lentes útiles:
   (`references/tonos.md`), sin borrar la estructura que funciona;
 - **añadir o quitar un sistema** — redistribuir el trabajo que hacía, no dejar
   un hueco narrativo;
-- **varias referencias** — decir en `TRATAMIENTO.md` qué función viene de
-  cada una; no mezclar todos los detalles de superficie.
+- **varias referencias** — pocas y complementarias, cada una con UN rol
+  escrito en `TRATAMIENTO.md` (ej.: A = tipografía y lettering, B =
+  transiciones y ritmo, C = color y composición); se toma de cada una su
+  técnica (animación, ritmo, composición), no su superficie. No mezclar
+  todos los detalles de cada una.
 
 La forma no se copia si ya no encaja: se conserva el **propósito** de una
 acción o una composición con la forma que tenga sentido para el nuevo

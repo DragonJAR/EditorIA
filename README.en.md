@@ -222,7 +222,7 @@ Result: 3 shorts at 1080x1920 @30fps, with karaoke subtitles.
 | Color | `grade.py` with presets (subtle, neutral_punch, warm_cinematic, none) + HDR→SDR |
 | EDL | `aplicar_edl.py` lossless concat + 30ms fades + PTS shifts |
 | Loudness | `loudness.py` two passes |
-| Beat sync | `beat_grid.py` + `beat_sync.py` align cuts to beat grid |
+| Beat sync | `beat_grid.py` (BPM, bars and energy-based song sections: one visual language per section) + `beat_sync.py` align cuts to beat grid |
 | Chapters | `chapters.py` generates YouTube chapters |
 | Rhythm | `verificar_ritmo.py` measures cadence, pauses, bursts |
 

@@ -86,7 +86,9 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   propias)` completa el `--help` de toda opción y subcomando con `AYUDAS`, las
   del kit, más las propias del script: un agente aprende la CLI por `--help`).
 - **scripts/beat_grid.py** — estima BPM, fase y energía por compás de un MP3
-  (para cortes al beat). **scripts/beat_sync.py** — ajusta tiempos de corte
+  (para cortes al beat) y `secciones` de la canción por energía (intro,
+  subida, pico, valle, outro) con densidad de cortes sugerida; mismo formato
+  que `scripts/beat_file.py`. **scripts/beat_sync.py** — ajusta tiempos de corte
   o bordes de EDL a la rejilla de beats. **scripts/medir_mezcla.py** — QA
   numérico del ducking: RMS música vs voz en habla y gaps (ver
   `references/audio.md`). **scripts/chapters.py** — capítulos de YouTube

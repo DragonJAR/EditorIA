@@ -42,7 +42,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Video + voice-over + music with ducking | `scripts/musica.py gen` then `mix` (music breathes under voice) |
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
 | "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
-| Podcast, street interview, ranking, talking head, explainer, narration, short drama | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
+| Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
 | Complex programmatic animation | **Remotion** (optional): `references/remotion.md` |
 | Deterministic HTML piece or data re-render | **HyperFrames** (optional): `references/hyperframes.md` |
@@ -139,7 +139,7 @@ When the user brings a video (file or link) and wants "one like this" (`referenc
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (36/36 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_caption_hablantes.py` and `scripts/_tests/test_referencia.py` pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (36/36 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_referencia.py` and `scripts/_tests/test_beat_secciones.py` pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

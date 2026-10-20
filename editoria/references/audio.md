@@ -17,7 +17,11 @@ grilla; `scripts/beat_sync.py grid.json --cortes ...` (o `--edl`) ajusta
 tiempos de corte a los beats cercanos.
 
 - Mapear la música del video a su grilla: BPM, beat 0, y dónde están las
-  caídas (donde entra el bajo) y los valles.
+  caídas (donde entra el bajo) y los valles. `beat_grid.py` ya lo entrega:
+  `secciones` (frases de 4 compases agrupadas por energía: intro, subida,
+  pico, valle, outro) con su nivel y `cortes_cada_beats` sugerido. Mismo
+  formato que `scripts/beat_file.py`, así la música analizada y la autorada
+  se leen igual.
 - Planear las escenas en compases completos (múltiplos de 4 beats): la frase
   musical se mantiene coherente y los cortes caen en downbeats.
 - Las líneas de voz energéticas se pueden acelerar ~8% en el mix (`atempo`,

@@ -113,6 +113,35 @@ motor de escenas).
 - Revisar por **causalidad**: el espectador sabe quién actúa, qué cambió y
   por qué sigue el plano siguiente.
 
+## Videoclip y lyric video — la música manda la dirección
+
+- **Primero el audio**: `scripts/beat_grid.py cancion.mp3 --json grid.json`
+  da BPM, compases y `secciones` por energía (intro, subida, pico, valle,
+  outro). Cada sección recibe su lenguaje visual en `TRATAMIENTO.md` y la
+  intensidad crece con la energía de la pista; el clímax visual va en el
+  pico, no al principio.
+- **No todo beat pide un corte ni todo momento un efecto**: la sección
+  sugiere `cortes_cada_beats` (8 en lo bajo, 4 en lo medio, 2 en lo alto);
+  los efectos se reservan para los golpes que marcan la sección.
+  `"musica"` en el plan lleva entradas al medio beat y cortes al «uno»
+  (`references/plan-video.md`); `scripts/beat_sync.py` hace lo mismo con un EDL.
+- **La tipografía es parte de la composición**, no un subtítulo encima:
+  tipografía cinética de las escenas (`typewriter`, `apertura`, `remate`) y
+  `references/animacion.md`; los subtítulos de `caption.py` son para el habla.
+- **La letra nunca se inventa**: se usa la letra que da el usuario y se
+  alinea contra la voz cantada (`scripts/alinear.py cancion.mp3 letra.txt`);
+  si no se puede identificar con confianza, va `[PENDIENTE]` y se pregunta.
+  El canto engaña al ASR más que el habla: verificar el timing de la letra
+  contra la voz en un mosaico (`scripts/contact_sheet.py --palabras`).
+- **Transiciones antes que efectos**: pulir primero la continuidad entre
+  secciones (`references/fluidez.md`); un efecto no salva un corte malo.
+- **Revisar la pista completa**: un buen arranque no arregla un medio
+  repetitivo ni un final sin cerrar. Mosaico por sección con
+  `contact_sheet.py --inicio/--fin`, `scripts/auto_qa.py` (parpadeo,
+  fotosensibilidad), consistencia de tipografía y estilo entre secciones,
+  jerarquía visual, y la apertura y el cierre juzgados por separado.
+- Material de terceros solo con permiso; las referencias se estudian.
+
 ## Combinar formatos
 
 Un UGC puede cargar un ranking; un podcast, una revelación de entrevista;

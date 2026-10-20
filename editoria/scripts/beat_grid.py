@@ -11,9 +11,16 @@ marca K donde hay kick en cada beat y nivel RMS del compás.
 El BPM/BEAT0 resultantes sirven para alinear cortes, zooms y captions
 con el ritmo de la música en el video.
 
-Importable: analizar(ruta) → {bpm, beat0, compas0, duracion, compases}
-(render_plan lo usa con "musica" en el plan). compas0 = primer tiempo
-fuerte (el "uno" del compás: la fase de 4 con más kick).
+Importable: analizar(ruta) → {bpm, beat0, compas0, duracion, compases,
+secciones} (render_plan lo usa con "musica" en el plan). compas0 = primer
+tiempo fuerte (el "uno" del compás: la fase de 4 con más kick).
+
+Secciones: la música manda la dirección creativa. Se agrupan los compases en
+frases de 4 y se corta donde la energía media cambia de verdad (umbral en
+dB); cada sección lleva su nivel relativo (baja/media/alta), un rol (intro,
+subida, pico, valle, outro) y `cortes_cada_beats` sugerido: no todo beat
+pide un corte — en lo bajo se respira (8), en lo alto se corta más (2).
+Mismo formato que las secciones de beat_file.py ({nombre, inicio, fin}).
 
 Requiere: ffmpeg (usa numpy si está disponible; fallback determinista en stdlib).
 """
@@ -162,6 +169,55 @@ def ajustar_rejilla(env, dur, min_bpm, max_bpm):
     return (mejor[1], mejor[2]) if mejor is not None else (float(min_bpm), 0.0)
 
 
+CORTES_POR_NIVEL = {"baja": 8, "media": 4, "alta": 2}   # beats entre cortes sugeridos
+
+
+def secciones(compases, duracion, umbral_db=3.0, frase=4):
+    """Compases [{t, db}] → secciones por energía. Frases de `frase` compases
+    (la unidad de la música pop); una frontera solo donde la energía (mediana)
+    de la frase cambia >= umbral_db respecto de la sección en curso, así un
+    golpe aislado no parte la canción. Determinista y sin dependencias."""
+    if not compases:
+        return []
+    frases = [compases[i:i + frase] for i in range(0, len(compases), frase)]
+    # mediana por frase: un golpe aislado (un compás fuerte) no mueve la frase
+    medias = [_percentil_std([c["db"] for c in f], 50) for f in frases]
+    grupos = [[0]]
+    for i in range(1, len(frases)):
+        actual = sum(medias[j] for j in grupos[-1]) / len(grupos[-1])
+        if abs(medias[i] - actual) >= umbral_db:
+            grupos.append([i])
+        else:
+            grupos[-1].append(i)
+    energia = [sum(medias[j] for j in g) / len(g) for g in grupos]
+    lo, hi = min(energia), max(energia)
+    tercio = (hi - lo) / 3 if hi - lo >= umbral_db else None
+
+    def nivel(e):
+        if tercio is None:
+            return "media"
+        return "baja" if e < lo + tercio else ("alta" if e > hi - tercio else "media")
+
+    out = []
+    for k, g in enumerate(grupos):
+        niv = nivel(energia[k])
+        ini = 0.0 if k == 0 else frases[g[0]][0]["t"]
+        fin = frases[grupos[k + 1][0]][0]["t"] if k + 1 < len(grupos) else duracion
+        if niv == "alta":
+            rol = "pico"
+        elif k == 0:
+            rol = "intro"
+        elif k == len(grupos) - 1:
+            rol = "outro"
+        elif k + 1 < len(grupos) and energia[k + 1] > energia[k]:
+            rol = "subida"
+        else:
+            rol = "valle"
+        out.append({"nombre": f"{rol}{k + 1}", "rol": rol, "inicio": round(ini, 3), "fin": round(fin, 3),
+                    "energia": niv, "db": round(energia[k], 1), "cortes_cada_beats": CORTES_POR_NIVEL[niv]})
+    return out
+
+
 def analizar(ruta, min_bpm=90, max_bpm=140):
     """Rejilla de la música: bpm, beat0 (primer beat), compas0 (primer tiempo
     fuerte: de las 4 fases del compás, la de más kick) y compases con su
@@ -215,7 +271,7 @@ def analizar(ruta, min_bpm=90, max_bpm=140):
             compases.append({"compas": c, "t": round(t, 3), "kick": "".join("K" if k > umbral else "." for k in ks),
                              "db": round(float(db), 1)})
     return {"bpm": round(float(bpm), 2), "beat0": round(float(b0), 3), "compas0": round(float(c0), 3),
-            "duracion": round(dur, 2), "compases": compases}
+            "duracion": round(dur, 2), "compases": compases, "secciones": secciones(compases, round(dur, 2))}
 
 
 def main():
@@ -227,7 +283,7 @@ def main():
     ap.add_argument("--min-bpm", type=float, default=90, help="BPM mínimo a buscar (def: 90)")
     ap.add_argument("--max-bpm", type=float, default=140, help="BPM máximo a buscar (def: 140)")
     ap.add_argument("--json", dest="salida_json", default=None,
-                    help="guarda {bpm, beat0, compas0, duracion, compases} en este archivo JSON")
+                    help="guarda {bpm, beat0, compas0, duracion, compases, secciones} en este archivo JSON")
     a = ap.parse_args()
     if not Path(a.archivo).is_file():
         sys.exit(f"No existe el archivo: {a.archivo}")
@@ -236,6 +292,10 @@ def main():
           f"BEAT0 {g['beat0']:.3f}s · primer tiempo fuerte {g['compas0']:.3f}s")
     for c in g["compases"]:
         print(f" compás {c['compas']:3d} {c['t']:7.2f}s  {c['kick']}  {c['db']:6.1f} dB  {'#' * max(0, int(c['db'] + 40))}")
+    print(" secciones (un lenguaje visual por sección; cortes sugeridos):")
+    for s_ in g["secciones"]:
+        print(f"  {s_['nombre']:10s} {s_['inicio']:7.2f}–{s_['fin']:7.2f}s  energía {s_['energia']:5s} "
+              f"{s_['db']:6.1f} dB  corte cada {s_['cortes_cada_beats']} beats")
     print("Usa BPM y BEAT0 para alinear cortes, zooms y captions con la música.")
     if a.salida_json:
         Path(a.salida_json).write_text(json.dumps(g, indent=2, ensure_ascii=False), encoding="utf-8")
