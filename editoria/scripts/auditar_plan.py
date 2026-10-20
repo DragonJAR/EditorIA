@@ -5,14 +5,13 @@ Verifica: solapes de tiempos entre escenas, duraciones negativas o cero,
 escenas vacías (sin texto ni voz), campos "voz" presentes pero vacíos,
 desorden temporal (from > to, escenas fuera de orden), escena final muy
 corta (< 2s), coherencia con plan["duracion"] y que cada voz quepa en su
-escena sin pisar la siguiente (2.3 palabras/s, references/sonido.md).
+escena sin pisar la siguiente (sílabas habladas con cifras expandidas al
+ritmo del idioma: speech_estimate.py, la fuente única de la estimación).
 Reporta cada hallazgo con su timestamp. Solo stdlib.
 """
 import argparse, json, os, re, sys
 
-# Ritmo de narración de references/sonido.md: segundos = palabras/2.3 + 0.4
-RITMO_VOZ = 2.3     # palabras por segundo
-AIRE_VOZ = 0.4      # voz_off.py coloca cada segmento en from + 0.4
+from speech_estimate import AIRE_VOZ, RITMOS, detectar_idioma, estimar_duracion, silabas
 
 
 def tipos_validos():
@@ -33,11 +32,6 @@ def _t_num(v):
     if isinstance(v, bool) or not isinstance(v, (int, float)):
         return None
     return float(v)
-
-
-def palabras_voz(texto):
-    """Palabras habladas: sin audio tags de dirección ([excited], [long pause]...)."""
-    return len(re.sub(r"\[[^\]]*\]", " ", texto or "").split())
 
 
 def es_vacia(e):
@@ -150,23 +144,31 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
     con_voz = [(idx, e) for idx, e in ordenadas
                if isinstance(e.get("voz"), str) and e["voz"].strip()
                and _t_num(e.get("from")) is not None]
+    # idioma: plan["idioma"], luego plan["numeros"], luego el texto de las voces
+    idioma = plan.get("idioma") if plan.get("idioma") in RITMOS else (
+        plan.get("numeros") if plan.get("numeros") in RITMOS
+        else detectar_idioma(" ".join(e["voz"] for _, e in con_voz)))
+    ritmo = plan.get("ritmo_voz", "normal")
+    if ritmo not in RITMOS[idioma]:
+        add("AVISO", 0.0, f"ritmo_voz '{ritmo}' desconocido ({', '.join(RITMOS[idioma])}); uso normal")
+        ritmo = "normal"
     for k, (idx, e) in enumerate(con_voz):
         fr_v = _t_num(e.get("from"))
         to_v = _t_num(e.get("to"))
-        n = palabras_voz(e["voz"])
-        fin = fr_v + AIRE_VOZ + n / RITMO_VOZ
+        n, dur = silabas(e["voz"], idioma), estimar_duracion(e["voz"], idioma, ritmo)
+        fin = fr_v + AIRE_VOZ + dur
         sig = (_t_num(con_voz[k + 1][1]["from"]) + AIRE_VOZ) if k + 1 < len(con_voz) else None
         # la estimación tiene ±0.3s de error: por debajo es aviso, no error
         if sig is not None and fin > sig + 0.3:
-            add("ERROR", fr_v, f"escena {idx}: la voz ({n} palabras ≈ "
-                f"{n / RITMO_VOZ:.1f}s) pisaría la voz siguiente en {fin - sig:.1f}s — "
+            add("ERROR", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
+                f"{dur:.1f}s) pisaría la voz siguiente en {fin - sig:.1f}s — "
                 f"alargar la escena o recortar el texto")
         elif sig is not None and fin > sig:
-            add("AVISO", fr_v, f"escena {idx}: la voz ({n} palabras ≈ "
-                f"{n / RITMO_VOZ:.1f}s) roza la voz siguiente — verificar con voz_off.py")
+            add("AVISO", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
+                f"{dur:.1f}s) roza la voz siguiente — verificar con voz_off.py")
         elif to_v is not None and fin > to_v:
-            add("AVISO", fr_v, f"escena {idx}: la voz ({n} palabras ≈ "
-                f"{n / RITMO_VOZ:.1f}s) se sale de la escena en {fin - to_v:.1f}s")
+            add("AVISO", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
+                f"{dur:.1f}s) se sale de la escena en {fin - to_v:.1f}s")
 
     ordenadas_con_t = [(idx, e) for idx, e in ordenadas
                        if _t_num(e.get("from")) is not None and _t_num(e.get("to")) is not None]

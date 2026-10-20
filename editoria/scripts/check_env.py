@@ -135,6 +135,10 @@ if not ok_w:
 rep("whisper-cli", ok_w,
     "disponible (transcripción local para retakes.py)" if ok_w else
     "transcripción local no disponible (retakes.py acepta segmentos de cualquier fuente)")
+ok_y, det_y = cmd_ver("yt-dlp", ["--version"])
+rep("yt-dlp", ok_y,
+    f"disponible ({det_y}) — referencias desde un enlace (referencia.py --url)" if ok_y else
+    "sin descarga por enlace (referencia.py --url): pip install -U yt-dlp, o usar el archivo local")
 
 print("== Motores opcionales (no requeridos) ==")
 ok_node, det_node = cmd_ver("node", ["--version"])

@@ -18,6 +18,8 @@ La skill adapta el plan a lo disponible; nunca promete lo que no puede verificar
 | Capacidad | Herramienta | Si falta |
 |---|---|---|
 | Transcripción propia local (sin API de pago) | whisper.cpp (`whisper-cli`, modelo ~1.6GB) | Opcional: el flujo de retakes (`retakes.py`) consume segmentos transcritos de cualquier fuente; sin whisper.cpp, la transcripción la provee el usuario o un ASR externo |
+| Descargar una referencia desde un enlace | yt-dlp (`scripts/referencia.py --url`, `scripts/clonar_video.py`) | Opcional: el usuario exporta el video del sitio y se usa como archivo local |
+| Transcripción con tiempo por palabra (leer referencias, karaoke) | whisper.cpp / faster-whisper / openai-whisper (`scripts/alinear.py`) | Opcional: sin ASR, la lectura de la referencia usa mosaicos por tiempo (`scripts/contact_sheet.py --cada`) sin palabras |
 | Animación programática en React | Remotion (`npx remotion`, Node 18+) | Opcional: ver `references/remotion.md`; el motor Python cubre la mayoría de piezas |
 | Video determinista desde HTML | HyperFrames (`npx hyperframes`, Node 22+) | Opcional: ver `references/hyperframes.md`; `npx hyperframes skills update` |
 

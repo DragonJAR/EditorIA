@@ -49,6 +49,12 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 - **Cifras**: `"numeros": "es"` (1.240 · 4,8), `"en"` (default: 1,240 · 4.8),
   `"fr"` o `{"miles": ".", "decimal": ","}` a nivel de plan: aplica a toda
   cifra animada y a los precios que no fijen los suyos. Público hispano → `"es"`.
+- **Voz (estimación)**: `"idioma": "es"|"en"` y `"ritmo_voz": "slow"|"normal"|"fast"`
+  a nivel de plan fijan cómo `scripts/auditar_plan.py` estima si cada `voz`
+  cabe en su escena (sílabas habladas con cifras expandidas,
+  `scripts/speech_estimate.py`). Sin `idioma`, sale de `numeros` o del texto.
+  Escribe en `voz` lo que se DICE ("A P I", "dos mil veinticuatro" si importa
+  la lectura) y en los campos de texto lo que se VE ("API", "2024").
 - **Música (edición al ritmo)**: `"musica": "pista.mp3"` (ruta relativa al
   plan) analiza el tempo (`beat_grid.analizar`: BPM, beat y el «uno» del
   compás) y, en la puerta única del render, lleva cada entrada (`at`) al medio

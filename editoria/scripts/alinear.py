@@ -26,6 +26,8 @@ torchaudio no compensa para piezas tan cortas):
     python scripts/alinear.py voz.mp3 guion.txt -o palabras.json --idioma es
     python scripts/alinear.py voz.mp3 guion.txt -o palabras.json --motor faster-whisper
     cat guion.txt | python scripts/alinear.py voz.mp3 -o palabras.json        # guion por stdin
+    python scripts/alinear.py referencia.mp4 -o ref.palabras.json --idioma en   # sin guion: transcribe
+        # un video con tiempos por palabra (lectura de referencias, contact_sheet.py --palabras)
 """
 from __future__ import annotations
 
@@ -37,6 +39,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import unicodedata
 from pathlib import Path
 
@@ -232,10 +235,18 @@ def refinar_energia(audio: "np.ndarray", palabras: list[tuple[str, float, float,
 
 def transcribir_palabras(audio_path: Path, idioma: str | None, modelo: str,
                           motor: str | None) -> list[tuple[str, float, float, float]]:
-    wav = audio_path.with_suffix(".wav")
-    if audio_path.suffix.lower() != ".wav":
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(audio_path),
+    """ASR por palabra de un audio o VIDEO (una referencia descargada sirve tal
+    cual). El wav de 16 kHz y los JSON intermedios de Whisper viven en un
+    directorio temporal: nada queda junto al material del usuario."""
+    with tempfile.TemporaryDirectory(prefix="editoria_alinear_") as tmp:
+        wav = Path(tmp) / "audio.wav"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(audio_path), "-vn",
                         "-ac", "1", "-ar", str(SR), str(wav)], check=True)
+        return _asr_en_cascada(wav, idioma, modelo, motor)
+
+
+def _asr_en_cascada(wav: Path, idioma: str | None, modelo: str,
+                    motor: str | None) -> list[tuple[str, float, float, float]]:
     if motor in (None, "auto", "whisper-cli"):
         r = _whisper_cli_palabras(wav, modelo, idioma)
         if r:
@@ -259,7 +270,7 @@ def transcribir_palabras(audio_path: Path, idioma: str | None, modelo: str,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("audio", help="mp3/wav de la voz en off (salida de voz_off.py)")
+    ap.add_argument("audio", help="mp3/wav de la voz en off (salida de voz_off.py) o un video")
     ap.add_argument("guion", nargs="?", default=None,
                     help="txt/md con el guion; '-' lee de stdin (default: usa lo que Whisper transcriba)")
     ap.add_argument("-o", "--out", default=None,

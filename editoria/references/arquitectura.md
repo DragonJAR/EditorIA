@@ -59,7 +59,9 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   `scripts/ffmpeg_tools/look.py` (contact sheets para QA visual),
   `scripts/ffmpeg_tools/caption.py` (subtítulos burn/mux, `--phrase-aware`,
   `--brand` con brand pack, fit-size `--max-lines`/`--min-size`,
-  `--palabras` = karaoke con el tiempo real de cada palabra de `alinear.py`),
+  `--palabras` = karaoke con el tiempo real de cada palabra de `alinear.py`,
+  `--hablantes` = color por hablante para podcast/entrevista; la agrupación
+  nunca corta negación+verbo ni cantidad+unidad),
   `scripts/ffmpeg_tools/transcribir.py` (ASR local → SRT + JSON de segmentos),
   `scripts/ffmpeg_tools/aplicar_edl.py` (aplica un EDL: corta y re-ensambla),
   `scripts/ffmpeg_tools/shorts_plan.py` (valida y ejecuta un shorts-plan.json),
@@ -70,13 +72,15 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   `scripts/ffmpeg_tools/artesanal.py` (acabado táctil: grano, papel, parpadeo —
   ver `references/dramaturgia.md`),
   `scripts/ffmpeg_tools/montaje.py` (navaja suiza de edición: unir, cortar,
-  fundido, transicion, pip, marca-agua, audio, gif, pase, rotar, voltear,
+  fundido, transicion, pip, dividir (pantalla dividida), marca-agua, audio, gif, pase, rotar, voltear,
   bucle, escala, color, velocidad, reversa, limpiar-audio, chroma
   — ver `references/montaje.md`; `pase` = fotos → video con un Ken Burns
   distinto por foto, fondo desenfocado, fundidos y cambios al compás),
   `scripts/ffmpeg_tools/variantes.py` (batch hook×body para A/B),
   `scripts/ffmpeg_tools/_comun.py` (utilidades compartidas: probe, runners,
-  puente ASR `transcribir_medio`; `codificar_frames` = ÚNICO encoder de
+  puente ASR `transcribir_medio`; `leer_palabras` = lector ÚNICO de tiempos
+  por palabra (alinear.py, Whisper/WhisperX con hablante) para subtítulos,
+  mosaicos y estimación; `codificar_frames` = ÚNICO encoder de
   frames RGB(A): H.264 BT.709 exacto o alfa ProRes 4444/VP9 con
   `verificar_alfa`; `VF_RGB_A_BT709` para cadenas de filtros; `ayudar(parser,
   propias)` completa el `--help` de toda opción y subcomando con `AYUDAS`, las
@@ -93,16 +97,39 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
 - **scripts/auditar_plan.py** — audita un plan.json (solapes, duraciones,
   escenas vacías, voz sin texto, huecos, coherencia con `duracion`, tipos
   leídos de `SCENES` de render_plan y que cada voz quepa en su escena sin
-  pisar la siguiente). Correr antes de renders largos y antes de pagar TTS.
+  pisar la siguiente, estimada con `speech_estimate.py`: una sola fuente).
+  Correr antes de renders largos y antes de pagar TTS.
 - **scripts/speech_estimate.py** — estimador determinista de sílabas y duración
   de locución pre-TTS para español e inglés (`estimar_duracion_habla`,
-  `auditar_plan_voces`). Previene desbordes de audio sin coste de API.
+  `auditar_plan_voces`). Cuenta las cifras como se dicen ("$142.332" son
+  ocho palabras), deletrea siglas sin vocales y `--calibrar` mide el ritmo de
+  una voz real con su palabras.json. Previene desbordes sin coste de API.
 - **scripts/referencia.py** — ingesta y análisis de video de referencia (local o
   URL vía yt-dlp): metadatos ffprobe, separación de audio en 48kHz máster y
   16kHz Whisper, y mosaico visual pre-render con `scripts/contact_sheet.py`.
+  Descarga un solo video aunque el enlace sea de playlist, H.264 ≤1080p, sin
+  pisar archivos (`formato_ytdlp`).
 - **scripts/clonar_video.py** — clonación y variación viral de videos (inspirado
   en Hypit): `analizar` descompone el video en `plantilla.json` y `ANALYSIS.md`;
   `variar` genera N variantes únicas de `plan.json` auditadas por `speech_estimate.py`.
+- **scripts/contact_sheet.py** — mosaicos de revisión y de lectura de
+  referencias: rango (`--inicio/--fin`), muestreo (`-n`, `--cada`, `--en`,
+  `--todos-los-frames` con timestamps reales), `--palabras` pone bajo cada
+  tile lo dicho en su intervalo, `--alrededor "frase"` ubica el pasaje,
+  `--filas` pagina.
+- **scripts/proyecto.py** — memoria del proyecto: BRIEF, TRATAMIENTO,
+  PROGRESO y TIMELINE/evidencia por referencia; nunca sobrescribe y delega
+  la ingesta en `clonar_video.py` (ver `references/referencia-video.md`).
+- **scripts/alinear.py** — alineación palabra a palabra de una voz contra su
+  guion; sin guion, transcripción con tiempos por palabra de un audio o video
+  (archivos intermedios en temporal, nada junto al material).
+- **references/referencia-video.md** — clonar/adaptar una referencia: memoria
+  del proyecto, ingesta, tiempo visible (palabras, cortes, mosaicos), lectura
+  del todo y sus sistemas, ANALYSIS/TIMELINE, lentes de transformación,
+  revisión por función y dónde se corrige cada hallazgo.
+- **references/formatos.md** — qué sostiene cada formato (talking head,
+  podcast, entrevista callejera, ranking, explainer con presentador,
+  narración, drama corto) y qué herramienta lo sirve.
 - **scripts/audio_viz.py** — visualización de audio (waves/spectrum/freqs,
   overlay dentro de la zona segura) y `--modo audiograma` (portada, título,
   barras espejadas precalculadas por frame, progreso, banda para subtítulos)

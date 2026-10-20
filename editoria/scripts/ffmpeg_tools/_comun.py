@@ -835,6 +835,34 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
         "  openai-whisper: pip install openai-whisper\n")
 
 
+def leer_palabras(path: str) -> List[Dict[str, Any]]:
+    """Tiempos por palabra -> [{texto, inicio, fin, hablante}] ordenados.
+    Fuente única de los formatos que circulan por el kit: el palabras.json de
+    scripts/alinear.py ({palabras: [{texto, inicio, fin}]}), una lista plana
+    [{text|word, start, end}] y la salida segmentada de Whisper/WhisperX
+    ({segments: [{speaker?, words: [...]}]}). `hablante` (o `speaker`, por
+    palabra o por segmento) es opcional: None si el archivo no lo trae."""
+    data = leer_json(path, "el JSON de palabras")
+    items: List[Tuple[Dict[str, Any], Any]] = []
+    if isinstance(data, dict) and isinstance(data.get("segments"), list):
+        for seg in data["segments"]:
+            for w in (seg.get("words") or []) if isinstance(seg, dict) else []:
+                items.append((w, seg.get("hablante", seg.get("speaker"))))
+    else:
+        lista = (data.get("palabras") or data.get("words")) if isinstance(data, dict) else data
+        items = [(w, None) for w in (lista or []) if isinstance(w, dict)]
+    out = []
+    for w, hab_seg in items:
+        texto = str(w.get("texto") or w.get("text") or w.get("word") or "").strip()
+        a, b = _to_float(w.get("inicio", w.get("start"))), _to_float(w.get("fin", w.get("end")))
+        if texto and a is not None and b is not None:
+            out.append({"texto": texto, "inicio": a, "fin": max(b, a + 0.05),
+                        "hablante": w.get("hablante", w.get("speaker", hab_seg))})
+    if not out:
+        die(f"{path}: no trae palabras con inicio/fin", kind="input")
+    return sorted(out, key=lambda p: p["inicio"])
+
+
 def write_segmentos_json(cues, path: str) -> None:
     """Escribe [(inicio, fin, texto)] como JSON [{start, end, text}],
     el formato que consume retakes.py."""

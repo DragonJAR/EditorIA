@@ -21,9 +21,15 @@ Formato del input de texto (un cue por linea, lineas vacias ignoradas):
 
 Con --phrase-aware el texto se reagrupa en chunks frase-conscientes: ningun
 cue termina en "leader word" (articulos, preposiciones, conjunciones,
-posesivos... ES/EN); si el chunk candidato terminaria en una, se encoge para
-que esa palabra abra el siguiente caption. Tambien limpia puntuacion
-(. , ! ? ; : salvo decimales, % y contracciones) y deja tiempos monotonos.
+posesivos... ES/EN), negacion ("no | funciona") ni cantidad sin su unidad
+("30 | segundos"), salvo que esa palabra cierre la oracion; si el chunk
+candidato terminaria en una, se encoge para que esa palabra abra el
+siguiente caption. Tambien limpia puntuacion (. , ! ? ; : salvo decimales,
+% y contracciones) y deja tiempos monotonos.
+
+Con --hablantes (podcast, entrevista) cada hablante lleva su color: el
+hablante sale del prefijo del cue ("ANA: hola") o del campo hablante/speaker
+de --palabras (WhisperX con diarizacion). Un cue nunca mezcla dos hablantes.
 
 Ejemplos:
   python3 caption.py video.mp4 --srt subs.srt
@@ -33,6 +39,7 @@ Ejemplos:
   python3 caption.py --text cues.txt --write-srt cues.srt
   python3 caption.py --text cues.txt --write-srt cues.srt --phrase-aware --phrase-words 5
   python3 caption.py video.mp4 --text cues.txt
+  python3 caption.py podcast.mp4 --text cues.txt --hablantes "ANA=FFD400,LUIS=4FC3F7" --karaoke
 """
 import argparse
 import os
@@ -45,7 +52,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _comun import (STATE, color_hex, load_brand, video_args, add_common, apply_common, emit,
                     aac_args, cfr_args, default_output, die, escape_filter_path, ffmpeg_base,
-                    info, MissingFpsError, parse_time, parse_srt, probe, require_tool, run,
+                    info, leer_palabras, MissingFpsError, parse_time, parse_srt, probe, require_tool, run,
                     transcribir_medio, write_srt, colores_marca)
 
 ALIGN = {"bottom": 2, "top": 8, "center": 5, "bottom-left": 1, "bottom-right": 3,
@@ -65,7 +72,13 @@ LEADERS_ES = frozenset(
 LEADERS_EN = frozenset(
     "the a an of in and or to his her their this that these those my your "
     "our its for with on at from as by".split())
-LEADERS = LEADERS_ES | LEADERS_EN
+# La negación va con su verbo ("no | funciona" se lee al revés en dos
+# pantallas) y una cantidad con su unidad ("30 | segundos"): mismo trato que
+# un artículo. Criterio de agrupación de Hypit (hypit-ai/hypit, caption craft).
+NEGACIONES = frozenset("no ni nunca jamas not never".split())
+LEADERS = LEADERS_ES | LEADERS_EN | NEGACIONES
+NUMERO_RE = re.compile(r"\d+(?:[.,]\d+)*")
+FIN_FRASE = (".", "!", "?", "…", ";", ":")
 
 PUNCT = "¡!¿?.,;:«»\"'()[]"
 
@@ -78,6 +91,61 @@ def _bare(word):
     return re.sub(r"^[^a-z0-9%]+|[^a-z0-9%]+$", "", w)
 
 
+def _abre_frase(word):
+    """True si la palabra no debe cerrar un caption: leader word, negación o
+    cantidad (que pide su unidad). Si la propia palabra cierra la oración
+    ("...que no." / "...en 2024.") no arrastra nada: puede cerrar."""
+    if word.rstrip("»\"')]").endswith(FIN_FRASE):
+        return False
+    b = _bare(word)
+    return b in LEADERS or bool(NUMERO_RE.fullmatch(b))
+
+
+# Hablante al inicio de un cue: "ANA: hola" o "[ANA]: hola" (nombre en
+# mayúsculas, para no confundirlo con "Nota: ..."). Solo se interpreta con
+# --hablantes; sin esa opción el texto queda tal cual.
+HABLANTE_RE = re.compile(r"^\s*\[?([A-ZÁÉÍÓÚÑÜ][A-ZÁÉÍÓÚÑÜ0-9_]{0,23})\]?:\s+(.+)$", re.S)
+PALETA_HABLANTES = ("4FC3F7", "FF6B6B", "7CE38B", "C792EA", "FFB86C")
+
+
+def separar_hablante(text):
+    """'ANA: hola' -> ('ANA', 'hola'); sin prefijo -> (None, text)."""
+    m = HABLANTE_RE.match(text)
+    return (m.group(1), m.group(2)) if m else (None, text)
+
+
+def con_hablante(cues):
+    """Normaliza cues a (inicio, fin, texto, duraciones|None, hablante): el
+    hablante sale del campo propio (palabras.json con speaker) o del prefijo."""
+    out = []
+    for c in cues:
+        hab = c[4] if len(c) > 4 else None
+        text = c[2]
+        if hab is None:
+            hab, text = separar_hablante(text)
+        out.append((c[0], c[1], text, c[3] if len(c) > 3 else None, hab))
+    return out
+
+
+def colores_hablantes(spec, cues, acento):
+    """--hablantes 'ANA=FFD400,LUIS=4FC3F7' (o 'auto') -> {hablante: RRGGBB}.
+    Quien no esté en el mapa recibe el acento de la marca y luego la paleta,
+    en orden de aparición; así dos voces nunca comparten color sin quererlo."""
+    mapa = {}
+    if spec.strip().lower() != "auto":
+        for par in spec.split(","):
+            nombre, _, col = par.partition("=")
+            if not nombre.strip() or not col.strip():
+                die(f"--hablantes: '{par}' no es NOMBRE=RRGGBB (o usa --hablantes auto)")
+            mapa[nombre.strip().upper()] = color_hex(col.strip())
+    libres = [c for c in (acento,) + PALETA_HABLANTES if c not in mapa.values()]
+    for c in cues:
+        hab = c[4] if len(c) > 4 else None
+        if hab and hab.upper() not in mapa:
+            mapa[hab.upper()] = libres.pop(0) if libres else acento
+    return mapa
+
+
 def clean_word(word):
     """Quita puntuacion . , ! ? ; : en los bordes. Conserva decimales
     (3.5), porcentajes (100%) y contracciones (don't)."""
@@ -88,71 +156,74 @@ def clean_word(word):
 def phrase_aware(cues, max_words=6):
     """Reagrupa cues en chunks frase-conscientes de hasta max_words palabras.
 
-    - Ningun chunk termina en leader word (salvo el ultimo, que no tiene
-      siguiente): si el candidato terminaria en una, se encoge en uno para
-      que esa palabra abra el siguiente caption (minimo 2 palabras/chunk).
+    - Ningun chunk termina en leader word, negacion o cantidad (salvo el
+      ultimo, o si la palabra cierra la oracion): si el candidato terminaria
+      en una, se encoge para que esa palabra abra el siguiente caption
+      (minimo 2 palabras/chunk). Un cambio de hablante siempre corta.
     - Limpia puntuacion con clean_word (conserva decimales, % y contracciones).
     - Reparte el tiempo de cada cue entre sus palabras por longitud y deja
       los tiempos monotonos (fin >= inicio + 0.3s, sin solapes).
     """
-    words = []  # [palabra, inicio, fin]
-    for s, e, text in cues:
-        ws = [clean_word(w) for w in text.replace("\n", " ").split()]
-        ws = [w for w in ws if w]
+    words = []  # [palabra cruda, inicio, fin, hablante]
+    for c in cues:
+        s, e, text = c[:3]
+        hab = c[4] if len(c) > 4 else None
+        ws = [w for w in text.replace("\n", " ").split() if clean_word(w).strip(PUNCT)]
         if not ws:
             continue
-        weights = [max(1, len(w)) for w in ws]
+        weights = [max(1, len(clean_word(w))) for w in ws]
         total = sum(weights)
         acc = 0.0
         for w, wt in zip(ws, weights):
             w0 = s + (e - s) * acc / total
             acc += wt
             w1 = s + (e - s) * acc / total
-            words.append([w, w0, w1])
+            words.append([w, w0, w1, hab])
     if not words:
         return cues
-    return [c[:3] for c in agrupar_palabras(words, max_words)]
+    # sin tiempos reales: (inicio, fin, texto) como siempre — write_ass mide
+    # por energia —, y (.., None, hablante) solo si el cue trae hablante
+    return [c[:3] + ((None, c[4]) if c[4] else ()) for c in agrupar_palabras(words, max_words)]
 
 
 def agrupar_palabras(words, max_words=6):
-    """[[palabra, inicio, fin]] -> cues frase-conscientes (inicio, fin, texto,
-    duraciones_cs): ningun cue termina en leader word y los tiempos quedan
-    monotonos. duraciones_cs = tiempo de cada palabra hasta la siguiente (el
-    \\kf del karaoke), asi el resaltado cae en la silaba real."""
+    """[[palabra, inicio, fin, hablante?]] -> cues frase-conscientes (inicio,
+    fin, texto, duraciones_cs, hablante): ningun cue termina en una palabra
+    que abre frase (_abre_frase), nunca mezcla hablantes, y los tiempos
+    quedan monotonos. duraciones_cs = tiempo de cada palabra hasta la
+    siguiente (el \\kf del karaoke), asi el resaltado cae en la silaba real."""
+    hab = [w[3] if len(w) > 3 else None for w in words]
     chunks, i, n = [], 0, len(words)
     while i < n:
         j = min(i + max_words, n)
-        while j - i > 2 and j < n and _bare(words[j - 1][0]) in LEADERS:
+        for k in range(i + 1, j):          # otro hablante = otro caption
+            if hab[k] != hab[i]:
+                j = k
+                break
+        while j - i > 2 and j < n and hab[j] == hab[i] and _abre_frase(words[j - 1][0]):
             j -= 1
-        chunks.append(words[i:j])
+        chunks.append((words[i:j], hab[i]))
         i = j
     out, prev_end = [], 0.0
-    for ch in chunks:
+    for ch, h in chunks:
         s = max(ch[0][1], prev_end + 0.001)
         e = max(ch[-1][2], s + 0.3)
         inicios = [max(s, w[1]) for w in ch] + [e]
         durs = [max(1, int(round((inicios[k + 1] - inicios[k]) * 100))) for k in range(len(ch))]
-        out.append((round(s, 3), round(e, 3), " ".join(w for w, _, _ in ch), durs))
+        out.append((round(s, 3), round(e, 3), " ".join(clean_word(w[0]) for w in ch), durs, h))
         prev_end = e
     return out
 
 
 def cues_desde_palabras(path, max_words=6):
-    """Tiempos REALES por palabra (palabras.json de scripts/alinear.py, o una
-    lista [{texto|text|word, inicio|start, fin|end}]) -> cues con karaoke
+    """Tiempos REALES por palabra (cualquier formato de _comun.leer_palabras:
+    alinear.py, Whisper/WhisperX, con hablante opcional) -> cues con karaoke
     exacto. Nunca se reparte un cue a partes iguales si hay tiempos reales."""
-    import json
-    data = json.load(open(path, encoding="utf-8"))
-    items = data.get("palabras") or data.get("words") if isinstance(data, dict) else data
-    words = []
-    for it in items or []:
-        w = clean_word(str(it.get("texto") or it.get("text") or it.get("word") or "").strip())
-        a, b = it.get("inicio", it.get("start")), it.get("fin", it.get("end"))
-        if w and a is not None and b is not None:
-            words.append([w, float(a), max(float(b), float(a) + 0.05)])
+    words = [[p["texto"], p["inicio"], p["fin"], p["hablante"]] for p in leer_palabras(path)
+             if clean_word(p["texto"]).strip(PUNCT)]
     if not words:
         die(f"{path}: no trae palabras con inicio/fin")
-    return agrupar_palabras(sorted(words, key=lambda x: x[1]), max_words)
+    return agrupar_palabras(words, max_words)
 
 
 def parse_text_cues(path, auto_seconds, gap, fps=None):
@@ -382,6 +453,16 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
         f"{-1 if args.bold else 0},0,0,0,100,100,0,0,{3 if args.box else 1},"
         f"{args.outline * scale:.1f},{args.shadow * scale:.1f},{ALIGN[args.position]},"
         f"{margin},{margin},{margin},1",
+    ]
+    # un estilo por hablante: el color del hablante es SU acento — el texto
+    # entero sin karaoke; con karaoke, la palabra dicha (la base sigue neutra)
+    estilos_hab, base = {}, header[-1]
+    for i, (hab, col) in enumerate(sorted((getattr(args, "colores_hablantes", None) or {}).items())):
+        estilos_hab[hab] = f"H{i}"
+        prim, sec = (ass_color(col), secondary) if args.karaoke else (ass_color(col), ass_color(col))
+        header.append(base.replace("Style: Default,", f"Style: H{i},", 1)
+                      .replace(f",{primary},{secondary},", f",{prim},{sec},", 1))
+    header += [
         "", "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
@@ -389,6 +470,7 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
     for cue in cues:
         start, end, text = cue[:3]
         reales = cue[3] if len(cue) > 3 else None
+        estilo = estilos_hab.get(((cue[4] if len(cue) > 4 else None) or "").upper(), "Default")
         cue_size = size
         if font_file:
             cue_size, encogido = _fit_cue_size(
@@ -438,7 +520,7 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
                 ws = [w for w in seg.split(" ") if w]
                 out_segments.append(" ".join(f"{{\\kf{next(it)}}}{w}" for w in ws))
             body = "\\N".join(out_segments)
-        lines.append(f"Dialogue: 0,{t(start)},{t(end)},Default,,0,0,0,,{fx}{body}")
+        lines.append(f"Dialogue: 0,{t(start)},{t(end)},{estilo},,0,0,0,,{fx}{body}")
     with open(path, "w", encoding="utf-8-sig") as fh:
         fh.write("\n".join(header + lines) + "\n")
     if fit_reducidos:
@@ -524,6 +606,10 @@ def main():
                       help="como tiempear las palabras dentro del cue: 'energy' sigue la sonoridad "
                            "del audio (default), 'even' reparte el tiempo por igual")
     anim.add_argument("--write-ass", help="donde guardar el ASS generado (default: junto al output)")
+    anim.add_argument("--hablantes", default=None,
+                      help="color por hablante (podcast, entrevista): 'ANA=FFD400,LUIS=4FC3F7' o 'auto'. "
+                           "El hablante sale del prefijo del cue ('ANA: hola') o del campo "
+                           "hablante/speaker de --palabras; con --karaoke colorea la palabra dicha"),
     phr = ap.add_argument_group("fraseo (reagrupa el texto en cues)")
     phr.add_argument("--phrase-aware", action="store_true",
                      help="agrupacion frase-consciente: ningun cue termina en leader word "
@@ -573,8 +659,8 @@ def main():
         if args.ass:
             die("--mode mux toma --srt (o --text/--transcribe), no --ass -- "
                 "el estilo ASS es solo para quemar; usa --mode burn para un ASS")
-        if args.animate != "none" or args.karaoke:
-            die("--animate/--karaoke renderizan pixeles y requieren --mode burn")
+        if args.animate != "none" or args.karaoke or args.hablantes:
+            die("--animate/--karaoke/--hablantes renderizan pixeles y requieren --mode burn")
 
     meta = None
     if args.input:
@@ -604,6 +690,8 @@ def main():
             info(f"{len(cues)} cues desde tiempos reales por palabra")
         else:
             cues = parse_text_cues(args.text, args.auto_seconds, args.gap, fps_for_tc)
+        if args.hablantes:
+            cues = con_hablante(cues)
         if args.phrase_aware and not args.palabras:
             cues = phrase_aware(cues, max_words=args.phrase_words)
             info(f"reagrupados a {len(cues)} cues frase-conscientes "
@@ -616,7 +704,9 @@ def main():
         else:
             srt_path = os.path.splitext(args.text or args.palabras)[0] + ".srt"
         if not STATE.dry_run:
-            write_srt([c[:3] for c in cues], srt_path)
+            # con --hablantes el SRT conserva "ANA: ..." (releerlo restaura el color)
+            write_srt([c[:2] + ((f"{c[4]}: " if args.hablantes and len(c) > 4 and c[4] else "") + c[2],)
+                       for c in cues], srt_path)
         info(f"escribi {srt_path} ({len(cues)} cues)")
         if not args.input:
             print(f"OK {srt_path}")
@@ -656,8 +746,12 @@ def main():
         return 0
 
     fit_n = 0
-    if (args.animate != "none" or args.karaoke) and not args.ass:
+    if (args.animate != "none" or args.karaoke or args.hablantes) and not args.ass:
         cues_for_ass = cues if (args.text or args.palabras) else parse_srt(srt_path)
+        if args.hablantes:
+            cues_for_ass = con_hablante(cues_for_ass)
+            args.colores_hablantes = colores_hablantes(args.hablantes, cues_for_ass, args.highlight_color)
+            info("hablantes: " + ", ".join(f"{h}={c}" for h, c in args.colores_hablantes.items()))
         if args.phrase_aware and not (args.text or args.palabras):
             cues_for_ass = phrase_aware(cues_for_ass, max_words=args.phrase_words)
         ass_path = args.write_ass or os.path.splitext(output)[0] + ".ass"

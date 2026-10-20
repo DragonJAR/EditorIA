@@ -361,6 +361,9 @@ req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
        "scripts/ffmpeg_tools/artesanal.py",
        "scripts/ffmpeg_tools/montaje.py",
        "scripts/beat_sync.py", "scripts/chapters.py",
+       "scripts/speech_estimate.py", "scripts/contact_sheet.py", "scripts/proyecto.py",
+       "scripts/referencia.py", "scripts/clonar_video.py",
+       "references/referencia-video.md", "references/formatos.md",
        "references/shorts-plan-schema.md",
        "scripts/demo_plan.json", "scripts/validate_skill.py"]
 for f in req:
@@ -523,7 +526,6 @@ try:
         # fondo vivo: en el hold asentado la imagen cambia lo que auto_qa exige
         # (mismo umbral, mismo ancho de análisis): ningún plano queda congelado
         import auto_qa as _QA
-        from PIL import Image as _Im
         foto = os.path.join(_mkdtemp(prefix="editoria_foto_"), "foto.png")
         _Im.linear_gradient("L").resize((1600, 1200)).convert("RGB").save(foto)
         congeladas = []
@@ -1164,6 +1166,13 @@ try:
     check(r.returncode == 1 and "pisaría" in r.stdout, "auditar_plan: voz que pisa a la siguiente = ERROR")
 except (Exception, SystemExit) as ex:
     check(False, f"regresiones ronda iart: {type(ex).__name__}: {ex}")
+
+# 8. tests unitarios (scripts/_tests): estimación de voz, subtítulos por
+#    hablante, lectura de referencias, capítulos — los contratos de los módulos
+_ut = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", os.path.join(BASE, "scripts", "_tests")],
+                     capture_output=True, text=True, timeout=300)
+_ut_res = (_ut.stderr.strip().splitlines() or ["?"])[-1]
+check(_ut.returncode == 0, f"tests unitarios de scripts/_tests ({_ut_res})")
 
 print()
 if fails:

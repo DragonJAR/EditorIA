@@ -1,11 +1,11 @@
 ---
 name: editoria
-description: 'Creates, edits, summarizes, and improves videos (.mp4, .mov, .webm, .srt) including animated meeting summaries, kinetic typography, plan-driven ads, cinematic films, and vertical social clips for any brand or in free mode. Use when the user asks to "make me a video", "summarize this meeting", "edit this ad", "improve this video", "create a reel", or "add music to it". Do NOT use for static images, text-only PDF summaries, or document editing.'
+description: 'Creates, edits, summarizes, and improves videos (.mp4, .mov, .webm, .srt) including animated meeting summaries, kinetic typography, plan-driven ads, cinematic films, and vertical social clips for any brand or in free mode. Use when the user asks to "make me a video", "summarize this meeting", "edit this ad", "improve this video", "create a reel", "make one like this video", or "add music to it". Do NOT use for static images, text-only PDF summaries, or document editing.'
 license: MIT
 compatibility: 'Python 3.9+, FFmpeg, Pillow, NumPy; optional ElevenLabs API and Node 18+ for Remotion or HyperFrames'
 metadata:
   author: Jaime Andrés Restrepo
-  version: 1.7.0
+  version: 1.8.0
   category: video-editing
   tags: [video-editing, motion-graphics, ffmpeg, animation]
 ---
@@ -24,6 +24,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
   - Environment capabilities pass via `python scripts/check_env.py` (`references/capacidades.md`).
   - Every scene `from`/`to` window and `voz` duration passes `python scripts/auditar_plan.py plan.json`.
   - No credentials or API keys appear in `plan.json` or `brand/*.json` (`$ELEVENLABS_API_KEY` is read from `~/.secrets.env`).
+- **Paid work rule**: Agree TTS or AI-music work and its expected cost with the user before calling a paid API, record it in the project's `BRIEF.md` (`scripts/proyecto.py`), and treat anything beyond that agreement as the user's decision. After an interruption, resume from the project files and produced material; never pay twice for the same voice or music.
 
 ## Motor Selector
 
@@ -39,7 +40,9 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Real video + animation complementing it | **Hybrid**: `references/modos-produccion.md` (bridges, layers, continuity) |
 | Existing video + background music | `scripts/musica.py musiconly -v video.mp4 -m mus.mp3 -o final.mp4` |
 | Video + voice-over + music with ducking | `scripts/musica.py gen` then `mix` (music breathes under voice) |
-| Clip editing (join, cut, fade, PiP, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (18 operations in `references/montaje.md`) |
+| Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
+| "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
+| Podcast, street interview, ranking, talking head, explainer, narration, short drama | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
 | Complex programmatic animation | **Remotion** (optional): `references/remotion.md` |
 | Deterministic HTML piece or data re-render | **HyperFrames** (optional): `references/hyperframes.md` |
@@ -115,17 +118,28 @@ When summarizing meetings or editing camera-first footage (`references/video-rea
 3. Apply post-production tools as needed: transcribe (`scripts/ffmpeg_tools/transcribir.py`), remove retakes and silence (`scripts/retakes.py`, `scripts/ffmpeg_tools/silence.py`), apply EDL (`scripts/ffmpeg_tools/aplicar_edl.py`), burn captions (`scripts/ffmpeg_tools/caption.py`), sync cuts to beats (`scripts/beat_grid.py`, `scripts/beat_sync.py`), generate chapters (`scripts/chapters.py`), and bake poster/thumbnails (`scripts/poster_frame.py`, `scripts/ffmpeg_tools/thumbnail.py`, `references/thumbnails.md`).
 4. Prepare companion caption in `share-copy.txt` per `references/share-copy.md` and log new production findings via `python scripts/registrar_aprendizaje.py` (`references/auto-mejora.md`, `references/lecciones-produccion.md`).
 
+### Step 7: Clone or Adapt a Reference Video
+
+When the user brings a video (file or link) and wants "one like this" (`references/referencia-video.md`):
+
+1. Open the project memory: `python scripts/proyecto.py {folder} --referencia {file or url}` creates `BRIEF.md`, `TRATAMIENTO.md`, `PROGRESO.md` and a `TIMELINE.md` per reference (never overwrites) and prints the next commands.
+2. Ingest: `python scripts/clonar_video.py analizar --url "{url}" -o referencias/{name}` (download via `scripts/referencia.py`, metadata, audio, cuts, draft `ANALYSIS.md`, `plantilla.json`).
+3. Make time visible: `python scripts/alinear.py fuente.mp4 -o fuente.palabras.json` (no script = word-timed transcript), then `python scripts/contact_sheet.py --video fuente.mp4 --cada 1 --palabras fuente.palabras.json --filas 4` (spoken words under each tile; `--alrededor "{phrase}"` for a passage, `--todos-los-frames` for motion).
+4. Read the whole piece and each visual/sound system (content, placement, entry, behavior, persistence, exit, what it does for the viewer) into `ANALYSIS.md` and `TIMELINE.md`.
+5. Transform: keep each element's role, recreate its form for the new person, product or language; anchor events to the new script's words, not the old seconds. Then build with Steps 2-5 and compare source and result by function at corresponding words.
+
 ## Output Contract and Success Criteria
 
 - **Resolution and codec**: 1080x1920 @30fps for vertical; 1920x1080 @30fps for horizontal (24fps for cinema pieces). H.264, `yuv420p`, CRF 18-22.
 - **Three visual pillars**: Every piece obeys `references/principios.md` (visual coherence, spatial harmony, special effects), `references/tecnicas-video.md`, and `references/tecnicas-reutilizables.md`.
 - **Audio and SFX**: Procedural SFX via `scripts/sfx.py` (`click`, `pop`, `drop`, `whoosh`, `ding`, `thud`, `tick`, `swell`), waveform visualization via `scripts/audio_viz.py`, loudness via `scripts/ffmpeg_tools/loudness.py`, pre-TTS duration estimation via `scripts/speech_estimate.py`.
 - **Post-production & Viral Cloning kit**: `scripts/clonar_video.py`, `scripts/referencia.py`, `scripts/ffmpeg_tools/verticalizar.py`, `scripts/ffmpeg_tools/grade.py`, `scripts/ffmpeg_tools/variantes.py`, `scripts/ffmpeg_tools/artesanal.py`, `scripts/ffmpeg_tools/scenes.py`, `scripts/ffmpeg_tools/look.py`, `scripts/ffmpeg_tools/speedramp.py`, `scripts/ffmpeg_tools/_comun.py`, `scripts/ffmpeg_tools/_plataforma.py`.
+- **Captions and conversation formats**: `scripts/ffmpeg_tools/caption.py --hablantes "ANA=FFD400,LUIS=4FC3F7"` colors each speaker (prefix `ANA:` in cues or `speaker` from WhisperX) and never mixes speakers in a cue; `scripts/ffmpeg_tools/montaje.py dividir` builds split screens (`references/formatos.md`).
 - **Clean workspace**: Save final deliverables in the user-requested output folder, never inside the skill folder.
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (36/36 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py` and `scripts/_tests/test_core_and_scenes.py` pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (36/36 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_caption_hablantes.py` and `scripts/_tests/test_referencia.py` pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 
@@ -189,6 +203,8 @@ Should trigger:
 - "improve this video and add background music"
 - "turn this transcript into a vertical short"
 - "create a brand bumper"
+- "make one like this video, but for my product"
+- "turn this podcast into a split-screen clip with colored captions"
 
 Should NOT trigger:
 

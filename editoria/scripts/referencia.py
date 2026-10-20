@@ -21,21 +21,35 @@ import sys
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def descargar_url(url, out_dir):
-    """Descarga el video usando yt-dlp si está instalado."""
+def formato_ytdlp(alto=1080):
+    """Selector de yt-dlp: H.264 (avc1) <= alto, que reproduce todo y se edita
+    sin recodificar sorpresas; luego cualquier codec <= alto; siempre con un
+    respaldo que exista."""
+    return (f"bv*[vcodec^=avc1][height<={alto}]+ba[ext=m4a]/b[vcodec^=avc1][height<={alto}]/"
+            f"bv*[height<={alto}]+ba/b[height<={alto}]/b")
+
+
+def descargar_url(url, out_dir, alto=1080):
+    """Descarga UN video (aunque el enlace sea de una playlist) con yt-dlp, sin
+    pisar un archivo existente. Conserva el reloj de la fuente."""
+    if not url.lower().startswith(("http://", "https://")):
+        sys.exit(f"ERROR: '{url}' no es un enlace http(s); para un archivo local usa --video")
     if not shutil.which("yt-dlp"):
         sys.exit("ERROR: se requiere yt-dlp para descargar URLs. Instalar con: brew install yt-dlp o pip install yt-dlp")
     plantilla = os.path.join(out_dir, "fuente_descargada.%(ext)s")
     cmd = [
-        "yt-dlp",
-        "--format", "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "yt-dlp", "--no-playlist", "--no-overwrites",
+        "--format", formato_ytdlp(alto),
         "--merge-output-format", "mp4",
         "-o", plantilla,
         url
     ]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
-        sys.exit(f"ERROR: fallo yt-dlp al descargar '{url}':\n{r.stderr.strip()[:400]}")
+        sys.exit(f"ERROR: fallo yt-dlp al descargar '{url}':\n{r.stderr.strip()[-400:]}\n"
+                 "Si el sitio pide sesión o cambió: pip install -U yt-dlp, o exporta el video "
+                 "desde el sitio y usa --video. Una referencia se estudia; usar su material "
+                 "requiere permiso de su autor.")
     # Localizar archivo resultante
     candidatos = [os.path.join(out_dir, f) for f in os.listdir(out_dir) if f.startswith("fuente_descargada.")]
     if not candidatos:
@@ -97,7 +111,7 @@ def extraer_audios(video_path, out_dir):
     hay_audio = (r48.returncode == 0 and os.path.isfile(a_48k) and os.path.getsize(a_48k) > 1000)
     return {
         "audio_48k": a_48k if hay_audio else None,
-        "audio_16k": a_16k if hay_audio else None,
+        "audio_16k": a_16k if hay_audio and r16.returncode == 0 else None,
         "tiene_audio": hay_audio
     }
 
@@ -154,7 +168,7 @@ def procesar_referencia(origen, es_url=False, out_dir=None, n_frames=16, cols=4)
     with open(ref_json, "w", encoding="utf-8") as fh:
         json.dump(resultado, fh, indent=2, ensure_ascii=False)
 
-    print(f"OK Referencia procesada exitosamente:")
+    print("OK Referencia procesada exitosamente:")
     print(f"   Metadatos: {meta['duracion']}s · {meta['ancho']}x{meta['alto']} ({meta['aspecto']}) · {meta['fps']} fps")
     print(f"   Audio: {'48kHz + 16kHz extraídos' if audios['tiene_audio'] else 'Sin pista de audio'}")
     if sheet:

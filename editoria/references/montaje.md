@@ -1,6 +1,6 @@
 # Montaje — navaja suiza de edición (`scripts/ffmpeg_tools/montaje.py`)
 
-18 operaciones de cirugía de clips en un solo script. Para composición
+19 operaciones de cirugía de clips en un solo script. Para composición
 creativa usar `scripts/render_plan.py`; esto es cortar, unir, transformar
 y convertir clips existentes.
 
@@ -13,6 +13,7 @@ y convertir clips existentes.
 | Fade in/out | `fundido v.mp4 --dentro 0.5 --fuera 1 -o out.mp4` |
 | Transición entre 2 clips | `transicion a.mp4 b.mp4 --tipo dissolve --duracion 0.5 -o out.mp4` |
 | Video sobre video | `pip base.mp4 overlay.mp4 --posicion abajo-derecha -o out.mp4` |
+| Pantalla dividida (podcast, entrevista, antes/después) | `dividir a.mp4 b.mp4 -o out.mp4` (arriba/abajo en 9:16, lado a lado con `--tamano 1920x1080`; cada panel se llena recortando al centro; `--audio mezcla\|1\|2\|ninguno`) |
 | Logo/marca de agua | `marca-agua v.mp4 logo.png --opacidad 0.7 -o out.mp4` |
 | Sacar el audio | `audio extraer v.mp4 -o audio.m4a` |
 | Quitar el audio | `audio quitar v.mp4 -o out.mp4` |

@@ -1,7 +1,7 @@
 # EditorIA
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.7.0-green.svg)](editoria/SKILL.md)
+[![Version](https://img.shields.io/badge/version-1.8.0-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Platforms](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#installation)
 
@@ -21,6 +21,9 @@ EditorIA turns an agent into a complete video editor. It can:
 - **White-label brand packs**: identity lives in `brand/*.json` (DragonJAR included as example). Without a pack, free mode with pure cinematic criteria. Identity NEVER hardcoded in the code.
 - **Automated QA**: machine (`auto_qa.py` detects black frames, frozen, flashes, audio) + agent visual review on contact sheet. 8-axis award rubric (none below 4/5).
 - **Delivery verification**: `delivery_check.py` validates codec, LUFS, aspect against YouTube/TikTok/Reels.
+- **Clone or adapt a reference video** (method inspired by Hypit): ingest a file or link (`clonar_video.py analizar` / `referencia.py`, yt-dlp), word-timed transcript, frame grids with the spoken words under each tile (`contact_sheet.py --palabras --alrededor "phrase"`), project memory (`proyecto.py`: BRIEF, TREATMENT, PROGRESS, TIMELINE) and transformation lenses (`references/referencia-video.md`); variants with `clonar_video.py variar`.
+- **Formats**: two-person podcast, street interview, ranking, talking head, presenter-led explainer, narration and short drama (`references/formatos.md`), with split screen (`montaje.py dividir`) and speaker-colored captions (`caption.py --hablantes`).
+- **Voice duration by syllables** before paying for TTS (`speech_estimate.py`: numbers counted as spoken, es/en, calibratable against a real voice), the single source for `auditar_plan.py`.
 - **Optional Remotion** (Node 22+, React 19) when programmatic HTML/CSS/JS animation is needed.
 - **Optional HyperFrames** (Node 22+) for deterministic HTML templates.
 
@@ -129,6 +132,22 @@ Improve this video and make it more cinematic
 [QA] re-render and verify on contact sheet
 ```
 
+### Example 5 — Clone a reference video
+
+**User:**
+```
+Make one like this https://www.tiktok.com/@x/video/123 but for my app
+```
+
+**Agent:**
+```
+[Project] proyecto.py ~/videos/app --referencia "https://..."
+[Ingest]  clonar_video.py analizar --url ... → alinear.py (word timings)
+[Read]    contact_sheet.py --cada 1 --palabras ... → ANALYSIS.md + TIMELINE.md
+[Adapt]   TRATAMIENTO.md: keep each system's role, recreate its form for the app
+[Make]    plan.json anchored to the new script's words → render → compare by function
+```
+
 ### Example 4 — Vertical shorts from a long video
 
 **User:**
@@ -187,7 +206,7 @@ Result: 3 shorts at 1080x1920 @30fps, with karaoke subtitles.
 | Capability | Description |
 |---|---|
 | Machine auto-QA | `auto_qa.py` detects black_frame, frozen, flash, clipping |
-| Contact sheet | `contact_sheet.py` generates filmstrips + waveform for visual review |
+| Contact sheet | `contact_sheet.py` builds grids by range/interval/every frame, with the spoken words under each tile (`--palabras`, `--alrededor "phrase"`) |
 | Animation metrics | `medir_animacion.py` scores 9 axes, logs to `metricas/historial.jsonl` |
 | Award rubric | 8 axes (idea, dramaturgy, animation, composition, visual system, sound, truth, finish) |
 | Delivery check | `delivery_check.py` validates codec, LUFS, aspect against YouTube/TikTok/Reels |
@@ -198,8 +217,8 @@ Result: 3 shorts at 1080x1920 @30fps, with karaoke subtitles.
 
 | Capability | Description |
 |---|---|
-| Montaje | 18 operations (join, cut, fade, PiP, etc.) — `montaje.py` |
-| Subtitles | `caption.py` burn-in SRT/ASS with karaoke and safe zone |
+| Montaje | 19 operations (join, cut, fade, PiP, split screen, etc.) — `montaje.py` |
+| Subtitles | `caption.py` burn-in SRT/ASS with karaoke, safe zone and per-speaker color (`--hablantes`) |
 | Color | `grade.py` with presets (subtle, neutral_punch, warm_cinematic, none) + HDR→SDR |
 | EDL | `aplicar_edl.py` lossless concat + 30ms fades + PTS shifts |
 | Loudness | `loudness.py` two passes |
@@ -244,6 +263,10 @@ EditorIA/
 │   │   ├── retakes.py                 # False start detection
 │   │   ├── registrar_aprendizaje.py   # Learning logs
 │   │   ├── auditar_plan.py            # Plan.json audit
+│   │   ├── speech_estimate.py         # Spoken duration by syllables (pre-TTS)
+│   │   ├── referencia.py              # Reference ingestion (file or link)
+│   │   ├── clonar_video.py            # Analyze and vary reference videos
+│   │   ├── proyecto.py                # Project memory (brief, treatment, progress)
 │   │   ├── film_marca.py              # Cinematic brand film v1
 │   │   ├── film_marca_v2.py           # Cinematic brand film v2
 │   │   ├── _film.py                   # Shared film utilities
@@ -253,9 +276,12 @@ EditorIA/
 │   │   ├── escenas_muestra.json       # Canonical samples for all 36 scenes
 │   │   ├── _tests/                    # Unit test suite (unittest)
 │   │   │   ├── test_chapters.py
-│   │   │   └── test_core_and_scenes.py
+│   │   │   ├── test_core_and_scenes.py
+│   │   │   ├── test_speech_estimate_cifras.py
+│   │   │   ├── test_caption_hablantes.py
+│   │   │   └── test_referencia.py
 │   │   └── ffmpeg_tools/              # 19 post-production modules
-│   │       ├── montaje.py             # 18 editing operations
+│   │       ├── montaje.py             # 19 editing operations
 │   │       ├── caption.py             # Subtitle burn-in and karaoke
 │   │       ├── grade.py               # Color grading + presets
 │   │       ├── loudness.py            # -14 LUFS / -1.5 dBTP
@@ -286,7 +312,9 @@ EditorIA/
 │   │   ├── fluidez.md                 # Fluidity rules
 │   │   ├── animacion.md               # Animation craft (12 principles)
 │   │   ├── coherencia-espacial.md     # Alignment and safe zones
-│   │   ├── montaje.md                 # 18 operations
+│   │   ├── montaje.md                 # 19 operations
+│   │   ├── referencia-video.md        # Clone/adapt a reference
+│   │   ├── formatos.md                # What carries each format
 │   │   ├── cine.md                    # Cinematic recipes
 │   │   ├── modos-rapidos.md           # Quick recipes (kinetic, montage, cut)
 │   │   ├── modos-produccion.md        # Real / animated / hybrid modes
@@ -349,6 +377,7 @@ The skill activates when the user says:
 - "the video is bland, give it life"
 - "make it more dynamic"
 - "I want a brand bumper"
+- "make one like this video"
 
 Should NOT activate on: "edit this document", "improve this text",
 "make me an image", "summarize this PDF in text", "what video camera do you recommend".

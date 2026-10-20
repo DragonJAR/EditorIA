@@ -99,16 +99,26 @@ Endpoint: `POST /v1/text-to-speech/{voice_id}`. Modelos: `eleven_v3`
 Antes de timar escenas: la duración de la escena se deriva de la VO, no al revés.
 
 - **Ritmo**: 2.3 palabras/s (~140 wpm) para narración clara y amable; 2.0 en
-  pasajes técnicos.
-- **Duración de escena**: `segundos = palabras / ritmo + 0.4` (el 0.4 es aire
-  de respiro). Una escena sin VO (beat puramente visual) necesita ≥1.0s para
-  registrar. **La narración manda el reloj**: `auditar_plan.py` estima con
-  esta fórmula si cada voz cabe en su escena antes de pagar TTS, y
+  pasajes técnicos. Lo que dura es la sílaba, no la palabra:
+  `scripts/speech_estimate.py` cuenta sílabas (es 5.9 / en 4.6 síl/s en
+  `normal`; `slow` y `fast` alrededor) y suma pausas de puntuación.
+- **Duración de escena**: `segundos = estimación + 0.4` (el 0.4 es el aire
+  con que `voz_off.py` coloca la voz): `python scripts/speech_estimate.py "texto"` (cifras expandidas:
+  "$142.332" son ocho palabras dichas; audio tags fuera; `--ritmo
+  slow|normal|fast`). Para una voz concreta, `--calibrar voz.palabras.json`
+  mide su ritmo real. Una escena sin VO (beat puramente visual) necesita
+  ≥1.0s para registrar. **La narración manda el reloj**: `auditar_plan.py`
+  estima así si cada voz cabe en su escena antes de pagar TTS, y
   `voz_off.py` mide la voz real y falla si una pisa a la siguiente (dirá
   cuántos segundos alargar). Si la voz no cabe, se alarga la escena o se
   recorta el texto; nunca se acelera la voz.
+- **Pronunciación**: el campo `voz` lleva lo que se DICE y los campos de
+  texto lo que se VE. Siglas, nombres inventados y cifras cuya lectura
+  importa se escriben como deben sonar ("A P I", "ese cu ele" o "sequel",
+  "dos mil veinticuatro") y la escena muestra "API", "SQL", "2024". Misma
+  lectura en TODAS las apariciones del nombre.
 - **Budgets de palabras** (ritmo 2.3): 30s ≈ 69 palabras · 60s ≈ 138 palabras
-  · 90s ≈ 207 palabras.
+  · 90s ≈ 207 palabras (orientativo; el estimador cuenta sílabas).
 - **Fórmula de guion** (reparto del runtime): problema 20% → solución 15% →
   cómo 45% → payoff + CTA 20%.
 - **Captions**: máx 2 líneas, ≤42 caracteres por línea, ≥1.0s en pantalla,

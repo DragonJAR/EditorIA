@@ -33,7 +33,10 @@ vestirlo sin que se note el bisturí.
 7. **Captions**: palabra por palabra, agrupación frase-consciente (nunca
    terminar en leader words), banda central.
    `scripts/ffmpeg_tools/caption.py --phrase-aware --brand brand/tu-marca.json`
-   (aplica fuente, colores y posición de marca automáticamente).
+   (aplica fuente, colores y posición de marca automáticamente). Con dos o
+   más personas (podcast, entrevista): `--hablantes "ANA=FFD400,LUIS=4FC3F7"`
+   y cues con prefijo `ANA:` (o un palabras.json con `speaker` de WhisperX):
+   cada voz con su color, ningún cue mezcla hablantes (`references/formatos.md`).
 8. **Audio**: `scripts/ffmpeg_tools/loudness.py` (−14 LUFS) → cadena de mastering
    (highpass → acompressor → loudnorm → alimiter, ver `references/sonido.md`).
    Si hay música: `musica.py mix` con ducking.

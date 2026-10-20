@@ -17,7 +17,6 @@ import argparse
 import copy
 import json
 import os
-import random
 import subprocess
 import sys
 
@@ -134,7 +133,7 @@ def cmd_analizar(origen, es_url, out_dir):
     out_dir = out_dir or os.path.join(os.getcwd(), "clon_trabajo")
     os.makedirs(out_dir, exist_ok=True)
 
-    print(f"=== PASO 1: Ingesta de video de referencia ===")
+    print("=== PASO 1: Ingesta de video de referencia ===")
     ref_data = REF.procesar_referencia(origen, es_url=es_url, out_dir=out_dir)
 
     dur = ref_data["metadatos"]["duracion"]
@@ -157,22 +156,22 @@ def cmd_analizar(origen, es_url, out_dir):
     # Generar reporte de análisis viral ANALYSIS.md
     analysis_md = os.path.join(out_dir, "ANALYSIS.md")
     with open(analysis_md, "w", encoding="utf-8") as fh:
-        fh.write(f"# Análisis de Video Viral de Referencia\n\n")
+        fh.write("# Análisis de Video Viral de Referencia\n\n")
         fh.write(f"- **Origen**: `{origen}`\n")
         fh.write(f"- **Duración**: {dur}s · **Aspecto**: {ref_data['metadatos']['aspecto']} · **FPS**: {ref_data['metadatos']['fps']}\n")
-        fh.write(f"- **Pistas extraídas**: Audio 48kHz (`audio_48k.wav`), Audio 16kHz (`audio_16k.wav`)\n")
-        fh.write(f"- **Storyboard**: Contact Sheet con frames clave (`contact_sheet.png`)\n\n")
-        fh.write(f"## Estructura Viral Descompuesta\n\n")
-        fh.write(f"| # | Rol | Tiempos | Duración | Escena Sugerida | Notas de Retención |\n")
-        fh.write(f"|---|---|---|---|---|---|\n")
+        fh.write("- **Pistas extraídas**: Audio 48kHz (`audio_48k.wav`), Audio 16kHz (`audio_16k.wav`)\n")
+        fh.write("- **Storyboard**: Contact Sheet con frames clave (`contact_sheet.png`)\n\n")
+        fh.write("## Estructura Viral Descompuesta\n\n")
+        fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida | Notas de Retención |\n")
+        fh.write("|---|---|---|---|---|---|\n")
         for s in segmentos:
             nota = "Impacto en primeros 2s" if s['rol'] == 'hook' else ("Llamado a la acción claro" if s['rol'] == 'cierre' else "Dinamismo y prueba social/datos")
             fh.write(f"| {s['indice']} | **{s['rol'].upper()}** | {s['from']}s - {s['to']}s | {s['duracion']}s | `{s['tipo_sugerido']}` | {nota} |\n")
-        fh.write(f"\n## Recomendaciones de Clonación y Variación\n")
+        fh.write("\n## Recomendaciones de Clonación y Variación\n")
         fh.write(f"1. Ejecutar `python scripts/clonar_video.py variar --plantilla {plantilla_json} --variantes 3 --tema '<Nuevo Tema>'`\n")
-        fh.write(f"2. El motor reemplazará los textos manteniendo las cuotas de duración auditadas por `speech_estimate.py`.\n")
+        fh.write("2. El motor reemplazará los textos manteniendo las cuotas de duración auditadas por `speech_estimate.py`.\n")
 
-    print(f"\nOK Estructura analizada:")
+    print("\nOK Estructura analizada:")
     print(f"   Plantilla: {plantilla_json}")
     print(f"   Reporte: {analysis_md}")
 

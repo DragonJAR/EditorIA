@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """montaje.py — navaja suiza de edición de video de EditorIA.
 
-18 operaciones de edición en un solo script, todas con las mismas
+19 operaciones de edición en un solo script, todas con las mismas
 convenciones (--dry-run, --json, nunca sobrescribir el input, verificar
 el output). Para composición creativa (escenas, motion graphics) usar
 scripts/render_plan.py; esto es cirugía de clips.
@@ -12,6 +12,7 @@ Operaciones:
   fundido     fade in/out de video y audio
   transicion  xfade entre dos clips (fundido, cortinillas, etc.)
   pip         picture-in-picture (un video sobre otro)
+  dividir     pantalla dividida: dos videos arriba/abajo o lado a lado
   marca-agua  logo/imagen superpuesta con opacidad
   audio       extraer | quitar | reemplazar la pista de audio
   gif         exporta GIF animado (paleta optimizada)
@@ -197,6 +198,43 @@ def cmd_pip(a):
     verify_output(out)
     info(f"OK {out} (PiP {a.posicion})")
     emit(out)
+
+
+def cmd_dividir(a):
+    """Dos tomas en un cuadro (podcast, entrevista, antes/después): cada panel
+    se llena recortando al centro (cover), sin bandas negras."""
+    for v in (a.video1, a.video2):
+        if not os.path.isfile(v):
+            die(f"no existe: {v}")
+    m1, m2 = probe(a.video1), probe(a.video2)
+    try:
+        W, H = (int(x) for x in a.tamano.lower().split("x"))
+    except ValueError:
+        die(f"--tamano {a.tamano}: usa ANCHOxALTO, p. ej. 1080x1920")
+    disp = a.disposicion or ("arriba-abajo" if H >= W else "lado-a-lado")
+    pw, ph = (W, H // 2 // 2 * 2) if disp == "arriba-abajo" else (W // 2 // 2 * 2, H)
+    fps = (m1.get("video") or {}).get("fps") or 30
+    fc = ";".join(f"[{i}:v]scale={pw}:{ph}:force_original_aspect_ratio=increase,"
+                  f"crop={pw}:{ph},setsar=1,fps={fps:g},setpts=PTS-STARTPTS[p{i}]" for i in (0, 1))
+    fc += f";[p0][p1]{'vstack' if disp == 'arriba-abajo' else 'hstack'}=inputs=2:shortest=1[v]"
+    maps = ["-map", "[v]"]
+    con_audio = [i for i, m in enumerate((m1, m2)) if m.get("audio")]
+    if a.audio == "mezcla" and len(con_audio) == 2:
+        fc += ";[0:a][1:a]amix=inputs=2:duration=shortest:normalize=0[a]"
+        maps += ["-map", "[a]", "-c:a", "aac", "-b:a", "192k"]
+    elif a.audio in ("1", "2") and int(a.audio) - 1 in con_audio:
+        maps += ["-map", f"{int(a.audio) - 1}:a", "-c:a", "aac", "-b:a", "192k", "-shortest"]
+    elif con_audio and a.audio != "ninguno":
+        maps += ["-map", f"{con_audio[0]}:a", "-c:a", "aac", "-b:a", "192k", "-shortest"]
+    else:
+        maps += ["-an"]
+    out = a.output or default_output(a.video1, "_dividido", ext=".mp4")
+    cmd = (ffmpeg_base() + ["-i", a.video1, "-i", a.video2, "-filter_complex", fc] + maps +
+           video_args(m1, crf=a.crf) + [out])
+    run(cmd)
+    verify_output(out)
+    info(f"OK {out} (pantalla dividida {disp}, {W}x{H})")
+    emit(out, disposicion=disp)
 
 
 def cmd_marca_agua(a):
@@ -631,6 +669,17 @@ def main():
     p.add_argument("-o", "--output")
     p.add_argument("--crf", type=int, default=18)
 
+    p = sub.add_parser("dividir", help="pantalla dividida (dos tomas en un cuadro)")
+    p.add_argument("video1")
+    p.add_argument("video2")
+    p.add_argument("--tamano", default="1080x1920", help="tamaño de salida ANCHOxALTO (default 1080x1920)")
+    p.add_argument("--disposicion", choices=["arriba-abajo", "lado-a-lado"],
+                   help="default: arriba-abajo si el cuadro es vertical, lado-a-lado si es horizontal")
+    p.add_argument("--audio", choices=["mezcla", "1", "2", "ninguno"], default="mezcla",
+                   help="sonido: mezcla de ambos (default), solo el del 1, solo el del 2, o ninguno")
+    p.add_argument("-o", "--output")
+    p.add_argument("--crf", type=int, default=18)
+
     p = sub.add_parser("marca-agua", help="logo superpuesto")
     p.add_argument("video")
     p.add_argument("imagen")
@@ -735,11 +784,12 @@ def main():
     import os as _os, sys as _sys
     _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "."))
     from _comun import ayudar
-    ayudar(ap, {'video1': 'primer clip', 'video2': 'segundo clip', '--dentro': 'segundos de fundido de entrada', '--fuera': 'segundos de fundido de salida', 'base': 'video de fondo', 'overlay': 'video que va en la ventanita', '--opacidad': 'opacidad de la marca de agua (0–1)', '--grados': 'rotación en grados (sentido horario)', '--eje': 'eje del espejo', '--contraste': 'contraste (1 = igual; 1.1 = +10 %)', '--saturacion': 'saturación (1 = igual; 0 = gris)', '--factor': 'velocidad: 2 = el doble de rápido, 0.5 = cámara lenta', '--similitud': 'chroma: qué tan parecido al color clave se quita (0.1 estricto – 0.4 amplio)', '--mezcla': 'chroma: suavidad del borde recortado'})
+    ayudar(ap, {'video1': 'primer clip (arriba o izquierda en dividir)', 'video2': 'segundo clip (abajo o derecha en dividir)', '--dentro': 'segundos de fundido de entrada', '--fuera': 'segundos de fundido de salida', 'base': 'video de fondo', 'overlay': 'video que va en la ventanita', '--opacidad': 'opacidad de la marca de agua (0–1)', '--grados': 'rotación en grados (sentido horario)', '--eje': 'eje del espejo', '--contraste': 'contraste (1 = igual; 1.1 = +10 %)', '--saturacion': 'saturación (1 = igual; 0 = gris)', '--factor': 'velocidad: 2 = el doble de rápido, 0.5 = cámara lenta', '--similitud': 'chroma: qué tan parecido al color clave se quita (0.1 estricto – 0.4 amplio)', '--mezcla': 'chroma: suavidad del borde recortado'})
     a = ap.parse_args()
     apply_common(a)
     {"unir": cmd_unir, "cortar": cmd_cortar, "fundido": cmd_fundido,
-     "transicion": cmd_transicion, "pip": cmd_pip, "marca-agua": cmd_marca_agua,
+     "transicion": cmd_transicion, "pip": cmd_pip, "dividir": cmd_dividir,
+     "marca-agua": cmd_marca_agua,
      "audio": cmd_audio, "gif": cmd_gif, "pase": cmd_pase, "rotar": cmd_rotar,
      "voltear": cmd_voltear, "bucle": cmd_bucle, "escala": cmd_escala,
      "color": cmd_color, "velocidad": cmd_velocidad,

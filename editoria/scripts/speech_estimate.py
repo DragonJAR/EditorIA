@@ -4,11 +4,21 @@ Inspirado en @hypit/speech-estimate.
 Calcula la duración estimada del habla antes de sintetizar audio (vía ElevenLabs u otro TTS),
 permitiendo auditar planes, evitar solapamientos y redimensionar escenas sin incurrir en costos de API.
 
+Las cifras se cuentan como se DICEN ("$142.332" son ocho palabras habladas,
+no una): miles, decimales, % y moneda se expanden a palabras (es/en) antes de
+contar sílabas. Para una voz concreta, --calibrar mide su ritmo real con el
+palabras.json de esa voz (scripts/alinear.py): sílabas entre la primera y la
+última palabra, pausas incluidas.
+
 Uso CLI:
   python speech_estimate.py "Texto a estimar" [--idioma es] [--ritmo normal]
+  python speech_estimate.py guion.txt --calibrar voz.palabras.json
   python speech_estimate.py plan.json --auditar
 """
 import os, sys, re, json, argparse
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import leer_palabras  # noqa: E402
 
 # Tasas empíricas de pronunciación (unidades por segundo)
 # Español: sílabas/segundo | Inglés: sílabas fonéticas/segundo
@@ -63,8 +73,124 @@ def contar_silabas_ingles(palabra: str) -> int:
 contar_silabas_es = contar_silabas_espanol
 contar_silabas_en = contar_silabas_ingles
 
+STOP_ES = set("el la los las de que y en un una es por con para no se su al lo como más pero".split())
+STOP_EN = set("the and of to in is it you that for with on are this be your was at as have not".split())
 
-def estimar_duracion(texto: str, idioma: str = "es", ritmo: str = "normal", padding: float = 0.35) -> float:
+
+def detectar_idioma(texto: str) -> str:
+    """'es' o 'en' por palabras frecuentes y tildes; ante la duda, 'es'."""
+    ws = re.findall(r"[a-záéíóúñü]+", texto.lower())
+    es = sum(w in STOP_ES for w in ws) + 2 * len(re.findall(r"[ñáéíóú¿¡]", texto.lower()))
+    return "en" if sum(w in STOP_EN for w in ws) > es else "es"
+
+
+# ───────────── cifras → palabras (la voz dice "ciento cuarenta y dos mil") ─────────────
+
+_UNIDADES_ES = ("cero uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece "
+                "catorce quince dieciséis diecisiete dieciocho diecinueve veinte veintiuno "
+                "veintidós veintitrés veinticuatro veinticinco veintiséis veintisiete "
+                "veintiocho veintinueve").split()
+_DECENAS_ES = "_ _ _ treinta cuarenta cincuenta sesenta setenta ochenta noventa".split()
+_CIENTOS_ES = ("_ ciento doscientos trescientos cuatrocientos quinientos seiscientos "
+               "setecientos ochocientos novecientos").split()
+_UNIDADES_EN = ("zero one two three four five six seven eight nine ten eleven twelve "
+                "thirteen fourteen fifteen sixteen seventeen eighteen nineteen").split()
+_DECENAS_EN = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
+
+
+def _menor_mil(n: int, idioma: str) -> str:
+    c, r = divmod(n, 100)
+    if idioma == "es":
+        if n == 100:
+            return "cien"
+        pal = [_CIENTOS_ES[c]] if c else []
+        if r < 30:
+            pal += [_UNIDADES_ES[r]] if r or not c else []
+        else:
+            d, u = divmod(r, 10)
+            pal += [_DECENAS_ES[d]] + (["y", _UNIDADES_ES[u]] if u else [])
+        return " ".join(pal)
+    pal = [_UNIDADES_EN[c], "hundred"] if c else []
+    if r >= 20:
+        d, u = divmod(r, 10)
+        pal += [_DECENAS_EN[d]] + ([_UNIDADES_EN[u]] if u else [])
+    elif r or not c:
+        pal += [_UNIDADES_EN[r]]
+    return " ".join(pal)
+
+
+def numero_a_palabras(n: int, idioma: str = "es") -> str:
+    """Entero >= 0 → como se dice (es/en), hasta billones."""
+    escalas = ([(10**12, "billón", "billones"), (10**6, "millón", "millones"), (1000, "mil", "mil")]
+               if idioma == "es" else
+               [(10**12, "trillion", "trillion"), (10**9, "billion", "billion"),
+                (10**6, "million", "million"), (1000, "thousand", "thousand")])
+    for valor, sing, plur in escalas:
+        if n >= valor:
+            q, r = divmod(n, valor)
+            if idioma == "es" and q == 1:
+                cabeza = "mil" if valor == 1000 else "un " + sing
+            else:
+                cabeza = numero_a_palabras(q, idioma) + " " + plur
+            return cabeza + (" " + numero_a_palabras(r, idioma) if r else "")
+    return _menor_mil(n, idioma)
+
+
+_CIFRA_RE = re.compile(r"([$€£]?)(\d+(?:[.,]\d+)*)(\s*%)?")
+_MONEDA = {"es": {"$": "dólares", "€": "euros", "£": "libras"},
+           "en": {"$": "dollars", "€": "euros", "£": "pounds"}}
+
+
+def _cifra_dicha(m, idioma: str) -> str:
+    moneda, num, pct = m.group(1), m.group(2), m.group(3)
+    corte = max(num.rfind("."), num.rfind(","))
+    if corte < 0 or re.fullmatch(r"\d{1,3}(?:([.,])\d{3})(?:\1\d{3})*", num):
+        entero, dec = re.sub(r"\D", "", num), ""       # 1240 · 1.240 · 1,240: miles
+    else:                                              # 4,8 · 1.240,5: el último separador es decimal
+        entero, dec = re.sub(r"\D", "", num[:corte]), num[corte + 1:]
+    partes = [numero_a_palabras(int(entero), idioma)]
+    if dec:
+        partes += ["coma" if idioma == "es" else "point"] + [numero_a_palabras(int(d), idioma) for d in dec]
+    if pct:
+        partes.append("por ciento" if idioma == "es" else "percent")
+    if moneda:
+        partes.append(_MONEDA.get(idioma, _MONEDA["es"])[moneda])
+    return " " + " ".join(partes) + " "
+
+
+def texto_hablado(texto: str, idioma: str = "es") -> str:
+    """Lo que la voz dirá: sin audio tags y con las cifras en palabras."""
+    t = re.sub(r"\[[^\]]*\]", " ", texto or "")
+    return _CIFRA_RE.sub(lambda m: _cifra_dicha(m, idioma), t)
+
+
+def silabas(texto: str, idioma: str = "es") -> int:
+    """Sílabas habladas del texto (cifras expandidas, tags y marcas fuera).
+    Una sigla sin vocales (SQL, CSS) se deletrea: cada letra suena su nombre."""
+    contar = contar_silabas_espanol if idioma == "es" else contar_silabas_ingles
+    total = 0
+    for p in re.findall(r"\b\w+\b", texto_hablado(texto, idioma)):
+        if p.isalpha() and not re.search(r"[aeiouyáéíóúü]", p.lower()):
+            total += len(p) * (2 if idioma == "es" else 1)
+        else:
+            total += contar(p)
+    return total
+
+
+def calibrar(path_palabras: str, idioma: str = None):
+    """Ritmo REAL (sílabas/s) de una voz medida → (tasa, idioma). Tramo de la
+    primera a la última palabra del palabras.json, con las pausas internas."""
+    ps = leer_palabras(path_palabras)
+    texto = " ".join(p["texto"] for p in ps)
+    idioma = idioma or detectar_idioma(texto)
+    tramo = ps[-1]["fin"] - ps[0]["inicio"]
+    if tramo <= 0.5:
+        sys.exit(f"ERROR: {path_palabras}: tramo hablado demasiado corto para calibrar ({tramo:.2f}s)")
+    return silabas(texto, idioma) / tramo, idioma
+
+
+def estimar_duracion(texto: str, idioma: str = "es", ritmo: str = "normal", padding: float = 0.35,
+                     tasa: float = None) -> float:
     """Calcula duración estimada en segundos a partir del texto y ritmo deseado.
     padding: tiempo de amortiguación acústica para respiración y pausas de puntuación.
     """
@@ -74,17 +200,12 @@ def estimar_duracion(texto: str, idioma: str = "es", ritmo: str = "normal", padd
     limpio = re.sub(r"\[[^\]]*\]", " ", texto) # quitar audio-tags de dirección de voz [excited]
     limpio = re.sub(r"<[^|>]*\|([^>]*)>", r"\1", limpio) # soportar texto dual <display|spoken>
     limpio = re.sub(r"@\{/?[a-zA-Z0-9_-]+!?\}", "", limpio) # quitar tags semánticos
-    palabras = re.findall(r"\b\w+\b", limpio)
-    if not palabras:
+    if not re.search(r"\w", limpio):
         return 0.0
-    
-    tasa = RITMOS.get(idioma, RITMOS["es"]).get(ritmo, 5.90)
-    
-    if idioma == "es":
-        unidades = sum(contar_silabas_espanol(p) for p in palabras)
-    else:
-        unidades = sum(contar_silabas_ingles(p) for p in palabras)
-        
+
+    tasa = tasa or RITMOS.get(idioma, RITMOS["es"]).get(ritmo, 5.90)
+    unidades = silabas(limpio, idioma)
+
     # Pausas añadidas por puntuación (puntos, comas, signos de interrogación)
     pausas_comas = len(re.findall(r"[,;:]", limpio)) * 0.15
     pausas_puntos = len(re.findall(r"[.!?]", limpio)) * 0.30
@@ -99,7 +220,8 @@ estimar_duracion_habla = estimar_duracion
 AIRE_VOZ = 0.40  # Segundos que voz_off.py deja al inicio de cada escena
 
 
-def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = AIRE_VOZ) -> dict:
+def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = AIRE_VOZ,
+                       ritmo: str = "normal") -> dict:
     """Revisa un plan.json y detecta si la locución proyectada de alguna escena
     supera el tiempo disponible (to - from - aire_inicial). Retorna dict con estado y lista de alertas/desbordes."""
     if isinstance(plan_or_path, dict):
@@ -115,7 +237,7 @@ def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = A
             continue
         t_bruto = float(e.get("to", 0)) - float(e.get("from", 0))
         t_disp = max(0.0, t_bruto - aire_inicial)
-        t_est = estimar_duracion(voz, idioma=idioma)
+        t_est = estimar_duracion(voz, idioma=idioma, ritmo=ritmo)
         if t_est > t_disp:
             diff = round(t_est - t_disp, 2)
             alertas.append({
@@ -132,28 +254,41 @@ def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = A
 
 def main():
     parser = argparse.ArgumentParser(description="speech_estimate — Estimación pre-TTS determinista")
-    parser.add_argument("entrada", help="Texto a estimar o ruta a plan.json")
-    parser.add_argument("--idioma", default="es", choices=["es", "en"], help="Idioma del hablante")
+    parser.add_argument("entrada", help="Texto a estimar, un .txt/.md con el guion o ruta a plan.json")
+    parser.add_argument("--idioma", choices=["es", "en"], help="Idioma del hablante (default: detectado)")
     parser.add_argument("--ritmo", default="normal", choices=["slow", "normal", "fast"], help="Ritmo")
+    parser.add_argument("--calibrar", metavar="PALABRAS_JSON",
+                        help="usa el ritmo real de una voz medida (palabras.json de alinear.py)")
     parser.add_argument("--auditar", action="store_true", help="Audita un archivo plan.json")
     args = parser.parse_args()
 
-    if args.auditar or args.entrada.endswith(".json"):
-        res = auditar_plan_voces(args.entrada, idioma=args.idioma)
+    entrada = args.entrada
+    if os.path.splitext(entrada)[1].lower() in (".json", ".txt", ".md") and not os.path.isfile(entrada):
+        sys.exit(f"ERROR: no existe el archivo: {entrada}")
+    if args.auditar or entrada.endswith(".json"):
+        res = auditar_plan_voces(entrada, idioma=args.idioma or "es", ritmo=args.ritmo)
         alertas = res.get("alertas", [])
         if res.get("valido", False):
-            print(f"OK plan validado: todas las locuciones caben holgadamente en sus escenas.")
+            print("OK plan validado: todas las locuciones caben holgadamente en sus escenas.")
             sys.exit(0)
         else:
             print(f"ALERTA: {len(alertas)} escena(s) exceden el tiempo asignado:")
             for a in alertas:
-                print(f"  - Escena {a['escena_index']} ({a['tipo']}): disponible {a['tiempo_disponible']}s, "
+                print(f"  - Escena {a['escena_index']} ({a['tipo']}): disponible {a['tiempo_disponible_voz']}s, "
                       f"estimado {a['tiempo_estimado']}s (exceso: +{a['exceso_segundos']}s)")
                 print(f"    Texto: \"{a['voz']}\"")
             sys.exit(1)
     else:
-        dur = estimar_duracion(args.entrada, idioma=args.idioma, ritmo=args.ritmo)
-        print(f"Duración estimada: {dur:.2f} s ({args.idioma}, ritmo {args.ritmo})")
+        if entrada.endswith((".txt", ".md")):
+            with open(entrada, encoding="utf-8") as fh:
+                entrada = fh.read()
+        idioma = args.idioma or detectar_idioma(entrada)
+        tasa, fuente = None, f"ritmo {args.ritmo}"
+        if args.calibrar:
+            tasa, _ = calibrar(args.calibrar, idioma)
+            fuente = f"calibrado {tasa:.2f} síl/s con {args.calibrar}"
+        dur = estimar_duracion(entrada, idioma=idioma, ritmo=args.ritmo, tasa=tasa)
+        print(f"Duración estimada: {dur:.2f} s ({idioma}, {silabas(entrada, idioma)} sílabas, {fuente})")
 
 
 if __name__ == "__main__":
