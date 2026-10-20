@@ -209,14 +209,21 @@ def mancha_mask(ctx,t,t0,dur=0.7,fx=0.5,fy=0.45):
     d.polygon(pts,fill=255)
     return mask
 
-SOLAPE=0.45  # s que la salida de una escena se superpone con la entrada de la siguiente
+SOLAPE=0.45      # s que la salida de una escena se superpone con la entrada de la siguiente
+SOLAPE_PRE=0.25  # s de fundido de salida ANTES del corte
+# El pack puede declarar "corte_seco": entonces el corte es seco (la escena que
+# entra aparece de inmediato) pero el saliente se disuelve DEBAJO durante un
+# cuarto de segundo. Sin ese retardo quedaba un hueco vacío entre escenas: la
+# que salía se iba antes de que la siguiente empezara a mostrar contenido.
+SOLAPE_SECO=0.25
+SOLAPE_PRE_SECO=0.03
 
 def capa_salida(layer,t,to_):
     """Salida anticipada que se SOLAPA con la escena siguiente: empieza 0.25 s
     antes del fin y termina SOLAPE s después, debajo de lo que ya entra (antes
     terminaba en `to` y quedaban frames de fondo vacío en cada corte: un
     parpadeo que fluidez.md prohíbe)."""
-    s=prog(t,to_-0.25,to_+SOLAPE,smoothstep)   # cruza el corte: sin hueco vacío
+    s=prog(t,to_-SOLAPE_PRE,to_+SOLAPE,smoothstep)   # cruza el corte: sin hueco vacío
     if s<=0: return layer
     a=layer.split()[3].point(lambda v:int(v*(1-s)))
     layer.putalpha(a)
@@ -1723,8 +1730,9 @@ def sc_quote(ctx, e, t):
                 d.rectangle([x - 4, y - fnt.size * 0.05, x + (ww + esp) * ease_out(ke),
                              y + fnt.size * 0.62],
                             fill=tuple(int(lerp(p_, a_, 0.35 * ke)) for p_, a_ in zip(PANEL, ACENTO)) + (255,))
-            col = ACENTO if (em and ke >= 1) else BLANCO
-            d.text((x, y), w_, font=fnt, fill=col + (al,), anchor="lm")
+            # la frase clave va en BLANCO sobre la banda de acento: en color
+            # acento sobre la banda de acento el contraste era ilegible
+            d.text((x, y), w_, font=fnt, fill=BLANCO + (al,), anchor="lm")
             x += ww + esp
     y_sig = y_txt + (n - 1) * lh + lh * 0.5
     t_fin = t_texto + n * 0.22 + 0.4
@@ -3110,6 +3118,7 @@ def aplicar_brand(brand_path):
     La lectura vive en _comun (colores_marca, fuente_marca, ruta_de_pack):
     la misma para todas las herramientas del kit."""
     global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS, LOGO, ISOTIPO, MARCA_NOMBRE, TRANSICIONES   # fuentes: vía globals()
+    global SOLAPE, SOLAPE_PRE
     from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
     d = leer_pack(brand_path)
     c = colores_marca(brand_path)
@@ -3125,6 +3134,10 @@ def aplicar_brand(brand_path):
     ISOTIPO = ruta_de_pack(brand_path, logos.get("isotipo"))
     MARCA_NOMBRE = d.get("nombre")
     TRANSICIONES = (d.get("reglas") or {}).get("transiciones", "libre")
+    # "corte_seco" es una REGLA del pack: el solape entre escenas se reduce a un
+    # micro-fade (sin disolvencia de 0.45 s entre dos pantallas de texto).
+    if TRANSICIONES == "corte_seco":
+        SOLAPE, SOLAPE_PRE = SOLAPE_SECO, SOLAPE_PRE_SECO
     print(f"brand pack: {d.get('nombre', brand_path)} — acento #%02X%02X%02X" % ACENTO, flush=True)
 
 COLUMNA={"chat","leads","handoff"}   # se leen como columna (conversación, tabla, ficha)
