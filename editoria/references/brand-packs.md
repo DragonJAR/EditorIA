@@ -14,6 +14,10 @@ defaults creativos.
   tipografías, idioma de transición y voz según el brief y el tono, con el
   único criterio de que la pieza se vea intencional y premium. Este es el
   modo por defecto cuando el usuario no nombra una marca.
+  **La paleta no se hereda: se elige** del catálogo de `references/paleta.md`
+  según la teoría del color y el brief (tema, sector, emoción). El respaldo
+  del modo libre es un azul frío sin identidad, deliberadamente distinto del
+  rojo del pack de ejemplo: una pieza sin marca no debe parecerse a ninguna.
 
 Regla de oro: **el pack manda sobre el preset; el brief manda sobre todo**.
 Nunca inventar identidad de marca (colores, logos, slogans): si el usuario
@@ -67,8 +71,9 @@ compositiva de los films); sin él se usa el centro de masa del logo.
 Todas las herramientas leen el pack con las mismas funciones
 (`scripts/ffmpeg_tools/_comun.py`: `colores_marca`, `fuente_marca`,
 `ruta_de_pack`, `identidad_pieza`). Sin `--brand` (ni `"brand"` en el plan)
-TODAS usan la paleta neutra del modo libre (`NEUTRO`): ninguna herramienta
-carga una marca por defecto. Un pack sin `colores.acento` (ni
+TODAS usan la paleta del modo libre: la que se declara con `--paleta` (o con
+el campo `"paleta"` del plan), y si no, la neutra de respaldo (`NEUTRO`).
+Ninguna herramienta carga una marca por defecto. Un pack sin `colores.acento` (ni
 `colors.primary`) es un error explícito, no un default silencioso.
 
 Claves `reglas` reconocidas:
@@ -99,3 +104,7 @@ Claves `reglas` reconocidas:
   `--brand`: acento, fuente y defaults de subtítulos del pack.
 - `film_marca_v2.py --brand pack.json` (o `--logo`, `--nombre`, `--lema`):
   film de marca de 15 s sobre el logo del pack; sin logo no hay film.
+
+---
+
+→ Canónico: `references/brand-packs.md` · Dominio: marca · Vecinos: `references/principios.md`, `references/copy.md`, `references/mapa.md`

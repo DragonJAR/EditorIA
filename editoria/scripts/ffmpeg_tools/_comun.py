@@ -165,12 +165,123 @@ def run(cmd: Sequence[str], *, quiet: bool = False, check: bool = True) -> subpr
         _cleanup_partial_output(cmd)
         if check:
             tail = "\n".join(proc.stderr.strip().splitlines()[-12:])
-            die(f"comando fallo (codigo {proc.returncode}): {cmd[0]}\n{tail}")
+            die(f"comando fallo (codigo {proc.returncode}): {cmd[0]}\n{tail}"
+                + _pista_libass(cmd, proc.stderr))
     return proc
 
 
-def ffmpeg_base(overwrite: bool = True) -> List[str]:
-    cmd = [require_tool("ffmpeg"), "-hide_banner", "-loglevel", "error", "-nostdin"]
+def _pista_libass(cmd, stderr):
+    """El motivo real cuando falta libass en el ffmpeg.
+
+    Sin este filtro, ffmpeg responde "No option name near 'sub.srt:...'", que
+    no dice nada util: el agente no sabe que le falta `ffmpeg-full` ni que el
+    motor propio (PIL) sigue funcionando. `check_env.py` ya avisa al
+    arrancar; aqui se dice en el momento en que algo falla.
+    """
+    filtros = ("subtitles=", "ass=", "drawtext=")
+    if not any(f in " ".join(cmd) for f in filtros):
+        return ""
+    if "No option name near" not in stderr and "No such filter" not in stderr:
+        return ""
+    return ("\nAVISO: este ffmpeg no trae los filtros de texto (libass). "
+            "El motor propio (PIL) sigue bien; solo los subtitulos quemados fallan.\n"
+            "      arreglo: brew install ffmpeg-full  (keg-only). Las herramientas\n"
+            "      lo encuentran solas: no hace falta exportar PATH.")
+
+
+# ---------- filtros de texto (libass + libfreetype) ----------
+# El ffmpeg de Homebrew NO trae libass. `brew install ffmpeg-full` lo deja
+# keg-only (sin symlink), de modo que el primer ffmpeg del PATH sigue siendo
+# el que NO tiene drawtext/ass/subtitles. El remedio que documenta la skill
+# (export PATH=...) no sirve dentro de un agente: cada llamada de shell es un
+# proceso nuevo, el export no persiste entre llamadas. Por eso el resolver
+# busca el binario CON los filtros por su cuenta.
+FILTROS_TEXTO = ("ass", "subtitles", "drawtext")
+_filtros_cache: Dict[str, bool] = {}
+
+
+def _filtro_en_listado(listado: str, filtro: str) -> bool:
+    """True si el listado de `-filters` trae ese filtro.
+
+    Cada filtro sale como " T. drawtext   V->V   descripcion": se compara el
+    nombre justo antes de la flecha, nunca dentro del texto descriptivo
+    (donde "libass" o "subtitles" aparecen citados sin ser filtros).
+    """
+    for linea in listado.splitlines():
+        partes = linea.split()
+        if len(partes) >= 3 and partes[1] == filtro and "->" in partes[2]:
+            return True
+    return False
+
+
+def tiene_filtros_texto(ruta: str) -> bool:
+    """True si ese ffmpeg trae los tres filtros de texto."""
+    if ruta in _filtros_cache:
+        return _filtros_cache[ruta]
+    try:
+        r = subprocess.run([ruta, "-hide_banner", "-filters"],
+                           capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        _filtros_cache[ruta] = False
+        return False
+    listado = (r.stdout or "") + (r.stderr or "")
+    ok = all(_filtro_en_listado(listado, f) for f in FILTROS_TEXTO)
+    _filtros_cache[ruta] = ok
+    return ok
+
+
+def _candidatos_ffmpeg() -> List[str]:
+    """Binarios ffmpeg que pueden traer libass, en orden de preferencia."""
+    vistos: List[str] = []
+
+    def _add(ruta: Optional[str]) -> None:
+        if (ruta and ruta not in vistos and os.path.isfile(ruta)
+                and os.access(ruta, os.X_OK)):
+            vistos.append(ruta)
+
+    _add(shutil.which("ffmpeg"))
+    # ffmpeg-full de Homebrew es keg-only: no hay symlink, no esta en el PATH.
+    prefijos = [os.environ.get("HOMEBREW_PREFIX", "")]
+    prefijos += ["/opt/homebrew", "/usr/local", "/home/linuxbrew/.linuxbrew"]
+    for prefijo in prefijos:
+        if not prefijo:
+            continue
+        _add(os.path.join(prefijo, "opt", "ffmpeg-full", "bin", "ffmpeg"))
+        # La version puede cambiar: se toma la mas nueva instalada.
+        cellar = os.path.join(prefijo, "Cellar", "ffmpeg-full")
+        if os.path.isdir(cellar):
+            for version in sorted(os.listdir(cellar), reverse=True):
+                _add(os.path.join(cellar, version, "bin", "ffmpeg"))
+    _add(shutil.which("ffmpeg-full"))
+    return vistos
+
+
+def ffmpeg_con_texto() -> Optional[str]:
+    """Ruta del primer ffmpeg que trae los filtros de texto, o None.
+
+    None significa: en esta maquina no hay ningun ffmpeg con libass (ni en el
+    PATH ni en un keg de ffmpeg-full). `check_env.py` lo dice al arrancar.
+    """
+    for ruta in _candidatos_ffmpeg():
+        if tiene_filtros_texto(ruta):
+            return ruta
+    return None
+
+
+def ffmpeg_texto() -> str:
+    """Ruta de un ffmpeg con los filtros de texto (ass/subtitles/drawtext).
+
+    Si no hay ninguno (no instalado ffmpeg-full), devuelve el ffmpeg del PATH:
+    la herramienta falla con el error de ffmpeg y `_pista_libass` explica el
+    arreglo. Nunca se queda mudo.
+    """
+    return ffmpeg_con_texto() or require_tool("ffmpeg")
+
+
+def ffmpeg_base(overwrite: bool = True, *, texto: bool = False) -> List[str]:
+    """Base del comando ffmpeg. `texto=True` elige un binario con libass."""
+    ffmpeg = ffmpeg_texto() if texto else require_tool("ffmpeg")
+    cmd = [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin"]
     cmd.append("-y" if overwrite else "-n")
     return cmd
 
@@ -587,13 +698,134 @@ def hex_a_rgb(value: str) -> Tuple[int, int, int]:
 
 
 # ---------- identidad: modo libre por defecto, el brand pack solo si se pide ----------
-# Paleta NEUTRA (modo libre): la usan todas las herramientas cuando el usuario
-# no nombró una marca. Ninguna marca concreta vive en el código; sus valores
-# están solo en su brand/*.json (references/brand-packs.md).
-NEUTRO: Dict[str, Tuple[int, int, int]] = {
-    "acento": (232, 72, 12), "acento_oscuro": (150, 46, 8), "negro": (10, 10, 10),
-    "blanco": (250, 248, 246), "gris": (170, 170, 170),
+# Ninguna marca concreta vive en el código; sus valores están solo en su
+# brand/*.json (references/brand-packs.md).
+
+# CATÁLOGO DE PALETAS (modo libre) — una entrada por armonía cromática.
+# Cada paleta es un juego completo de tokens (acento, acento_oscuro, fondo,
+# tinta, gris, superficie) más la armonía que la justifica, su temperatura y
+# para qué tipo de brief encaja. El agente elige UNA por pieza, según el
+# brief, y la declara en el plan ("paleta": "menta"). Reglas y tabla de
+# decisión: references/paleta.md.
+#
+# Todos los acentos pasan WCAG AA (>= 4.5:1) sobre el fondo #0A0A0A: el
+# acento se usa para texto de énfasis, no para pintar.
+PALETAS: Dict[str, Dict[str, Any]] = {
+    "electrico": {
+        "acento": (61, 123, 255), "acento_oscuro": (32, 68, 148),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo azul→cian (hue 214°)",
+        "tono": "frío", "para": "IA, software, datos, B2B, SaaS, ciberseguridad",
+    },
+    "menta": {
+        "acento": (20, 199, 160), "acento_oscuro": (13, 129, 104),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo verde→turquesa (hue 168°)",
+        "tono": "frío", "para": "finanzas, salud, crecimiento, clima, logística verde",
+    },
+    "grafito": {
+        "acento": (148, 163, 184), "acento_oscuro": (95, 107, 124),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "monocromático frío, sin chroma (hue 215°, sat 12 %)",
+        "tono": "frío", "para": "documentación, legal, industria, auditoría, minimal",
+    },
+    "ambar": {
+        "acento": (240, 163, 43), "acento_oscuro": (156, 106, 28),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo ámbar→dorado (hue 38°)",
+        "tono": "cálido", "para": "energía, industria, deporte, formación, startups",
+    },
+    "coral": {
+        "acento": (255, 107, 91), "acento_oscuro": (166, 70, 59),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo coral→rojo cálido (hue 6°)",
+        "tono": "cálido", "para": "salud, RRHH, cuidado, comunidad, alertas",
+    },
+    "violeta": {
+        "acento": (139, 92, 246), "acento_oscuro": (91, 60, 161),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo violeta→lila (hue 265°)",
+        "tono": "frío", "para": "creatividad, educación, premium, wellness, música",
+    },
+    "magenta": {
+        "acento": (229, 71, 155), "acento_oscuro": (149, 46, 101),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo magenta→fucsia (hue 330°)",
+        "tono": "cálido", "para": "cultura, moda, entertainment, social, youthful",
+    },
+    "oro": {
+        "acento": (201, 162, 39), "acento_oscuro": (131, 105, 25),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "dividido complementario: dorado 45° + apoyo azul profundo",
+        "tono": "cálido", "para": "lujo, premium, invitaciones, joyeria, inmobiliaria",
+    },
 }
+
+# La paleta por defecto: la que se usa cuando el brief no dice nada. Es un
+# azul frío DELIBERADAMENTE sin identidad —el modo libre no puede parecerse
+# a ninguna marca (el pack de ejemplo es rojo)— y vive en el catálogo, no
+# duplicada aquí: si cambia, NEUTRO cambia con ella.
+PALETA_POR_DEFECTO = "electrico"
+TOKENS_COLOR = ("acento", "acento_oscuro", "negro", "blanco", "gris", "gris_superficie")
+#: paleta neutra de respaldo (modo libre sin decisión de paleta)
+NEUTRO: Dict[str, Tuple[int, int, int]] = {
+    k: v for k, v in PALETAS[PALETA_POR_DEFECTO].items() if k in TOKENS_COLOR
+}
+
+
+def paleta_libre(nombre: Optional[str] = None) -> Dict[str, Any]:
+    """Tokens de color de una paleta del catálogo. Sin nombre: la por defecto.
+
+    Lanza error claro si el nombre no existe (no degrada en silencio)."""
+    if not nombre:
+        return dict(NEUTRO)
+    clave = str(nombre).strip().lower()
+    if clave not in PALETAS:
+        die(f"paleta desconocida: {nombre}. Disponibles: {', '.join(sorted(PALETAS))}",
+            kind="input")
+    return {k: v for k, v in PALETAS[clave].items() if k in TOKENS_COLOR}
+
+
+def info_paleta(nombre: str) -> Dict[str, Any]:
+    """Metadatos de una paleta del catálogo: armonía, temperatura y para qué
+    brief sirve (references/paleta.md). Vacío si el nombre no existe."""
+    return {k: v for k, v in PALETAS.get(str(nombre).strip().lower(), {}).items()
+            if k not in TOKENS_COLOR}
+
+
+def tokens_efectivos(brand: Optional[str] = None,
+                     paleta: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]:
+    """El juego de tokens de la identidad de una pieza: pack de marca >
+    paleta del catálogo > paleta por defecto. UNA puerta para todas las
+    herramientas (caption, audio_viz, thumbnail, el motor).
+
+    El pack manda si el usuario nombró una marca; si no, la paleta la elige
+    el agente según el brief (references/paleta.md). Antes cada herramienta
+    resolvía esto por su cuenta y la galería terminaba pasándole flags que
+    no entendían.
+    """
+    if brand:
+        return dict(colores_marca(brand))
+    return dict(paleta_libre(paleta))
+
+
+def acento_efectivo(brand: Optional[str] = None, paleta: Optional[str] = None,
+                    color: Optional[str] = None) -> Tuple[int, int, int]:
+    """El acento de una pieza: color explícito > pack de marca > paleta del
+    catálogo > paleta por defecto."""
+    if color:
+        return hex_a_rgb(color)
+    return tokens_efectivos(brand, paleta)["acento"]
+
+
 SKILL_DIR = Path(__file__).resolve().parent.parent.parent
 
 
@@ -622,7 +854,7 @@ def leer_pack(path: Optional[str]) -> Dict[str, Any]:
 def colores_marca(path: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]:
     """Paleta efectiva: la del pack pedido o la neutra. Acepta claves en
     español (colores.acento) o inglés (colors.primary/accent)."""
-    c = dict(NEUTRO)
+    c = dict(NEUTRO)     # el respaldo del modo libre: una paleta del catálogo
     d = leer_pack(path)
     if not d:
         return c

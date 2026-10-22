@@ -5,9 +5,11 @@ Revisa: herramientas locales (ffmpeg, python, libs), assets del skill
 puede hacer EditorIA en este entorno. Sale 0 si lo esencial está, 1 si
 falta algo crítico. Uso: python scripts/check_env.py
 """
-import glob, json, os, sys, subprocess, platform
+import glob, json, os, shutil, sys, subprocess, platform
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import ffmpeg_con_texto  # noqa: E402  # mismo resolver que usan las herramientas
 ok_critico = True
 SO = {"Windows": "Windows", "Darwin": "macOS", "Linux": "Linux"}.get(platform.system(), platform.system())
 
@@ -15,6 +17,18 @@ HINTS_INSTALACION = {
     "Windows": "winget install Gyan.FFmpeg  (o https://ffmpeg.org/download.html y agregarlo al PATH)",
     "macOS": "brew install ffmpeg",
     "Linux": "sudo apt install ffmpeg  (Debian/Ubuntu)  |  sudo dnf install ffmpeg  (Fedora)",
+}
+
+# El ffmpeg de Homebrew NO trae libass/libfreetype: por eso faltan drawtext,
+# subtitles y ass. `brew install ffmpeg` no lo arregla (ya esta instalado y es
+# el mismo binario sin esos filtros). La fórmula que sí los trae es ffmpeg-full.
+HINTS_FILTROS = {
+    "macOS": ("brew install ffmpeg-full  (incluye libass+freetype; es keg-only, "
+              "pero las herramientas lo encuentran solas)"),
+    "Windows": ("winget install Gyan.FFmpeg  (build con libass: 'ffmpeg -filters' debe "
+                "listar drawtext, subtitles y ass)"),
+    "Linux": ("sudo apt install ffmpeg  (Debian/Ubuntu: paquete con libass; en Fedora "
+              "sudo dnf install ffmpeg)"),
 }
 
 def rep(nombre, ok, detalle="", critico=False):
@@ -49,10 +63,15 @@ for binario, flag in [("ffmpeg", "-version"), ("ffprobe", "-version")]:
 # look.py/scenes.py (timecode) los requieren. Un ffmpeg compilado sin
 # libfreetype/libass los omite y solo se descubre al fallar un render.
 print("== Filtros de FFmpeg ==")
+# Las herramientas eligen solas un ffmpeg con libass (ffmpeg_texto): si el del
+# PATH no los trae, se busca ffmpeg-full, que Homebrew deja keg-only (sin
+# symlink, fuera del PATH). Este bloque debe mirar ESE binario, no el del
+# PATH: si no, avisa de una falta que las herramientas ya no tienen.
+_texto = ffmpeg_con_texto()
 _filtros = set()
-if ok_ffmpeg:
+if _texto:
     try:
-        _r = subprocess.run(["ffmpeg", "-hide_banner", "-filters"],
+        _r = subprocess.run([_texto, "-hide_banner", "-filters"],
                             capture_output=True, text=True, timeout=10)
         for ln in (_r.stdout or "").splitlines():
             partes = ln.split()
@@ -62,18 +81,24 @@ if ok_ffmpeg:
                 _filtros.add(partes[1])
     except Exception:
         _filtros = set()
+if _texto and _texto != shutil.which("ffmpeg"):
+    print(f"INFO ffmpeg con libass: {_texto} (el del PATH no los trae; "
+          f"las herramientas lo eligen solas)")
 for filtro, para in (("drawtext", "textos sobre vídeo (shorts_plan.py hook, look.py/scenes.py timecode)"),
                      ("subtitles", "subtítulos SRT (caption.py)"),
                      ("ass", "subtítulos ASS animados/karaoke (caption.py)")):
     rep(f"filtro ffmpeg {filtro}", filtro in _filtros,
         "disponible" if filtro in _filtros else
-        f"falta — {para} fallará; reinstalar ffmpeg con libfreetype/libass "
-        f"({HINTS_INSTALACION.get(SO, 'ver https://ffmpeg.org/download.html')})",
+        f"falta — {para} fallará; instalar un ffmpeg con libass: "
+        f"{HINTS_FILTROS.get(SO, 'ver https://ffmpeg.org/download.html')}",
         critico=False)
 if ok_ffmpeg and any(f not in _filtros for f in ("drawtext", "ass")):
     print("INFO el motor central de composición gráfica por píxeles (PIL -> libx264) "
           "sigue 100% funcional; solo los subtítulos quemados directos "
           "(caption.py, shorts_plan.py) requieren libfreetype/libass en ffmpeg")
+    print("INFO sin esos filtros, el camino alterno es el motor propio: las piezas "
+          "compuestas con render_plan.py traen el texto ya dibujado (PIL) y no "
+          "dependen de ffmpeg para rotular")
 # Python: en Windows el binario se llama 'python', no 'python3'
 ok_py = sys.version_info >= (3, 9)
 rep("python", ok_py,

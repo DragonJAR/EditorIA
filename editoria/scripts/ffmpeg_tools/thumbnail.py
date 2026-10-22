@@ -20,7 +20,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import add_common, apply_common, colores_marca, die, emit, fuente_marca, info
+from _comun import (add_common, apply_common, die, emit, fuente_marca,  # noqa: E402
+                      info, tokens_efectivos)
 
 try:
     from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -50,6 +51,8 @@ def main():
                     help="texto gancho, MAXIMO 4 palabras (regla de la skill)")
     ap.add_argument("--resaltar",
                     help="palabra del texto a pintar en el color de acento")
+    ap.add_argument("--paleta", help="paleta del modo libre (references/paleta.md): el "
+                                     "acento sale de ella; si hay --brand, manda el pack")
     ap.add_argument("--brand", help="brand pack (brand/*.json): acento y fuente de titulares; "
                     "sin pack = modo libre (paleta neutra)")
     ap.add_argument("-o", "--output", help="PNG de salida (default: <input>_thumb.png)")
@@ -76,7 +79,8 @@ def main():
     if Image is None:
         die("thumbnail.py necesita Pillow (pip install pillow)", kind="missing_tool")
 
-    pal = colores_marca(args.brand)
+    # el pack manda si se nombro una marca; si no, la paleta del catalogo
+    pal = tokens_efectivos(args.brand, args.paleta)
     NEGRO, ACENTO, BLANCO = pal["negro"], pal["acento"], pal["blanco"]
     fuente = fuente_marca(args.brand)
     W, H = FORMATOS[args.formato]

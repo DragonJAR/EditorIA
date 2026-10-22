@@ -144,13 +144,15 @@ def plan_de(escenas, dur, **extra):
     return dict({"duracion": dur, "escenas": escenas}, **extra)
 
 
-def render(plan, nombre, carpeta, log, brand=None, ext=".mp4", extra=()):
+def render(plan, nombre, carpeta, log, brand=None, ext=".mp4", extra=(), paleta=None):
     ruta_plan = os.path.join(carpeta, nombre + ".plan.json")
     json.dump(plan, open(ruta_plan, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     out = os.path.join(carpeta, nombre + ext)
     cmd = [PY, os.path.join(AQUI, "render_plan.py"), ruta_plan, "-o", out, "--force", *extra]
     if brand:
         cmd += ["--brand", brand]
+    elif paleta:
+        cmd += ["--paleta", paleta]
     rc, txt, seg = correr(cmd, log)
     shutil.rmtree(out + ".frames", ignore_errors=True)   # ~50 MB por escena
     return out, rc, txt, seg
@@ -166,7 +168,7 @@ def escenas(a, out, log, filas, muestras):
             e = dict(muestras[tipo], tipo=tipo)
             nombre = f"{tipo}_{f}"
             v, rc, txt, seg = render(plan_de([e], e["to"]), nombre, out, log, a.brand,
-                                     extra=["--tamano", FORMATOS[f]])
+                                     extra=["--tamano", FORMATOS[f]], paleta=a.paleta)
             if rc or not video_ok(v):
                 filas.append(("escena", nombre, False, f"render rc={rc}: {txt.strip()[-200:]}",
                               None, None, seg))
@@ -195,7 +197,11 @@ def herramientas(a, out, log, filas, muestras):
                                     for d in defectos) or "limpio", video, seg, sheet)
 
     m = lambda t: dict(muestras[t], tipo=t)   # noqa: E731
-    marca = ["--brand", a.brand] if a.brand else []
+    # la identidad se pasa a las herramientas que la entienden: las tres
+    # (caption, audio_viz, thumbnail) aceptan --brand y --paleta con la misma
+    # precedencia (pack > paleta > respaldo)
+    marca = (["--brand", a.brand] if a.brand
+             else (["--paleta", a.paleta] if a.paleta else []))
     # audio sintético con dinámica de voz (audiograma / ondas)
     audio = os.path.join(out, "voz_sintetica.wav")
     correr(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i",
@@ -228,13 +234,13 @@ def herramientas(a, out, log, filas, muestras):
         e2 = dict(e2, transicion="mancha", **{"from": 5, "to": 11},
                   at={k: v + 5 for k, v in e2["at"].items()})
         v, rc, txt, seg = render(plan_de([e1, e2], 11), f"transicion_mancha_{f}", out, log, a.brand,
-                                 extra=tam)
+                                 extra=tam, paleta=a.paleta)
         con_qa(f"transición mancha {f}", v, rc, txt, seg)
         # captions animados sobre una toma limpia (sin texto quemado que pisar)
         base = os.path.join(out, f"base_captions_{f}.mp4")
         if not video_ok(base):
             render(plan_de([dict(m("kenburns"), titulo="", subtitulo="")], 5), f"base_captions_{f}",
-                   out, log, a.brand, extra=tam)
+                   out, log, a.brand, extra=tam, paleta=a.paleta)
         for modo, args in (("fade", ["--text", cues, "--animate", "fade"]),
                            ("pop", ["--text", cues, "--animate", "pop"]),
                            ("slide", ["--text", cues, "--animate", "slide"]),
@@ -329,6 +335,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("-o", "--out", required=True, help="carpeta de la galería")
     ap.add_argument("--brand", help="brand pack: la misma galería en esa identidad")
+    ap.add_argument("--paleta", help="paleta del modo libre (references/paleta.md): la galería "
+                                     "en esa paleta; si hay --brand, manda el pack")
     ap.add_argument("--solo", help="escenas separadas por coma (default: todas)")
     ap.add_argument("--formato", choices=["v", "h", "ambos"], default="ambos",
                     help="v = 9:16, h = 16:9 (default: ambos)")
@@ -343,11 +351,18 @@ def main():
     os.makedirs(out, exist_ok=True)
     log = os.path.join(out, "galeria.log")
     open(log, "w").close()
-    acento = colores_marca(a.brand)["acento"] if a.brand else NEUTRO["acento"]
+    if a.brand:
+        acento = colores_marca(a.brand)["acento"]
+    elif a.paleta:
+        from _comun import paleta_libre
+        acento = paleta_libre(a.paleta)["acento"]
+    else:
+        acento = NEUTRO["acento"]
     assets(out, acento)
     filas = []
-    print(f"galería en {out} ({'pack ' + os.path.basename(a.brand) if a.brand else 'modo libre'})",
-          flush=True)
+    _modo = ("pack " + os.path.basename(a.brand) if a.brand
+             else ("paleta " + a.paleta if a.paleta else "modo libre"))
+    print(f"galería en {out} ({_modo})", flush=True)
     muestras = json.load(open(os.path.join(AQUI, "escenas_muestra.json"),
                               encoding="utf-8"))["escenas"]
     if not a.sin_escenas:

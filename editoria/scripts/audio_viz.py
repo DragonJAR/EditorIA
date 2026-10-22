@@ -31,13 +31,18 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
-from _comun import (VF_RGB_A_BT709, codificar_frames, colores_marca, color_hex,  # noqa: E402
-                    die, info, probe)
+from _comun import (VF_RGB_A_BT709, acento_efectivo, codificar_frames,  # noqa: E402
+                    die, info, probe, tokens_efectivos)
 
 
-def acento(brand_path, color):
-    """Color del acento (hex sin #): --color > acento del brand pack > neutro."""
-    return color_hex(color) if color else "%02X%02X%02X" % colores_marca(brand_path)["acento"]
+def acento(brand_path, paleta, color):
+    """Color del acento (hex sin #): --color > pack de marca > paleta > respaldo.
+
+    La resolución vive en _comun (acento_efectivo): la misma para las tres
+    herramientas que pintan con acento (caption, audio_viz, thumbnail).
+    """
+    rgb = acento_efectivo(brand_path, paleta, color)
+    return "%02X%02X%02X" % rgb
 
 
 def bandas_por_frame(audio, inicio, dur, fps, n):
@@ -83,7 +88,7 @@ def audiograma(a):
     if dur > 90:
         info(f"aviso: {dur:.0f}s — un audiograma rinde mejor recortado al fragmento (≤90 s)")
     fps = a.fps
-    ac = tuple(int(acento(a.brand, a.color)[i:i + 2], 16) for i in (0, 2, 4))
+    ac = tuple(int(acento(a.brand, a.paleta, a.color)[i:i + 2], 16) for i in (0, 2, 4))
     plataforma = "reels" if H > W else "youtube"
     sm = safe_margins_px(plataforma, W, H)
     mx = max(sm["left"], sm["right"], int(W * 0.06))
@@ -170,6 +175,8 @@ def main():
     ap.add_argument("--color", default=None,
                     help="color hex del acento, ej. 2A6FDB (default: acento del --brand o neutro)")
     ap.add_argument("--brand", default=None, help="brand pack (brand/*.json): el color sale de su acento")
+    ap.add_argument("--paleta", default=None,
+                    help="paleta del modo libre (references/paleta.md); si hay --brand, manda el pack")
     ap.add_argument("-s", "--size", default="1080x1920", help="tamaño (default: 1080x1920)")
     ap.add_argument("-r", "--fps", default=30, type=int, help="fps (default: 30)")
     ap.add_argument("--overlay", help="video base: la banda se superpone dentro de la zona segura")
@@ -193,7 +200,7 @@ def main():
     if a.modo == "audiograma":
         return audiograma(a)
     dur = probe(a.audio).get("duration") or 0
-    color = "0x" + acento(a.brand, a.color)
+    color = "0x" + acento(a.brand, a.paleta, a.color)
     try:
         ancho, alto = (int(v) for v in a.size.lower().split("x"))
     except ValueError:
@@ -227,7 +234,7 @@ def main():
             # standalone: banda centrada (40 % del alto) sobre el fondo de la paleta,
             # no una línea perdida en un cuadro negro (auto_qa la daba por negra)
             banda = int(alto * 0.4) // 2 * 2
-            fondo = "0x%02X%02X%02X" % colores_marca(a.brand)["negro"]
+            fondo = "0x%02X%02X%02X" % tokens_efectivos(a.brand, a.paleta)["negro"]
             # la onda (fondo transparente) se superpone a una capa del color de
             # fondo: con pad el alfa se perdía y quedaba una caja negra visible
             grafo = (f"color=c={fondo}:s={ancho}x{alto}:r={a.fps}[bg];"

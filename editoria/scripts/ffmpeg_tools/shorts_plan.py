@@ -27,8 +27,8 @@ KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KIT)
 from _comun import (add_common, apply_common, die, emit, info, probe,  # noqa: E402
                     verify_output, ffmpeg_base, run, escape_drawtext, escape_filter_path,
-                    default_font_file, parse_srt, write_srt, colores_marca,
-                    fuente_marca, resolver_pack)
+                    default_font_file, parse_srt, write_srt,
+                    fuente_marca, resolver_pack, tokens_efectivos)
 
 
 def retimear_srt(srt_path, segmentos, tmpdir):
@@ -121,6 +121,8 @@ def main():
                     help="solo valida el plan, no renderiza")
     ap.add_argument("--saltar", default="",
                     help="pasos a saltar, separados por coma (ej. captions,musica)")
+    ap.add_argument("--paleta", help="paleta del modo libre (references/paleta.md); "
+                                    "también el campo \"paleta\" del plan. Si hay --brand, manda el pack")
     ap.add_argument("--brand", help="brand pack; también el campo \"brand\" del plan. "
                     "Sin ninguno: modo libre (paleta neutra), nunca una marca por defecto")
     add_common(ap)
@@ -137,7 +139,12 @@ def main():
     if pack and not os.path.isabs(pack) and os.path.isfile(os.path.join(base_dir, pack)):
         pack = os.path.join(base_dir, pack)
     pack = resolver_pack(pack)   # identidad SOLO si el usuario la pidió
-    acento = "#%02X%02X%02X" % colores_marca(pack)["acento"]
+    # el acento: pack > paleta del plan > paleta por defecto (una sola puerta:
+    # _comun.tokens_efectivos). Sin esto, un short en menta salia con el
+    # hook en el azul de respaldo.
+    paleta = args.paleta or plan.get("paleta")
+    _tok = tokens_efectivos(pack, paleta)
+    acento = "#%02X%02X%02X" % _tok["acento"]
     fuente_hook = fuente_marca(pack)
 
     def _ruta(p):
@@ -209,10 +216,10 @@ def main():
                   f"box=1:boxcolor={acento}@0.92:boxborderw=18:x=(w-text_w)/2:y=h*0.18:"
                   f"enable='lte(t,{d_hook:.2f})'")
             hook_out = os.path.join(tmpdir, "hook.mp4")
-            subproceso(ffmpeg_base() + ["-i", actual, "-vf", dt,
-                                        "-c:v", "libx264", "-preset", "medium",
-                                        "-crf", "18", "-pix_fmt", "yuv420p",
-                                        "-c:a", "copy", "-y", hook_out], dry)
+            subproceso(ffmpeg_base(texto=True) + ["-i", actual, "-vf", dt,
+                                                 "-c:v", "libx264", "-preset", "medium",
+                                                 "-crf", "18", "-pix_fmt", "yuv420p",
+                                                 "-c:a", "copy", "-y", hook_out], dry)
             actual = hook_out
             info("hook overlay aplicado")
 
@@ -231,6 +238,8 @@ def main():
                    "--srt", srt, "--mode", "burn", "-o", cap_out]
             if pack:
                 cmd += ["--brand", pack]
+            elif paleta:
+                cmd += ["--paleta", paleta]
             if caps.get("phrase_aware", True):
                 cmd.append("--phrase-aware")
             subproceso(cmd, dry)

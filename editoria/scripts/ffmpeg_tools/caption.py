@@ -53,7 +53,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _comun import (STATE, color_hex, load_brand, video_args, add_common, apply_common, emit,
                     aac_args, cfr_args, default_output, die, escape_filter_path, ffmpeg_base,
                     info, leer_palabras, MissingFpsError, parse_time, parse_srt, probe, require_tool, run,
-                    transcribir_medio, write_srt, colores_marca)
+                    transcribir_medio, write_srt, acento_efectivo)
 
 ALIGN = {"bottom": 2, "top": 8, "center": 5, "bottom-left": 1, "bottom-right": 3,
          "top-left": 7, "top-right": 9}
@@ -575,6 +575,8 @@ def main():
                           "default: el fps del video si se dio input, requerido si no")
     sty = ap.add_argument_group("estilo (solo SRT)")
     sty.add_argument("--brand", help="brand.json: fuente, colores, defaults de subtitulos")
+    sty.add_argument("--paleta", help="paleta del modo libre (references/paleta.md): el acento "
+                                     "de los subtitulos sigue la paleta de la pieza")
     sty.add_argument("--font", default=None, help="familia de fuente (default: la de la marca, o Montserrat empaquetada en assets/fonts)")
     sty.add_argument("--fonts-dir", help="directorio con fuentes extra .ttf/.otf")
     sty.add_argument("--size", type=int, default=None,
@@ -647,7 +649,9 @@ def main():
     # el acento del pack (colores.acento o colors.primary, vía colores_marca);
     # sin pack, el acento NEUTRO del kit: el mismo de las escenas (el amarillo
     # FFD200 de antes no era de ningún sistema visual del video)
-    args.highlight_color = color_hex(args.highlight_color or "%02X%02X%02X" % colores_marca(args.brand)["acento"])
+    # una sola puerta para el acento: pack > paleta > respaldo
+    _acento = acento_efectivo(args.brand, args.paleta)
+    args.highlight_color = color_hex(args.highlight_color or "%02X%02X%02X" % _acento)
     if args.brand and bcap.get("bold") and not args.bold:
         args.bold = True
     if args.brand and bcap.get("karaoke") and not args.karaoke:
@@ -790,7 +794,7 @@ def main():
         if args.fonts_dir:
             vf += f":fontsdir={escape_filter_path(args.fonts_dir)}"
 
-    cmd = ffmpeg_base() + ["-i", args.input, "-map", "0:v:0"]
+    cmd = ffmpeg_base(texto=True) + ["-i", args.input, "-map", "0:v:0"]
     if meta.get("audio"):
         cmd += ["-map", f"0:a:{args.audio_stream}"]
     cmd += ["-vf", vf] + video_args(meta, args.crf, args.preset) + cfr_args(meta)
