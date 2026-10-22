@@ -91,6 +91,11 @@ frío". Si el usuario no lo da, proponerlo con la opción A/B. Las notas que
 nombran el problema ("la intro se arrastra") se resuelven mejor que las que
 dictan la solución ("hazla más rápida"): preferir corregir el problema.
 
+Para ejecutar una palanca con alcance, sin tocar lo que nadie pidió (más
+audaz, más calmo, destilar, pulir, animar, adaptar...): `references/pasadas.md`.
+Para el proceso que evita el look genérico desde el principio (idea del
+sujeto, dirección repartida, registro de tells): `references/direccion-de-arte.md`.
+
 ## Reglas de cámara y luz
 
 1. **La cámara sirve a la historia** — nunca se mueve por lucirse. Cada

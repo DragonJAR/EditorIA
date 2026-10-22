@@ -1,7 +1,7 @@
 # EditorIA
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.8.0-green.svg)](editoria/SKILL.md)
+[![Version](https://img.shields.io/badge/version-1.9.0-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Platforms](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#installation)
 
@@ -24,6 +24,8 @@ EditorIA turns an agent into a complete video editor. It can:
 - **Clone or adapt a reference video** (method inspired by Hypit): ingest a file or link (`clonar_video.py analizar` / `referencia.py`, yt-dlp), word-timed transcript, frame grids with the spoken words under each tile (`contact_sheet.py --palabras --alrededor "phrase"`), project memory (`proyecto.py`: BRIEF, TREATMENT, PROGRESS, TIMELINE) and transformation lenses (`references/referencia-video.md`); variants with `clonar_video.py variar`.
 - **Formats**: two-person podcast, street interview, ranking, talking head, presenter-led explainer, narration and short drama (`references/formatos.md`), with split screen (`montaje.py dividir`) and speaker-colored captions (`caption.py --hablantes`).
 - **Voice duration by syllables** before paying for TTS (`speech_estimate.py`: numbers counted as spoken, es/en, calibratable against a real voice), the single source for `auditar_plan.py`.
+- **Art direction instead of defaults**: `direccion_arte.py` deals 3 directions from a library (WCAG-checked palette, typography, motion personality, matching scenes, what to avoid); the agent picks the one that can carry something only the subject has (competitor test) and `elegir` writes `SISTEMA.md` + a style pack usable with `--brand`. `auditar_plan.py` warns about generated-look «tells» (jargon, emoji as icons, placeholders, invented proof, repeated scenes, metronome cadence). Process in `references/direccion-de-arte.md`.
+- **Scoped refinement passes** (bolder, calmer, distill, polish, animate, adapt...) and **a fifteen-pass critique** with caps in the rubric: look before measuring (`references/pasadas.md`, `references/auto-qa.md`).
 - **Optional Remotion** (Node 22+, React 19) when programmatic HTML/CSS/JS animation is needed.
 - **Optional HyperFrames** (Node 22+) for deterministic HTML templates.
 
@@ -242,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 36 root + 19 in ffmpeg_tools/ + 22 in _tests/ = 77 scripts
+│   ├── scripts/                       # 37 root + 19 in ffmpeg_tools/ + 23 in _tests/ = 79 scripts
 │   │   ├── render_plan.py             # Main plan renderer (39 scenes)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
@@ -267,6 +269,8 @@ EditorIA/
 │   │   ├── referencia.py              # Reference ingestion (file or link)
 │   │   ├── clonar_video.py            # Analyze and vary reference videos
 │   │   ├── proyecto.py                # Project memory (brief, treatment, progress)
+│   │   ├── direccion_arte.py          # Deal, choose and verify the visual direction
+│   │   ├── data/direcciones.json      # Library of 17 art directions
 │   │   ├── film_marca.py              # Cinematic brand film v1
 │   │   ├── film_marca_v2.py           # Cinematic brand film v2
 │   │   ├── _film.py                   # Shared film utilities
@@ -279,7 +283,9 @@ EditorIA/
 │   │   │   ├── test_core_and_scenes.py
 │   │   │   ├── test_speech_estimate_cifras.py
 │   │   │   ├── test_caption_hablantes.py
-│   │   │   └── test_referencia.py
+│   │   │   ├── test_referencia.py
+│   │   │   ├── test_beat_secciones.py
+│   │   │   └── test_direccion_arte.py
 │   │   └── ffmpeg_tools/              # 19 post-production modules
 │   │       ├── montaje.py             # 19 editing operations
 │   │       ├── caption.py             # Subtitle burn-in and karaoke
@@ -300,7 +306,7 @@ EditorIA/
 │   │       ├── transcribir.py         # Local ASR → SRT + JSON
 │   │       ├── _comun.py              # Shared DRY helpers
 │   │       └── _plataforma.py         # OS abstractions
-│   ├── references/                    # 53 references in kebab-case.md
+│   ├── references/                    # 55 references in kebab-case.md
 │   │   ├── instalacion.md             # Per OS (Win/macOS/Linux)
 │   │   ├── escenas.md                 # Catalog of 39 scenes
 │   │   ├── escenas-extendidas.md      # Portable concepts
@@ -315,6 +321,8 @@ EditorIA/
 │   │   ├── montaje.md                 # 19 operations
 │   │   ├── referencia-video.md        # Clone/adapt a reference
 │   │   ├── formatos.md                # What carries each format
+│   │   ├── direccion-de-arte.md       # Idea from the subject, modes, dealt directions, tells
+│   │   ├── pasadas.md                 # Scoped refinements
 │   │   ├── cine.md                    # Cinematic recipes
 │   │   ├── modos-rapidos.md           # Quick recipes (kinetic, montage, cut)
 │   │   ├── modos-produccion.md        # Real / animated / hybrid modes
@@ -413,6 +421,16 @@ Contributions are welcome. Areas that need expansion:
 - **Voice roster** (`scripts/voz_off.py VOCES`): add ElevenLabs voices for new languages
 - **Brand packs** (`brand/`): new example packs
 - **Validator** (`scripts/validate_skill.py`): new quality checks
+
+## 🙏 Credits and sources
+
+EditorIA distills methods from open projects and rewrites them for video with
+its own tools (it does not copy their code):
+
+- [Hypit](https://github.com/hypit-ai/hypit): reference reading, project memory, formats and voice estimation (own license with conditions; only ideas were taken).
+- [tasteskill](https://github.com/Leonxlnx/taste-skill) (MIT): dealt directions, idea from the subject, tells registry and pass-based critique.
+- [Impeccable](https://github.com/pbakaus/impeccable) (Apache 2.0): scoped refinements, craft floor, and independent judgment/detector assessment.
+- [UI/UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) (MIT): chart-choice criteria, sector reasoning and contrast.
 
 ## 📄 License
 

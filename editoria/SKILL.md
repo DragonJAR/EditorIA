@@ -52,6 +52,8 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
 | "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
 | Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
+| New piece with no brand pack, or a piece that looks generic / "AI-made" | **Art direction**: Step 2 + `references/direccion-de-arte.md` (idea from the subject, dealt directions, tells registry) |
+| "Make it bolder / calmer / simpler", polish, animate, retype, recolor, adapt | **Passes**: `references/pasadas.md` (scoped refinements that change only what was named) |
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
 | Complex programmatic animation | **Remotion** (optional): `references/remotion.md` |
 | Deterministic HTML piece or data re-render | **HyperFrames** (optional): `references/hyperframes.md` |
@@ -103,13 +105,18 @@ Before writing the scenes, write the argument: one claim per scene with the proo
 
 Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?*
 
+Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "..." --sector S --tono T --modo M --tiene fotos capturas` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (a style pack usable with `--brand`). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
+
+Write `plan.json` following `references/plan-video.md` (39 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
+
 ```bash
 python scripts/auditar_plan.py plan.json
 python scripts/speech_estimate.py plan.json
 python scripts/lint_copy.py plan.json
 ```
 
-Expected output: `PLAN VALIDO` with zero overlapping voice segments or missing required scene fields, and `COPY: 0 fallos` (warnings are deliverable; failures mean the engine cannot place the text, or that the plan asks for more than the engine draws).
+Expected output: `PLAN VALIDO` with zero overlapping voice segments or missing required scene fields, and `COPY: 0 fallos` (warnings are deliverable; failures mean the engine cannot place the text, or that the plan asks for more than the engine draws). `auditar_plan.py` also warns about generated-look tells (marketing jargon, emoji as icons, placeholders, uncited social proof, long headlines, repeated scenes, uniform cadence); a deliberate exception is declared in the plan's `tells_ok`.
+
 
 ### Step 3: Render Video with Fluidity Motor
 
@@ -163,6 +170,9 @@ The delivery gate and the awards gate measure the composition with the **same** 
 
 The individual checks, when a step fails and you need to look closer:
 
+fix each finding with a scoped pass (`references/pasadas.md`) rather than touching the render with a vague note.
+.
+
 ```bash
 python scripts/auto_qa.py final.mp4
 python scripts/verificar_ritmo.py plan.json
@@ -209,7 +219,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_referencia.py`, `scripts/_tests/test_beat_secciones.py`, `scripts/_tests/test_lint_copy.py`, `scripts/_tests/test_track_y_picos.py`, `scripts/_tests/test_datos_y_critico.py`, `scripts/_tests/test_auditar_mapa.py`, `scripts/_tests/test_auditar_plan.py`, `scripts/_tests/test_puntuar.py`, `scripts/_tests/test_mezclar_audio.py`, `scripts/_tests/test_letra_y_composicion.py`, `scripts/_tests/test_puerta_entrega.py`, `scripts/_tests/test_escala_tipografica.py`, `scripts/_tests/test_paleta.py`, `scripts/_tests/test_movimiento.py`, `scripts/_tests/test_escenas_ronda6.py`, `scripts/_tests/test_libass.py`, `scripts/_tests/test_piso_legible.py` and `scripts/_tests/test_comandos_doc.py` pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_chapters.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_referencia.py`, `scripts/_tests/test_beat_secciones.py`, `scripts/_tests/test_lint_copy.py`, `scripts/_tests/test_track_y_picos.py`, `scripts/_tests/test_datos_y_critico.py`, `scripts/_tests/test_auditar_mapa.py`, `scripts/_tests/test_auditar_plan.py`, `scripts/_tests/test_puntuar.py`, `scripts/_tests/test_mezclar_audio.py`, `scripts/_tests/test_letra_y_composicion.py`, `scripts/_tests/test_puerta_entrega.py`, `scripts/_tests/test_escala_tipografica.py`, `scripts/_tests/test_paleta.py`, `scripts/_tests/test_movimiento.py`, `scripts/_tests/test_escenas_ronda6.py`, `scripts/_tests/test_libass.py`, `scripts/_tests/test_piso_legible.py` and `scripts/_tests/test_comandos_doc.py` and `scripts/_tests/test_direccion_arte.py` pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 
@@ -278,6 +288,8 @@ Should trigger:
 - "turn this podcast into a split-screen clip with colored captions"
 - "write the copy for this video"
 - "check this video before I send it to the client"
+- "this video looks generic, make it feel designed"
+- "make this scene bolder but keep everything else"
 
 Should NOT trigger:
 

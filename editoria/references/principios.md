@@ -19,6 +19,8 @@ festival de cine — cada frame intencional, nada decorativo, nada accidental.
 - Un solo sistema tipográfico: una familia para titulares, una para texto,
   una monoespaciada para kickers/datos. Kickers siempre en mayúsculas con
   letterspacing. (Sin pack: Plus Jakarta Sans / Montserrat, empaquetadas.)
+  El kicker es la firma del sistema, no un adorno para cada plano: el reflejo
+  de un rótulo sobre toda escena es un tell (`direccion-de-arte.md`).
 - **Una sola escala tipográfica para todo el catálogo** (`ESCALA` en
   `scripts/render_plan.py`): un rol = un tamaño, en todo el video.
   `titular` 120 · `rotulo` 44 · `dato` 36 · `secundario` 32 · `nota` 28.

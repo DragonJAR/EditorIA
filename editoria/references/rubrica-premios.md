@@ -39,6 +39,29 @@ medición: las dos no pueden decir cosas distintas.
 4. ¿Hay algún movimiento que exista solo "para que se mueva"? Quítalo.
 5. ¿El final se sostiene quieto 1–2 s como imagen de cierre?
 
+## Topes (anulan la aritmética)
+
+Un tope fija el máximo de un eje por mucho que lo demás brille. Se aplica el
+menor. Se anotan en la crítica (`auto-qa.md`). Es el mecanismo que impide que
+una pieza con un defecto visible compense con otros ejes.
+
+| Si pasa esto | Tope |
+|---|---|
+| `auto_qa.py` con un defecto sin descartar, o `delivery_check.py` en FAIL | eje 8 ≤ 2 |
+| Emoji convertido en tofu, texto cortado o fuera de la zona segura, banda o clipping visible | eje 8 ≤ 3 |
+| Placeholder visible (caja gris, «Imagen aquí», lorem, `[PENDIENTE]`) | eje 7 ≤ 2 |
+| Cifra o claim sin fuente que se pasó por verificado | eje 7 ≤ 3 |
+| La pasada 3 de `auto-qa.md` falla (podría ser de cualquiera) o la idea pasa la prueba del competidor | eje 1 ≤ 3 |
+| Sin momento firma (pregunta de jurado 1 sin respuesta) | eje 5 ≤ 3 |
+| Todas las entradas son la misma, o hay movimiento que solo existe para moverse | eje 3 ≤ 3 |
+| Algo pisa un titular o una cifra en algún instante | eje 4 ≤ 2 |
+| Dos o más planos casi vacíos (suelo muerto), texto pequeño y gris, márgenes desiguales o un hueco accidental | eje 4 ≤ 3 |
+| Sin material real del sujeto (solo dibujos o stock genérico) cuando el brief lo permitía | eje 4 ≤ 3 |
+
+**Calibración**: un 5 es raro. Si la primera nota que el agente se pone a su
+propia obra es 5 en casi todo, la vuelve a puntuar como el jurado que no la
+construyó, con los topes delante.
+
 ## Lo que la rúbrica no negocia
 
 - Un 5 en animación no compensa un 2 en verdad (eje 7): sin grounding no

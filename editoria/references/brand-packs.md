@@ -93,8 +93,16 @@ Claves `reglas` reconocidas:
 2. Rellenar colores, tipografías (rutas reales a .ttf/.otf), logos (PNG con
    alfa) y voces.
 3. Declarar `reglas` solo si la marca las tiene; no inventar restricciones.
-4. Probar: `scripts/ffmpeg_tools/caption.py --brand brand/nuevo.json ...`
+4. Verificar el contraste de los colores sobre el lienzo:
+   `python scripts/direccion_arte.py verificar brand/nuevo.json` (tinta ≥ 7:1,
+   apoyo ≥ 4.5:1, acento ≥ 4.5:1; un acento entre 3 y 4.5 solo sirve en texto
+   grande, no en subtítulos ni cifras pequeñas).
+5. Probar: `scripts/ffmpeg_tools/caption.py --brand brand/nuevo.json ...`
    y un render de `scripts/render_plan.py` con el style pack correspondiente.
+
+Sin marca, `scripts/direccion_arte.py elegir` genera un **style pack** (estilo,
+no marca) con el mismo formato, listo para `--brand`; con un pack del usuario
+manda el pack (`references/direccion-de-arte.md`).
 
 ## En los scripts
 

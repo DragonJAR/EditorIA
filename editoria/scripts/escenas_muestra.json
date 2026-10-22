@@ -689,22 +689,19 @@
           "app": "Editor",
           "titulo": "Video generado",
           "texto": "Tu render de 30s está listo para publicar",
-          "hora": "ahora",
-          "icono": "🎬"
+          "hora": "ahora"
         },
         {
           "app": "Redes",
           "titulo": "Campaña activa",
           "texto": "3 publicaciones programadas para hoy",
-          "hora": "hace 2 min",
-          "icono": "📱"
+          "hora": "hace 2 min"
         },
         {
           "app": "Métricas",
           "titulo": "Nuevo récord",
           "texto": "+140% de retención en el primer minuto",
-          "hora": "hace 5 min",
-          "icono": "📈"
+          "hora": "hace 5 min"
         }
       ],
       "at": {

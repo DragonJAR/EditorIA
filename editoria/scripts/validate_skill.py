@@ -379,6 +379,8 @@ req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
        "scripts/speech_estimate.py", "scripts/contact_sheet.py", "scripts/proyecto.py",
        "scripts/referencia.py", "scripts/clonar_video.py",
        "references/referencia-video.md", "references/formatos.md",
+       "references/direccion-de-arte.md", "references/pasadas.md",
+       "scripts/direccion_arte.py", "scripts/data/direcciones.json",
        "references/shorts-plan-schema.md",
        "scripts/demo_plan.json", "scripts/validate_skill.py"]
 for f in req:

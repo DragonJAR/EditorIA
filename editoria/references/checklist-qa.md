@@ -148,7 +148,9 @@ Números, no sensaciones:
   vivo no es frozen); ningún hold >0.6s salvo el CTA final.
 - **Loudness**: −14 LUFS (enérgico) / −16 LUFS (calmo), TP −1.5 dB (tolerancia hasta −1), LRA 11 objetivo (mínimo ~3 LU).
   SFX −18…−12 dB bajo la voz, nunca por encima de la narración.
-- **Contraste de texto**: WCAG AA en todo texto sobre video.
+- **Contraste de texto**: WCAG AA en todo texto sobre video (la paleta de un
+  pack se comprueba con `python scripts/direccion_arte.py verificar pack.json`;
+  sobre fotos se mira el frame: el script no ve texto sobre imagen).
 - **Fotosensibilidad**: ≤3 destellos por segundo (WCAG 2.3.1); sin strobe de
   pantalla completa. `auto_qa.py` lo mide (defecto `fotosensible`).
 - **Sin sobresaltos**: ningún corte entra con más de +6 dB sobre el segundo
@@ -195,6 +197,11 @@ El que construye no es el que juzga:
    pequeños.
 4. **Verificar con crítico nuevo**: FIXED / PARTLY / STILL PRESENT.
 5. **Ledger de rondas**: registrar qué se encontró y qué cambió, ronda por ronda.
+6. **Juzga primero, mide después**: la mirada de diseño (`auto-qa.md`, crítica
+   por pasadas) se hace antes de leer el reporte de los detectores
+   (`auto_qa.py`, `auditar_plan.py`): la salida determinista ancla el juicio.
+   Luego se sintetizan: dónde coinciden, qué atrapó cada uno que el otro no,
+   qué detección es un falso positivo.
 
 ---
 

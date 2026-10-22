@@ -73,6 +73,9 @@ transiciones *dentro* de la escena.)
 
 ## Personalidad → parámetros (tabla de tokens)
 
+(Cada dirección de `scripts/direccion_arte.py` declara una de estas cuatro
+columnas como su personalidad de movimiento: `references/direccion-de-arte.md`.)
+
 Para derivar los parámetros del motor de resortes en vez de elegirlos por
 gusto. Ejes: energía (baja/alta) × tono (serio/lúdico). Leer la personalidad
 de la pieza (y del brief del usuario) y aplicar la columna correspondiente.

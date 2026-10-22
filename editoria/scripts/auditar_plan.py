@@ -7,11 +7,19 @@ desorden temporal (from > to, escenas fuera de orden), escena final muy
 corta (< 2s), coherencia con plan["duracion"] y que cada voz quepa en su
 escena sin pisar la siguiente (sílabas habladas con cifras expandidas al
 ritmo del idioma: speech_estimate.py, la fuente única de la estimación).
+Además detecta «tells» de pieza generada (jerga de marketing, emoji como
+icono, placeholders, prueba social sin fuente, titulares largos, la misma
+escena tres veces, cadencia de metrónomo...): siempre AVISO, nunca ERROR,
+porque una excepción deliberada es legítima. Se silencian con `"tells_ok":
+["codigo"]` en el plan o con --sin-tells (references/direccion-de-arte.md).
 Reporta cada hallazgo con su timestamp. Solo stdlib.
 """
-import argparse, json, os, re, sys
+import argparse, json, os, re, statistics, sys
 
 from speech_estimate import AIRE_VOZ, RITMOS, detectar_idioma, estimar_duracion, silabas
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import CV_MIN_CADENCIA  # noqa: E402
 
 
 def tipos_validos():
@@ -243,15 +251,116 @@ def credenciales_en(datos, ruta=""):
     return hallados
 
 
+
+# ───────────────────────── tells de pieza generada ─────────────────────────
+# Un «tell» es un recurso que hace que una pieza se lea como generada: casi
+# todos fueron buenas ideas hasta que se produjeron por defecto, sin razón.
+# El registro fechado vive en references/direccion-de-arte.md; aquí solo lo
+# que se puede medir en el plan. Siempre AVISO: la marca o la dirección elegida
+# mandan, y una excepción deliberada se declara en plan["tells_ok"].
+JERGA = re.compile(
+    r"\b(desbloque\w+|revoluciona\w*|de vanguardia|de última generación|sin esfuerzo|sin fisuras|"
+    r"todo[- ]en[- ]uno|al siguiente nivel|solución integral|experiencia única|a la velocidad de la luz|"
+    r"con un solo clic|unlock\w*|unleash\w*|supercharg\w+|elevate|empower\w*|streamline\w*|seamless\w*|"
+    r"effortless\w*|cutting[- ]edge|next[- ]generation|world[- ]class|all[- ]in[- ]one|blazing[- ]fast|"
+    r"game[- ]changer|revolutioni[sz]e\w*|next level|best[- ]in[- ]class|enterprise[- ]grade|future[- ]proof|"
+    r"industry[- ]leading|mission[- ]critical|de clase mundial|líder (del sector|de la industria))\b", re.I)
+CORRECCION = re.compile(
+    r"\bno es (solo|sólo|simplemente|únicamente) [^,.;!?]{1,40}[,;.]? (es|sino)\b|"
+    r"\bno (es|son) (una?|el|la|los|las) [^,.;!?]{1,40}[.!]\s+(es|son) \w|"
+    r"\bnot just [^,.;!?]{1,40}[,;.]? (it'?s|but)\b|\bnot an? [a-z][^.!?]{1,40}[.!]\s+[A-Z]", re.I)
+EMOJI = re.compile("[\U0001F300-\U0001FAFF\u2600-\u27BF\u2B50]")
+# «TODO:» y «XXX» distinguen mayúsculas y forma: «todo» es una palabra española de uso diario
+PLACEHOLDER = re.compile(r"lorem ipsum|texto aqu[ií]|tu texto|your text|placeholder|(?-i:\bTODO\s*:)|(?-i:\bXXX+\b)|"
+                         r"\[PENDIENTE\]|\[TBD\]", re.I)
+NUMERACION = re.compile(r"^\s*((paso|step|fase|phase|etapa)\s*0?\d+\b|0\d\s*[/·.\-–—])", re.I)
+PRUEBA = re.compile(r"\b\d[\d.,]*\s?(?:k|m|mil|millones)?\+?\s+(clientes|usuarios|equipos|empresas|marcas|"
+                    r"descargas|reseñas|customers|users|teams|companies|downloads|reviews)\b|"
+                    r"\bm[aá]s de \d[\d.,]*\s+\w+", re.I)
+NO_COPY = {"tipo", "transicion", "transicionX", "transicionY", "lado", "at", "from", "to", "respira", "color"}
+TITULARES = ("titulo", "titular", "rotulo")
+TITULAR_MAX = 42        # ~32-42 caracteres caben en dos líneas a tamaño de titular (9:16)
+REPETIBLES = {"kenburns", "rotulo_inferior"}   # tres fotos o tres rótulos seguidos son normales
+
+
+def _textos(v, clave=""):
+    """Textos de una escena con la clave de su campo (recorre listas y dicts)."""
+    if isinstance(v, str):
+        yield clave, v
+    elif isinstance(v, list):
+        for x in v:
+            yield from _textos(x, clave)
+    elif isinstance(v, dict):
+        for k, x in v.items():
+            if k not in NO_COPY:
+                yield from _textos(x, k)
+
+
+def auditar_tells(plan):
+    """Tells medibles del plan → [{nivel:'AVISO', t, codigo, msg}] (siempre AVISO)."""
+    if not isinstance(plan, dict) or not isinstance(plan.get("escenas"), list):
+        return []
+    ok = set(plan.get("tells_ok") or [])
+    out = []
+
+    def add(codigo, t, msg):
+        if codigo not in ok:
+            out.append({"nivel": "AVISO", "t": round(float(t or 0.0), 2), "codigo": codigo, "msg": f"[{codigo}] {msg}"})
+
+    escenas = [(i, e) for i, e in enumerate(plan["escenas"]) if isinstance(e, dict)]
+    for i, e in escenas:
+        t, tipo = _t_num(e.get("from")) or 0.0, e.get("tipo", "?")
+        donde = f"escena {i} ({tipo})"
+        vistos = set()
+        for clave, txt in _textos({k: v for k, v in e.items() if k not in NO_COPY}):
+            limpio = txt.replace("*", "")
+            for codigo, rx, que in (
+                    ("jerga", JERGA, "vocabulario de marketing de la categoría"),
+                    ("correccion", CORRECCION, "la corrección «no es solo X, es Y»"),
+                    ("emoji", EMOJI, "emoji o glifo como icono: en video se dibuja con la fuente y sale tofu o inconsistente; usa `icono` (letras) o una forma dibujada"),
+                    ("placeholder", PLACEHOLDER, "texto de relleno o pendiente sin resolver")):
+                m = rx.search(limpio)
+                if m and (codigo, m.group(0)) not in vistos:
+                    vistos.add((codigo, m.group(0)))
+                    add(codigo, t, f"{donde}: «{m.group(0)}» — {que}")
+            if NUMERACION.search(limpio):
+                add("numeracion", t, f"{donde}: «{limpio[:24]}» numera por costumbre; el orden lo da la posición o las palabras")
+            if PRUEBA.search(limpio) and "fuente" not in e:
+                add("prueba-inventada", t, f"{donde}: «{PRUEBA.search(limpio).group(0)}» sin `fuente`: verifica contra el brief o márcalo [PENDIENTE] (cero confabulación)")
+            if clave in TITULARES and len(limpio) > TITULAR_MAX:
+                add("titular-largo", t, f"{donde}: {clave} de {len(limpio)} caracteres (> {TITULAR_MAX}): el auto-fit lo encoge hasta que deja de ser titular; recorta o pasa el resto a una línea de apoyo")
+
+    n = len(escenas)
+    if n >= 5 and sum(1 for _, e in escenas if e.get("rotulo")) >= 0.8 * n:
+        add("rotulo-en-todas", 0.0, f"{sum(1 for _, e in escenas if e.get('rotulo'))} de {n} escenas llevan rótulo (kicker): es el reflejo de plantilla; resérvalo a donde aporta (si es la firma deliberada de la dirección, decláralo en tells_ok)")
+    ordenadas = sorted(escenas, key=lambda p: _t_num(p[1].get("from")) or 0.0)
+    racha = 1
+    for k in range(1, len(ordenadas)):
+        tipo = ordenadas[k][1].get("tipo")
+        racha = racha + 1 if tipo == ordenadas[k - 1][1].get("tipo") and tipo not in REPETIBLES else 1
+        if racha == 3:
+            add("escena-repetida", _t_num(ordenadas[k][1].get("from")) or 0.0,
+                f"tres escenas `{tipo}` seguidas (hasta la {ordenadas[k][0]}): la plantilla se nota; alterna la familia de composición")
+    durs = [_t_num(e.get("to")) - _t_num(e.get("from")) for _, e in ordenadas
+            if _t_num(e.get("from")) is not None and _t_num(e.get("to")) is not None]
+    durs = [d for d in durs if d > 0]
+    if len(durs) >= 5 and statistics.mean(durs) > 0:
+        cv = statistics.pstdev(durs) / statistics.mean(durs)
+        if cv < CV_MIN_CADENCIA:
+            add("cadencia-uniforme", 0.0, f"las {len(durs)} escenas duran casi lo mismo (CV {cv:.2f} < {CV_MIN_CADENCIA}): se lee como metrónomo (ritmo.md); varía las duraciones")
+    return out
+
 def main():
     ap = argparse.ArgumentParser(
-        description="Audita un plan.json: solapes, duraciones, escenas vacías, voz vacía, orden temporal.")
+        description="Audita un plan.json: solapes, duraciones, escenas vacías, voz vacía, orden temporal y tells de pieza generada.")
     ap.add_argument("plan", help="plan.json a auditar")
     ap.add_argument("--json", action="store_true", help="salida en JSON")
     ap.add_argument("--tol", type=float, default=0.05,
                     help="tolerancia en segundos para solapes (default: 0.05)")
     ap.add_argument("--min-final", type=float, default=2.0,
                     help="duración mínima de la escena final (default: 2.0s)")
+    ap.add_argument("--sin-tells", action="store_true",
+                    help="no busca «tells» de pieza generada (jerga, emoji, repeticiones...)")
     a = ap.parse_args()
 
     if not os.path.isfile(a.plan):
@@ -273,6 +382,8 @@ def main():
         sys.exit(msg)
 
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
+    if not a.sin_tells:
+        hallazgos += auditar_tells(plan)
     escenas = plan.get("escenas", []) if isinstance(plan, dict) and isinstance(plan.get("escenas"), list) else []
     errores = sum(1 for h in hallazgos if h["nivel"] == "ERROR")
     if a.json:

@@ -119,6 +119,21 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   `--todos-los-frames` con timestamps reales), `--palabras` pone bajo cada
   tile lo dicho en su intervalo, `--alrededor "frase"` ubica el pasaje,
   `--filas` pagina.
+- **scripts/direccion_arte.py** — dirección de arte repartida en vez de
+  inventada: `repartir` (3 direcciones de `scripts/data/direcciones.json`,
+  determinista por brief, filtradas por motor y assets reales), `ficha`,
+  `elegir` (escribe `SISTEMA.md` y un style pack `estilo.json` usable con
+  `--brand`) y `verificar` (contraste WCAG de cualquier pack, usa
+  `_comun.contraste`). Proceso, modos, idea del sujeto y registro de tells en
+  `references/direccion-de-arte.md`.
+- **scripts/auditar_plan.py (tells)** — además de la estructura, avisa de
+  tells de pieza generada (`jerga`, `correccion`, `emoji`, `placeholder`,
+  `numeracion`, `prueba-inventada`, `titular-largo`, `rotulo-en-todas`,
+  `escena-repetida`, `cadencia-uniforme`); siempre AVISO; `tells_ok` en el
+  plan o `--sin-tells` los silencian.
+- **references/pasadas.md** — refinamientos con alcance (más audaz, más calmo,
+  destilar, pulir, animar, tipografía, color, composición, deleitar, ir más
+  allá, aclarar, blindar, adaptar); el alcance es soberano.
 - **scripts/proyecto.py** — memoria del proyecto: BRIEF, TRATAMIENTO,
   PROGRESO y TIMELINE/evidencia por referencia; nunca sobrescribe y delega
   la ingesta en `clonar_video.py` (ver `references/referencia-video.md`).
