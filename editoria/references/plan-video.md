@@ -33,6 +33,36 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 }
 ```
 
+## Los SFX del plan (`sfx`)
+
+El plan puede declarar los golpes de sonido de la pieza. Cada cue dice
+**qué sonido**, **en qué ancla** cae y **en qué escena** ocurre:
+
+```json
+"sfx": [
+  {"escena": 1, "ancla": "escena",   "at": 0.15, "sonido": "whoosh", "volumen": 0.7},
+  {"escena": 2, "ancla": "palabra",  "palabra": 3, "sonido": "click"},
+  {"escena": 3, "ancla": "beat",     "beat": 12,   "sonido": "ding"},
+  {"escena": 4, "ancla": "pico",     "pico": 3,    "sonido": "thud"},
+  {"escena": 5, "ancla": "absoluta", "t": 12.4,    "sonido": "pop"}
+]
+```
+
+| ancla | se resuelve a | necesita |
+|---|---|---|
+| `escena` | `escena.from + at` | nada |
+| `absoluta` | `t` en segundos | nada |
+| `palabra` | el onset de la palabra M de la voz de esa escena | los tiempos de palabra (`scripts/alinear.py`) |
+| `beat` | el beat N de la rejilla musical | la rejilla (`scripts/beat_grid.py --json`) |
+| `pico` | el transitorio N de la música | la misma rejilla |
+
+Los sonidos disponibles son los del pack procedural: `click`, `pop`, `drop`,
+`whoosh`, `ding`, `thud`, `tick`, `swell` (`scripts/sfx.py`).
+
+Densidad: **entre 8 y 12 cues por minuto**. Menos suena vacío; más, saturado.
+El ensamblado lo hace `scripts/mezclar_audio.py`, que coloca cada efecto en su
+instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
+
 ## Reglas del formato
 - Tiempos en **segundos absolutos** del video (no relativos a la escena).
 - `*texto*` = énfasis (se renderiza en color acento).
@@ -159,3 +189,7 @@ python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mo
 
 Ver `references/escenas.md` para los parámetros de cada una.
 Ver `scripts/render_plan.py` para el renderizador de referencia.
+
+---
+
+→ Canónico: `references/plan-video.md` · Dominio: plan · Vecinos: `references/mapa.md`, `references/escenas.md`, `references/reglas-tecnicas.md`

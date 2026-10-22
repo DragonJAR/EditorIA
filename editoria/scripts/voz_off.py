@@ -13,7 +13,7 @@ La narración manda el reloj: mide cada segmento y falla si una voz pisa a la
 siguiente (antes de mezclar). Pre-TTS, auditar_plan.py estima lo mismo.
 La API key sale de $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
-import os, sys, argparse, subprocess, hashlib
+import os, sys, argparse, subprocess, hashlib, re
 try:
     import requests
 except ImportError:
@@ -35,6 +35,19 @@ VOCES = {  # roster probado con audio real (ver references/sonido.md)
 }
 DEFAULT_POR_IDIOMA = {"es": "fernanda", "en": "brian"}
 MODEL = "eleven_v3"  # soporta audio tags de dirección; fallback: eleven_multilingual_v2
+
+def texto_hablado(texto):
+    """El texto tal como se ESCUCHA (para el guion y la alineacion).
+
+    Los tags de direccion ([slowly], [calm]...) no se dicen: se leen como
+    instruccion para el modelo. Si quedaran en el guion, `alinear.py` los
+    contaria como palabras y cada ancla de palabra caeria una posicion
+    mas tarde. Los asteriscos de enfasis (*antes*) tampoco son palabras.
+    Mismo criterio que `speech_estimate.py`.
+    """
+    t = re.sub(r"\[[^\]]*\]", " ", texto)
+    return re.sub(r"\s+", " ", t.replace("*", " ")).strip()
+
 
 def cache_path(texto, voz_id, model):
     """Path content-addressed: el mismo texto+voz+modelo reusa el MP3."""
@@ -91,6 +104,10 @@ def main():
     ap.add_argument("--idioma", default="es", choices=["es", "en"],
                     help="idioma de la voz por defecto: la que hable el usuario")
     ap.add_argument("--model", default=MODEL)
+    ap.add_argument("--guion", default=None,
+                    help="escribe aqui el guion hablado (los campos 'voz' del plan, en "
+                         "orden de escena, sin los tags de direccion): es lo que se "
+                         "alinea con alinear.py para anclar animaciones a la palabra")
     import os as _os, sys as _sys
     _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
     from _comun import ayudar
@@ -100,18 +117,31 @@ def main():
     from _comun import leer_json
     plan=leer_json(a.plan,"el plan")
     segs=[]
+    guion=[]
+    pending=[]
     for i,e in enumerate(sorted(plan["escenas"],key=lambda s:s["from"])):
         vox=e.get("voz")
         if not vox: continue
         f=cache_path(vox, voz_id, a.model)
+        pending.append((i,e,vox,f))
+        delay_ms=int((e["from"]+0.4)*1000)
+        segs.append((f,delay_ms,e))
+        guion.append(texto_hablado(vox))
+    if not segs: sys.exit("El plan no tiene campos 'voz'")
+    if a.guion:
+        # el guion sale del MISMO plan que genera la voz: si se escribiera a
+        # mano, una palabra de mas desplaza TODAS las anclas de palabra en
+        # silencio y las animaciones caen sobre la palabra equivocada.
+        # Se escribe ANTES del TTS: el guion no depende de la API.
+        with open(a.guion,"w",encoding="utf-8") as fh:
+            fh.write("\n".join(guion)+"\n")
+        print(f"guion: {a.guion}",flush=True)
+    for i,e,vox,f in pending:
         if os.path.exists(f) and os.path.getsize(f) > 1500:
             print(f"cache escena {i} ({e['tipo']})",flush=True)
         else:
             print(f"TTS escena {i} ({e['tipo']}): {vox[:50]}…",flush=True)
             tts(vox, f, voz_id, a.model)
-        delay_ms=int((e["from"]+0.4)*1000)
-        segs.append((f,delay_ms,e))
-    if not segs: sys.exit("El plan no tiene campos 'voz'")
     verificar_reloj(segs)
     # mezcla con delays
     fc=[]; amix=[]
