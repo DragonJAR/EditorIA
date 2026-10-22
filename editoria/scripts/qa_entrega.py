@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+"""qa_entrega.py — la puerta de entrega de EditorIA, en un solo comando.
+
+Ejecuta, en orden, todas las comprobaciones deterministas que debe pasar
+una pieza antes de entregarse y devuelve UN veredicto:
+
+  1. auditar_plan.py   estructura y tiempos del plan (si se pasa --plan)
+  2. lint_copy.py      copy: longitudes, tells de genero, cifras sin fuente
+  3. auto_qa.py        el render: frames negros, congelados, flashes, audio
+  4. delivery_check.py el spec de la plataforma (reels, linkedin, youtube...)
+  5. medir_animacion.py  coherencia de movimiento: nota, pops y tirones
+  6. medir_animacion.py --plan  composicion: letra real, zona segura, solapes
+
+Uso:
+    python3 scripts/qa_entrega.py final.mp4
+    python3 scripts/qa_entrega.py final.mp4 --plan plan.json
+    python3 scripts/qa_entrega.py final.mp4 --plataforma linkedin --json
+
+El motor cierra SIEMPRE con un fundido a negro (render_plan.py: el ultimo
+frame es negro por diseno), asi que el chequeo de frames negros se hace con
+--ignorar-fin 0.5 por defecto: sin ese margen, toda pieza de la skill
+rechazaria su propio cierre. Ponlo en 0 para exigir que ni el ultimo
+medio segundo tenga negro.
+
+Sale 0 si todo pasa, 1 si algo falla, 2 si la entrada no existe.
+"""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRIPTS = os.path.join(BASE, "scripts")
+NOTA_MINIMA = 90.0     # nota de movimiento minima para dar la pieza por buena
+LETRA_MIN = 26         # px: por debajo, el texto no se lee en un telefono (mismo LETRA_MIN del motor)
+ZONA_MIN = 0.70        # el motor escala hasta 0.70: si toca el piso, el texto sale de la zona segura
+
+
+def _correr(args):
+    p = subprocess.run([sys.executable] + args, capture_output=True, text=True, timeout=3600)
+    return p.returncode, (p.stdout or "") + (p.stderr or "")
+
+
+def _paso_plan(plan, extra):
+    rc, out = _correr([os.path.join(SCRIPTS, "auditar_plan.py"), plan] + extra)
+    ok = rc == 0
+    detalle = ""
+    for linea in out.strip().splitlines():
+        if linea.startswith("OK") or linea.startswith("FALLO") or "errores" in linea.lower():
+            detalle = linea.strip()
+            break
+    return {"nombre": "plan", "ok": ok, "detalle": detalle or out.strip().splitlines()[-1:]}
+
+
+def _paso_copy(plan, extra):
+    rc, out = _correr([os.path.join(SCRIPTS, "lint_copy.py"), plan] + extra)
+    m = re.search(r"COPY: (\d+) fallos, (\d+) avisos", out)
+    detalle = m.group(0) if m else out.strip().splitlines()[-1:]
+    return {"nombre": "copy", "ok": rc == 0, "detalle": detalle}
+
+
+def _paso_autoqa(video, ignorar_inicio=0.0, ignorar_fin=0.0):
+    rc, out = _correr([os.path.join(SCRIPTS, "auto_qa.py"), video,
+                       "--ignorar-inicio", str(ignorar_inicio),
+                       "--ignorar-fin", str(ignorar_fin)])
+    limpio = "LIMPIO" in out
+    m = re.search(r'"total":\s*(\d+)', out)
+    n = m.group(1) if m else "?"
+    return {"nombre": "auto_qa", "ok": rc == 0 and limpio,
+            "detalle": f"{n} defectos" if n != "?" else out.strip()[-120:]}
+
+
+def _paso_delivery(video, plataforma):
+    rc, out = _correr([os.path.join(SCRIPTS, "ffmpeg_tools", "delivery_check.py"),
+                       video, "--platform", plataforma])
+    return {"nombre": f"delivery:{plataforma}", "ok": rc == 0,
+            "detalle": "cumple el spec" if rc == 0 else out.strip().splitlines()[-1:]}
+
+
+def _paso_medir(video):
+    rc, out = _correr([os.path.join(SCRIPTS, "medir_animacion.py"), "--video", video])
+    nota = None
+    pops = tirones = 0
+    for linea in out.splitlines():
+        m = re.search(r"([\d.]+)\s+\S+\.mp4\s+pops=(.*?)\s+tirones=\[(.*?)\]", linea)
+        if m:
+            nota = float(m.group(1))
+            pops = 0 if m.group(2) in ("[]", "") else len(m.group(2).split(","))
+            tirones = 0 if not m.group(3).strip() else len(m.group(3).split(","))
+    if nota is None:
+        return {"nombre": "movimiento", "ok": False, "detalle": "no se pudo medir"}
+    ok = nota >= NOTA_MINIMA and pops == 0
+    return {"nombre": "movimiento", "ok": ok,
+            "detalle": f"nota {nota} (min {NOTA_MINIMA:g}) · {pops} pops · {tirones} tirones"}
+
+
+def _fps(video):
+    p = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                        "-show_entries", "stream=r_frame_rate", "-of", "csv=p=0", video],
+                       capture_output=True, text=True, timeout=120)
+    try:
+        num, den = (p.stdout.strip().split("/") + ["1"])[:2]
+        return int(round(int(num) / max(1, int(den))))
+    except (ValueError, IndexError):
+        return 30
+
+
+def _defectos_composicion(letra, zona, solapes):
+    """Los fallos de composicion, con su motivo. Puro: sin video ni plan."""
+    fallos = []
+    if letra and letra < LETRA_MIN:
+        fallos.append(f"letra mínima {letra} px (< {LETRA_MIN}: no se lee en un teléfono)")
+    if zona <= ZONA_MIN:
+        fallos.append(f"la escena tocó el piso de la zona segura (x{zona:.3f}): "
+                      "el texto sale debajo de la UI")
+    if solapes:
+        fallos.append(f"{len(solapes)} textos se pisan")
+    return fallos
+
+
+def _paso_composicion(plan, video):
+    """Mide el plan con el motor: letra real, zona segura y solapes.
+
+    Es la MISMA medicion que usa `puntuar.py` para el eje 4. Si las dos
+    puertas midieran cosas distintas, una aprobaria lo que la otra rechaza:
+    eso es exactamente lo que pasaba (el gate de entrega no miraba la letra,
+    y la rubrica si).
+    """
+    tmp = tempfile.mkdtemp(prefix="editoria_qa_")
+    try:
+        salida = os.path.join(tmp, "medidas.json")
+        rc, out = _correr([os.path.join(SCRIPTS, "medir_animacion.py"),
+                           "--plan", plan, "--fps", str(_fps(video)),
+                           "--json", salida])
+        if rc != 0 or not os.path.exists(salida):
+            # el motor explica por que no se pudo medir: se pasa su motivo,
+            # no un "no se pudo" opaco
+            motivo = ""
+            for linea in reversed(out.strip().splitlines()):
+                if linea.strip().startswith("ERROR"):
+                    motivo = linea.strip()[:160]
+                    break
+            return {"nombre": "composicion", "ok": False,
+                    "detalle": motivo or "no se pudo medir el plan"}
+        with open(salida, encoding="utf-8") as f:
+            res = json.load(f)
+        if not res:
+            return {"nombre": "composicion", "ok": False, "detalle": "el plan no midió nada"}
+        letra = min((r.get("letra_min") or 0) for r in res)
+        zona = min(float(r.get("zona", 1.0)) for r in res)
+        solapes = [x for r in res for x in (r.get("solapes") or [])]
+        fallos = _defectos_composicion(letra, zona, solapes)
+        detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
+        if fallos:
+            detalle = "; ".join(fallos)
+        return {"nombre": "composicion", "ok": not fallos, "detalle": detalle}
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        description="Puerta de entrega: ejecuta todas las comprobaciones "
+                    "deterministas de una pieza y devuelve un veredicto unico.",
+        epilog="Sale 0 si todo pasa, 1 si algo falla, 2 si la entrada no existe.")
+    ap.add_argument("video", help="ruta del MP4 final a verificar")
+    ap.add_argument("--plan", help="ruta del plan.json (opcional: añade el chequeo de plan y de copy)")
+    ap.add_argument("--plataforma", default="reels",
+                    help="destino de entrega: reels, linkedin, youtube, tiktok, shorts (def. reels)")
+    ap.add_argument("--json", action="store_true",
+                    help="devuelve el informe en JSON por stdout en vez de texto")
+    ap.add_argument("--sin-medir", action="store_true",
+                    help="no ejecuta medir_animacion (mas rapido; no mide los pops ni los "
+                         "tirones, ni la composicion del plan)")
+    ap.add_argument("--ignorar-inicio", type=float, default=0.0,
+                    help="segundos iniciales a ignorar en el chequeo de negro (fade-in "
+                         "intencional; def. 0)")
+    ap.add_argument("--ignorar-fin", type=float, default=0.5,
+                    help="segundos finales a ignorar en el chequeo de negro (el motor cierra "
+                         "con fundido a negro por diseno; def. 0.5, pon 0 para exigirlos)")
+    args = ap.parse_args()
+
+    if not os.path.exists(args.video):
+        print(f"ERROR: no existe el video '{args.video}'", file=sys.stderr)
+        return 2
+    if args.plan and not os.path.exists(args.plan):
+        print(f"ERROR: no existe el plan '{args.plan}'", file=sys.stderr)
+        return 2
+
+    pasos = []
+    if args.plan:
+        pasos.append(_paso_plan(args.plan, []))
+        pasos.append(_paso_copy(args.plan, []))
+    pasos.append(_paso_autoqa(args.video, args.ignorar_inicio, args.ignorar_fin))
+    pasos.append(_paso_delivery(args.video, args.plataforma))
+    if not args.sin_medir:
+        pasos.append(_paso_medir(args.video))
+        if args.plan:
+            pasos.append(_paso_composicion(args.plan, args.video))
+
+    todo_ok = all(p["ok"] for p in pasos)
+    if args.json:
+        print(json.dumps({"video": args.video, "plataforma": args.plataforma,
+                          "ok": todo_ok, "pasos": pasos}, ensure_ascii=False, indent=1))
+    else:
+        for p in pasos:
+            print(("OK   " if p["ok"] else "FALLO") + f" {p['nombre']:22} {p['detalle']}")
+        print("ENTREGA: " + ("aprobada" if todo_ok else "NO APROBADA"))
+    return 0 if todo_ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

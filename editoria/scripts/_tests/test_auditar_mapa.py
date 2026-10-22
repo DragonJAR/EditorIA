@@ -226,5 +226,66 @@ class TestAuditarMapa(unittest.TestCase):
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")
 
 
+class TestCifrasDelCodigo(unittest.TestCase):
+    """Las cifras de la prosa tienen que ser las del codigo.
+
+    La puerta corre un numero de pasos que DEPENDE del modo (con plan
+    comprueba el plan y el copy; sin plan no hay plan que comprobar), asi
+    que cualquier numero fijo en la prosa es un numero falso. La rubrica
+    tiene ocho ejes y el codigo tambien: si divergen, el doc miente.
+    """
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="editoria_cifras_")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+
+    def _completa(self):
+        return _copia_completa(os.path.join(self.dir, "skill"))
+
+    def _ref(self, raiz, nombre):
+        with open(os.path.join(raiz, "references", nombre), encoding="utf-8") as f:
+            return f.read()
+
+    def _escribir(self, raiz, nombre, txt):
+        with open(os.path.join(raiz, "references", nombre), "w", encoding="utf-8") as f:
+            f.write(txt)
+
+    def test_detecta_un_numero_falso_de_comprobaciones(self):
+        raiz = self._completa()
+        txt = self._ref(raiz, "qa-entrega.md")
+        self.assertIn("comprobaciones", txt)
+        self._escribir(raiz, "qa-entrega.md",
+                       txt.replace("Todas las comprobaciones", "Cinco comprobaciones", 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el numero falso no se detecto:\n{out}")
+        self.assertIn("cifra falsa", out)
+
+    def test_detecta_una_rubrica_descuadrada(self):
+        raiz = self._completa()
+        txt = self._ref(raiz, "rubrica-premios.md")
+        self._escribir(raiz, "rubrica-premios.md", txt.replace("| 8 |", "| 9 |", 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la rubrica descuadrada no se detecto:\n{out}")
+        self.assertIn("rubrica descuadrada", out)
+
+    def test_detecta_un_eje_renombrado_en_la_rubrica(self):
+        raiz = self._completa()
+        txt = self._ref(raiz, "rubrica-premios.md")
+        self.assertIn("Acabado", txt, "el eje 8 deberia llamarse 'Acabado tecnico'")
+        self._escribir(raiz, "rubrica-premios.md", txt.replace("**Acabado", "**Remate", 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el eje renombrado no se detecto:\n{out}")
+        self.assertIn("rubrica descuadrada", out)
+        # el motor es la fuente: si LETRA_MIN cambia, el valor esperado cambia
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"piso de letra".*?"valor":\s*(\d+)', txt, re.S)
+        self.assertIsNotNone(m, "la regla del piso de letra debe estar en auditar_mapa.py")
+        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
+            motor = f.read()
+        self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
+                      "el valor esperado tiene que ser el LETRA_MIN real del motor")
+
+
 if __name__ == "__main__":
     unittest.main()

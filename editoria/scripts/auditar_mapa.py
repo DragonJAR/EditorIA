@@ -552,6 +552,146 @@ def _rels_de_texto(txt, base_rel=""):
     return out
 
 
+def _normalizar(txt):
+    """El nombre de un eje sin acentos, sin mayusculas y sin puntuacion."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", txt)
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", "", t.lower())
+
+
+def _ejes_de_rubrica(scripts_dir):
+    """[(numero, nombre, ambito)] de la rubrica, leidos del codigo."""
+    import ast
+    ruta = os.path.join(scripts_dir, "puntuar.py")
+    if not os.path.exists(ruta):
+        return []
+    with open(ruta, encoding="utf-8") as fh:
+        arbol = ast.parse(fh.read())
+    for n in arbol.body:
+        if isinstance(n, ast.Assign) and any(getattr(x, "id", "") == "EJES" for x in n.targets):
+            salida = []
+            for el in n.value.elts:
+                if not isinstance(el, ast.Tuple) or len(el.elts) < 3:
+                    continue
+                try:
+                    num = int(ast.literal_eval(el.elts[0]))
+                    nombre = ast.literal_eval(el.elts[1])
+                    ambito = ast.literal_eval(el.elts[2])
+                except (ValueError, SyntaxError):
+                    continue
+                salida.append((num, nombre, ambito))
+            return salida
+    return []
+
+
+def _pasos_de_la_puerta(scripts_dir):
+    """(pasos siempre, pasos solo con plan) de `qa_entrega.py`, del codigo.
+
+    Se cuenta el AST, no el docstring: el docstring dice "cinco" y el
+    codigo hace otra cosa (que es justo lo que hay que detectar).
+    """
+    import ast
+    ruta = os.path.join(scripts_dir, "qa_entrega.py")
+    if not os.path.exists(ruta):
+        return None
+    with open(ruta, encoding="utf-8") as fh:
+        arbol = ast.parse(fh.read())
+    main_fn = next((n for n in arbol.body
+                    if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+    if main_fn is None:
+        return None
+    siempre = con_plan = 0
+
+    def cuenta(bloque, en_plan):
+        nonlocal siempre, con_plan
+        for st in bloque:
+            if isinstance(st, ast.If):
+                test = ast.dump(st.test)
+                es_plan = "plan" in test
+                # un `if not args.sin_medir` no añade pasos: solo los salta
+                if "sin_medir" in test:
+                    cuenta(st.body, en_plan)
+                    continue
+                cuenta(st.body, en_plan or es_plan)
+                continue
+            if isinstance(st, ast.Expr) and isinstance(st.value, ast.Call):
+                func = st.value.func
+                nombre = getattr(func, "attr", "")
+                if nombre == "append" and isinstance(st.value.func, ast.Attribute):
+                    src = ast.dump(st.value.func.value)
+                    if "pasos" in src:
+                        if en_plan:
+                            con_plan += 1
+                        else:
+                            siempre += 1
+    cuenta(main_fn.body, False)
+    return siempre, con_plan
+
+
+def _chequear_cifras_del_codigo(problemas):
+    """Que las cifras que la prosa enuncia sean las que el codigo tiene.
+
+    Dos numeros de la skill viven en el codigo y se enuncian en la prosa:
+    los ejes de la rubrica (`puntuar.py`) y los pasos de la puerta
+    (`qa_entrega.py`). Un documento que dice "cinco comprobaciones"
+    cuando la puerta corre seis (o tres, sin plan) no es un error de
+    redaccion: es una afirmacion que el sistema no cumple.
+    """
+    scripts_dir = os.path.join(BASE, "scripts")
+    if not os.path.isdir(scripts_dir):
+        return
+
+    # ---- los ejes de la rubrica -------------------------------------
+    ejes = _ejes_de_rubrica(scripts_dir)
+    if ejes:
+        doc = os.path.join(REFS, "rubrica-premios.md")
+        if os.path.exists(doc):
+            texto = open(doc, encoding="utf-8").read()
+            filas = {}
+            for mt in re.finditer(r"^\|\s*(\d)\s*\|\s*\*\*(.+?)\*\*\s*\|", texto, re.M):
+                filas[int(mt.group(1))] = mt.group(2)
+            if filas:
+                codigo = {n for n, _, _ in ejes}
+                documento = set(filas)
+                if codigo != documento:
+                    faltan = sorted(codigo - documento)
+                    sobran = sorted(documento - codigo)
+                    problemas.append({
+                        "tipo": "rubrica descuadrada", "archivo": "references/rubrica-premios.md",
+                        "msg": f"el codigo tiene los ejes {sorted(codigo)} y el documento {sorted(documento)}"
+                               + (f" (faltan {faltan})" if faltan else "")
+                               + (f" (sobran {sobran})" if sobran else "")})
+                for n, nombre, _ in ejes:
+                    if n in filas and _normalizar(nombre) != _normalizar(filas[n]):
+                        problemas.append({
+                            "tipo": "rubrica descuadrada", "archivo": "references/rubrica-premios.md",
+                            "msg": f"el eje {n} se llama '{nombre}' en el codigo y '{filas[n]}' en el documento"})
+
+    # ---- los pasos de la puerta --------------------------------------
+    pasos = _pasos_de_la_puerta(scripts_dir)
+    if pasos:
+        siempre, solo_con_plan = pasos
+        total_plan = siempre + solo_con_plan
+        doc = os.path.join(REFS, "qa-entrega.md")
+        if os.path.exists(doc):
+            texto = _prosa(open(doc, encoding="utf-8").read())
+            for mt in re.finditer(r"\b([a-zA-ZáéíóúñÁÉÍÓÚÑ]+|\d+)\s+comprobaciones\b", texto):
+                palabra = mt.group(1).lower()
+                if palabra in ("una", "un", "las", "los", "estas", "esos", "sus", "todas"):
+                    continue
+                if siempre != total_plan:
+                    problemas.append({
+                        "tipo": "cifra falsa", "archivo": "references/qa-entrega.md",
+                        "msg": f"afirma '{mt.group(1)} comprobaciones', pero la puerta corre "
+                               f"{siempre} sin plan y {total_plan} con plan: "
+                               f"un numero fijo en la prosa es un numero falso"})
+                else:
+                    problemas.append({
+                        "tipo": "cifra falsa", "archivo": "references/qa-entrega.md",
+                        "msg": f"afirma '{mt.group(1)} comprobaciones' y la puerta corre {siempre}"})
+
+
 def main():
     ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
                                  epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
@@ -677,6 +817,9 @@ def main():
 
     # ---- 10. el catalogo documentado es el del motor, por nombre --------
     _chequear_escenas(problemas)
+
+    # ---- 11. las cifras de la prosa son las del codigo -----------------
+    _chequear_cifras_del_codigo(problemas)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}
