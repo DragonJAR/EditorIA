@@ -9,28 +9,66 @@ Cada receta es un procedimiento, no un motor nuevo: usa ffmpeg + PIL +
 Una frase que entra palabra por palabra sobre fondo vivo. Ideal para claims,
 bumpers y CTAs.
 
-1. Fondo: degradado negro→acento profundo o el fondo vivo de `mundo()` en
-   `scripts/render_plan.py` (tintado al brand pack).
-2. Texto en la tipografía de titulares del brand pack (ExtraBold; en modo libre,
-   una sans geométrica de peso alto), centrado, auto-fit a ≤1000px
-   (`references/reglas-tecnicas.md`).
-3. Animación: cada palabra entra con spring (overshoot leve), stagger 0.12s;
-   la palabra clave en el acento del brand pack.
-4. Salida: fade 0.3s. Duración total 3-6s según longitud.
-5. Render PIL a 30fps + `musica.py musiconly` si lleva música.
+**Es una escena `apertura` de un plan**, no un render suelto: el titular
+entra PALABRA por palabra (un tiempo por palabra en `at.p1`) y `texto2` toma
+el relevo en `at.cambio`.
+
+```json
+{"tipo": "apertura", "from": 0, "to": 4,
+ "texto1": ["Ya se acaba el reto", "EditorIA en un click"],
+ "texto2": ["EditorIA en un click"],
+ "at": {"cambio": 2.4, "p1": [0.3, 0.6, 0.9, 1.2, 1.5, 2.0], "p2": [2.6]}}
+```
+
+```bash
+python scripts/auditar_plan.py plan.json
+python scripts/render_plan.py plan.json -o carta.mp4 --blur 5
+python scripts/qa_entrega.py carta.mp4 --plan plan.json
+```
+
+- `at.p1` lleva **un tiempo por palabra** de `texto1`, no por línea: las
+  palabras que falten siguen la cadencia sola.
+- `texto1` admite **2 líneas como máximo** (el linter de copy falla con
+  más: "N lineas para un titular").
+- Salida: fade de 0,3 s. Duración 3-6 s según la longitud.
+- Tipografía: la de titulares del brand pack (ExtraBold; en modo libre, una
+  sans geométrica de peso alto). Fondo: el vivo del motor, con el acento del
+  pack.
 
 ## quick-montage — montaje de clips con música (15-60s)
 
 Varios clips unidos con ritmo, para resúmenes y reels.
 
-1. Normalizar clips: misma resolución/fps
-   (`-vf scale=1080:1920,fps=30` para vertical).
-2. Ordenar por energía: gancho primero, cierre con CTA.
-3. Cortes al beat: marcar los beats de la música (o cada 2-4s) y cortar ahí.
-4. Transiciones: según `reglas.transiciones` del brand pack (corte seco o
+```bash
+# 1. la música primero: es la que dicta los cortes
+python scripts/musica.py gen --prompt "energia alta, percusion, 120 bpm" --dur 45 -o mus.mp3
+python scripts/beat_grid.py mus.mp3 --json grid.json      # la rejilla para cortar en el beat
+
+# 2. normalizar los clips al mismo formato (vertical)
+python scripts/ffmpeg_tools/montaje.py escala c1.mp4 --tamano 1080x1920 -o c1v.mp4
+python scripts/ffmpeg_tools/montaje.py escala c2.mp4 --tamano 1080x1920 -o c2v.mp4
+
+# 3. unir (el orden lo decide la energía: gancho primero, cierre con CTA)
+python scripts/ffmpeg_tools/montaje.py unir c1v.mp4 c2v.mp4 -o montaje.mp4
+
+# 4. la música debajo, con su fade de salida
+python scripts/musica.py musiconly -v montaje.mp4 -m mus.mp3 -o final.mp4
+
+# 5. la puerta
+python scripts/qa_entrega.py final.mp4
+```
+
+1. **Normalizar clips**: misma resolución/fps
+   (`--tamano 1080x1920` para vertical; `montaje.py escala` no reescala fps,
+   así que si los clips vienen a tasas distintas, conviene convertirlos antes).
+2. **Ordenar por energía**: gancho primero, cierre con CTA.
+3. **Cortes al beat**: marcar los beats de la música con `beat_grid.py`
+   (o cada 2-4s) y cortar ahí; `scripts/beat_sync.py` mide la sincronía del
+   montage contra la rejilla.
+4. **Transiciones**: según `reglas.transiciones` del brand pack (corte seco o
    libres: mancha/blur); sin pack, según el tono.
-5. Música: `musica.py gen` con prompt de energía acorde + `musiconly`.
-6. Texto overlay mínimo: kicker + cifra por clip, nunca párrafos.
+5. **Música**: `musica.py gen` con prompt de energía acorde + `musiconly`.
+6. **Texto overlay mínimo**: kicker + cifra por clip, nunca párrafos.
 
 ## quick-cut — recorte/adaptación de un video existente
 
@@ -184,6 +222,13 @@ primero se elige, después se edita.
 
 ## Reglas comunes
 
-- Todo quick pasa por `checklist-qa.md` (versión corta: 3 frames).
+- **Todo quick cierra en la puerta**: `python scripts/qa_entrega.py final.mp4`
+  (y `scripts/puntuar.py` si la pieza compite por premios), más la versión
+  corta de `checklist-qa.md` (3 frames). Una pieza rápida no es una pieza sin
+  medir: son las mismas reglas, sin el ritual.
 - Si el quick crece (más de 3 textos, narración, escenas), migrar a plan.
 - Documentar el fix en `reglas-tecnicas.md` igual que un build grande.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/pipeline-resumen.md`, `references/scene-patterns-from-internet.md`
