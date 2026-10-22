@@ -109,6 +109,38 @@ def _es_pop(prev, cur, bloques):
     return len(_sin_origen(prev, cur, bloques)) >= POP_PROPORCION * len(bloques)
 
 
+def _letra_en_reposo(tamanos):
+    """El tamaño de cada texto EN REPOSO, no el más pequeño que pasó por la pantalla.
+
+    Un elemento que entra con resorte pasa por muchos tamaños (un boton que
+    crece de 0 a 40 px dibuja su texto a 21 px a mitad de camino). Medir
+    "el más chico que se vio" castigaba la ANIMACION, no la tipografia: 10 de
+    10 piezas de la demo caian por debajo del piso de letra con un texto que
+    en reposo va a 40 px. Lo que vale es el tamaño con el que el texto SE
+    QUEDA: la mediana ponderada por frames de cada texto.
+
+    Un texto visto menos de 3 frames se ignora: entra justo al final de la
+    ventana y nunca llegó a asentar.
+    """
+    fuera = []
+    for texto, cnt in tamanos.items():
+        # un simbolo ("✓", "·") no es una letra: no se juzga su tamaño
+        if not any(ch.isalnum() for ch in texto):
+            continue
+        total = sum(cnt.values())
+        if total < 3:
+            continue
+        acum = 0
+        elegido = max(cnt)
+        for tam, n in sorted(cnt.items()):
+            acum += n
+            if acum * 2 >= total:
+                elegido = tam
+                break
+        fuera.append(elegido)
+    return min(fuera) if fuera else 0
+
+
 def medir(job):
     """Mide una escena (o un plan entero: escenas en secuencia, cortes y
     transiciones) en un formato. Devuelve el dict de métricas."""
@@ -127,13 +159,19 @@ def medir(job):
     e = {"to": dur}
     # tamaños de letra REALES: se instrumenta ImageDraw.text durante el render
     from PIL import ImageDraw
-    tamanos = []
+    from collections import Counter
+    tamanos = {}        # texto -> Counter{tamaño: frames en que se dibuja así}
     original = ImageDraw.ImageDraw.text
 
     def espia(self, xy, text, fill=None, font=None, *a, **k):
         if font is not None and str(text).strip() and en_hold[0]:
             if self.im.size == (R.W, R.H):   # solo lo que va al cuadro, no capas auxiliares
-                tamanos.append(getattr(font, "size", 0))
+                t = str(text)
+                # un simbolo no es una letra: el "✓" de una tarjeta dibujado a
+                # 14 px no es "texto ilegible", es un check. Los numeros si
+                # cuentan (son datos), los signos sueltos no.
+                if any(ch.isalnum() for ch in t):
+                    tamanos.setdefault(t, Counter())[int(getattr(font, "size", 0))] += 1
         return original(self, xy, text, fill, font, *a, **k)
     ImageDraw.ImageDraw.text = espia
     en_hold = [False]   # la letra se juzga ASENTADA: en una entrada todo pasa por tamaños chicos
@@ -169,7 +207,7 @@ def medir(job):
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
     m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_)
-    letra = int(min(tamanos) * 1080 / min(w, h)) if tamanos else 0
+    letra = int(_letra_en_reposo(tamanos) * 1080 / min(w, h)) if tamanos else 0
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
         m["muerto"] = 0.0
@@ -395,6 +433,43 @@ def nota(m):
     return round(max(0.0, 100 - p), 1)
 
 
+def _escenas_del_plan(ruta_plan):
+    """[(indice, tipo, from, to)] del plan, para ubicar un defecto en su escena."""
+    if not ruta_plan:
+        return []
+    try:
+        with open(ruta_plan, encoding="utf-8") as f:
+            plan = json.load(f)
+    except (OSError, ValueError):
+        return []
+    out = []
+    for i, e in enumerate(plan.get("escenas") or []):
+        if not isinstance(e, dict):
+            continue
+        try:
+            out.append((i + 1, str(e.get("tipo", "?")), float(e.get("from", 0)), float(e.get("to", 0))))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def _escena_en(t, escenas):
+    """A que escena pertenece el instante t (numero de escena y tipo).
+
+    Si el defecto cae justo sobre un corte, lo que importa es el CORTE, no
+    la escena: se reporta "corte 1->2".
+    """
+    for j in range(len(escenas) - 1):
+        if abs(t - escenas[j][3]) < 0.05:
+            i1, t1 = escenas[j][0], escenas[j][1]
+            i2, t2 = escenas[j + 1][0], escenas[j + 1][1]
+            return f"corte {i1}:{t1}->{i2}:{t2}"
+    for i, tipo, f0, f1 in escenas:
+        if f0 - 1e-6 <= t <= f1 + 1e-6:
+            return f"{i}:{tipo}"
+    return "?"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--solo", help="escenas separadas por coma")
@@ -405,7 +480,8 @@ def main():
     ap.add_argument("--historial", action="store_true", help="agregar la corrida a metricas/historial.jsonl")
     ap.add_argument("--nota", default="", help="qué cambió en esta corrida (para el historial)")
     ap.add_argument("--ver", metavar="ESCENA:F:SEG", help="diagnosticar un pop: guarda el par de frames marcado")
-    ap.add_argument("--plan", help="medir un plan.json entero (secuencia, cortes, transiciones) antes de renderizar")
+    ap.add_argument("--plan", help="medir un plan.json entero (secuencia, cortes, transiciones) antes de renderizar; "
+                                   "junto a --video, ubica cada defecto en su escena")
     ap.add_argument("--video", nargs="+", help="medir videos YA renderizados (captions, films, pases, entregas)")
     ap.add_argument("--cortes", action="store_true", help="medir el corte entre cada par consecutivo del catálogo")
     import os as _os, sys as _sys
@@ -431,14 +507,23 @@ def main():
             R.resolver_medios(e, medios)
         if a.video:   # misma vara para cualquier video (sin letra ni zona: no hay plan que leer)
             res = []
+            escenas = _escenas_del_plan(a.plan) if a.plan else []
             for ruta in a.video:
                 F, dur, fps_v = frames_de_video(ruta)
                 r = dict({"escena": os.path.basename(ruta), "formato": f"{fps_v}fps"}, **metricas(F, fps_v, dur),
                          letra_min=0, zona=1.0, costo=0.0)
                 r["nota"] = nota(r)
+                extra = ""
+                if escenas:
+                    # EL CRITICO: un defecto sin escena es un defecto sin dueño.
+                    # "pop en 12.4 s" -> "pop en 12.4 s, escena 3 (bento)"
+                    r["pops_escena"] = [f"{_escena_en(t, escenas)}@{t}s" for t in r["pops"]]
+                    r["tirones_escena"] = [f"{_escena_en(t, escenas)}@{t}s" for t in r["t_tirones"]]
+                    extra = (f" pops_escena={r['pops_escena'][:6]}"
+                             f" tirones_escena={r['tirones_escena'][:6]}")
                 res.append(r)
                 print(f"{r['nota']:5.1f}  {r['escena']}  pops={r['pops'][:6]} tirones={r['t_tirones'][:6]} "
-                      f"muerto={r['muerto']} densidad={r['densidad']}")
+                      f"muerto={r['muerto']} densidad={r['densidad']}{extra}")
             if a.json:
                 json.dump(res, open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             return 0
