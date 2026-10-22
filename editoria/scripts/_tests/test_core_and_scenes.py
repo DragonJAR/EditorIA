@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests unitarios deterministas de utilidades core, frontmatter, nombres,
-subtítulos y catálogo de escenas (36 escenas, primitivas DRY de Ronda 4 y 5).
+subtítulos y catálogo de escenas (39 escenas, primitivas DRY de Ronda 4, 5 y 6).
 
 Se ejecutan con: python3 -m unittest discover -s editoria/scripts/_tests -v
 """
@@ -116,7 +116,7 @@ class TestFrontmatterYCatalogo(unittest.TestCase):
         for node in tree.body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "SCENES" for t in node.targets):
                 scenes_keys = [k.value for k in node.value.keys if isinstance(k, ast.Constant)]
-        self.assertEqual(len(scenes_keys), 36)
+        self.assertEqual(len(scenes_keys), 39)
         self.assertIn("hero", scenes_keys)
         self.assertIn("bento", scenes_keys)
         self.assertIn("buscador", scenes_keys)

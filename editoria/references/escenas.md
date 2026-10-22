@@ -1,4 +1,4 @@
-# Catálogo de escenas (36 tipos del plan)
+# Catálogo de escenas (39 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -82,7 +82,20 @@ Barrido orgánico: un blob con borde ondulado que crece desde un punto
 (`transicionX/Y`) con un agujero central, cubre la escena anterior y revela la
 nueva. Implementación: polígono de 72 puntos con radio modulado por senos.
 
-## Catálogo unificado de escenas (36 tipos del plan)
+## Transición `iris`
+Apertura en círculo desde un punto: la escena nueva se revela como un iris
+que crece desde (`transicionX/Y`) — el corte firma del video con presentador
+(abre desde la cara). Comparte el presupuesto de la `mancha`: las dos piden
+atención, y un plan no llena de transiciones. Implementación: máscara de
+círculo con radio en `ease_out`.
+
+## Transición `dissolve`
+Fundido cruzado de 0.40 s: la escena nueva aparece encima de la anterior con
+alfa creciente (`smoothstep`). Es el corte más neutro del catálogo: no pide
+atención como la `mancha` ni deja formas orgánicas en el encuadre. Se declara
+en la escena entrante: `"transicion": "dissolve"`.
+
+## Catálogo unificado de escenas (39 tipos del plan)
 
 El catálogo integra las 13 escenas originales más 23 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
@@ -259,16 +272,41 @@ Bento). `rotulo?`, `items[{icono?, titulo, texto, acento?, at?}]`, `pie?`,
 
 **`audiowave`** — Tarjeta de reproductor / interceptación de audio: botón de reproducción, indicador de estado ("REC ● 00:14"), ecualizador visual de barras armónicas multi-frecuencia en vivo, barra de progreso temporal y transcripción subtitulada sincronizada con revelación progresiva. `archivo?`, `hablante?`, `estado?`, `transcripcion?`, `rotulo?`, `at{rotulo, tarjeta, onda, texto}`.
 
+### 37-39. Ronda 6 — Índice, resalte y apertura de partículas (catálogo de futuros, hoy implementado)
+
+**`index`** — Índice de contenidos: lo que vamos a ver, con el paso activo en
+acento. `titulo?`, `items[{texto, activo?}]`, `at{rotulo, item0..n}`. Cada
+entrada entra escalonada; el último queda resaltado si ninguno lo está. Para
+videos largos (3–6 min) y para prometer la estructura antes de empezar.
+
+**`callout`** — Resalte sobre el dato clave: elipse que se dibuja sola + placa
+con la etiqueta. `titulo?`, `captura?` (imagen a señalar), `objeto{x, y, r}`
+(fracciones de la captura), `etiqueta`, `detalle?`, `fuente?`,
+`at{rotulo, circulo, etiqueta}`. Sin `captura` la elipse flota sobre el
+fondo. Con `captura` señala un punto de ella ("mira este 60 %"). El texto va
+sobre placa oscura: blanco sobre captura clara no se lee.
+
+**`orbOpen`** — Apertura de capítulo: las partículas **convergen** a una forma
+y entra el titular. `titulo`, `subtitulo?`, `figura?` (`esfera`, `chat`,
+`robot`), `at{titulo, subtitulo}`. Es lo contrario que `orbita` (donde
+orbitan): aquí se forman. Para intros de producto, IA o capítulos.
+
 ## Ideas de escenas futuras (NO implementadas — no usar como `tipo`)
 
 ⚠️ Estos nombres **no existen** en `SCENES` (`scripts/render_plan.py`): usar uno
 en `plan.json` produce `KeyError`. Son ideas para implementar, no tipos válidos.
-`orbOpen` · `lineup` · `rise` · `orbChips` · `dissolve` · `outro` · `broll` ·
-`callout` · `tituloDetras` (requiere Robust Video Matting) ·
-`index` · `subscribe`
+`lineup` · `rise` · `orbChips` · `outro` · `broll` ·
+`tituloDetras` (requiere Robust Video Matting) · `subscribe`
+
+Ya implementadas (Ronda 6): `orbOpen` · `callout` · `index` · y la transición
+`dissolve`.
 
 Para añadir una nueva escena: componer con las primitivas DRY (`barra_h`,
 `cuenta_up`, `arco`, `cuadricula`, `linewrap`, `particulas`, `text_reveal`,
 `kenburns`, `cursor`, `onda_clic`, `smoothstep`, `odometro`, `estrellas`,
 `imagen_ajustada`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`) — NO duplicar lógica.
 Ver `references/scene-patterns-from-internet.md` para portar escenas validadas.
+
+---
+
+→ Canónico: `references/escenas.md` · Dominio: escenas · Vecinos: `references/plan-video.md`, `references/intencion-escena.md`, `references/escenas-extendidas.md`

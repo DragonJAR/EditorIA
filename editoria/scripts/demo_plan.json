@@ -1,6 +1,6 @@
 {
  "_nota": "Plan demo del renderizador EditorIA: 6 escenas, ~30s, en modo libre (paleta neutra). Para una marca: agregar \"brand\": \"brand/mi_marca.json\" o usar --brand.",
- "duracion": 30.0,
+ "duracion": 30.37,
  "escenas": [
   {
    "at": {
@@ -18,24 +18,24 @@
      3.05
     ]
    },
-   "from": 0,
+   "from": 0.0,
    "texto1": [
-    "¿Editar video",
-    "te toma *horas?*"
+    "¿Video?",
+    "en *horas*?"
    ],
    "texto2": [
     "Ahora es",
     "*automático.*"
    ],
    "tipo": "apertura",
-   "to": 4.2,
-   "voz": "¿Editar video te toma horas? Ahora es automático."
+   "to": 4.33,
+   "voz": "¿Editar video toma horas. Ya es automático."
   },
   {
    "at": {
-    "junta": 7.3,
-    "marca": 4.7,
-    "rotulo": 7.3
+    "junta": 7.43,
+    "marca": 4.83,
+    "rotulo": 7.43
    },
    "canales": [
     {
@@ -57,96 +57,96 @@
      "texto": "Golpes en el clímax"
     }
    ],
-   "from": 4.2,
+   "from": 4.33,
    "marca": "EditorIA",
    "rotulo": "Tus ideas, *un solo editor*",
    "tipo": "canales",
-   "to": 9.0,
-   "voz": "Tus ideas, un solo editor. Guion, voz y música trabajando juntos."
+   "to": 9.13,
+   "voz": "Tus ideas, un solo editor. Guion, voz y música juntos."
   },
   {
    "at": {
-    "rotulo": 9.3
+    "rotulo": 9.430000000000001
    },
    "cliente": "Ana",
-   "from": 9.0,
+   "from": 9.13,
    "iniciales": "AR",
    "link": {
-    "at": 12.6,
+    "at": 12.73,
     "monto": "10x más rápido",
     "titulo": "EditorIA · demo"
    },
    "mensajes": [
     {
-     "at": 9.7,
+     "at": 9.83,
      "de": "cliente",
      "texto": "¿Puedes hacer el resumen de la reunión?"
     },
     {
-     "at": 10.9,
+     "at": 11.030000000000001,
      "de": "ia",
      "texto": "Listo: 62 segundos, 78 overlays, con tu marca."
     }
    ],
    "rotulo": "Pregunta *y recibe*",
    "tipo": "chat",
-   "to": 14.2,
-   "voz": "Pregunta y recibe. La inteligencia artificial edita mientras tú creas."
+   "to": 14.33,
+   "voz": "Pregunta y recibe. La IA edita mientras tú creas."
   },
   {
    "at": {
     "palabras": [
-     14.5,
-     14.62,
-     15.05,
-     15.2,
-     15.6,
-     15.78
+     14.63,
+     14.75,
+     15.180000000000001,
+     15.33,
+     15.73,
+     15.91
     ]
    },
-   "from": 14.2,
+   "from": 14.33,
    "texto": [
-    "Adiós a las",
-    "*horas* de edición"
+    "Adiós a",
+    "las *horas*"
    ],
    "tipo": "pildoras",
-   "to": 16.8,
+   "to": 17.17,
    "voz": "Adiós a las horas de edición."
   },
   {
    "at": {
-    "gigante": 19.6,
+    "gigante": 19.970000000000002,
     "palabras": [
-     17.1,
-     17.5,
-     17.9,
-     18.3,
-     18.75,
-     19.1
+     17.470000000000002,
+     17.87,
+     18.27,
+     18.67,
+     19.12,
+     19.470000000000002
     ]
    },
-   "from": 16.8,
+   "from": 17.17,
    "gigante": "10x",
    "lineas": [
     "¡Tú *creas!*",
     "EditorIA *edita.*"
    ],
    "tipo": "remate",
-   "to": 21.5,
+   "to": 21.87,
    "transicion": "mancha",
    "voz": "¡Tú creas! EditorIA edita. Diez veces más rápido."
   },
   {
    "at": {
-    "boton": 23.6,
-    "lema": 22.4
+    "boton": 23.970000000000002,
+    "lema": 22.77
    },
    "boton": "editoria",
-   "from": 21.5,
+   "from": 21.87,
    "lema": "El mejor editor con IA *jamás creado*",
    "marca": "EditorIA",
    "tipo": "final",
-   "to": 30.0,
+   "to": 30.37,
    "voz": "EditorIA. El mejor editor con IA jamás creado."
   }
  ]

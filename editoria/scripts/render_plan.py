@@ -31,6 +31,28 @@ W,H=1080,1920
 MARGEN=151   # margen lateral seguro simétrico (unión Reels/TikTok/Shorts, ver _delivery.py)
 SAFE={"top":192,"bottom":422,"left":151,"right":151}   # zona segura en px (se recalcula en main)
 
+# ESCALA TIPOGRÁFICA — una sola fuente de verdad para todo el catálogo.
+# Antes cada escena fijaba sus propios tamaños a mano y el mismo rol (un
+# nombre, un detalle, un estado) salía a 26, 27, 28, 30, 32, 34, 36, 40 o 44
+# según la escena: el ojo lo lee como "cada plano usa su propia tipografía".
+# Ahora un rol = un tamaño, y el piso (28) queda por encima del mínimo
+# legible (LETRA_MIN=26) con margen.
+ESCALA={
+    "titular":    120,   # titular cinético (auto-fit; el copy lo acorta, no el motor)
+    "rotulo":      44,   # kicker de la escena, siempre en y=H*0.20
+    "dato":        36,   # valor principal, nombre de la persona, etiqueta de boton
+    "secundario":  32,   # cuerpo: mensajes, titulos de item, pares clave-valor
+    "nota":        28,   # apoyo: estado, detalle, fecha, caption
+}
+MIN_LETRA=26   # piso de LETRA LEGIBLE: lo mide el QA (LETRA_MIN, misma cifra)
+TAM_CHECK=14   # glifo "✓" de verificado, dentro de un badge de 18 px. NO es
+                # texto (no tiene alfanumericos): no cuenta para el piso de
+                # letra legible, igual que lo excluye la medicion del QA.
+                # Un glifo es un simbolo, no una palabra que se pueda leer.
+TAM_MIN_ROTULO=30   # hasta donde puede encogerse un rótulo para caber en la zona segura
+ELEV=30        # elevación de entrada (px) en fade+resorte: una sola cifra
+               # para titular, rótulo y grupos (antes 30/24/24)
+
 def zona_segura(plataforma):
     """Márgenes seguros en px desde la tabla canónica (_delivery.py).
     'vertical' = unión de reels/tiktok/shorts; los laterales se hacen simétricos
@@ -71,8 +93,6 @@ def curva_overshoot(p, s=1.70158):
     p = max(0.0, min(1.0, float(p))) - 1.0
     return p * p * ((s + 1.0) * p + s) + 1.0
 
-def ease_out_back(p):
-    return curva_overshoot(p, 1.70158)
 def prog(t,a,b,e=ease_in_out):
     if b<=a: return 1.0 if t>=b else 0.0
     return e((t-a)/(b-a))
@@ -83,6 +103,63 @@ def spring(t,t0,stiff=120,damp=13):
     if d>=1: return 1-math.exp(-w*dt)*(1+w*dt)
     wd=w*math.sqrt(1-d*d)
     return 1-math.exp(-d*w*dt)*(math.cos(wd*dt)+d*w/wd*math.sin(wd*dt))
+
+
+# SISTEMA DE MOVIMIENTO — el gesto de la casa, con nombre.
+# Antes cada escena inventaba su resorte (23 combinaciones distintas: el
+# overshoot iba del 3 % al 20 % y la calma del 0.17 s al 0.40 s). El ojo no
+# ve los numeros: ve que un plano "rebota" y el siguiente "se asienta", y esa
+# incoherencia se lee como "cada escena la hizo alguien distinto". Ahora hay
+# SEIS gestos, y el rol lo elige lo que el elemento ES.
+#
+#   rol        resorte        overshoot  calma   para que
+#   titular    (150, 15)        8.8 %    0.23 s  la frase que abre la pieza
+#   bloque     (120, 15)        5.2 %    0.29 s  una tarjeta, una ficha, un precio
+#   elemento   (110, 14)        6.0 %    0.29 s  un chip, un dato, un boton, una burbuja
+#   suave      (130, 16)        4.5 %    0.28 s  entra sin robar atencion (pies, subtitulos)
+#   pop        (150, 13)       14.0 %    0.20 s  el dato que QUIERE que lo mires (un landing)
+#   lento      ( 70, 12)        3.9 %    0.40 s  el ritmo de los libros: abrir y cerrar sin prisa
+#
+# REGLA: un elemento entra con `entra(t, instante, "rol")`. Si necesitas un
+# gesto nuevo, primero pregunta si de verdad es un rol nuevo: casi siempre
+# es uno de estos seis con otra intencion.
+MOVIMIENTO = {
+    "titular":  (150, 15),
+    "bloque":   (120, 15),
+    "elemento": (110, 14),
+    "suave":    (130, 16),
+    "pop":      (150, 13),
+    "lento":    ( 70, 12),
+}
+
+
+def entra(t, t0, rol="bloque"):
+    """Entrada de un elemento con el gesto del ROL (MOVIMIENTO)."""
+    stiff, damp = MOVIMIENTO[rol]
+    return spring(t, t0, stiff, damp)
+
+def track(t,paradas,stiff=260,damp=26):
+    """Resorte MULTI-DESTINO: un resorte por cambio, sumados.
+
+    Cuando un valor cambia de objetivo varias veces (un cursor que visita
+    tres puntos, una caja que crece y despues encoge, una barra que salta),
+    NO se reinicia el resorte: se suma un resorte por cambio, cada uno con
+    su instante. Asi el movimiento sigue siendo continuo (nada se frena en
+    seco entre tramos) y sigue siendo FUNCION PURA DEL TIEMPO: el frame 812
+    se pinta sin simular los 811 anteriores, que es lo que permite el
+    render incremental y el cache de frames.
+
+    `paradas` es una lista [(instante, valor), ...] ordenada por instante.
+    stiff=260 / damp=26 -> 1,4% de overshoot y asienta en 0,33 s: llega
+    con peso y se calma, sin rebote visible. stiff=150 / damp=15 (el
+    default de la casa) sobresale un 8,8%: ese es el salto del titular.
+    """
+    if not paradas: return 0.0
+    v=paradas[0][1]
+    for i in range(1,len(paradas)):
+        t0,val=paradas[i]
+        v+=(val-paradas[i-1][1])*spring(t,t0,stiff,damp)
+    return v
 def clamp01(x): return max(0,min(1,x))
 def lerp(a,b,k): return a+(b-a)*k
 def flota(t,t0,amp=6,freq=0.45):
@@ -209,7 +286,23 @@ def mancha_mask(ctx,t,t0,dur=0.7,fx=0.5,fy=0.45):
     d.polygon(pts,fill=255)
     return mask
 
+def iris_mask(ctx, t, t0, dur=0.7, fx=0.5, fy=0.38):
+    """Máscara de círculo que crece desde un punto: la apertura en iris.
+
+    Es el corte firma del video con presentador: la escena entra desde la
+    cara. Comparte el presupuesto de la `mancha` (las dos piden atención).
+    Determinista: el radio es función pura del tiempo."""
+    p = clamp01((t - t0) / max(1e-6, dur))
+    r = math.hypot(W, H) * 0.78 * ease_out(p)
+    mask = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(mask)
+    cx, cy = W * fx, H * fy
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+    return mask
+
+
 SOLAPE=0.45      # s que la salida de una escena se superpone con la entrada de la siguiente
+SOLAPE_DISSOLVE=0.40   # s del fundido cruzado (transicion "dissolve")
 SOLAPE_PRE=0.25  # s de fundido de salida ANTES del corte
 # El pack puede declarar "corte_seco": entonces el corte es seco (la escena que
 # entra aparece de inmediato) pero el saliente se disuelve DEBAJO durante un
@@ -256,12 +349,12 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
         for w_,em in palabras(ln):
             ww=ctx.tmp.textlength(w_,font=fnt)
             at=ats[wi] if wi < len(ats) else ats[-1]+0.12*(wi-len(ats)+1); wi+=1   # palabras de más: siguen la cadencia
-            k=spring(t,at,150,15)
+            k=entra(t, at, "titular")
             if k>0:
                 sc=1+0.16*(1-k)
                 col=ACENTO if em else BLANCO
                 f2=ctx.fT(tam*sc,800) if abs(sc-1)>0.004 else fnt
-                d.text((x+ww/2,y+tam+(1-min(1,k))*30),w_,font=f2,
+                d.text((x+ww/2,y+tam+(1-min(1,k))*ELEV),w_,font=f2,
                        fill=col+(int(255*clamp01(k*1.5)),),anchor="ms")
             x+=ww+gap
     return tam
@@ -272,18 +365,18 @@ def rotulo_y():
     return vy(0.20) if H > W else vy(0.16)
 
 def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=44):
-    """Rótulo con entrada real: fade + elevación 24 px con resorte (nunca de golpe)."""
+    """Rótulo con entrada real: fade + elevación ELEV px con resorte (nunca de golpe)."""
     color=color or BLANCO
     if not texto or t<at: return 0   # sin rótulo en el plan: no se dibuja
-    k=spring(t,at,140,16)
+    k=entra(t, at, "bloque")
     al=int(255*clamp01(k*1.5))
     d=ImageDraw.Draw(layer)
     sg=segs(texto); fnt=ctx.fX(tam,700)
     zx0,_,zx1,_=caja_segura()   # el rótulo cabe en la zona segura: encoge, nunca se sale
     ancho=(zx1-zx0)-20
-    while tam>30 and seg_width(sg,fnt)>ancho:
+    while tam>TAM_MIN_ROTULO and seg_width(sg,fnt)>ancho:
         tam-=2; fnt=ctx.fX(tam,700)
-    yy=(rotulo_y() if y is None else y)+(1-min(1,k))*24
+    yy=(rotulo_y() if y is None else y)+(1-min(1,k))*ELEV
     for i,ln in enumerate(partir_segs(sg,fnt,ancho)):   # si ni a 30 px cabe: dos líneas
         draw_seg(d,(W/2,yy+i*tam*1.2),ln,fnt,color+(al,),ACENTO+(al,),anchor="ma")
     return k
@@ -354,17 +447,33 @@ def tarjeta_cristal(ctx, img, x, y, w, h, radio=28, alpha=255, tinte=None, brill
         d.line([(x + 1.5, y + r_), (x + 1.5, y + h * 0.55)], fill=borde_especular, width=2)
 
 
-def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255):
-    """Botón CTA en píldora con anillo de halo pulsante (inspirado en
-    scrolltide.co 'Glow Ring Button' / 'Send Halo' y cta.gallery). DRY: `hero`."""
+def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
+               hecho=None, fnt_hecho=None):
+    """Botón CTA de la casa: píldora con marco blanco fino y halo que late.
+
+    UN componente para toda la pieza (hero, final, pago, demo): el mismo
+    aspecto en todas las escenas; solo cambian el texto y, en `pago`, el
+    estado "hecho" (píldora blanca con el check de acento). Antes cada
+    escena se dibujaba el suyo: cuatro botones distintos en la misma pieza
+    (con halo y marco, solo halo, o nada) rompen el sistema de componentes.
+    """
     col = color or ACENTO
+    r_ = int(h // 2)
     pulso = 0.5 + 0.5 * math.sin(max(0.0, t - t0) * 3.6)
     exp = 6 + 6 * pulso
     halo_a = int((38 + 34 * pulso) * alpha / 255)
-    r_h = int((h + 2 * exp) // 2)
     d.rounded_rectangle([cx - w / 2 - exp, cy - h / 2 - exp, cx + w / 2 + exp, cy + h / 2 + exp],
-                        radius=r_h, outline=col + (halo_a,), width=3)
-    r_ = int(h // 2)
+                        radius=int((h + 2 * exp) // 2), outline=col + (halo_a,), width=3)
+    if hecho:
+        # estado "hecho": la misma píldora, en blanco, con el check de acento
+        d.rounded_rectangle([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], radius=r_,
+                            fill=(255, 255, 255, int(alpha)))
+        fh = fnt_hecho or fnt
+        tw = d.textlength(hecho, font=fh)
+        ca = col + (int(alpha),)
+        check(d, cx - tw / 2 - 10, cy, 13, ca, 6)
+        d.text((cx + 16, cy), hecho, font=fh, fill=ca, anchor="mm")
+        return
     d.rounded_rectangle([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2],
                         radius=r_, fill=col + (int(alpha),),
                         outline=(255, 255, 255, int(95 * alpha / 255)), width=2)
@@ -490,6 +599,49 @@ def arco(d, cx, cy, radio, desde_deg, hasta_deg, color, grosor=14):
           start=desde_deg, end=hasta_deg, fill=color, width=grosor)
 
 
+def placa_texto(d, x0, y0, x1, y1, radio=18, alpha=175):
+    """Placa oscura detras de un texto, para que se lea sobre una imagen clara.
+
+    Sin ella, el texto blanco (el color de la pieza) desaparece sobre una
+    captura de interfaz. DRY: la usa `callout`.
+
+    Se compone en una CAPA PROPIA, no pintando el rectangulo directamente:
+    `ImageDraw` REEMPLAZA el pixel (no lo mezcla), asi que un negro con alfa
+    bajo encima de una captura la BORRA y deja un agujero negro que aparecia
+    de golpe (medido: 2 pops en el `callout`). Con la capa propia la placa se
+    funde y puede entrar con rampa.
+    """
+    if alpha <= 0:
+        return
+    _destino = getattr(d, "_image", None)
+    if _destino is None:      # PIL antiguo: sin composite, se pinta directo
+        d.rounded_rectangle([x0, y0, x1, y1], radius=radio, fill=(0, 0, 0, int(alpha)))
+        return
+    ox, oy = int(x0) - 1, int(y0) - 1
+    w = int(x1) - ox + 1
+    h = int(y1) - oy + 1
+    if w <= 0 or h <= 0:
+        return
+    capa = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    ImageDraw.Draw(capa).rounded_rectangle([0, 0, w, h], radius=radio,
+                                            fill=(0, 0, 0, int(alpha)))
+    _destino.alpha_composite(capa, (ox, oy))
+
+
+def elipse_se_dibuja(d, cx, cy, rx, ry, t, t0, dur=0.8, color=None, grosor=4):
+    """Elipse que se dibuja sola (barrido 0->360°). El gesto de "fíjate aquí".
+
+    Determinista: el barrido es función pura del tiempo. DRY: la usa
+    `callout` (el resalte sobre el dato clave)."""
+    if t < t0:
+        return
+    col = color or ACENTO
+    p = clamp01((t - t0) / max(1e-6, dur))
+    e = ease_out(p)
+    d.arc([cx - rx, cy - ry, cx + rx, cy + ry],
+          start=-90, end=-90 + 360 * e, fill=col, width=grosor)
+
+
 def particulas(d, t, t0, cx, cy, n=60, color=None, semilla=11):
     """Confetti / celebración determinista (seeded). Sin random: reproducible.
     `color` por defecto usa ACENTO. La usan `confeti`, `listo` (extra), etc."""
@@ -547,7 +699,7 @@ def pie_fuente(ctx, d, e, t, t_def):
     if e.get("fuente") and t >= t0:
         x0, _, x1, y1 = caja_segura()
         txt = f"Fuente: {e['fuente']}"
-        fnt = fuente_que_cabe(ctx.fX, txt, 28, x1 - x0, 400, minimo=26)
+        fnt = fuente_que_cabe(ctx.fX, txt, ESCALA["nota"], x1 - x0, 400, minimo=26)
         al = int(255 * prog(t, t0, t0 + 0.3, smoothstep))   # entra fundida, no de golpe
         lineas = partir_segs([(txt, False)], fnt, x1 - x0)   # una fuente larga: dos líneas
         for i, ln in enumerate(reversed(lineas)):            # de abajo hacia arriba
@@ -594,6 +746,23 @@ def largo(texto, font, tabular=False):
     return sum(celda if c.isdigit() else tmp.textlength(c, font=font) for c in texto)
 
 
+def recorta_para(texto, font, ancho_max, tmp=None):
+    """Recorta `texto` con … hasta que quepa en `ancho_max` con `font`.
+
+    Es la alternativa al encogido cuando la letra NO puede bajar de su tamaño
+    de escala: la letra se queda (28 px = ESCALA["nota"]) y lo que se acorta
+    es el copy. Encoger hasta el piso de auto-fit (18) deja letra que el QA
+    rechaza por ilegible; recortar deja la pieza legible y más corta.
+    """
+    if tmp is None:
+        tmp = ImageDraw.Draw(Image.new("L", (10, 10)))
+    if tmp.textlength(texto, font=font) <= ancho_max:
+        return texto
+    while len(texto) > 3 and tmp.textlength(texto + "…", font=font) > ancho_max:
+        texto = texto[:-1]
+    return texto + "…"
+
+
 def cifra(d, xy, texto, font, fill, anchor="mm", final=None):
     """Número con cifras TABULARES: mientras cuenta, su ancho no cambia y no
     tiembla de lado (con dígitos proporcionales "141" es más angosto que
@@ -618,11 +787,42 @@ def cifra(d, xy, texto, font, fill, anchor="mm", final=None):
 def fuente_que_cabe(fabrica, texto, tam, ancho_max, peso=800, minimo=18, tabular=False):
     """La fuente más grande (<= tam) con la que `texto` cabe en `ancho_max`.
     `fabrica` es ctx.fT o ctx.fX. Una cifra o etiqueta nunca se sale de su
-    tarjeta: se encoge (y nunca por debajo de `minimo`)."""
+    tarjeta: se encoge (y nunca por debajo de `minimo`).
+
+    El piso de aquí (18) NO es el piso de legibilidad (26, MIN_LETRA): es el
+    mínimo de "no microscópico". El auto-fit existe para que el texto QUEPA
+    — si el piso fuera 26, un copy largo se saldría de su caja y la escena
+    entera se iría al piso de la zona segura (medido: x0.72 con copy x2).
+    El que juzga la legibilidad es el QA (`medir_animacion`, LETRA_MIN): si
+    el texto queda por debajo de 26, la pieza no se entrega y se acorta el
+    copy, no se achica la letra (references/copy.md)."""
     tam = int(tam)
     while tam > minimo and largo(texto, fabrica(tam, peso), tabular) > ancho_max:
         tam = max(minimo, int(tam * 0.92))
     return fabrica(tam, peso)
+
+
+def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minimo=18):
+    """Ajusta un texto a un ancho PARTIÉNDOLO antes de encogerlo.
+
+    Partir es mejor que encoger: el texto partido conserva el tamaño de la
+    escala (se lee igual), mientras que encogerlo lo deja ilegible. Si aun
+    partido en `max_lineas` no cabe, se encoge (hasta `minimo`).
+    Devuelve (fuente, lineas).
+    """
+    tam = int(tam)
+    fnt = fabrica(tam, peso)
+    lineas = linewrap(texto, fnt, ancho_max)
+    if len(lineas) <= max_lineas:
+        return fnt, lineas
+    t = tam
+    while t > minimo:
+        t = max(minimo, int(t * 0.92))
+        fnt = fabrica(t, peso)
+        lineas = linewrap(texto, fnt, ancho_max)
+        if len(lineas) <= max_lineas:
+            break
+    return fnt, lineas[:max_lineas]
 
 
 def columnas_grilla(n):
@@ -856,7 +1056,7 @@ def sc_apertura(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     cambio=e["at"]["cambio"]
     # mancha de entrada tras el titular (centrada con el titular: H*0.44)
-    r=W*0.42*spring(t,e["from"],60,10)*(1-prog(t,cambio-0.15,cambio+0.35)*0.75)
+    r=W*0.42*entra(t, e["from"], "lento")*(1-prog(t,cambio-0.15,cambio+0.35)*0.75)
     if r>4:
         pts=[]
         for i in range(72):
@@ -882,7 +1082,7 @@ def sc_canales(ctx,e,t):
     at=e["at"]; junta=prog(t,at["junta"]-0.4,at["junta"]+0.6)   # 1 s: las tarjetas no barren >60 px/frame
     rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     # marca que sube y se encoge (grupo logo+texto centrado)
-    k=spring(t,at["marca"],90,14)
+    k=entra(t, at["marca"], "lento")
     if k>0:
         my=lerp(vy(0.52),vy(0.36),junta)
         iso_ok=ctx.iso is not None and es_marca_del_pack(e["marca"])
@@ -905,7 +1105,7 @@ def sc_canales(ctx,e,t):
                anchor="lm")
     # tarjetas de canal
     for i,c in enumerate(e["canales"]):
-        k2=spring(t,c["at"],130,15)
+        k2=entra(t, c["at"], "elemento")
         if k2<=0: continue
         ang=[-1,0,1][i] if i<3 else 0
         zx0,_,zx1,_=caja_segura()
@@ -921,8 +1121,8 @@ def sc_canales(ctx,e,t):
         ww,hh=int(w*sc2),int(h*sc2)
         if ww<10: continue
         card=Image.new("RGBA",(ww,hh),(0,0,0,0)); dc=ImageDraw.Draw(card)
-        dc.rounded_rectangle([0,0,ww,hh],radius=30,fill=PANEL2+(255,))
-        dc.rounded_rectangle([0,0,ww,hh],radius=30,outline=(255,255,255,28),width=2)
+        dc.rounded_rectangle([0,0,ww,hh],radius=28,fill=PANEL2+(255,))
+        dc.rounded_rectangle([0,0,ww,hh],radius=28,outline=(255,255,255,28),width=2)
         # icono canal (círculo con inicial) — centrado vertical exacto (62 = 124/2)
         dc.ellipse([28,24,104,100],fill=ACENTO+(255,))
         # icono: `icono` del canal o la inicial de su NOMBRE (WhatsApp y Web no son ambos "W")
@@ -938,7 +1138,7 @@ def sc_canales(ctx,e,t):
             fn=fuente_que_cabe(ctx.fX,c["nombre"],34,max(40,ww-150),800)
             dc.text((130,lerp(62,48,smoothstep(at_))),c["nombre"],font=fn,fill=BLANCO+(int(255*an),),anchor="lm")
         if at_>0:
-            dc.text((130,74),c["texto"][:34],font=ctx.fX(27,400),fill=GRIS+(int(255*at_),))
+            dc.text((130,74),c["texto"][:34],font=ctx.fX(ESCALA["nota"],400),fill=GRIS+(int(255*at_),))
         card=card.rotate((1-junta)*ang*8,expand=True,resample=Image.BICUBIC)
         fy_float=flota(t,c["at"]+1.2,5,0.4) if junta>0.9 else 0
         layer.alpha_composite(card,(int(x-card.width/2),int(y-card.height/2+fy_float)))
@@ -947,7 +1147,7 @@ def sc_canales(ctx,e,t):
 def sc_medianoche(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0))
     rotulo(ctx,layer,t,e.get("rotulo",""),e["from"]+0.1,y=rotulo_y())
-    k=spring(t,e["from"],110,13)
+    k=entra(t, e["from"], "bloque")
     if k>0:
         tw,th=560,1140
         _,_,_,zy1=caja_segura(); arriba=rotulo_y()+80          # bajo el rótulo, sobre la UI
@@ -968,22 +1168,28 @@ def sc_medianoche(ctx,e,t):
         brillo.putalpha(ImageChops.multiply(halo,masc))
         ph.alpha_composite(brillo)
         dp.rounded_rectangle([tw/2-85,42,tw/2+85,90],radius=24,fill=(0,0,0,255))
-        dp.text((tw/2,160),e.get("fecha",""),font=ctx.fX(30,600),fill=(255,255,255,200),anchor="ma")
+        dp.text((tw/2,160),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],600),fill=(255,255,255,200),anchor="ma")
         dp.text((tw/2,280),e["hora"],font=ctx.fT(150,700),fill=BLANCO,anchor="ma")   # dígitos hasta y≈438
         nots=e["notificaciones"]
         for i,n in enumerate(nots):
-            kn=spring(t,n["at"],120,16)
+            kn=entra(t, n["at"], "suave")
             if kn<=0: continue
             # cada notificación nueva EMPUJA a las anteriores con resorte (antes
             # saltaban 170 px en un frame: el conteo era un escalón)
-            despues=sum(min(1.0,spring(t,m["at"],120,16)) for m in nots[i+1:])
+            despues=sum(min(1.0,entra(t, m["at"], "suave")) for m in nots[i+1:])
             ny=480+despues*170+(1-min(1,kn))*-24   # baja apenas: nunca cruza la hora
             nw=Image.new("RGBA",(tw-44,140),(0,0,0,0)); dn=ImageDraw.Draw(nw)
-            dn.rounded_rectangle([0,0,tw-44,140],radius=30,fill=(255,255,255,36))
+            dn.rounded_rectangle([0,0,tw-44,140],radius=28,fill=(255,255,255,36))
             dn.ellipse([22,38,86,102],fill=ACENTO+(255,))
             dn.text((54,70),n["canal"][0].upper(),font=ctx.fT(34,800),fill=BLANCO,anchor="mm")
-            dn.text((110,52),n["titulo"],font=ctx.fX(27,800),fill=BLANCO)
-            dn.text((110,92),n["texto"][:30],font=ctx.fX(24,400),fill=(255,255,255,190))
+            dn.text((110,52),n["titulo"],font=ctx.fX(ESCALA["nota"],800),fill=BLANCO)
+            # el cuerpo de la notificación es un "nota" de la escala (28 px):
+            # antes 24 px, por DEBAJO del piso legible, y con recorte por
+            # caracteres. Ahora la letra es la de la escala y el copy se
+            # recorta al ancho real de la tarjeta.
+            fnt_n=ctx.fX(ESCALA["nota"],400)
+            dn.text((110,92),recorta_para(n["texto"],fnt_n,tw-44-110-14,ctx.tmp),
+                    font=fnt_n,fill=(255,255,255,190))
             a=nw.split()[3].point(lambda v, _kn=kn:int(v*clamp01(_kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((max(1,int(tw*sc)),max(1,int(th*sc))),Image.LANCZOS)
@@ -1017,7 +1223,7 @@ def sc_chat(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e.get("at",{}); t_rot=at.get("rotulo",e["from"])
     rotulo(ctx,layer,t,e.get("rotulo",""),t_rot,y=rotulo_y())
-    fnt=ctx.fX(32,400); GAP=36; ALTO_ESC=84
+    fnt=ctx.fX(ESCALA["secundario"],400); GAP=36; ALTO_ESC=84
     zx0,_,zx1,_=caja_segura()   # burbujas ancladas a los bordes de la zona segura
     ancho_burbuja=min(680,(zx1-zx0)*0.82)
     msgs=[]; reloj=t_rot+0.4
@@ -1037,9 +1243,9 @@ def sc_chat(ctx,e,t):
     # altura de la pila: cada burbuja suma con su resorte (el scroll se desliza solo)
     y0 = vy(0.42); alto = 0.0
     for mm in msgs:
-        k=spring(t,mm["at"],140,15)
+        k=entra(t, mm["at"], "elemento")
         if escribiendo(mm):
-            ke=spring(t,mm["at"]-mm["esc"],160,16)
+            ke=entra(t, mm["at"]-mm["esc"], "elemento")
             alto+=(ALTO_ESC+GAP)*min(1,ke)*(1-min(1,k))
         alto+=(mm["hh"]+GAP)*min(1,max(0,k))
     lk=e.get("link")
@@ -1051,14 +1257,14 @@ def sc_chat(ctx,e,t):
     sube=lambda lim: max(0.0,y0+alto-lim)
     y=y0-lerp(sube(H-SAFE["bottom"]-20),sube(H*0.70),kl)
     for mm in msgs:
-        k=spring(t,mm["at"],140,15)
+        k=entra(t, mm["at"], "elemento")
         lado_x=lambda w_, _ia=mm["ia"]: zx0+12 if not _ia else zx1-12-w_
         visible=clamp01((y-(rotulo_y()+40))/70)          # se desvanece bajo el rótulo
         if escribiendo(mm) and k<1:
-            ke=min(1,spring(t,mm["at"]-mm["esc"],160,16))*(1-min(1,k))
+            ke=min(1,entra(t, mm["at"]-mm["esc"], "elemento"))*(1-min(1,k))
             if ke>0.02:
                 bw=150; x=lado_x(bw); a=int(255*ke*visible)
-                d.rounded_rectangle([x,y,x+bw,y+ALTO_ESC],radius=30,fill=PANEL2+(a,))
+                d.rounded_rectangle([x,y,x+bw,y+ALTO_ESC],radius=28,fill=PANEL2+(a,))
                 for j in range(3):
                     pul=0.4+0.6*(0.5+0.5*math.sin(t*7.5-j*0.9))
                     cxp=x+45+j*30
@@ -1067,9 +1273,9 @@ def sc_chat(ctx,e,t):
         if k<=0: continue
         x=lado_x(mm["tw"]); hh=mm["hh"]
         col=tuple(int(c*0.30) for c in ACENTO) if mm["ia"] else PANEL2
-        yy=y+(1-min(1,k))*24
+        yy=y+(1-min(1,k))*ELEV
         al=int(255*clamp01(k*1.4)*visible)
-        d.rounded_rectangle([x,yy,x+mm["tw"],yy+hh],radius=30,fill=col+(al,))
+        d.rounded_rectangle([x,yy,x+mm["tw"],yy+hh],radius=28,fill=col+(al,))
         if mm["cola"]:
             if mm["ia"]:
                 xe=x+mm["tw"]
@@ -1080,13 +1286,13 @@ def sc_chat(ctx,e,t):
             d.text((x+34,yy+22+bi*52),bl,font=fnt,fill=BLANCO+(al,))
         y+=(hh+GAP)*min(1,k)
     if lk and t>=lk.get("at",1e9):
-        k=spring(t,lk["at"],120,14)
+        k=entra(t, lk["at"], "bloque")
         cw,chh=min(760,zx1-zx0),150; x=(W-cw)/2
-        yy=min(H*0.72,caja_segura()[3]-chh-10)+(1-min(1,k))*24   # sobre la UI de la plataforma
+        yy=min(H*0.72,caja_segura()[3]-chh-10)+(1-min(1,k))*ELEV   # sobre la UI de la plataforma
         ak=int(255*clamp01(k*1.4))   # la tarjeta y su texto entran juntos
         d.rounded_rectangle([x,yy,x+cw,yy+chh],radius=28,fill=ACENTO+(int(235*ak/255),))
-        d.text((x+40,yy+34),lk.get("titulo",""),font=ctx.fX(34,800),fill=BLANCO+(ak,))
-        d.text((x+40,yy+84),lk.get("monto",""),font=ctx.fT(44,800),fill=BLANCO+(ak,))
+        d.text((x+40,yy+34),lk.get("titulo",""),font=ctx.fX(ESCALA["secundario"],800),fill=BLANCO+(ak,))
+        d.text((x+40,yy+84),lk.get("monto",""),font=ctx.fT(ESCALA["rotulo"],800),fill=BLANCO+(ak,))
     return capa_salida(layer,t,e["to"])
 
 def sc_leads(ctx,e,t):
@@ -1094,7 +1300,7 @@ def sc_leads(ctx,e,t):
     at=e["at"]
     kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     if kr>0:   # el total entra con su rótulo
-        d.text((W/2,bajo_rotulo(rotulo_y(),aire=0.15)),e.get("total",""),font=ctx.fM(36,700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
+        d.text((W/2,bajo_rotulo(rotulo_y(),aire=0.15)),e.get("total",""),font=ctx.fM(ESCALA["dato"],700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
     y0=rotulo_y()+140
     def color_temp(f_):   # tolerante: el agente escribe "caliente", "Hot", "frio"…
         if f_.get("color"):
@@ -1105,7 +1311,7 @@ def sc_leads(ctx,e,t):
             if t_.startswith(claves): return col
         return GRIS   # temperatura desconocida: neutro, nunca un KeyError
     for i,f in enumerate(e["filas"]):
-        k=spring(t,e["from"]+0.4+i*0.35,130,15)
+        k=entra(t, e["from"]+0.4+i*0.35, "elemento")
         if k<=0: continue
         sub,ds=grupo()   # la fila entera entra junta (tarjeta, avatar, textos, barra)
         yy=y0+i*128
@@ -1118,8 +1324,8 @@ def sc_leads(ctx,e,t):
         ds.text((zx0+56,yy+56),f["nombre"][0],font=ctx.fT(36,800),fill=BLANCO,anchor="mm")
         bmax=min(260,(zx1-zx0)*0.32)   # barra de puntaje a la derecha, el texto se ajusta al resto
         ancho_txt=(zx1-zx0)-bmax-150
-        ds.text((zx0+112,yy+24),f["nombre"],font=fuente_que_cabe(ctx.fX,f["nombre"],32,ancho_txt,800),fill=BLANCO)
-        ds.text((zx0+112,yy+62),f["etapa"],font=fuente_que_cabe(ctx.fX,f["etapa"],26,ancho_txt,400),fill=GRIS)
+        ds.text((zx0+112,yy+24),f["nombre"],font=fuente_que_cabe(ctx.fX,f["nombre"],ESCALA["secundario"],ancho_txt,800),fill=BLANCO)
+        ds.text((zx0+112,yy+62),f["etapa"],font=fuente_que_cabe(ctx.fX,f["etapa"],ESCALA["nota"],ancho_txt,400),fill=GRIS)
         # barra de puntaje: crece sin rebote (un dato no se pasa de su valor)
         bw=(f["puntaje"]/100)*bmax
         bx=zx1-bmax-24
@@ -1134,7 +1340,7 @@ def sc_handoff(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
     rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
-    k=spring(t,at["persona"],120,14)
+    k=entra(t, at["persona"], "bloque")
     y_card = vy(0.30)
     if k>0:   # la ficha entera entra junta
         sub,ds=grupo()
@@ -1144,26 +1350,26 @@ def sc_handoff(ctx,e,t):
         ini=e.get("iniciales") or "".join(w_[0] for w_ in e["cliente"].split()[:2]).upper()   # derivables del nombre
         ds.text((zx0+90,y_card+110),ini,font=fuente_que_cabe(ctx.fT,ini,44,72,800),fill=BLANCO,anchor="mm")
         at_=zx1-zx0-200
-        ds.text((zx0+170,y_card+52),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],40,at_,800),fill=BLANCO)
-        ds.text((zx0+170,y_card+102),e.get("temp",""),font=ctx.fM(30,700),fill=(200,140,40))
-        ds.text((zx0+170,y_card+142),e.get("nota",""),font=fuente_que_cabe(ctx.fX,e.get("nota",""),28,at_,400),fill=GRIS)
+        ds.text((zx0+170,y_card+52),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],ESCALA["dato"],at_,800),fill=BLANCO)
+        ds.text((zx0+170,y_card+102),e.get("temp",""),font=ctx.fM(ESCALA["nota"],700),fill=(200,140,40))
+        ds.text((zx0+170,y_card+142),e.get("nota",""),font=fuente_que_cabe(ctx.fX,e.get("nota",""),ESCALA["nota"],at_,400),fill=GRIS)
         fundir(layer,sub,k)
     y=y_card+270
     zx0,_,zx1,_=caja_segura()
     for i,c in enumerate(e["contexto"]):
-        kc=spring(t,at["contexto"]+i*0.4,130,15)
+        kc=entra(t, at["contexto"]+i*0.4, "elemento")
         if kc<=0: continue
         yy=y+i*96+(1-min(1,kc))*-40
         al=int(255*clamp01(kc*1.4))
-        d.text((zx0+30,yy),c["k"],font=ctx.fM(30,700),fill=ACENTO+(al,))
-        d.text((zx0+30,yy+40),c["v"],font=fuente_que_cabe(ctx.fX,c["v"],30,zx1-zx0-60,400),fill=BLANCO+(al,))
+        d.text((zx0+30,yy),c["k"],font=ctx.fM(ESCALA["secundario"],700),fill=ACENTO+(al,))
+        d.text((zx0+30,yy+40),c["v"],font=fuente_que_cabe(ctx.fX,c["v"],ESCALA["secundario"],zx1-zx0-60,400),fill=BLANCO+(al,))
     return capa_salida(layer,t,e["to"])
 
 def sc_pago(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
     rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
-    k=spring(t,at["comprobante"],110,13)
+    k=entra(t, at["comprobante"], "bloque")
     zx0,_,zx1,zy1=caja_segura()
     cw,chh=min(720,zx1-zx0),420; x=(W-cw)/2; y_card=H*0.36 if H>W else H*0.30
     if k>0:
@@ -1173,9 +1379,9 @@ def sc_pago(ctx,e,t):
         util=cw-64   # todo cabe en la tarjeta (un monto o un nombre largo encoge, no se sale)
         d.text((W/2,yy+80),e["monto"],font=fuente_que_cabe(ctx.fT,e["monto"],96,util,800,tabular=True),
                fill=BLANCO+(ak,),anchor="ma")
-        d.text((W/2,yy+190),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],34,util,600),
+        d.text((W/2,yy+190),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],ESCALA["dato"],util,600),
                fill=BLANCO+(ak,),anchor="ma")
-        d.text((W/2,yy+240),e.get("detalle",""),font=fuente_que_cabe(ctx.fX,e.get("detalle",""),28,util,400),
+        d.text((W/2,yy+240),e.get("detalle",""),font=fuente_que_cabe(ctx.fX,e.get("detalle",""),ESCALA["nota"],util,400),
                fill=GRIS+(ak,),anchor="ma")
         d.line([(x+80,yy+300),(x+cw-80,yy+300)],fill=(255,255,255,int(40*ak/255)),width=2)
         # botón que el cursor pulsa: el toque TIENE consecuencia (pasa a confirmado)
@@ -1186,16 +1392,11 @@ def sc_pago(ctx,e,t):
         # el toque cambia el estado con un fundido cruzado corto (0.25 s), no de golpe
         c_=smoothstep(clamp01((t-at["toque"])/0.25)) if t>=at["toque"] else 0.0
         if c_<1:
-            a0=int(al*(1-c_))
-            d.rounded_rectangle([mx-hw,my-hh,mx+hw,my+hh],radius=38,fill=ACENTO+(a0,))
-            d.text((mx,my),e.get("boton","Pagar"),font=ctx.fX(34,800),fill=BLANCO+(a0,),anchor="mm")
+            boton_halo(d, mx, my, hw*2, hh*2, e.get("boton","Pagar"),
+                       ctx.fX(ESCALA["dato"],800), t, at["toque"], alpha=int(al*(1-c_)))
         if c_>0:
-            a1=int(al*c_)
-            d.rounded_rectangle([mx-hw,my-hh,mx+hw,my+hh],radius=38,fill=BLANCO+(a1,))
-            fh=ctx.fX(34,800); txt=e.get("hecho","Pagado"); tw=d.textlength(txt,font=fh)
-            ca=ACENTO+(a1,)
-            check(d,mx-tw/2-10,my,13,ca,6)
-            d.text((mx+16,my),txt,font=fh,fill=ca,anchor="mm")
+            boton_halo(d, mx, my, hw*2, hh*2, "", ctx.fX(ESCALA["dato"],800), t, at["toque"],
+                       alpha=int(al*c_), hecho=e.get("hecho","Pagado"), fnt_hecho=ctx.fX(34,800))
     if t>=at["cursor"]:
         # cursor que se mueve y pulsa
         ck=prog(t,at["cursor"],at["toque"],smoothstep)   # UNA curva (antes ease sobre ease: saltaba 85 px/frame)
@@ -1208,7 +1409,7 @@ def sc_pago(ctx,e,t):
 def sc_listo(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     t0=e["at"]["listo"]
-    k=spring(t,t0,90,10)
+    k=entra(t, t0, "pop")
     if k>0:
         # asentado el estallido, el check flota (centrado, el push-in casi no lo mueve)
         cy=vy(0.5)+flota(t,t0+0.8,7,0.45)
@@ -1223,7 +1424,7 @@ def sc_listo(ctx,e,t):
         r=110*k; al=int(255*clamp01(k*1.5))
         d.ellipse([W/2-r,cy-r,W/2+r,cy+r],fill=ACENTO+(al,))
         if k>0.35: check(d,W/2,cy,58*min(1,k),BLANCO+(al,),max(4,int(22*min(1,k))))
-        d.text((W/2,cy+190+(1-min(1,k))*30),e["texto"],font=ctx.fT(110,800),fill=BLANCO+(al,),anchor="ma")
+        d.text((W/2,cy+190+(1-min(1,k))*ELEV),e["texto"],font=ctx.fT(ESCALA["titular"],800),fill=BLANCO+(al,),anchor="ma")
     return capa_salida(layer,t,e["to"])
 
 def sc_pildoras(ctx,e,t):
@@ -1239,12 +1440,12 @@ def sc_pildoras(ctx,e,t):
             rot=ci*20+pi*40
             pw,phh=110,54
             pill=Image.new("RGBA",(pw,phh),(0,0,0,0)); dp=ImageDraw.Draw(pill)
-            dp.rounded_rectangle([0,0,pw,phh],radius=27,
+            dp.rounded_rectangle([0,0,pw,phh],radius=28,
                                  fill=ACENTO+(26,) if pi%2 else BLANCO+(22,))
             pill=pill.rotate(rot,expand=True,resample=Image.BICUBIC)
             layer.alpha_composite(pill,(int(x-pw/2),int(y)))
     ats=e["at"]["palabras"]
-    titular(ctx,layer,t,e["texto"],ats,tam=120)
+    titular(ctx,layer,t,e["texto"],ats,tam=ESCALA["titular"])
     return capa_salida(layer,t,e["to"])
 
 def sc_hoy(ctx,e,t):
@@ -1256,7 +1457,7 @@ def sc_hoy(ctx,e,t):
     # rótulo y fecha apilados y la fecha entra con el rótulo
     kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     if kr>0:
-        d.text((W/2,rotulo_y()+54+(1-min(1,kr))*24),e.get("fecha",""),font=ctx.fX(34,400),
+        d.text((W/2,rotulo_y()+54+(1-min(1,kr))*ELEV),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],400),
                fill=GRIS+(int(255*clamp01(kr*1.5)),),anchor="ma")
     ck=prog(t,at["cuenta"],at["cuenta"]+0.8,ease_out)   # una sola curva
     if t>=at["cuenta"]:
@@ -1269,7 +1470,7 @@ def sc_hoy(ctx,e,t):
     y0=rotulo_y()+270 if vertical else rotulo_y()+210
     for i,(x,yb,cw,_) in enumerate(cuadricula(zx0,y0,zx1-zx0,filas_*184,cols,n)):
         tj=tarjetas[i]
-        k=spring(t,e["from"]+0.6+i*0.3,130,15)
+        k=entra(t, e["from"]+0.6+i*0.3, "elemento")
         if k<=0: continue
         sub,ds=grupo()   # la tarjeta entera (borde, insignia, textos) entra junta
         yy=yb
@@ -1277,11 +1478,15 @@ def sc_hoy(ctx,e,t):
         if tj.get("alerta"):
             ds.rounded_rectangle([x,yy,x+cw,yy+160],radius=28,outline=ACENTO+(255,),width=4)
         ancho_txt=cw-(110 if tj.get("n") else 50)
-        ds.text((x+30,yy+28),tj["titulo"],font=fuente_que_cabe(ctx.fX,tj["titulo"],30,ancho_txt,800),fill=BLANCO)
-        ds.text((x+30,yy+70),tj["detalle"],font=fuente_que_cabe(ctx.fX,tj["detalle"],26,ancho_txt,400),fill=GRIS)
+        ds.text((x+30,yy+28),tj["titulo"],font=fuente_que_cabe(ctx.fX,tj["titulo"],ESCALA["secundario"],ancho_txt,800),fill=BLANCO)
+        # el detalle se PARTE (hasta 2 lineas) antes de encogerse: conserva el
+        # tamaño de la escala y no se sale de la tarjeta (references/copy.md)
+        _fdet,_ldet=texto_que_cabe(ctx.fX,tj["detalle"],ESCALA["nota"],ancho_txt,400,max_lineas=2)
+        for _li,_lt in enumerate(_ldet):
+            ds.text((x+30,yy+70+_li*32),_lt,font=_fdet,fill=GRIS)
         if tj.get("n"):
             ds.ellipse([x+cw-90,yy+28,x+cw-30,yy+88],fill=ACENTO+(255,))
-            ds.text((x+cw-60,yy+58),str(tj["n"]),font=ctx.fT(32,800),fill=BLANCO,anchor="mm")
+            ds.text((x+cw-60,yy+58),str(tj["n"]),font=ctx.fT(ESCALA["secundario"],800),fill=BLANCO,anchor="mm")
         fundir(layer,sub,k,dy=-50)
     return capa_salida(layer,t,e["to"])
 
@@ -1292,10 +1497,10 @@ def sc_recupera(ctx,e,t):
     at=e["at"]
     kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     if kr<=0: return capa_salida(layer,t,e["to"])
-    al=int(255*clamp01(kr*1.5)); sube=(1-min(1,kr))*24
+    al=int(255*clamp01(kr*1.5)); sube=(1-min(1,kr))*ELEV
     zx0,_,zx1,_=caja_segura()
     bw=min(800,(zx1-zx0)-68); bx=(W-bw)/2; by=vy(0.5) if H>W else vy(0.46)   # -68: la perilla cabe
-    d.text((W/2,(vy(0.26) if H>W else vy(0.25))+sube),e["resumen"],font=ctx.fX(36,600),
+    d.text((W/2,(vy(0.26) if H>W else vy(0.25))+sube),e["resumen"],font=ctx.fX(ESCALA["dato"],600),
            fill=BLANCO+(al,),anchor="ma")
     # barra de progreso arrastrada por cursor
     rk=prog(t,at["cursor"],at["recupera"],smoothstep)   # una sola curva (antes ease sobre ease)
@@ -1308,13 +1513,13 @@ def sc_recupera(ctx,e,t):
               fill=BLANCO + (al,))
     yc=by+(H*0.12 if H>W else H*0.14)*vk()
     if t>=at["pagado"]:
-        k=spring(t,at["pagado"],120,14)
+        k=entra(t, at["pagado"], "bloque")
         tarjeta(ctx,layer,bx,yc,bw,240,radio=30,alpha=int(255*min(1,k)))
         d.text((W/2,yc+52),e.get("hecho","PAGADO"),font=ctx.fT(64,800),fill=(80,220,120),anchor="ma")
         d.text((W/2,yc+142),e["monto"],font=ctx.fT(54,800),fill=BLANCO,anchor="ma")
     else:
-        d.text((W/2,yc+90+sube),e["cliente"],font=ctx.fX(36,600),fill=GRIS+(al,),anchor="ma")
-        d.text((W/2,yc+140+sube),e.get("hace",""),font=ctx.fX(28,400),fill=GRIS+(al,),anchor="ma")
+        d.text((W/2,yc+90+sube),e["cliente"],font=ctx.fX(ESCALA["dato"],600),fill=GRIS+(al,),anchor="ma")
+        d.text((W/2,yc+140+sube),e.get("hace",""),font=ctx.fX(ESCALA["nota"],400),fill=GRIS+(al,),anchor="ma")
     return capa_salida(layer,t,e["to"])
 
 def sc_remate(ctx,e,t):
@@ -1324,9 +1529,9 @@ def sc_remate(ctx,e,t):
     words=[]
     for ln in e["lineas"]:
         words+=ln.replace("*","").split(" ")
-    titular(ctx,layer,t,e["lineas"],ats,tam=110,cy=H*0.36+flota(t,ats[-1]+0.5,4,0.45))
+    titular(ctx,layer,t,e["lineas"],ats,tam=ESCALA["titular"],cy=H*0.36+flota(t,ats[-1]+0.5,4,0.45))
     g=e["at"]["gigante"]
-    k=spring(t,g,120,11)
+    k=entra(t, g, "pop")
     if k>0:
         sc=1.6-0.6*min(1,k)   # slam: aterriza sin estroboscopio (2.2x movía 100 px/frame)
         zx0,_,zx1,zy1=caja_segura()
@@ -1355,7 +1560,7 @@ def sc_final(ctx,e,t):
     botón, push-in lento) — un end card quieto es un frame congelado."""
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
-    k=spring(t,e["from"]+0.1,70,12)
+    k=entra(t, e["from"]+0.1, "lento")
     asienta=e["from"]+1.2
     fy=flota(t,asienta,5,0.32)
     push=1+0.035*prog(t,e["from"],e["to"],ease_in_out)   # push-in de cámara
@@ -1375,18 +1580,12 @@ def sc_final(ctx,e,t):
     if e.get("lema") and t>=at["lema"]:
         rotulo(ctx,layer,t,e["lema"],at["lema"],y=vy(0.58)+fy*0.6,tam=52)
     if e.get("boton") and t>=at["boton"]:
-        kb=spring(t,at["boton"],120,14)
-        bw,bh=520*min(1.0,kb),110*min(1.0,kb); x=(W-bw)/2; yy=vy(0.70)+(110-bh)/2+fy*0.4
+        kb=entra(t, at["boton"], "bloque")
+        bw,bh=520*min(1.0,kb),110*min(1.0,kb); yy=vy(0.70)+(110-bh)/2+fy*0.4
         if bh>4:
-            # halo que late suave alrededor del botón (acción secundaria)
-            pul=0.5+0.5*math.sin((t-at["boton"])*2*math.pi*0.6)
-            g=int(10+14*pul)
-            d.rounded_rectangle([x-g,yy-g,x+bw+g,yy+bh+g],radius=int(bh/2+g),
-                                outline=ACENTO+(int(70*pul*min(1,kb)),),width=3)
-            d.rounded_rectangle([x,yy,x+bw,yy+bh],radius=int(bh/2),fill=ACENTO+(int(255*min(1,kb)),))
-            if kb>0.5:
-                d.text((W/2,yy+bh/2),e["boton"],font=ctx.fX(40*min(1.0,kb),800),
-                       fill=BLANCO+(int(255*clamp01((kb-0.5)*2)),),anchor="mm")
+            boton_halo(d, W/2, yy+bh/2, bw, bh, e["boton"],
+                       ctx.fX(ESCALA["dato"]*min(1.0,kb),800), t, at["boton"],
+                       alpha=int(255*min(1,kb)))
     # sale como toda escena: puede no ser la última del plan (si le sigue otra,
     # sin salida desaparecía de golpe al terminar el solape)
     return capa_salida(layer,t,e["to"])
@@ -1426,7 +1625,7 @@ def sc_bars(ctx, e, t):
     max_h = base_y - (rotulo_y() + 140)   # arriba: rótulo + cifra de la barra más alta
     for i, b in enumerate(barras):
         t_in = at.get(f"bar{i}", e["from"] + 0.2 + i * 0.1)
-        k = spring(t, t_in, 110, 14)
+        k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
         fraccion = clamp01(b.get("valor", 0) / max(1e-9, b.get("max", 100)))
@@ -1447,13 +1646,19 @@ def sc_bars(ctx, e, t):
         fill_h = max_h * fraccion * g_
         if fill_h >= 1:   # el radio nunca supera la mitad del alto: nace de 0, no como píldora
             d.rounded_rectangle([x0, base_y - fill_h, x0 + bw, base_y], radius=min(18, fill_h / 2), fill=col)
-        # etiqueta abajo
-        fnt = fuente_que_cabe(ctx.fX, b.get("etiqueta", ""), 30, bw, 600)
-        d.text((x0 + bw / 2, base_y + 22), b.get("etiqueta", ""), font=fnt, fill=BLANCO + (int(255 * ki),),
-               anchor="mt")
+        # etiqueta abajo: tamano FIJO de la escala + recorte con "…". Antes
+        # era un auto-fit (30 px que bajaba hasta 18 segun el ancho de la
+        # barra): con muchas barras el copy no podia controlarlo y la etiqueta
+        # quedaba ilegible.
+        fnt = ctx.fX(ESCALA["nota"], 600)
+        d.text((x0 + bw / 2, base_y + 22), recorta_para(b.get("etiqueta", ""), fnt, bw, ctx.tmp),
+               font=fnt, fill=BLANCO + (int(255 * ki),), anchor="mt")
         # valor arriba de la barra (tamaño fijado por el valor final)
         val = cuenta_up(0, b.get("valor", 0), t, t_in, progreso=g_)   # la cifra dice lo que mide la barra
-        fnt_v = fuente_que_cabe(ctx.fT, cuenta_up(0, b.get("valor", 0), 1e9, 0), 64, bw, 800, tabular=True)
+        # piso 26: una cifra que se encoge por debajo del piso ilegible no es
+        # un dato, es ruido (y el QA rechaza la pieza)
+        fnt_v = fuente_que_cabe(ctx.fT, cuenta_up(0, b.get("valor", 0), 1e9, 0), 64, bw, 800,
+                                tabular=True, minimo=26)
         cifra(d, (x0 + bw / 2, base_y - fill_h - 16), val, fnt_v, col, anchor="mb")
     pie_fuente(ctx, d, e, t, at.get("rotulo", e["from"]) + 1.5)
     return capa_salida(layer, t, e["to"])
@@ -1490,7 +1695,7 @@ def sc_gauge(ctx, e, t):
     t_et = at.get("etiqueta", t_in + 0.7)
     if "etiqueta" in e and t >= t_et:
         ke = smoothstep(clamp01((t - t_et) / 0.3))
-        d.text((cx, cy + r * 0.707 + 40 + (1 - ke) * 16), e.get("etiqueta", ""), font=ctx.fX(36, 600),
+        d.text((cx, cy + r * 0.707 + 40 + (1 - ke) * 16), e.get("etiqueta", ""), font=ctx.fX(ESCALA["dato"], 600),
                fill=GRIS + (int(255 * ke),), anchor="mt")
     return capa_salida(layer, t, e["to"])
 
@@ -1514,8 +1719,11 @@ def sc_ranking(ctx, e, t):
     fila_h = min(130, (zy1 - 80 - y0) / n)
     y0 += ((zy1 - 80 - y0) - fila_h * n) / 2          # bloque centrado en su hueco
     hi = fila_h * 0.6
-    fnt = ctx.fX(int(min(44, fila_h * 0.38)), 700)
-    fnt_v = ctx.fX(int(min(48, fila_h * 0.42)), 800)
+    # los dos tamanos se calculan con la altura de la fila, pero con PISO: un
+    # tamaño calculado puede caer por debajo del piso legible sin que el copy
+    # lo controle (con muchas filas, la fila se encoge y la letra con ella)
+    fnt = ctx.fX(int(max(ESCALA["nota"], min(44, fila_h * 0.38))), 700)
+    fnt_v = ctx.fX(int(max(ESCALA["nota"], min(48, fila_h * 0.42))), 800)
     finales = [cuenta_up(0, it.get("valor", 0), 1e9, 0) for it in items]
     max_w_lab = int((zx1 - zx0) * 0.38)
     w_lab = min(max_w_lab, max(d.textlength(it.get("etiqueta", ""), font=fnt) for it in items) + 28)
@@ -1525,7 +1733,7 @@ def sc_ranking(ctx, e, t):
     max_v = max((i.get("valor", 0) for i in items), default=1) or 1
     for i, it in enumerate(items):
         t_in = at.get(f"item{i}", e["from"] + 0.2 + i * 0.08)
-        k = spring(t, t_in, 110, 14)
+        k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
         yi = y0 + i * fila_h + (fila_h - hi) / 2
@@ -1568,7 +1776,7 @@ def sc_stats(ctx, e, t):
                         ancho, alto, cols, n)
     for i, (cx, cy, cw, ch) in enumerate(coords):
         t_in = at.get(f"card{i}", e["from"] + 0.2 + i * 0.08)
-        k = spring(t, t_in, 110, 14)
+        k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
         c = cards[i]
@@ -1606,8 +1814,8 @@ def sc_timeline(ctx, e, t):
         return capa_salida(layer, t, e["to"])
     zx0, _, zx1, zy1 = caja_segura()
     vertical = H > W
-    fnt = ctx.fX(40 if vertical else 36, 700)
-    fnt_d = ctx.fX(30 if vertical else 28, 500)
+    fnt = ctx.fX(ESCALA["dato"], 700)          # la escala es la misma en 9:16 y 16:9
+    fnt_d = ctx.fX(ESCALA["nota"], 500)
     if vertical:
         max_tw = 0
         for it in items:
@@ -1643,7 +1851,7 @@ def sc_timeline(ctx, e, t):
         d.line([p0, p1], fill=ACENTO + (230,), width=6)
     ancho_max = (zx1 - x_l - 50) if vertical else (a1 - a0) / max(1, n - 1) * 0.92
     for i, it in enumerate(items):
-        k = spring(t, t_ins[i], 110, 14)
+        k = entra(t, t_ins[i], "elemento")
         if k <= 0:
             continue
         x, y = pos[i]
@@ -1681,7 +1889,7 @@ def sc_quote(ctx, e, t):
     d = ImageDraw.Draw(layer)
     at = e.get("at", {})
     t_card = at.get("card", e["from"])
-    k = spring(t, t_card, 110, 14)
+    k = entra(t, t_card, "elemento")
     if k <= 0:
         return capa_salida(layer, t, e["to"])
     s = lerp(0.94, 1.0, k)
@@ -1717,7 +1925,7 @@ def sc_quote(ctx, e, t):
     y_txt = cy + h_com + lh / 2
     for li, ln in enumerate(lineas):
         t_li = t_texto + li * 0.22
-        kl = spring(t, t_li, 130, 16)
+        kl = entra(t, t_li, "suave")
         if kl <= 0:
             continue
         al = int(255 * clamp01(kl * 1.4))
@@ -1746,13 +1954,13 @@ def sc_quote(ctx, e, t):
     y_sig += h_est
     t_au = at.get("autor", t_fin)
     if e.get("autor") and t >= t_au:
-        ka = spring(t, t_au, 130, 16)
+        ka = entra(t, t_au, "suave")
         al = int(255 * clamp01(ka * 1.4)); dy = (1 - min(1, ka)) * 20
         d.text((cx + cw / 2, y_sig + U * 0.04 + dy), e["autor"],
-               font=ctx.fX(int(U * 0.040), 800), fill=BLANCO + (al,), anchor="mm")
+               font=ctx.fX(ESCALA["dato"], 800), fill=BLANCO + (al,), anchor="mm")
         if e.get("rol"):
             d.text((cx + cw / 2, y_sig + U * 0.093 + dy), e["rol"],
-                   font=ctx.fX(int(U * 0.028), 500), fill=GRIS + (al,), anchor="mm")
+                   font=ctx.fX(ESCALA["nota"], 500), fill=GRIS + (al,), anchor="mm")
     if e.get("fuente") and t >= at.get("fuente", t_au + 0.2):
         pie_fuente(ctx, d, e, t, t_au + 0.2)
     return capa_salida(layer, t, e["to"])
@@ -1781,22 +1989,22 @@ def sc_versus(ctx, e, t):
     largo = max(todos, key=lambda x: ctx.tmp.textlength(x, font=ctx.fX(40, 600)))
     fnt = fuente_que_cabe(ctx.fX, largo, min(56, fila_h * 0.42), col_w - 20, 600)
     fnt_h = fuente_que_cabe(ctx.fT, max((l[0].get("etiqueta", "") for l in lados), key=len),
-                            int(W * 0.055), col_w, 800)
-    k_vs = spring(t, min(l[2] for l in lados), 120, 14)
+                            int(min(W, H) * 0.055), col_w, 800)
+    k_vs = entra(t, min(l[2] for l in lados), "bloque")
     if k_vs > 0:
-        d.text((W / 2, y_label), "vs", font=ctx.fT(int(W * 0.05), 800),
+        d.text((W / 2, y_label), "vs", font=ctx.fT(int(min(W, H) * 0.05), 800),
                fill=GRIS + (int(255 * clamp01(k_vs * 1.3)),), anchor="mm")
         d.line([W / 2, y_items, W / 2, y_items + n * fila_h], fill=(255, 255, 255, int(40 * min(1, k_vs))),
                width=2)
     for lado, cx, t_in, col, signo in lados:
-        k = spring(t, t_in, 120, 15)
+        k = entra(t, t_in, "bloque")
         if k <= 0:
             continue
         dx = signo * 60 * (1 - min(1, k))
         al = int(255 * clamp01(k * 1.3))
         d.text((cx + dx, y_label), lado.get("etiqueta", ""), font=fnt_h, fill=col + (al,), anchor="mm")
         for i, it in enumerate(lado.get("items", [])):
-            ki = spring(t, t_in + 0.15 + i * 0.12, 120, 15)
+            ki = entra(t, t_in + 0.15 + i * 0.12, "bloque")
             if ki <= 0:
                 continue
             yi = y_items + i * fila_h + fila_h / 2 + (1 - min(1, ki)) * 24
@@ -1831,7 +2039,7 @@ def sc_confetti(ctx, e, t):
             c = ACENTO if i % 2 == 0 else BLANCO
             d.ellipse([x - s, y - s, x + s, y + s], fill=(c[0], c[1], c[2], rng_i.randint(160, 230)))
     if "texto" in e and t >= t_t:
-        k = spring(t, t_t, 110, 14)
+        k = entra(t, t_t, "elemento")
         if k > 0:
             x0, _, x1, _ = caja_segura()
             fnt = fuente_que_cabe(ctx.fT, e.get("texto", ""), unidad() * 0.10, x1 - x0, 800)
@@ -1840,7 +2048,7 @@ def sc_confetti(ctx, e, t):
     if "subtexto" in e and t >= at.get("subtexto", t_t + 0.4):
         x0, _, x1, _ = caja_segura()
         fnt_s = fuente_que_cabe(ctx.fX, e.get("subtexto", ""), unidad() * 0.045, x1 - x0, 600)
-        ks = spring(t, at.get("subtexto", t_t + 0.4), 120, 15)
+        ks = entra(t, at.get("subtexto", t_t + 0.4), "bloque")
         d.text((W / 2, H * 0.42 + unidad() * 0.11 + (1 - min(1, ks)) * 16), e.get("subtexto", ""),
                font=fnt_s, fill=GRIS + (int(255 * clamp01(ks * 1.4)),), anchor="mm")
     return capa_salida(layer, t, e["to"])
@@ -1880,7 +2088,7 @@ def sc_typewriter(ctx, e, t):
     # panel de lectura: entra con la escena, dentro de la zona segura
     kp = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))
     if kp > 0:
-        d.rounded_rectangle([zx0, y0 - tam * 0.45, zx1, y0 + alto + tam * 0.25], radius=22,
+        d.rounded_rectangle([zx0, y0 - tam * 0.45, zx1, y0 + alto + tam * 0.25], radius=28,
                             fill=PANEL + (int(180 * kp),))
     paso = 1 / float(e.get("cps", 12.5))
     t_lin, cur = t_in, None
@@ -1942,13 +2150,13 @@ def sc_kenburns(ctx, e, t):
         vd.rectangle([0, y, W, y + 4], fill=(0, 0, 0, int(170 * clamp01((y - y_velo) / 260))))
     layer.alpha_composite(velo)
     if lineas and t >= at.get("texto", e["from"] + 0.5):
-        k = spring(t, at.get("texto", e["from"] + 0.5), 120, 15)
+        k = entra(t, at.get("texto", e["from"] + 0.5), "bloque")
         al = int(255 * clamp01(k * 1.3))
         for i, ln in enumerate(lineas):
             d.text((W / 2, y_tit + i * 90 + (1 - min(1, k)) * 24), ln, font=fnt,
                    fill=BLANCO + (al,), anchor="mm")
     if e.get("subtitulo") and t >= at.get("subtitulo", e["from"] + 1.5):
-        k = spring(t, at.get("subtitulo", e["from"] + 1.5), 120, 15)
+        k = entra(t, at.get("subtitulo", e["from"] + 1.5), "bloque")
         fnt_s = fuente_que_cabe(ctx.fX, e["subtitulo"], 36, x1 - x0, 600)
         d.text((W / 2, y_sub), e["subtitulo"], font=fnt_s,
                fill=GRIS + (int(255 * clamp01(k * 1.3)),), anchor="mm")
@@ -1979,7 +2187,7 @@ def sc_pasos(ctx, e, t):
         cx = W / 2
         for i, it in enumerate(items):
             t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
-            k = spring(t, t_in, 110, 14)
+            k = entra(t, t_in, "elemento")
             if k <= 0:
                 continue
             sub, ds = grupo()   # el paso entero entra fundido
@@ -2012,7 +2220,7 @@ def sc_pasos(ctx, e, t):
         cy = H * 0.50
         for i, it in enumerate(items):
             t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
-            k = spring(t, t_in, 110, 14)
+            k = entra(t, t_in, "elemento")
             if k <= 0:
                 continue
             sub, ds = grupo()   # el paso entero entra fundido
@@ -2081,9 +2289,9 @@ def sc_countdown(ctx, e, t):
         if ancho_tabular(fnt) * len(actual) <= W - 2 * MARGEN:
             break
         tam -= 10
-    k = spring(t, t0 - 0.3, 130, 15)
+    k = entra(t, t0 - 0.3, "elemento")
     t_fin = t0 + total
-    kf = spring(t, t_fin, 150, 13) if e.get("final") else 0.0
+    kf = entra(t, t_fin, "pop") if e.get("final") else 0.0
     # al llegar a cero los dígitos se funden del todo EN SU LUGAR (subiendo
     # chocaban con el rótulo en 16:9) y el texto final los reemplaza: antes el
     # 00 quedaba al 25 % y el final lo pisaba
@@ -2155,23 +2363,24 @@ def sc_oferta(ctx, e, t):
         tam -= 10
     # pila medida (en 16:9 encoge junta en vez de pisarse)
     if e.get("rotulo"):
-        rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", fr), y=rotulo_y(), tam=52)
+        rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", fr), y=rotulo_y(),
+                tam=ESCALA["rotulo"])
     bloques = [("badge", tam * 1.12), ("antes", 100),
                ("precio", 160), ("codigo", 124 if e.get("codigo") else 0),
                ("vence", 50 if e.get("vence") else 0), ("cta", 120 if e.get("cta") else 0)]
     bloques = [b for b in bloques if b[1]]
-    top_pila = bajo_rotulo(rotulo_y(), 52, aire=0.3) if e.get("rotulo") else zy0 + 20
+    top_pila = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=0.3) if e.get("rotulo") else zy0 + 20
     ys, f = pila([a for _, a in bloques], top_pila, zy1 - 10, gap=26)
     Y = {n: y for (n, _), y in zip(bloques, ys)}
-    px = lambda v: max(12, int(v * f))   # noqa: E731
+    px = lambda v: max(MIN_LETRA, int(v * f))   # noqa: E731  (nunca ilegible)
     t_d = at.get("descuento", fr + 0.4)
-    kd = spring(t, t_d, 170, 12)
+    kd = entra(t, t_d, "pop")
     if kd > 0:
         sc = 1 + 0.12 * (1 - min(1, kd))   # aterriza desde un poco más grande
         d.text((W / 2, Y["badge"]), badge, font=ctx.fT(int(px(tam) * sc), 800),
                fill=ACENTO + (int(255 * clamp01(kd * 1.5)),), anchor="mm")
     t_t = at.get("tachado", fr + 1.3)
-    ka = spring(t, t_t - 0.35, 130, 16)
+    ka = entra(t, t_t - 0.35, "suave")
     if ka > 0:
         txt = _fmt_precio(antes, e); fnt = ctx.fT(px(92), 700)
         tw_ = ctx.tmp.textlength(txt, font=fnt); y = Y["antes"]
@@ -2182,18 +2391,18 @@ def sc_oferta(ctx, e, t):
             d.line([(x0, y + 6), (x0 + (tw_ + 24) * kt, y - 6)], fill=ACENTO + (255,), width=px(10))
     t_p = at.get("precio", t_t + 0.5)
     if t >= t_p:
-        kp = spring(t, t_p, 140, 14)
+        kp = entra(t, t_p, "pop")
         v = antes + (ahora - antes) * ease_out(clamp01((t - t_p) / 0.9))
         sc = 1 + 0.06 * max(0, 1 - abs((t - t_p - 0.9) / 0.15)) if t > t_p + 0.75 else 1
         cifra(d, (W / 2, Y["precio"]), _fmt_precio(v, e), ctx.fT(int(px(150) * sc), 800),
               BLANCO + (int(255 * clamp01(kp * 1.5)),), anchor="mm")
     if e.get("codigo"):
         t_c = at.get("codigo", t_p + 1.2)
-        kc = spring(t, t_c, 130, 16)
+        kc = entra(t, t_c, "suave")
         if kc > 0:
             txt = e["codigo"]
             max_cw = (zx1 - zx0) * 0.90
-            fnt = fuente_que_cabe(ctx.fM, txt, px(56), max_cw - px(90), 700, minimo=24)
+            fnt = fuente_que_cabe(ctx.fM, txt, px(56), max_cw - px(90), 700)
             cw_ = min(max_cw, ctx.tmp.textlength(txt, font=fnt) + px(90)); chh = px(104)
             x0, y0 = W / 2 - cw_ / 2, Y["codigo"] - chh / 2 + (1 - min(1, kc)) * 20
             al = int(255 * clamp01(kc * 1.4))
@@ -2205,16 +2414,16 @@ def sc_oferta(ctx, e, t):
             d.text((W / 2, y0 + chh / 2), txt, font=fnt, fill=BLANCO + (al,), anchor="mm")
     if e.get("vence"):
         t_v = at.get("vence", at.get("codigo", t_p + 1.2) + 0.3)
-        kv = spring(t, t_v, 130, 16)
+        kv = entra(t, t_v, "suave")
         if kv > 0:
             d.text((W / 2, Y["vence"]), e["vence"], font=ctx.fX(px(38), 600),
                    fill=GRIS + (int(255 * clamp01(kv * 1.4)),), anchor="mm")
     if e.get("cta"):
         t_b = at.get("cta", at.get("vence", t_p + 1.5) + 0.5)
-        kb = spring(t, t_b, 150, 13)
+        kb = entra(t, t_b, "pop")
         if kb > 0:
             max_bw = (zx1 - zx0) * 0.92
-            fnt = fuente_que_cabe(ctx.fT, e["cta"], px(48), max_bw - px(120), 800, minimo=20)
+            fnt = fuente_que_cabe(ctx.fT, e["cta"], px(ESCALA["dato"]), max_bw - px(120), 800)
             bw_ = min(max_bw, ctx.tmp.textlength(e["cta"], font=fnt) + px(120)); bh_ = px(110)
             s_ = 0.9 + 0.1 * min(1.08, kb)
             x0, y0 = W / 2 - bw_ * s_ / 2, Y["cta"] - bh_ * s_ / 2
@@ -2265,7 +2474,7 @@ def sc_demo(ctx, e, t):
     at = e.get("at", {})
     if e.get("rotulo"):
         rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", e["from"]), y=rotulo_y())
-    kv = spring(t, at.get("ventana", e["from"] + 0.2), 110, 15)
+    kv = entra(t, at.get("ventana", e["from"] + 0.2), "suave")
     if kv <= 0:
         return capa_salida(layer, t, e["to"])
     zx0_, _, zx1_, _ = caja_segura()
@@ -2337,26 +2546,41 @@ def sc_demo(ctx, e, t):
                     mask.filter(ImageFilter.GaussianBlur(30)))
     marco = Image.new("RGBA", (bw, bh + barra), (0, 0, 0, 0))
     dm = ImageDraw.Draw(marco)
-    dm.rounded_rectangle([0, 0, bw, bh + barra], radius=22, fill=PANEL + (255,))
+    dm.rounded_rectangle([0, 0, bw, bh + barra], radius=28, fill=PANEL + (255,))
     for k_ in range(3):
         dm.ellipse([22 + k_ * 26, 17, 36 + k_ * 26, 31], fill=(90, 90, 90, 255))
     if e.get("url"):
-        dm.rounded_rectangle([120, 9, bw - 30, 39], radius=15, fill=PANEL2 + (255,))
-        dm.text((140, 24), e["url"], font=ctx.fX(20, 500), fill=GRIS, anchor="lm")
+        # la URL es un "nota" de la escala (28 px). Antes 20 px: por debajo
+        # del piso legible, en una barra de 30 que no lo contenia. La barra
+        # crece para que la letra quepa dentro y el copy se recorta.
+        dm.rounded_rectangle([120, 5, bw - 30, 43], radius=19, fill=PANEL2 + (255,))
+        fnt_url=ctx.fX(ESCALA["nota"],500)
+        dm.text((140, 24), recorta_para(e["url"], fnt_url, bw - 30 - 140 - 14, ctx.tmp),
+                font=fnt_url, fill=GRIS, anchor="lm")
     marco.paste(vista, (0, barra))
     if a_v < 255:
         marco.putalpha(marco.split()[3].point(lambda v: int(v * a_v / 255)))
     layer.alpha_composite(marco, (x0, y0))
     # cursor: viaja del objetivo anterior al actual en [at-0.6, at]; luego clic
-    prev = (0.85, 0.92)
+    # El viaje usa un resorte multi-destino (track): cada tramo tiene masa y
+    # se calma al llegar, y si dos tramos se solapan el cursor no frena en
+    # seco entre ellos. track es funcion pura del tiempo (no reinicia nada).
+    # paradas: (instante, posicion) — un cambio por tramo y por llegada
+    paradas_x, paradas_y = [], []
+    px_prev, py_prev = 0.85, 0.92
+    for p_ in pasos:
+        a_ = p_.get("at", 0)
+        paradas_x.append((a_ - 0.6, px_prev))
+        paradas_x.append((a_, p_.get("x", .5)))
+        paradas_y.append((a_ - 0.6, py_prev))
+        paradas_y.append((a_, p_.get("y", .5)))
+        px_prev, py_prev = p_.get("x", .5), p_.get("y", .5)
     pos = None
     for p_ in pasos:
         a_ = p_.get("at", 0)
         if t < a_ - 0.6:
             break
-        k_ = smoothstep((t - (a_ - 0.6)) / 0.6)
-        pos = (lerp(prev[0], p_.get("x", .5), k_), lerp(prev[1], p_.get("y", .5), k_), a_, p_)
-        prev = (p_.get("x", .5), p_.get("y", .5))
+        pos = (track(t, paradas_x, 260, 26), track(t, paradas_y, 260, 26), a_, p_)
     if pos:
         px = x0 + (pos[0] * bw - cx_) * z
         py = y0 + barra + (pos[1] * bh - cy_) * z
@@ -2364,7 +2588,7 @@ def sc_demo(ctx, e, t):
         cursor(d, px, py, 0.8 * (1 - 0.15 * pul))
         p_ = pos[3]
         if p_.get("texto") and t >= pos[2] + 0.15:
-            kt = spring(t, pos[2] + 0.15, 140, 16)
+            kt = entra(t, pos[2] + 0.15, "bloque")
             nxt_ = [q.get("at", 0) for q in pasos if q.get("at", 0) > pos[2]]
             fuera = clamp01((t - (nxt_[0] - 1.3)) / 0.4) if nxt_ else 0
             al = int(255 * clamp01(kt * 1.4) * (1 - fuera))
@@ -2372,9 +2596,8 @@ def sc_demo(ctx, e, t):
                 fnt = fuente_que_cabe(ctx.fT, p_["texto"], 44, zx1_ - zx0_ - 80, 800)   # el botón cabe
                 tw_ = ctx.tmp.textlength(p_["texto"], font=fnt) + 80
                 yb = y0 + barra + bh + 60
-                d.rounded_rectangle([W / 2 - tw_ / 2, yb, W / 2 + tw_ / 2, yb + 92], radius=46,
-                                    fill=ACENTO + (al,))
-                d.text((W / 2, yb + 46), p_["texto"], font=fnt, fill=BLANCO + (al,), anchor="mm")
+                boton_halo(d, W / 2, yb + 46, tw_, 92, p_["texto"], fnt, t, pos[2] + 0.15,
+                           alpha=al)
     return capa_salida(layer, t, e["to"])
 
 
@@ -2454,11 +2677,11 @@ def sc_hero(ctx, e, t):
     # 1. Píldora de anuncio / navbar superior (navbar.gallery Announcement/Tabs)
     t_b = at.get("badge", e["from"] + 0.15)
     badge_txt = e.get("badge", "NUEVO LANZAMIENTO")
-    kb = spring(t, t_b, 140, 15)
+    kb = entra(t, t_b, "elemento")
     yb = y0 + int((y1 - y0) * 0.08)
     if kb > 0 and badge_txt:
         sub, ds = grupo()
-        fb = fuente_que_cabe(ctx.fM, badge_txt.upper(), int(u * 0.028), int(ancho_u * 0.76), 700, minimo=14)
+        fb = fuente_que_cabe(ctx.fM, badge_txt.upper(), ESCALA["nota"], int(ancho_u * 0.76), 700)
         wb = min(int(ancho_u * 0.94), int(largo(badge_txt.upper(), fb) + 64))
         hb = max(44, int(fb.size * 1.9))
         tarjeta_cristal(ctx, sub, W / 2 - wb / 2, yb - hb / 2, wb, hb, radio=hb // 2, alpha=255)
@@ -2472,21 +2695,25 @@ def sc_hero(ctx, e, t):
         fundir(layer, sub, kb, dy=18)
     # 2. Titular + subtítulo (supahero.io + scrolltide.co Focus Reveal)
     t_t = at.get("titulo", e["from"] + 0.45)
-    yt = yb + int((y1 - y0) * 0.13)
-    rotulo(ctx, layer, t, e.get("titulo", "Tu producto en *movimiento*"), t_t, y=yt, tam=int(u * 0.050))
+    # el kicker cae en la MISMA altura que en las demas escenas (rotulo_y): un
+    # rotulo que salta de altura entre escenas rompe el ritmo
+    yt = rotulo_y()
+    rotulo(ctx, layer, t, e.get("titulo", "Tu producto en *movimiento*"), t_t, y=yt, tam=ESCALA["rotulo"])
     sub_txt = e.get("subtitulo", "")
     if sub_txt and t >= t_t + 0.2:
-        ks = spring(t, t_t + 0.2, 130, 16)
+        ks = entra(t, t_t + 0.2, "suave")
         als = int(255 * clamp01(ks * 1.4))
-        fs = fuente_que_cabe(ctx.fX, sub_txt, int(u * 0.032), int(ancho_u * 0.90), 600, minimo=20)
-        ys = bajo_rotulo(yt, int(u * 0.050), aire=1.15)
-        lns_s = linewrap(sub_txt, fs, int(ancho_u * 0.92), ctx.tmp)[:2]
+        # el subtítulo se PARTE antes de encogerse: encogerlo para que quepa en
+        # UNA línea lo dejaba en 18 px (ilegible) para después partirlo en dos.
+        fs, lns_s = texto_que_cabe(ctx.fX, sub_txt, ESCALA["secundario"],
+                                   int(ancho_u * 0.90), 600, max_lineas=2, minimo=18)
+        ys = bajo_rotulo(yt, ESCALA["rotulo"], aire=1.15)
         for li, ln_s in enumerate(lns_s):
             ImageDraw.Draw(layer).text((W / 2, ys + li * int(fs.size * 1.22)), ln_s,
                                        font=fs, fill=GRIS + (als,), anchor="ma")
     # 3. Tarjeta Liquid Glass central con métrica (glass.samasante.com)
     t_c = at.get("card", e["from"] + 1.05)
-    kc = spring(t, t_c, 125, 14)
+    kc = entra(t, t_c, "elemento")
     yc = y0 + int((y1 - y0) * 0.56)
     hc = int((y1 - y0) * 0.23)
     wc = min(int(ancho_u * 0.92), 860)
@@ -2496,18 +2723,18 @@ def sc_hero(ctx, e, t):
         met = e.get("metrica", "3.4x")
         etq = e.get("etiqueta_metrica", "más conversión en 30 días")
         fm = fuente_que_cabe(ctx.fT, str(met), int(u * 0.080), int(wc * 0.84), 800, minimo=28)
-        fe = fuente_que_cabe(ctx.fX, str(etq), int(u * 0.032), int(wc * 0.86), 600, minimo=18)
+        fe = fuente_que_cabe(ctx.fX, str(etq), ESCALA["secundario"], int(wc * 0.86), 600)
         ds.text((W / 2, yc - hc * 0.14), str(met), font=fm, fill=ACENTO + (255,), anchor="mm")
         ds.text((W / 2, yc + hc * 0.24), str(etq), font=fe, fill=BLANCO + (255,), anchor="mm")
         fundir(layer, sub, kc, dy=26)
     # 4. CTA con anillo de halo pulsante (cta.gallery + scrolltide.co)
     t_cta = at.get("cta", e["from"] + 1.75)
     cta_txt = e.get("cta", "Empieza hoy")
-    k_cta = spring(t, t_cta, 135, 15)
+    k_cta = entra(t, t_cta, "elemento")
     if k_cta > 0 and cta_txt:
         sub, ds = grupo()
         y_cta = y0 + int((y1 - y0) * 0.84)
-        f_cta = fuente_que_cabe(ctx.fT, cta_txt, int(u * 0.036), int(ancho_u * 0.72), 800, minimo=18)
+        f_cta = fuente_que_cabe(ctx.fT, cta_txt, ESCALA["dato"], int(ancho_u * 0.72), 800)
         w_cta = min(int(ancho_u - 32), max(280, int(largo(cta_txt, f_cta) + 88)))
         h_cta = max(68, int(f_cta.size * 2.1))
         boton_halo(ds, W / 2, y_cta, w_cta, h_cta, cta_txt, f_cta, t, t_cta)
@@ -2523,7 +2750,6 @@ def sc_bento(ctx, e, t):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     at = e.get("at", {})
     x0, y0, x1, y1 = caja_segura()
-    u = unidad()
     yr = rotulo_y()
     rotulo(ctx, layer, t, e.get("rotulo", "Todo en *una grilla*"), at.get("rotulo", e["from"] + 0.15), y=yr)
     items = (e.get("items") or [
@@ -2538,7 +2764,7 @@ def sc_bento(ctx, e, t):
     cajas = cuadricula(x0, int(top_grid), x1 - x0, int(bot_grid - top_grid), cols, n)
     for i, (it, (cx0, cy0, cw, ch)) in enumerate(zip(items, cajas)):
         t_i = it.get("at", at.get(f"item{i}", e["from"] + 0.65 + i * 0.35))
-        ki = spring(t, t_i, 130, 15)
+        ki = entra(t, t_i, "elemento")
         if ki <= 0:
             continue
         sub, ds = grupo()
@@ -2557,8 +2783,8 @@ def sc_bento(ctx, e, t):
                         color=ACENTO if es_ac else PANEL2, t=t - t_i)
             tx0 = ix + r_ico + 26
             tw_max = max(80, cw - (tx0 - cx0) - 24)
-            ft = fuente_que_cabe(ctx.fT, tit_i, int(u * 0.036), tw_max, 800, minimo=18)
-            fx = fuente_que_cabe(ctx.fX, txt_i, int(u * 0.028), tw_max, 600, minimo=16)
+            ft = fuente_que_cabe(ctx.fT, tit_i, ESCALA["secundario"], tw_max, 800)
+            fx = fuente_que_cabe(ctx.fX, txt_i, ESCALA["nota"], tw_max, 600)
             ds.text((tx0, cy0 + ch * 0.36), tit_i, font=ft, fill=BLANCO + (255,), anchor="lm")
             ds.text((tx0, cy0 + ch * 0.68), txt_i, font=fx, fill=GRIS + (255,), anchor="lm")
         else:
@@ -2567,17 +2793,17 @@ def sc_bento(ctx, e, t):
             insignia_3d(ds, ix, iy, r_ico, ico_txt, f_ico,
                         color=ACENTO if es_ac else PANEL2, t=t - t_i)
             tw_max = max(80, cw - 36)
-            ft = fuente_que_cabe(ctx.fT, tit_i, int(u * 0.034), tw_max, 800, minimo=18)
-            fx = fuente_que_cabe(ctx.fX, txt_i, int(u * 0.027), tw_max, 600, minimo=16)
+            ft = fuente_que_cabe(ctx.fT, tit_i, ESCALA["secundario"], tw_max, 800)
+            fx = fuente_que_cabe(ctx.fX, txt_i, ESCALA["nota"], tw_max, 600)
             ds.text((ix, cy0 + ch * 0.64), tit_i, font=ft, fill=BLANCO + (255,), anchor="mm")
             ds.text((ix, cy0 + ch * 0.83), txt_i, font=fx, fill=GRIS + (255,), anchor="mm")
         fundir(layer, sub, ki, dy=22)
     pie_txt = e.get("pie", "")
     t_pie = at.get("pie", e["from"] + 0.8 + n * 0.35)
     if pie_txt and t >= t_pie:
-        kp = spring(t, t_pie, 130, 16)
+        kp = entra(t, t_pie, "suave")
         alp = int(255 * clamp01(kp * 1.4))
-        fp = fuente_que_cabe(ctx.fM, pie_txt.upper(), 28, x1 - x0 - 20, 700, minimo=13)
+        fp = fuente_que_cabe(ctx.fM, pie_txt.upper(), ESCALA["nota"], x1 - x0 - 20, 700)
         ImageDraw.Draw(layer).text((W / 2, y1 - 24), pie_txt.upper(), font=fp,
                                    fill=ACENTO + (alp,), anchor="mb")
     return capa_salida(layer, t, e["to"])
@@ -2592,7 +2818,7 @@ def sc_buscador(ctx, e, t):
     zx0, zy0, zx1, zy1 = caja_segura()
     query = e.get("query", "")
     t_query = at.get("query", e["from"] + 0.3)
-    k_bar = spring(t, t_query - 0.2, 110, 14)
+    k_bar = entra(t, t_query - 0.2, "elemento")
     if k_bar <= 0:
         return capa_salida(layer, t, e["to"])
     
@@ -2617,12 +2843,9 @@ def sc_buscador(ctx, e, t):
            fill=ACENTO + (al_bar,), width=3)
     
     max_w_q = wb - 120
-    tam_q = fuente_que_cabe(ctx.fX, query, int(hb * 0.40), max_w_q, 600, minimo=16).size
+    tam_q = fuente_que_cabe(ctx.fX, query, int(hb * 0.40), max_w_q, 600, minimo=18).size
     fnt_q = ctx.fX(tam_q, 600)
-    if ctx.tmp.textlength(query, font=fnt_q) > max_w_q:
-        while len(query) > 3 and ctx.tmp.textlength(query + "…", font=fnt_q) > max_w_q:
-            query = query[:-1]
-        query += "…"
+    query = recorta_para(query, fnt_q, max_w_q, ctx.tmp)
     dur_q = max(0.4, len(query) * 0.045)
     tx_x = xb + 76
     tx_y = yb + (hb - tam_q) / 2 - 2
@@ -2639,7 +2862,7 @@ def sc_buscador(ctx, e, t):
         gap_r = 12
         for i, res in enumerate(resultados):
             t_res = at.get(f"res{i}", t_query + dur_q + 0.2 + i * 0.22)
-            kr = spring(t, t_res, 120, 15)
+            kr = entra(t, t_res, "bloque")
             if kr <= 0:
                 continue
             al_r = int(255 * clamp01(kr * 1.4))
@@ -2654,20 +2877,17 @@ def sc_buscador(ctx, e, t):
             
             t_res_txt = res.get("texto", "")
             max_w_t = wb - 80
-            fnt_rt = fuente_que_cabe(ctx.fX, t_res_txt, int(hr_item * 0.34), max_w_t, 700, minimo=14)
-            if ctx.tmp.textlength(t_res_txt, font=fnt_rt) > max_w_t:
-                while len(t_res_txt) > 3 and ctx.tmp.textlength(t_res_txt + "…", font=fnt_rt) > max_w_t:
-                    t_res_txt = t_res_txt[:-1]
-                t_res_txt += "…"
+            fnt_rt = fuente_que_cabe(ctx.fX, t_res_txt, int(hr_item * 0.34), max_w_t, 700, minimo=18)
+            t_res_txt = recorta_para(t_res_txt, fnt_rt, max_w_t, ctx.tmp)
             d.text((xb + 50, yr + 14), t_res_txt, font=fnt_rt, fill=BLANCO + (al_r,))
             desc = res.get("desc", "")
             if desc and hr_item >= 70:
-                fnt_rd = fuente_que_cabe(ctx.fX, desc, int(hr_item * 0.24), max_w_t, 400, minimo=12)
-                if ctx.tmp.textlength(desc, font=fnt_rd) > max_w_t:
-                    while len(desc) > 3 and ctx.tmp.textlength(desc + "…", font=fnt_rd) > max_w_t:
-                        desc = desc[:-1]
-                    desc += "…"
-                d.text((xb + 50, yr + hr_item - 24), desc, font=fnt_rd, fill=GRIS + (int(200 * clamp01(kr)),))
+                # la descripción es un "nota" de la escala (28 px): antes
+                # int(hr_item*0.24) = 21 px, por debajo del piso legible, y
+                # con piso de auto-fit 12. Sube con el texto de arriba.
+                fnt_rd = fuente_que_cabe(ctx.fX, desc, ESCALA["nota"], max_w_t, 400, minimo=18)
+                desc = recorta_para(desc, fnt_rd, max_w_t, ctx.tmp)
+                d.text((xb + 50, yr + hr_item - 32), desc, font=fnt_rd, fill=GRIS + (int(200 * clamp01(kr)),))
                 
     pie_fuente(ctx, d, e, t, at.get("rotulo", e["from"]) + 2.0)
     return capa_salida(layer, t, e["to"])
@@ -2692,16 +2912,16 @@ def sc_notificacion(ctx, e, t):
     
     for i, it in enumerate(items):
         t_in = at.get(f"item{i}", e["from"] + 0.4 + i * 0.8)
-        k = spring(t, t_in, 120, 15)
+        k = entra(t, t_in, "bloque")
         if k <= 0:
             continue
-        despues = sum(min(1.0, spring(t, at.get(f"item{j}", e["from"] + 0.4 + j * 0.8), 120, 16))
+        despues = sum(min(1.0, entra(t, at.get(f"item{j}", e["from"] + 0.4 + j * 0.8), "suave"))
                       for j in range(i + 1, n))
         y_i = y_base + despues * (h_card + gap) + (1 - min(1, k)) * -50 + flota(t, t_in + 0.5, 7, 0.45 + i * 0.08)
         al = int(255 * clamp01(k * 1.4))
         
         tarjeta_cristal(ctx, layer, x0, y_i, ancho_card, h_card, radio=24, alpha=int(220 * clamp01(k)))
-        d.rounded_rectangle([x0, y_i, x0 + ancho_card, y_i + h_card], radius=24,
+        d.rounded_rectangle([x0, y_i, x0 + ancho_card, y_i + h_card], radius=28,
                             outline=(255, 255, 255, int(45 * clamp01(k))), width=2)
         
         app = it.get("app", "App")
@@ -2715,21 +2935,32 @@ def sc_notificacion(ctx, e, t):
         d.text((ico_x + r_ico, ico_y + r_ico), ico_char, font=fnt_ico, fill=BLANCO + (al,), anchor="mm")
         
         tx_x = ico_x + r_ico * 2 + 20
-        tx_w = x0 + ancho_card - tx_x - 110
-        
-        fnt_tit = fuente_que_cabe(ctx.fX, it.get("titulo", ""), int(h_card * 0.22), tx_w, 800)
+        # la hora va en la MISMA linea que el titulo (derecha): el ancho del
+        # titulo reserva el de la hora REAL. Con una reserva fija (110 px) y la
+        # hora a 28 px ("hace 5 min" ~ 140 px) los dos se pisaban.
+        hora = it.get("hora", "ahora")
+        fnt_h = ctx.fX(ESCALA["nota"], 400)   # antes int(h_card*0.15) = 21 px
+        w_hora = ctx.tmp.textlength(hora, font=fnt_h)
+        tx_w = max(80, int(x0 + ancho_card - 26 - 20 - w_hora - tx_x))
+
+        # título del item: un "secundario" de la escala. Antes int(h_card*0.22)
+        # = 30 px, una cifra que no estaba en la escala.
+        fnt_tit = fuente_que_cabe(ctx.fX, it.get("titulo", ""), ESCALA["secundario"], tx_w, 800)
         d.text((tx_x, y_i + 18), it.get("titulo", ""), font=fnt_tit, fill=BLANCO + (al,))
-        
+
         texto_it = it.get("texto", "")
         max_w_txt = max(60, int(x0 + ancho_card - 26 - tx_x))
-        fnt_txt = fuente_que_cabe(ctx.fX, texto_it, int(h_card * 0.17), max_w_txt, 400)
-        lineas = wrap(texto_it, fnt_txt, max_w_txt, ctx.tmp)
+        # cuerpo: un "nota" de la escala (28 px). Antes int(h_card*0.17) = 23 px,
+        # por debajo del piso legible, y con el auto-fit que lo encogia mas. Se
+        # PARTE antes de encoger: la letra se queda, lo que se acorta es el copy.
+        fnt_txt, lineas = texto_que_cabe(ctx.fX, texto_it, ESCALA["nota"], max_w_txt,
+                                          400, max_lineas=2, minimo=18)
         for li, ln in enumerate(lineas[:2]):
-            d.text((tx_x, y_i + 20 + int(h_card * 0.28) + li * int(h_card * 0.22)), ln,
+            d.text((tx_x, y_i + 20 + int(h_card * 0.28) + li * int(h_card * 0.24)), ln,
                    font=fnt_txt, fill=GRIS + (int(210 * clamp01(k)),))
         
-        hora = it.get("hora", "ahora")
-        fnt_h = ctx.fX(int(h_card * 0.15), 400)
+        # la hora se dibuja al final (derecha de la linea del titulo): su
+        # fuente y su ancho ya estan calculados arriba
         d.text((x0 + ancho_card - 26, y_i + 22), hora, font=fnt_h,
                fill=GRIS + (int(160 * clamp01(k)),), anchor="ra")
                
@@ -2746,7 +2977,7 @@ def sc_comentario(ctx, e, t):
     zx0, zy0, zx1, zy1 = caja_segura()
     
     t_card = at.get("card", e["from"] + 0.3)
-    kc = spring(t, t_card, 100, 13)
+    kc = entra(t, t_card, "elemento")
     if kc <= 0:
         return capa_salida(layer, t, e["to"])
     al = int(255 * clamp01(kc * 1.4))
@@ -2777,10 +3008,10 @@ def sc_comentario(ctx, e, t):
         w_nom = ctx.tmp.textlength(e.get("autor", ""), font=fnt_nom)
         bv_x = nom_x + w_nom + 12
         d.ellipse([bv_x, av_y - 20, bv_x + 18, av_y - 2], fill=ACENTO + (al,))
-        d.text((bv_x + 9, av_y - 11), "✓", font=ctx.fX(14, 800), fill=BLANCO + (al,), anchor="mm")
+        d.text((bv_x + 9, av_y - 11), "✓", font=ctx.fX(TAM_CHECK, 800), fill=BLANCO + (al,), anchor="mm")
     
     usr = e.get("usuario", "@cliente")
-    d.text((nom_x, av_y + 8), usr, font=ctx.fX(24, 400), fill=GRIS + (int(200 * clamp01(kc)),), anchor="la")
+    d.text((nom_x, av_y + 8), usr, font=ctx.fX(ESCALA["nota"], 400), fill=GRIS + (int(200 * clamp01(kc)),), anchor="la")
     
     if e.get("estrellas"):
         estrellas(layer, xc + wc - 110, av_y, float(e["estrellas"]), 5, tam=26, k=kc)
@@ -2791,8 +3022,11 @@ def sc_comentario(ctx, e, t):
     texto = e.get("texto", "")
     t_txt = at.get("texto", t_card + 0.4)
     kt = clamp01((t - t_txt) / 0.5)
-    fnt_txt = fuente_que_cabe(ctx.fT, texto, int(unidad() * 0.048 if W > H else 38), wc - 72, 600)
-    lineas = wrap(texto, fnt_txt, wc - 72, ctx.tmp)
+    # el cuerpo se PARTE antes de encogerse: antes se encogia para que el
+    # parrafo entero quepa en UNA linea (18 px, ilegible) y luego se partia
+    # en 4 lineas. Ahora mantiene el tamaño de la escala y se parte.
+    fnt_txt, lineas = texto_que_cabe(ctx.fT, texto, int(unidad() * 0.048 if W > H else 38),
+                                      wc - 72, 600, max_lineas=4, minimo=18)
     lh = fnt_txt.size * 1.35
     y_linea = av_y + r_av + 42
     for li, ln in enumerate(lineas[:4]):
@@ -2806,7 +3040,7 @@ def sc_comentario(ctx, e, t):
     d.text((xc + 36, y_fot), f"❤️ {likes} Me gusta", font=ctx.fX(26, 700),
            fill=ACENTO + (int(255 * kl),), anchor="ls")
     fecha = e.get("fecha", "Reciente")
-    d.text((xc + wc - 36, y_fot), fecha, font=ctx.fX(24, 400),
+    d.text((xc + wc - 36, y_fot), fecha, font=ctx.fX(ESCALA["nota"], 400),
            fill=GRIS + (int(180 * kl),), anchor="rs")
            
     pie_fuente(ctx, d, e, t, at.get("rotulo", e["from"]) + 2.5)
@@ -2826,7 +3060,7 @@ def sc_pie(ctx, e, t):
     
     total = sum(float(p.get("valor", 0)) for p in porciones) or 1.0
     t_pie = at.get("pie", e["from"] + 0.3)
-    k_pie = spring(t, t_pie, 110, 14)
+    k_pie = entra(t, t_pie, "elemento")
     if k_pie <= 0:
         return capa_salida(layer, t, e["to"])
     
@@ -2862,11 +3096,15 @@ def sc_pie(ctx, e, t):
     
     for i, p in enumerate(porciones):
         t_p = at.get(f"p{i}", t_pie + i * 0.25)
-        kp = spring(t, t_p, 110, 15)
+        kp = entra(t, t_p, "suave")
         if kp <= 0:
             continue
         frac = float(p.get("valor", 0)) / total
-        barrido = 360.0 * frac * min(1.0, kp)
+        # el barrido va por TIEMPO (0.55 s), no atado al resorte: con el
+        # resorte la porcion giraba ~35 grados por frame y eso se lee como un
+        # pop (medido: 4 pops en el donut horizontal). Es el mismo criterio
+        # que la elipse del `callout` (0.9 s para 360 grados).
+        barrido = 360.0 * frac * clamp01((t - t_p) / 0.55)
         ang_fin = ang_actual + barrido
         
         col = p.get("color")
@@ -2891,7 +3129,7 @@ def sc_pie(ctx, e, t):
     
     for i, p in enumerate(porciones):
         t_p = at.get(f"p{i}", t_pie + i * 0.25)
-        kp = spring(t, t_p, 110, 15)
+        kp = entra(t, t_p, "suave")
         if kp <= 0:
             continue
         col = p.get("color") or (ACENTO if p.get("acento") or i == 0 else colores_def[i % len(colores_def)])
@@ -2906,11 +3144,8 @@ def sc_pie(ctx, e, t):
         w_pct = ctx.tmp.textlength(pct_txt, font=fnt_et)
         max_w_et = (pct_x - w_pct - 24) - (ley_x + 36)
         if ctx.tmp.textlength(etq, font=fnt_et) > max_w_et:
-            fnt_et = fuente_que_cabe(ctx.fX, etq, fnt_et.size, max_w_et, 600, minimo=14)
-            if ctx.tmp.textlength(etq, font=fnt_et) > max_w_et:
-                while len(etq) > 3 and ctx.tmp.textlength(etq + "…", font=fnt_et) > max_w_et:
-                    etq = etq[:-1]
-                etq += "…"
+            fnt_et = fuente_que_cabe(ctx.fX, etq, fnt_et.size, max_w_et, 600, minimo=18)
+            etq = recorta_para(etq, fnt_et, max_w_et, ctx.tmp)
                 
         d.text((ley_x + 36, yi - 2), etq, font=fnt_et, fill=BLANCO + (al_l,))
         d.text((pct_x, yi - 2), pct_txt, font=fnt_et, fill=ACENTO + (al_l,), anchor="ra")
@@ -2929,7 +3164,7 @@ def sc_orbita(ctx, e, t):
     cy = (zy0 + zy1) / 2 + flota(t, e["from"] + 0.5, 6, 0.35)
     
     t_in = at.get("titulo", e["from"] + 0.4)
-    k = spring(t, t_in, 100, 13)
+    k = entra(t, t_in, "elemento")
     al = int(255 * clamp01(k * 1.4))
     
     r_core = min(int((zx1 - zx0) * 0.22), int(unidad() * 0.18))
@@ -2964,7 +3199,7 @@ def sc_orbita(ctx, e, t):
     kicker = e.get("kicker", "")
     if kicker:
         tk = at.get("kicker", e["from"] + 0.2)
-        kk = spring(t, tk, 120, 15)
+        kk = entra(t, tk, "bloque")
         if kk > 0:
             fnt_k = ctx.fM(int(unidad() * 0.035 if W > H else 28), 700)
             d.text((cx, cy - r_orb - 50), kicker.upper(), font=fnt_k,
@@ -2972,8 +3207,9 @@ def sc_orbita(ctx, e, t):
                    
     titulo = e.get("titulo", "")
     if titulo and k > 0:
-        fnt_tit = fuente_que_cabe(ctx.fT, titulo, int(unidad() * 0.08 if W > H else 72), zx1 - zx0 - 40, 800)
-        lineas = wrap(titulo, fnt_tit, zx1 - zx0 - 40, ctx.tmp)
+        # el titulo se PARTE antes de encogerse (ver sc_comentario)
+        fnt_tit, lineas = texto_que_cabe(ctx.fT, titulo, int(unidad() * 0.08 if W > H else 72),
+                                          zx1 - zx0 - 40, 800, max_lineas=3, minimo=18)
         lh = fnt_tit.size * 1.25
         y_tit0 = cy - (len(lineas) * lh) / 2
         for li, ln in enumerate(lineas):
@@ -2983,7 +3219,7 @@ def sc_orbita(ctx, e, t):
     subtitulo = e.get("subtitulo", "")
     if subtitulo:
         ts = at.get("subtitulo", t_in + 0.8)
-        ks = spring(t, ts, 120, 15)
+        ks = entra(t, ts, "bloque")
         if ks > 0:
             fnt_sub = fuente_que_cabe(ctx.fX, subtitulo, int(unidad() * 0.04 if W > H else 34), zx1 - zx0 - 60, 400)
             d.text((cx, cy + r_orb + 50), subtitulo, font=fnt_sub,
@@ -3001,7 +3237,7 @@ def sc_audiowave(ctx, e, t):
     zx0, zy0, zx1, zy1 = caja_segura()
     
     t_card = at.get("tarjeta", e["from"] + 0.3)
-    kc = spring(t, t_card, 100, 13)
+    kc = entra(t, t_card, "elemento")
     if kc <= 0:
         return capa_salida(layer, t, e["to"])
     al = int(255 * clamp01(kc * 1.4))
@@ -3024,22 +3260,20 @@ def sc_audiowave(ctx, e, t):
     hab = e.get("hablante", "Audio seguro")
     arch = e.get("archivo", "grabacion.wav")
     est = e.get("estado", "REC ● 00:14")
-    fnt_est = ctx.fM(22, 700)
+    fnt_est = ctx.fM(ESCALA["nota"], 700)
     w_est = ctx.tmp.textlength(est, font=fnt_est)
     
     max_w_header = (xc + wc - 36 - w_est - 24) - (px + r_play + 18)
-    fnt_hab = fuente_que_cabe(ctx.fX, hab, int(unidad() * 0.028 if W > H else 30), max_w_header, 700, minimo=14)
-    if ctx.tmp.textlength(hab, font=fnt_hab) > max_w_header:
-        while len(hab) > 3 and ctx.tmp.textlength(hab + "…", font=fnt_hab) > max_w_header:
-            hab = hab[:-1]
-        hab += "…"
+    fnt_hab = fuente_que_cabe(ctx.fX, hab, int(unidad() * 0.028 if W > H else 30), max_w_header, 700, minimo=18)
+    hab = recorta_para(hab, fnt_hab, max_w_header, ctx.tmp)
     d.text((px + r_play + 18, py - 6), hab, font=fnt_hab, fill=BLANCO + (al,), anchor="ls")
-    
-    fnt_arch = fuente_que_cabe(ctx.fM, arch, int(unidad() * 0.020 if W > H else 22), max_w_header, 400, minimo=12)
-    if ctx.tmp.textlength(arch, font=fnt_arch) > max_w_header:
-        while len(arch) > 3 and ctx.tmp.textlength(arch + "…", font=fnt_arch) > max_w_header:
-            arch = arch[:-1]
-        arch += "…"
+
+    # el nombre del archivo es un "nota" de la escala (28 px): antes 22 px fijo,
+    # por debajo del piso legible (y con piso de auto-fit 12, que rompia el piso
+    # global de 18). Tamaño FIJO + recorte con …: un nombre de archivo largo se
+    # corta ("narracion_sinteti…"), no se vuelve ilegible.
+    fnt_arch = ctx.fM(ESCALA["nota"], 400)
+    arch = recorta_para(arch, fnt_arch, max_w_header, ctx.tmp)
     d.text((px + r_play + 18, py + 8), arch, font=fnt_arch, fill=GRIS + (int(180 * clamp01(kc)),), anchor="la")
     d.text((xc + wc - 36, py), est, font=fnt_est, fill=ACENTO + (al,), anchor="rm")
     
@@ -3089,6 +3323,238 @@ def sc_audiowave(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def sc_callout(ctx, e, t):
+    """Resalte sobre el dato clave: elipse que se dibuja + etiqueta.
+
+    "Mira este 60 %". Params: `titulo?`, `captura?` (imagen a resaltar),
+    `objeto{x, y, r}` (fracciones de la CAPTURA: centro y radio relativo),
+    `etiqueta`, `detalle?`, `fuente?`, `at{rotulo, circulo, etiqueta}`.
+
+    Sin `captura` la elipse flota sobre el fondo (sirve para señalar un titulo
+    o una cifra de la propia escena). Con `captura` señala un punto de ella.
+    El texto va sobre una placa oscura: blanco sobre captura clara no se lee.
+
+    DRY: `elipse_se_dibuja` (el barrido), `imagen_ajustada`, `placa_texto`,
+    `rotulo`, `pie_fuente`."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at", {})
+    zx0, zy0, zx1, zy1 = caja_segura()
+    # 1. la captura va DEBAJO (es lo que se resalta)
+    if e.get("captura"):
+        cap = imagen_ajustada(e["captura"], int(zx1 - zx0), int(zy1 - zy0))
+        if cap is not None:
+            layer.alpha_composite(cap, (int(zx0), int(zy0)))
+    obj = e.get("objeto") or {}
+    # 2. el punto resaltado: relativo a la captura si la hay, al lienzo si no
+    if e.get("captura"):
+        cx = zx0 + (zx1 - zx0) * float(obj.get("x", 0.5))
+        cy = zy0 + (zy1 - zy0) * float(obj.get("y", 0.5))
+        rx = (zx1 - zx0) * float(obj.get("r", 0.26)) / 2
+    else:
+        cx = W * float(obj.get("x", 0.5))
+        cy = H * float(obj.get("y", 0.5))
+        rx = W * float(obj.get("r", 0.26)) / 2
+    ry = rx * 0.62                      # elipse tumbada: el dato suele ser horizontal
+    # 3. el rotulo, ENCIMA de todo y con placa (si hay captura debajo)
+    if e.get("titulo"):
+        t_r = at.get("rotulo", e["from"])
+        k_r = entra(t, t_r, "suave")
+        if k_r > 0:
+            # el enfasis (*...*) se dibuja con los segmentos del motor: el texto
+            # literal con asteriscos seria un bug
+            sg = segs(e["titulo"])
+            fr = ctx.fX(ESCALA["rotulo"], 700)
+            ancho = (zx1 - zx0) - 20
+            tw = seg_width(sg, fr)
+            dos_lineas = seg_width(sg, ctx.fX(TAM_MIN_ROTULO, 700)) > ancho
+            y_r = rotulo_y() - 14
+            al_r = int(255 * clamp01(k_r * 1.4))
+            if e.get("captura"):
+                # la placa mide el texto REAL (rotulo lo encoge si no cabe)
+                w_pl = min(tw, ancho)
+                x_pl = W / 2 - w_pl / 2
+                alto_pl = ESCALA["rotulo"] * (2.1 if dos_lineas else 1.25)
+                # la placa entra con RAMPA (0.3 s), no con el resorte: es un
+                # bloque grande y oscuro, y con el resorte subia de golpe
+                # (medido: 2 pops en el callout, uno por cada placa)
+                placa_texto(d, x_pl - 16, y_r - 8, x_pl + w_pl + 16, y_r + alto_pl,
+                            alpha=int(175 * prog(t, t_r, t_r + 0.3, smoothstep)))
+            yy_r = y_r + (1 - min(1, k_r)) * ELEV
+            for i, ln in enumerate(partir_segs(sg, fr, ancho)):
+                draw_seg(d, (W / 2, yy_r + i * ESCALA["rotulo"] * 1.2), ln, fr,
+                         BLANCO + (al_r,), ACENTO + (al_r,), anchor="ma")
+    # 4. la elipse que se dibuja + el punto exacto
+    t_c = at.get("circulo", e["from"] + 0.35)
+    k_c = entra(t, t_c, "elemento")
+    if k_c > 0:
+        elipse_se_dibuja(d, cx, cy, rx, ry, t, t_c, 0.9, ACENTO, 4)
+        d.ellipse([cx - 7, cy - 7, cx + 7, cy + 7], fill=ACENTO + (int(220 * k_c),))
+    # 5. la etiqueta: DEBAJO de la elipse, centrada y con placa
+    etiqueta = e.get("etiqueta", "")
+    if etiqueta:
+        t_e = at.get("etiqueta", t_c + 0.35)
+        k_e = entra(t, t_e, "suave")
+        if k_e > 0:
+            fnt = fuente_que_cabe(ctx.fT, etiqueta, ESCALA["dato"], zx1 - zx0 - 80, 800)
+            sg_e = segs(etiqueta)
+            tw = seg_width(sg_e, fnt)
+            ex = min(max(cx - tw / 2, zx0 + 10), zx1 - tw - 10)
+            ey = min(max(cy + ry + 52, zy0 + 10), zy1 - 40)
+            al = int(255 * k_e)
+            fd = None
+            if e.get("detalle"):
+                fd = fuente_que_cabe(ctx.fX, e["detalle"], ESCALA["nota"], zx1 - zx0 - 80, 400)
+            alto_placa = ESCALA["dato"] + (50 if fd else 0) + 26
+            if e.get("captura"):
+                # la placa entra CON el texto, con rampa (no de golpe): ver la
+                # placa del rotulo
+                placa_texto(d, ex - 14, ey - 14, ex + tw + 14, ey + alto_placa - 14,
+                            alpha=int(175 * prog(t, t_e, t_e + 0.3, smoothstep)))
+            draw_seg(d, (ex, ey), sg_e, fnt, BLANCO + (al,), ACENTO + (al,), anchor="lm")
+            if fd:
+                d.text((ex, ey + 46), e["detalle"], font=fd, fill=GRIS + (al,), anchor="lm")
+            # el conector baja de la elipse a la etiqueta
+            d.line([(cx, cy + ry + 4), (cx, ey - 12)], fill=ACENTO + (int(120 * al),), width=2)
+    if e.get("fuente"):
+        pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 1.2))
+    return capa_salida(layer, t, e["to"])
+
+
+def sc_index(ctx, e, t):
+    """Indice de contenidos: lo que vamos a ver, con el paso activo resaltado.
+
+    "Lo que vamos a ver". Params: `titulo?`, `items[{texto, activo?}]`,
+    `at{rotulo, item0..n}`. Cada item entra escalonado (stagger) y el
+    activo lleva el acento; al terminar, todos quedan atenuados salvo el
+    ultimo que searrho.
+    DRY: `cuenta_up` (el numero), `linewrap`, `rotulo`."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at", {})
+    if e.get("titulo"):
+        rotulo(ctx, layer, t, e["titulo"], at.get("rotulo", e["from"]), y=rotulo_y())
+    items = e.get("items") or []
+    if not items:
+        return capa_salida(layer, t, e["to"])
+    zx0, zy0, zx1, zy1 = caja_segura()
+    n = len(items)
+    top = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=1.15)
+    alto = zy1 - top - 20
+    fila_h = min(int(alto / max(1, n)), 150)
+    y0 = top + max(0, (alto - fila_h * n) // 2)
+    for i, it in enumerate(items):
+        t_i = at.get(f"item{i}", e["from"] + 0.3 + i * 0.22)
+        k = entra(t, t_i, "elemento")
+        if k <= 0:
+            continue
+        texto = str(it.get("texto", ""))
+        activo = bool(it.get("activo")) or (i == n - 1 and not any(
+            it2.get("activo") for it2 in items))
+        fnt = fuente_que_cabe(ctx.fX, texto, ESCALA["secundario"], zx1 - zx0 - 120, 600)
+        fnt_n = ctx.fT(ESCALA["secundario"], 800)
+        y = y0 + i * fila_h
+        num = cuenta_up(1, i + 1, t, t_i, 0.4)
+        al = int(255 * clamp01(k * 1.4))
+        col = ACENTO + (al,) if activo else GRIS + (int(al * 0.85),)
+        # el numero en una pastilla: el activo la lleva en acento
+        d.ellipse([zx0, y - 16, zx0 + 32, y + 16],
+                  fill=(ACENTO + (int(al * 0.9),)) if activo else (60, 60, 60, al))
+        d.text((zx0 + 16, y), num, font=fnt_n,
+               fill=BLANCO + (al,) if activo else GRIS + (al,), anchor="mm")
+        d.text((zx0 + 52, y), texto, font=fnt, fill=col, anchor="lm")
+        if activo:
+            d.line([(zx0 + 52, y + 22), (zx0 + 52 + ctx.tmp.textlength(texto, font=fnt),
+                                     y + 22)], fill=ACENTO + (int(150 * al),), width=2)
+    return capa_salida(layer, t, e["to"])
+
+
+def sc_orbOpen(ctx, e, t):
+    """Apertura de capitulo: esfera de particulas que se forma + titular.
+
+    "Empezamos". Params: `titulo`, `subtitulo?`, `figura?` (`esfera`, `chat`
+    o `robot`), `at{titulo, subtitulo}`.
+    Las particulas NACEN dispersas y CONVERGEN a una esfera: es lo contrario
+    que `orbita` (donde orbitan). Determinista: semilla fija.
+    DRY: `particulas` (la semilla determinista), `titular` (el gesto de la
+    casa), `rotulo`."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at", {})
+    zx0, zy0, zx1, zy1 = caja_segura()
+    cx = W / 2
+    cy = H * 0.38
+    r = int(unidad() * 0.19)
+    t_s = e["from"] + 0.1
+    k_s = entra(t, t_s, "bloque")
+    if k_s > 0:
+        # las particulas convergen: nacen en un anillo y caen al nucleo.
+        # El anillo de nacimiento NO puede salirse de la zona segura (si no,
+        # la escena entera se encoge paracalerlo dentro).
+        rng = random.Random(7)
+        r_max = (zx1 - zx0) / 2 * 0.92
+        figura = str(e.get("figura", "esfera"))
+        for _ in range(90):
+            ang = rng.uniform(0, 6.283)
+            r0 = min(r * rng.uniform(2.0, 3.0), r_max)
+            rr = r0 + (r - r0) * k_s
+            a = ang + (1 - k_s) * 1.6
+            if figura == "chat":
+                # convergen al contorno de una burbuja (cuadrado redondeado)
+                u = math.cos(a) * rr / r
+                v = math.sin(a) * rr / r
+                x = cx + max(-1, min(1, u * 1.7)) * r
+                y = cy + max(-1, min(1, v * 1.7)) * r * 0.72
+            elif figura == "robot":
+                x = cx + max(-1, min(1, math.cos(a) * 1.5)) * r
+                y = cy + max(-1, min(1, math.sin(a) * 1.5)) * r * 0.8
+            else:
+                x = cx + rr * math.cos(a)
+                y = cy + rr * math.sin(a) * 0.72
+            sz = max(2, int(rng.uniform(3, 7) * k_s))
+            al = int(235 * clamp01(k_s * 1.5))
+            d.ellipse([x - sz, y - sz, x + sz, y + sz], fill=ACENTO + (al,))
+        # el nucleo: un halo gaussiano suave
+        glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        gd = ImageDraw.Draw(glow)
+        rr = int(r * 0.62)
+        gd.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=ACENTO + (int(90 * k_s),))
+        glow = glow.filter(ImageFilter.GaussianBlur(max(6, int(r * 0.22))))
+        layer.alpha_composite(glow)
+        if figura == "robot":
+            rr2 = int(r * 0.5)
+            d.rounded_rectangle([cx - rr2, cy - rr2, cx + rr2, cy + rr2],
+                                radius=int(rr2 * 0.34), fill=BLANCO + (int(200 * k_s),))
+            for ex_ in (-rr2 * 0.36, rr2 * 0.36):
+                d.ellipse([cx + ex_ - 9, cy - 12, cx + ex_ + 9, cy + 6],
+                          fill=ACENTO + (int(220 * k_s),))
+        elif figura == "chat":
+            rr2 = int(r * 0.5)
+            d.rounded_rectangle([cx - rr2, cy - rr2 * 0.8, cx + rr2, cy + rr2 * 0.8],
+                                radius=int(rr2 * 0.26), outline=BLANCO + (int(210 * k_s),), width=5)
+            d.polygon([(cx - rr2 * 0.5, cy + rr2 * 0.8), (cx - rr2 * 0.18, cy + rr2 * 0.8),
+                       (cx - rr2 * 0.34, cy + rr2 * 1.25)], fill=BLANCO + (int(210 * k_s),))
+        else:
+            d.ellipse([cx - rr * 0.42, cy - rr * 0.42, cx + rr * 0.42, cy + rr * 0.42],
+                      fill=BLANCO + (int(200 * k_s),))
+    t_t = at.get("titulo", e["from"] + 0.7)
+    lineas = str(e.get("titulo", "")).split("\n") if e.get("titulo") else []
+    # `titular` ancla por el BORDE SUPERIOR de la primera linea: el subtitulo
+    # va por debajo del titular, no a una distancia fija de la esfera
+    y_tit = cy + r + 60
+    if lineas:
+        titular(ctx, layer, t, lineas, [t_t], tam=ESCALA["titular"], cy=y_tit)
+    if e.get("subtitulo"):
+        t_sb = at.get("subtitulo", t_t + 0.35)
+        k_sb = entra(t, t_sb, "suave")
+        if k_sb > 0:
+            fs = fuente_que_cabe(ctx.fX, e["subtitulo"], ESCALA["secundario"], zx1 - zx0 - 60, 600)
+            y_sb = y_tit + ESCALA["titular"] + 34
+            d.text((cx, y_sb), e["subtitulo"], font=fs,
+                   fill=GRIS + (int(255 * clamp01(k_sb * 1.4)),), anchor="ma")
+    return capa_salida(layer, t, e["to"])
+
+
 SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "chat":sc_chat,"leads":sc_leads,"handoff":sc_handoff,"pago":sc_pago,
         "listo":sc_listo,"pildoras":sc_pildoras,"hoy":sc_hoy,"recupera":sc_recupera,
@@ -3101,6 +3567,8 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,
+        # Ronda 6: indice, resalte y apertura de particulas (futuras del catalogo)
+        "index":sc_index,"callout":sc_callout,"orbOpen":sc_orbOpen,
         # Ronda 4: UI/Hero/Bento/Glass/3D-Icons (supahero, scrolltide, glass.samasante, 3dicons, cta.gallery, footer.design)
         "hero":sc_hero,"bento":sc_bento,
         # Ronda 5: Interactivos / Métricas / Audio / Social
@@ -3113,17 +3581,41 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
 # hex_a_rgb vive en _comun (unica fuente; DRY). Reusar aquí:
 from _comun import hex_a_rgb, info, leer_json  # noqa: E402,F401  # sys.path ya apunta a ffmpeg_tools
 
+def _instalar_tokens(c):
+    """Vuelca un juego de tokens de color en los globales del motor.
+
+    ÚNICA puerta: la usan tanto el pack de marca como la paleta del catálogo,
+    para que los dos caminos instalen exactamente los mismos globals.
+    """
+    global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS
+    ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS = (c["acento"], c["acento_oscuro"],
+                                               c["negro"], c["blanco"], c["gris"])
+
+
+def aplicar_paleta(nombre):
+    """Instala una paleta del catálogo de modo libre (references/paleta.md).
+
+    El pack de marca SIEMPRE gana: si el usuario nombró una marca, sus
+    colores mandan y esta función no se llama. Sin marca, la paleta la elige
+    el agente según el brief (teoría del color) y se declara en el plan
+    ("paleta": "menta") o con --paleta.
+    """
+    from _comun import info_paleta, paleta_libre
+    _instalar_tokens(paleta_libre(nombre))
+    _info = info_paleta(nombre)
+    _detalle = (f" ({_info['esquema']}, {_info['tono']})" if _info else "")
+    print(f"paleta '{nombre}'{_detalle}: acento #%02X%02X%02X" % ACENTO, flush=True)
+
+
 def aplicar_brand(brand_path):
     """Instala la identidad del pack: colores, tipografías, logos y reglas.
     La lectura vive en _comun (colores_marca, fuente_marca, ruta_de_pack):
     la misma para todas las herramientas del kit."""
-    global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS, LOGO, ISOTIPO, MARCA_NOMBRE, TRANSICIONES   # fuentes: vía globals()
+    global LOGO, ISOTIPO, MARCA_NOMBRE, TRANSICIONES   # fuentes: vía globals()
     global SOLAPE, SOLAPE_PRE
     from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
     d = leer_pack(brand_path)
-    c = colores_marca(brand_path)
-    ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS = (c["acento"], c["acento_oscuro"], c["negro"],
-                                               c["blanco"], c["gris"])
+    _instalar_tokens(colores_marca(brand_path))
     for rol, glob, defecto, gen in (("titulares", "FJ", "Plus Jakarta Sans", "sans-bold"),
                                     ("texto", "FM", "Montserrat", "sans"),
                                     ("etiquetas_mono", "MONO", "DejaVu Sans Mono", "mono")):
@@ -3219,7 +3711,29 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=1)
     fr,dy=respiracion(s,t)
     layer=encajar(pintar(ctx,s,t).copy(),escala_segura(ctx,s,si)*fr,dy)
-    if si in manchas_ok and t-s["from"]<0.9:
+    if s.get("transicion")=="iris" and si>0 and t-s["from"]<0.9:
+        # IRIS: la escena nueva se abre en circulo desde un punto (la cara)
+        ep=escenas[si-1]
+        fp,dyp=respiracion(ep,t)
+        prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp)
+        fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.38)
+        mask=iris_mask(ctx,t,s["from"],0.9,fx,fy)
+        inv=Image.eval(mask,lambda v:255-v)
+        nada=Image.new("RGBA",(W,H),(0,0,0,0))
+        bg.alpha_composite(Image.composite(prev,nada,inv))
+        bg.alpha_composite(Image.composite(layer,nada,mask))
+    elif s.get("transicion")=="dissolve" and si>0 and t-s["from"]<SOLAPE_DISSOLVE:
+        # DISOLUCION: la escena nueva aparece encima de la anterior con alfa
+        # creciente (un corte suave, sin mancha). Es la transicion mas neutra:
+        # no pide atencion como la mancha ni ensucia con formas.
+        ep=escenas[si-1]
+        fp,dyp=respiracion(ep,t)
+        bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp))
+        kd=smoothstep(clamp01((t-s["from"])/SOLAPE_DISSOLVE))
+        layer=layer.copy()
+        layer.putalpha(layer.split()[3].point(lambda v:int(v*kd)))
+        bg.alpha_composite(layer)
+    elif si in manchas_ok and t-s["from"]<0.9:
         ep=escenas[si-1]
         fp,dyp=respiracion(ep,t)
         prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp)
@@ -3271,23 +3785,27 @@ def frame_con_blur(ctx,escenas,dur,t,fps,n,obturador,manchas_ok):
 def presupuesto_manchas(escenas,maximo,avisar=True):
     """La 'mancha' es opt-in y motivada: como máximo `maximo` por pieza
     (fluidez.md). Las que excedan el presupuesto pasan a corte seco."""
-    ok=[]; pedidas=[i for i,e in enumerate(escenas) if i>0 and e.get("transicion")=="mancha"]
+    ok=[]; pedidas=[i for i,e in enumerate(escenas)
+                    if i>0 and e.get("transicion") in ("mancha", "iris")]
     for i in pedidas:
         if len(ok)<maximo: ok.append(i)
     if avisar and len(pedidas)>len(ok):
-        print(f"AVISO: {len(pedidas)} transiciones 'mancha' pedidas; se respetan {len(ok)} "
+        print(f"AVISO: {len(pedidas)} transiciones 'mancha'/'iris' pedidas; se respetan {len(ok)} "
               f"(máximo {maximo}, ver references/fluidez.md); el resto, corte seco",flush=True)
     return set(ok)
 
 _W={}
 def _init_worker(brand_path,acento,plan,maximo_cfg,safe=None,escalas=None,alfa=False,
-                 geo=(1080,1920,151)):
+                 geo=(1080,1920,151),paleta=None):
     """Inicializa un proceso de render (portable: también con 'spawn' en Windows/macOS)."""
     global ACENTO, ACENTO_OSC, ALFA, W, H, MARGEN
     ALFA=alfa; W,H,MARGEN=geo
     if brand_path:
         import io, contextlib
         with contextlib.redirect_stdout(io.StringIO()): aplicar_brand(brand_path)
+    elif paleta:
+        import io, contextlib
+        with contextlib.redirect_stdout(io.StringIO()): aplicar_paleta(paleta)
     elif acento:
         ACENTO=hex_a_rgb(acento); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
     if safe: SAFE.update(safe)
@@ -3351,8 +3869,10 @@ def render(plan_path,plan,out,a):
     from _comun import resolver_pack
     brand_path = resolver_pack(a.brand or plan.get("brand"))   # marca SOLO si se pide
     if brand_path:
-        aplicar_brand(brand_path)
-    elif plan.get("acento"):   # modo libre: el plan puede fijar su acento
+        aplicar_brand(brand_path)   # la marca manda SIEMPRE que se haya pedido
+    elif a.paleta or plan.get("paleta"):
+        aplicar_paleta(a.paleta or plan.get("paleta"))   # paleta elegida segun el brief
+    elif plan.get("acento"):   # modo libre: el plan puede fijar solo el acento
         ACENTO=hex_a_rgb(plan["acento"]); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
     aplicar_globales(plan)   # antes de formato: la banda de subtítulos entra en la zona segura
     formato(W,H,a.plataforma or plan.get("plataforma"))
@@ -3376,8 +3896,10 @@ def render(plan_path,plan,out,a):
             if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
     else:
         from multiprocessing import Pool
+        _pal=a.paleta or plan.get("paleta")
         init=(brand_path if brand_path else None, None if brand_path else plan.get("acento"),
-              dict(plan,escenas=escenas), plan.get("mancha_max"), dict(SAFE), dict(_ESCALA), ALFA, (W,H,MARGEN))   # escenas YA preparadas
+              dict(plan,escenas=escenas), plan.get("mancha_max"), dict(SAFE), dict(_ESCALA), ALFA, (W,H,MARGEN),
+              None if brand_path else _pal)   # escenas YA preparadas
         try:
             with Pool(a.jobs,initializer=_init_worker,initargs=init) as pool:
                 for i,_ in enumerate(pool.imap_unordered(_render_worker,jobs,chunksize=4)):
@@ -3408,7 +3930,9 @@ def render(plan_path,plan,out,a):
         os.replace(final,out)
         os.remove(mezcla)
         print(f"  música mezclada y normalizada: {float(nivel['input_i']):.1f} LUFS",flush=True)
-    print("OK",out)
+    # el render dice QUE produjo: el SKILL.md promete "1080x1920 @30fps" y el
+    # agente no deberia tener que abrir ffprobe para comprobarlo
+    print(f"OK {out} · {W}x{H} @{fps}fps · h264 yuv420p · {dur:.1f}s")
 
 MEDIOS=("imagen","captura","musica")   # campos del plan que apuntan a un archivo
 
@@ -3529,13 +4053,56 @@ def al_ritmo(escenas,plan):
           +f" (desvío máx {info['desvio_max']} s)",file=sys.stderr,flush=True)
     return escenas
 
+def resolver_datos(plan):
+    """Resuelve las referencias `{"$dato": "nombre"}` de las escenas contra el
+    bloque `datos` del plan.
+
+    EL MODELO ANTES DEL DIBUJO: las cifras de una pieza se declaran UNA vez,
+    arriba, con su fuente; las escenas las referencian. Asi ninguna escena
+    puede contradecir a otra: si dos ponian 3 y 9 para el mismo dato, ahora
+    hay un solo 3 (o un solo 9) y el linter avisa de la contradiccion.
+
+        "datos": {"servicios": {"valor": 6, "fuente": "catálogo 2026"}},
+        ... en la escena: "valor": {"$dato": "servicios"}
+    """
+    datos=plan.get("datos") or {}
+    if not isinstance(datos,dict):
+        sys.exit("ERROR: el bloque 'datos' del plan debe ser un objeto {nombre: {valor, fuente}}")
+    for nombre,entrada in datos.items():
+        if not isinstance(entrada,dict) or "valor" not in entrada:
+            sys.exit(f"ERROR: el dato '{nombre}' no tiene 'valor' (usa {{valor, fuente}})")
+    return datos
+
+def _resolver_dato(dato,datos,i,escena):
+    if isinstance(dato,dict) and "$dato" in dato:
+        nombre=dato["$dato"]
+        if nombre not in datos:
+            sys.exit(f"ERROR: escena {i} ({escena.get('tipo','?')}) pide el dato "
+                     f"'{nombre}' y el plan no lo declara en 'datos'")
+        return datos[nombre]["valor"]
+    return dato
+
+def _recorrer_datos(nodo,datos,i,escena):
+    if isinstance(nodo,dict):
+        if "$dato" in nodo and len(nodo)==1:
+            return _resolver_dato(nodo,datos,i,escena)
+        return {k:_recorrer_datos(v,datos,i,escena) for k,v in nodo.items()}
+    if isinstance(nodo,list):
+        return [_recorrer_datos(v,datos,i,escena) for v in nodo]
+    return nodo
+
 def preparar_escenas(ctx,plan):
     """Escenas del plan listas para componer: tiempos completados desde la
     muestra, en orden, y cada una compuesta UNA vez (escala_segura) para fallar
     en segundos con un mensaje claro, no tras minutos de render. Una sola
     puerta para render_plan y medir_animacion --plan."""
     aplicar_globales(plan)
+    datos=resolver_datos(plan)
     escenas=sorted((completar_escena(e,i) for i,e in enumerate(plan["escenas"])),key=lambda s:s["from"])
+    if datos:
+        for i,e in enumerate(escenas):
+            resuelto=_recorrer_datos(e,datos,i,e)
+            e.clear(); e.update(resuelto)
     if plan.get("musica") and plan.get("ritmo",True):   # edición al ritmo de la música
         escenas=al_ritmo(escenas,plan)
     for i,e in enumerate(escenas):
@@ -3597,6 +4164,10 @@ def main():
     ap.add_argument("--fps",type=int,default=30)
     ap.add_argument("--brand", default=None,
                     help="brand pack (brand/*.json); el plan también acepta campo \"brand\"")
+    ap.add_argument("--paleta", default=None,
+                    help="paleta del modo libre (references/paleta.md): electrico, menta, grafito, "
+                         "ambar, coral, violeta, magenta, oro. El plan también acepta campo "
+                         "\"paleta\". Si hay --brand, la marca manda")
     ap.add_argument("--blur",type=int,default=1,
                     help="sub-frames de motion blur (1=off, 4-6 para entrega final)")
     ap.add_argument("--obturador",type=float,default=0.5,

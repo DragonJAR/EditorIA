@@ -9,6 +9,7 @@ La skill adapta el plan a lo disponible; nunca promete lo que no puede verificar
 |---|---|---|
 | Render frame a frame | Python + PIL + numpy | Crítico: instalar (`pip install pillow numpy`) |
 | Encode / mux / cortes | ffmpeg + ffprobe | Crítico: instalar ffmpeg |
+| **Rotular sobre video existente** | filtros `drawtext` / `subtitles` / `ass` de ffmpeg (libass + libfreetype) | Degradar: el motor propio (`render_plan.py`) dibuja el texto con PIL y no depende de ffmpeg; lo que se rompe es `caption.py` (subtítulos quemados), el `hook_overlay` de `shorts_plan.py` y el timecode de `look.py`/`scenes.py`. El ffmpeg de Homebrew NO trae libass: la fórmula que sí es `brew install ffmpeg-full` (keg-only, no entra al PATH). **Las herramientas lo eligen solas**: `caption.py`, `look.py`, `scenes.py` y `shorts_plan.py` buscan un ffmpeg que traiga los filtros (en el PATH, en el keg de `ffmpeg-full` o en cualquier versión instalada) y lo usan solo para el comando que quema texto; el resto de comandos siguen con el ffmpeg normal. No hay que exportar nada a mano: en un agente cada llamada de shell es un proceso nuevo y un `export PATH` no persiste entre llamadas. `check_env.py` avisa al arrancar y dice qué binario va a usarse |
 | Voz en off, música IA | ElevenLabs (`$ELEVENLABS_API_KEY`) | Degradar: entregar sin audio + avisar; música libre solo si el usuario la provee |
 | Tipografía de marca | la del brand pack (ver `brand-packs.md`) | Degradar: sans del sistema + anotar la diferencia |
 | Isotipo oficial | el del brand pack (`logos.isotipo`) | Pedirlo al usuario; nunca redibujar el logo |
@@ -56,3 +57,7 @@ cifras se confirman contra la fuente primaria).
 Validar primero, prometer después. `check_env.py` al inicio de cada proyecto
 nuevo; si algo crítico falta, se dice en la primera respuesta, no después del
 tercer re-render.
+
+---
+
+→ Canónico: `references/capacidades.md` · Dominio: opcional · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`

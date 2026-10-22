@@ -90,7 +90,9 @@ Aplicar a cada escena antes de entregar.
   fuertes que en un frame estático; el brand pack puede habilitarlas si la
   marca las pide). Profundidad con blobs a la deriva + viñeta.
 - **Paleta**: un solo color de acento (el del brand pack, o el elegido en modo
-  libre). El acento comunica, no decora.
+  libre del catálogo de `references/paleta.md`). El acento comunica, no decora.
+  Sin marca, la paleta se **elige** según el brief; no se hereda de ninguna
+  marca.
 
 ## Diagramas
 

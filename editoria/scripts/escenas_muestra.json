@@ -1,178 +1,850 @@
 {
- "_nota": "Una muestra realista por tipo de escena, en tiempo local (from=0). Fuente ÚNICA para el smoke test de validate_skill.py y para galeria.py (render real + auto_qa). Textos neutros, sin marca: la identidad llega solo con --brand. Toda escena nueva en SCENES necesita su muestra aquí (el validador lo exige). Rutas de archivos (imagen, captura) relativas a este JSON: galeria.py genera las sintéticas.",
- "escenas": {
-  "apertura": {"from": 0, "to": 4.5,
-   "texto1": ["¿Editar video", "te toma *horas?*"], "texto2": ["Ahora es", "*automático.*"],
-   "at": {"cambio": 2.0, "p1": [0.2, 0.6, 1.0], "p2": [2.1, 2.45, 2.8]}},
-  "canales": {"from": 0, "to": 5,
-   "marca": "Tu Marca", "rotulo": "Todo en *un solo lugar*",
-   "canales": [{"canal": "whatsapp", "nombre": "WhatsApp", "texto": "¿Tienen envío hoy?", "at": 0.9},
-               {"canal": "correo", "nombre": "Correo", "texto": "Cotización recibida", "at": 1.5},
-               {"canal": "web", "nombre": "Web", "texto": "Nuevo formulario", "at": 2.1}],
-   "at": {"marca": 0.3, "junta": 3.0, "rotulo": 3.2}},
-  "medianoche": {"from": 0, "to": 5,
-   "rotulo": "Mientras *duermes*", "hora": "00:47", "fecha": "martes, 14 de mayo",
-   "notificaciones": [{"canal": "whatsapp", "titulo": "Nuevo pedido", "texto": "2 unidades · pagado", "at": 1.2},
-                      {"canal": "correo", "titulo": "Cita agendada", "texto": "Mañana 9:00", "at": 2.0},
-                      {"canal": "web", "titulo": "Lead caliente", "texto": "Pidió una demo", "at": 2.8}]},
-  "chat": {"from": 0, "to": 6,
-   "rotulo": "Pregunta *y recibe*",
-   "mensajes": [{"de": "cliente", "texto": "¿Pueden entregar el viernes?", "at": 0.6},
-                {"de": "ia", "texto": "Sí: llega el viernes antes de las 12.", "at": 1.9},
-                {"de": "cliente", "texto": "Perfecto, ¿cómo pago?", "at": 3.0}],
-   "link": {"titulo": "Pedido #1042", "monto": "$89.000", "at": 4.0},
-   "at": {"rotulo": 0.2}},
-  "leads": {"from": 0, "to": 5,
-   "rotulo": "Prioriza *a quién llamar*", "total": "24 leads hoy",
-   "filas": [{"nombre": "Laura M.", "canal": "web", "etapa": "Demo", "puntaje": 92, "temp": "Caliente"},
-             {"nombre": "Pedro R.", "canal": "whatsapp", "etapa": "Cotiza", "puntaje": 64, "temp": "Tibio"},
-             {"nombre": "Sofía G.", "canal": "correo", "etapa": "Visita", "puntaje": 31, "temp": "Frío"}],
-   "at": {"rotulo": 0.2, "Caliente": 1.6, "Tibio": 2.4, "Frío": 3.2}},
-  "handoff": {"from": 0, "to": 5,
-   "rotulo": "Pasa a un humano *con contexto*", "cliente": "Laura Martínez", "iniciales": "LM",
-   "temp": "Caliente", "nota": "Te avisa al instante",
-   "contexto": [{"k": "Busca", "v": "Plan anual"}, {"k": "Equipo", "v": "12 personas"}, {"k": "Urgencia", "v": "Este mes"}],
-   "at": {"rotulo": 0.2, "persona": 0.8, "contexto": 1.6}},
-  "pago": {"from": 0, "to": 5,
-   "rotulo": "Cobra *sin perseguir*", "cliente": "Laura Martínez", "monto": "$450.000",
-   "detalle": "Plan anual · 12 usuarios",
-   "at": {"rotulo": 0.2, "comprobante": 0.8, "cursor": 1.8, "toque": 2.8}},
-  "listo": {"from": 0, "to": 3, "texto": "¡Listo!", "at": {"listo": 0.4}},
-  "pildoras": {"from": 0, "to": 3.5,
-   "texto": ["Adiós a las", "*horas* de edición"],
-   "at": {"palabras": [0.3, 0.45, 0.85, 1.0, 1.4, 1.6]}},
-  "hoy": {"from": 0, "to": 5,
-   "rotulo": "Tu día, *en orden*", "fecha": "martes, 14 de mayo", "cuenta": 18,
-   "tarjetas": [{"titulo": "Llamar", "detalle": "3 leads calientes", "n": 3, "alerta": true},
-                {"titulo": "Cobrar", "detalle": "2 pagos pendientes", "n": 2},
-                {"titulo": "Responder", "detalle": "5 mensajes", "n": 5},
-                {"titulo": "Publicar", "detalle": "1 video listo"}],
-   "at": {"rotulo": 0.2, "cuenta": 0.6}},
-  "recupera": {"from": 0, "to": 5,
-   "rotulo": "Recupera *ventas perdidas*", "resumen": "Carrito abandonado", "cliente": "Pedro Ramírez",
-   "hace": "hace 2 horas", "monto": "$129.900",
-   "at": {"rotulo": 0.2, "cursor": 1.0, "recupera": 2.4, "pagado": 2.6}},
-  "remate": {"from": 0, "to": 4.5,
-   "lineas": ["¡Tú *creas!*", "La IA *edita.*"], "gigante": "10x",
-   "at": {"palabras": [0.2, 0.55, 0.9, 1.2, 1.55], "gigante": 2.2}},
-  "final": {"from": 0, "to": 5,
-   "marca": "Tu Marca", "lema": "Edita menos, *crea más*", "boton": "tumarca.com",
-   "at": {"lema": 0.9, "boton": 1.8}},
-  "bars": {"from": 0, "to": 5, "titulo": "Horas de edición por video",
-   "barras": [{"etiqueta": "Manual", "valor": 6, "max": 6}, {"etiqueta": "Plantillas", "valor": 3.5, "max": 6},
-              {"etiqueta": "Con IA", "valor": 0.6, "max": 6, "acento": true}],
-   "fuente": "Encuesta interna, 2026 (n=120)",
-   "at": {"rotulo": 0.2, "bar0": 0.8, "bar1": 1.1, "bar2": 1.4, "fuente": 2.6}},
-  "gauge": {"from": 0, "to": 5, "titulo": "Satisfacción de clientes", "valor": 94, "max": 100,
-   "etiqueta": "de 100 puntos", "at": {"rotulo": 0.2, "gauge": 0.7, "etiqueta": 2.2}},
-  "ranking": {"from": 0, "to": 5, "titulo": "Canales que más venden",
-   "items": [{"etiqueta": "WhatsApp", "valor": 48}, {"etiqueta": "Web", "valor": 31},
-             {"etiqueta": "Instagram", "valor": 14}, {"etiqueta": "Correo", "valor": 7}],
-   "fuente": "Ventas Q1 2026, % del total",
-   "at": {"rotulo": 0.2, "item0": 0.7, "item1": 1.0, "item2": 1.3, "item3": 1.6, "fuente": 2.8}},
-  "stats": {"from": 0, "to": 5, "titulo": "Un mes con el sistema",
-   "cards": [{"valor": 312, "etiqueta": "videos", "acento": true}, {"valor": 48, "etiqueta": "horas ahorradas"},
-             {"valor": 27, "etiqueta": "% más alcance"}],
-   "fuente": "Datos de mayo 2026",
-   "at": {"rotulo": 0.2, "card0": 0.7, "card1": 0.95, "card2": 1.2, "fuente": 2.8}},
-  "timeline": {"from": 0, "to": 5, "titulo": "Cómo llegamos aquí",
-   "items": [{"etiqueta": "Idea", "fecha": "2023"}, {"etiqueta": "Beta", "fecha": "2024"},
-             {"etiqueta": "Lanzamiento", "fecha": "2025"}, {"etiqueta": "10k usuarios", "fecha": "2026"}],
-   "at": {"rotulo": 0.2, "item0": 0.8, "item1": 1.3, "item2": 1.8, "item3": 2.3}},
-  "quote": {"from": 0, "to": 6,
-   "texto": "Pasamos de un video por semana a *uno por día* sin contratar a nadie.",
-   "autor": "Laura Martínez", "rol": "Directora de marketing", "estrellas": 4.5,
-   "at": {"card": 0.2, "texto": 0.6, "autor": 3.0}},
-  "versus": {"from": 0, "to": 5, "titulo": "Antes y *después*",
-   "izquierda": {"etiqueta": "Antes", "items": ["6 h por video", "Un editor", "Sin datos"]},
-   "derecha": {"etiqueta": "Después", "items": ["35 min", "Todo el equipo", "Métricas al día"]},
-   "at": {"rotulo": 0.2, "izq": 0.8, "der": 1.6}},
-  "confetti": {"from": 0, "to": 4, "texto": "¡10.000 usuarios!", "subtexto": "Gracias por estar aquí",
-   "at": {"particulas": 0.3, "texto": 0.5, "subtexto": 1.1}},
-  "typewriter": {"from": 0, "to": 5,
-   "texto": "Escribe la idea. El video se arma solo.", "fuente": "Demo con datos ficticios",
-   "at": {"rotulo": 0.2, "cursor": 0.5, "fuente": 3.8}},
-  "kenburns": {"from": 0, "to": 5, "imagen": "foto_muestra.png",
-   "titulo": "Un lugar para volver", "subtitulo": "Temporada 2026",
-   "zoom_from": 1.0, "zoom_to": 1.15, "pan_x": 0.03, "pan_y": -0.02, "dur_kb": 5.0,
-   "at": {"kenburns": 0.0, "texto": 0.8, "subtitulo": 1.6}},
-  "pasos": {"from": 0, "to": 5, "titulo": "Tres pasos",
-   "items": [{"titulo": "Escribe", "texto": "La idea en una frase", "at": 0.8},
-             {"titulo": "Revisa", "texto": "El plan y la voz", "at": 1.9},
-             {"titulo": "Publica", "texto": "En todas tus redes", "at": 3.0}],
-   "at": {"rotulo": 0.2, "item0": 0.8, "item1": 1.9, "item2": 3.0}},
-  "countdown": {"from": 0, "to": 5, "segundos": 3, "rotulo": "Empezamos en", "final": "¡EN VIVO!",
-   "at": {"rotulo": 0.1, "inicio": 0.4}},
-  "oferta": {"from": 0, "to": 6, "rotulo": "Solo esta semana", "antes": 199000, "descuento": 30,
-   "moneda": "$", "miles": ".", "decimal": ",", "codigo": "VERANO30", "vence": "Hasta el domingo 18",
-   "cta": "Compra ya",
-   "at": {"rotulo": 0.1, "descuento": 0.4, "tachado": 1.1, "precio": 1.5, "codigo": 2.6, "vence": 3.4, "cta": 4.0}},
-  "demo": {"from": 0, "to": 7, "captura": "captura_muestra.png", "url": "app.ejemplo.com/proyectos",
-   "rotulo": "Así de *simple*",
-   "pasos": [{"x": 0.82, "y": 0.12, "at": 1.6, "zoom": 1.6, "texto": "Crea un proyecto", "captura": "captura_muestra_2.png"},
-             {"x": 0.3, "y": 0.62, "at": 4.0, "zoom": 1.5, "texto": "Exporta con un clic"}],
-   "at": {"rotulo": 0.1, "ventana": 0.3}},
-  "rotulo_inferior": {"from": 0, "to": 5, "nombre": "Laura Martínez", "rol": "Directora de marketing",
-   "at": {"entra": 0.3}},
-  "hero": {"from": 0, "to": 5, "badge": "NUEVO MOTOR 2.0",
-   "titulo": "Videos con *física real*", "subtitulo": "Del guion al corte final en minutos",
-   "metrica": "3.4x", "etiqueta_metrica": "más retención en redes", "cta": "Pruébalo hoy",
-   "at": {"badge": 0.15, "titulo": 0.45, "card": 1.05, "cta": 1.75}},
-  "bento": {"from": 0, "to": 5, "rotulo": "Todo en *una grilla*",
-   "items": [{"icono": "01", "titulo": "Motor fluido", "texto": "Resortes y cámara viva", "acento": true},
-             {"icono": "02", "titulo": "Marca blanca", "texto": "Fidelidad total al pack"},
-             {"icono": "03", "titulo": "Auto-QA", "texto": "Verificado cuadro a cuadro"}],
-   "pie": "PRODUCCIÓN LISTA PARA REDES",
-   "at": {"rotulo": 0.15, "item0": 0.65, "item1": 1.0, "item2": 1.35, "pie": 2.1}},
-   "buscador": {"from": 0, "to": 5.5,
-    "rotulo": "¿Cómo encontrar la *mejor solución?*",
-    "query": "cómo automatizar la creación de videos con IA",
-    "resultados": [
-      {"texto": "EditorIA: render fluido y paramétrico", "desc": "Automatización total de video en segundos", "acento": true},
-      {"texto": "Plantillas dinámicas con animaciones", "desc": "Física de resortes y composición en capas"},
-      {"texto": "Generación multi-formato 9:16 y 16:9", "desc": "Exportación optimizada para redes"}
-    ],
-    "at": {"rotulo": 0.2, "query": 0.6, "res0": 2.2, "res1": 2.6, "res2": 3.0}},
-   "notificacion": {"from": 0, "to": 5.5,
-    "rotulo": "Alertas *en tiempo real*",
-    "items": [
-      {"app": "Editor", "titulo": "Video generado", "texto": "Tu render de 30s está listo para publicar", "hora": "ahora", "icono": "🎬"},
-      {"app": "Redes", "titulo": "Campaña activa", "texto": "3 publicaciones programadas para hoy", "hora": "hace 2 min", "icono": "📱"},
-      {"app": "Métricas", "titulo": "Nuevo récord", "texto": "+140% de retención en el primer minuto", "hora": "hace 5 min", "icono": "📈"}
-    ],
-    "at": {"rotulo": 0.2, "item0": 0.8, "item1": 1.7, "item2": 2.6}},
-   "comentario": {"from": 0, "to": 5.5,
-    "rotulo": "Lo que dicen *los creadores*",
-    "autor": "Carlos Mendoza",
-    "usuario": "@carlos_mendoza",
-    "iniciales": "CM",
-    "verificado": true,
-    "estrellas": 5.0,
-    "texto": "Pasamos de tardar horas editando cada clip a tener decenas de variantes *listas para publicar* en minutos.",
-    "likes": "1.420",
-    "fecha": "Ayer a las 18:40",
-    "at": {"rotulo": 0.2, "card": 0.6, "texto": 1.1, "likes": 2.2}},
-   "pie": {"from": 0, "to": 5.5,
-    "titulo": "Distribución de *audiencia*",
-    "porciones": [
-      {"etiqueta": "Móvil (Reels/TikTok)", "valor": 55, "acento": true},
-      {"etiqueta": "Escritorio (Web)", "valor": 30},
-      {"etiqueta": "Tablet & TV", "valor": 15}
-    ],
-    "centro": "100%",
-    "fuente": "Estudio de consumo de video digital",
-    "at": {"rotulo": 0.2, "pie": 0.7, "p0": 1.1, "p1": 1.5, "p2": 1.9, "fuente": 2.8}},
-   "orbita": {"from": 0, "to": 5.0,
-    "kicker": "MOTOR DE GENERACIÓN 2.0",
-    "titulo": "Animación *autónoma*",
-    "subtitulo": "Física real, tipografía y movimiento continuo",
-    "at": {"kicker": 0.2, "titulo": 0.6, "subtitulo": 1.4}},
-   "audiowave": {"from": 0, "to": 5.5,
-    "rotulo": "Audio y *voz en off*",
-    "archivo": "narracion_sintetica.wav",
-    "hablante": "Voz generada por IA",
-    "transcripcion": "Sincronización cuadro a cuadro entre audio y gráficos.",
-    "estado": "REC ● 00:14",
-    "at": {"rotulo": 0.2, "tarjeta": 0.6, "onda": 1.0, "texto": 1.8}}
- }
+  "_nota": "Una muestra realista por tipo de escena, en tiempo local (from=0). Fuente ÚNICA para el smoke test de validate_skill.py y para galeria.py (render real + auto_qa). Textos neutros, sin marca: la identidad llega solo con --brand. Toda escena nueva en SCENES necesita su muestra aquí (el validador lo exige). Rutas de archivos (imagen, captura) relativas a este JSON: galeria.py genera las sintéticas. (Ronda 6: index, callout, orbOpen)",
+  "escenas": {
+    "apertura": {
+      "from": 0,
+      "to": 4.5,
+      "texto1": [
+        "¿Editar video",
+        "te toma *horas?*"
+      ],
+      "texto2": [
+        "Ahora es",
+        "*automático.*"
+      ],
+      "at": {
+        "cambio": 2.0,
+        "p1": [
+          0.2,
+          0.6,
+          1.0
+        ],
+        "p2": [
+          2.1,
+          2.45,
+          2.8
+        ]
+      }
+    },
+    "canales": {
+      "from": 0,
+      "to": 5,
+      "marca": "Tu Marca",
+      "rotulo": "Todo en *un solo lugar*",
+      "canales": [
+        {
+          "canal": "whatsapp",
+          "nombre": "WhatsApp",
+          "texto": "¿Tienen envío hoy?",
+          "at": 0.9
+        },
+        {
+          "canal": "correo",
+          "nombre": "Correo",
+          "texto": "Cotización recibida",
+          "at": 1.5
+        },
+        {
+          "canal": "web",
+          "nombre": "Web",
+          "texto": "Nuevo formulario",
+          "at": 2.1
+        }
+      ],
+      "at": {
+        "marca": 0.3,
+        "junta": 3.0,
+        "rotulo": 3.2
+      }
+    },
+    "medianoche": {
+      "from": 0,
+      "to": 5,
+      "rotulo": "Mientras *duermes*",
+      "hora": "00:47",
+      "fecha": "martes, 14 de mayo",
+      "notificaciones": [
+        {
+          "canal": "whatsapp",
+          "titulo": "Nuevo pedido",
+          "texto": "2 unidades · pagado",
+          "at": 1.2
+        },
+        {
+          "canal": "correo",
+          "titulo": "Cita agendada",
+          "texto": "Mañana 9:00",
+          "at": 2.0
+        },
+        {
+          "canal": "web",
+          "titulo": "Lead caliente",
+          "texto": "Pidió una demo",
+          "at": 2.8
+        }
+      ]
+    },
+    "chat": {
+      "from": 0,
+      "to": 6,
+      "rotulo": "Pregunta *y recibe*",
+      "mensajes": [
+        {
+          "de": "cliente",
+          "texto": "¿Pueden entregar el viernes?",
+          "at": 0.6
+        },
+        {
+          "de": "ia",
+          "texto": "Sí: llega el viernes antes de las 12.",
+          "at": 1.9
+        },
+        {
+          "de": "cliente",
+          "texto": "Perfecto, ¿cómo pago?",
+          "at": 3.0
+        }
+      ],
+      "link": {
+        "titulo": "Pedido #1042",
+        "monto": "$89.000",
+        "at": 4.0
+      },
+      "at": {
+        "rotulo": 0.2
+      }
+    },
+    "leads": {
+      "from": 0,
+      "to": 5,
+      "rotulo": "Prioriza *a quién llamar*",
+      "total": "24 leads hoy",
+      "filas": [
+        {
+          "nombre": "Laura M.",
+          "canal": "web",
+          "etapa": "Demo",
+          "puntaje": 92,
+          "temp": "Caliente"
+        },
+        {
+          "nombre": "Pedro R.",
+          "canal": "whatsapp",
+          "etapa": "Cotiza",
+          "puntaje": 64,
+          "temp": "Tibio"
+        },
+        {
+          "nombre": "Sofía G.",
+          "canal": "correo",
+          "etapa": "Visita",
+          "puntaje": 31,
+          "temp": "Frío"
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "Caliente": 1.6,
+        "Tibio": 2.4,
+        "Frío": 3.2
+      }
+    },
+    "handoff": {
+      "from": 0,
+      "to": 5,
+      "rotulo": "Pasa a un humano *con contexto*",
+      "cliente": "Laura Martínez",
+      "iniciales": "LM",
+      "temp": "Caliente",
+      "nota": "Te avisa al instante",
+      "contexto": [
+        {
+          "k": "Busca",
+          "v": "Plan anual"
+        },
+        {
+          "k": "Equipo",
+          "v": "12 personas"
+        },
+        {
+          "k": "Urgencia",
+          "v": "Este mes"
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "persona": 0.8,
+        "contexto": 1.6
+      }
+    },
+    "pago": {
+      "from": 0,
+      "to": 5,
+      "rotulo": "Cobra *sin perseguir*",
+      "cliente": "Laura Martínez",
+      "monto": "$450.000",
+      "detalle": "Plan anual · 12 usuarios",
+      "at": {
+        "rotulo": 0.2,
+        "comprobante": 0.8,
+        "cursor": 1.8,
+        "toque": 2.8
+      }
+    },
+    "listo": {
+      "from": 0,
+      "to": 3,
+      "texto": "¡Listo!",
+      "at": {
+        "listo": 0.4
+      }
+    },
+    "pildoras": {
+      "from": 0,
+      "to": 3.5,
+      "texto": [
+        "Adiós a las",
+        "*horas* de edición"
+      ],
+      "at": {
+        "palabras": [
+          0.3,
+          0.45,
+          0.85,
+          1.0,
+          1.4,
+          1.6
+        ]
+      }
+    },
+    "hoy": {
+      "from": 0,
+      "to": 5,
+      "rotulo": "Tu día, *en orden*",
+      "fecha": "martes, 14 de mayo",
+      "cuenta": 18,
+      "tarjetas": [
+        {
+          "titulo": "Llamar",
+          "detalle": "3 leads calientes",
+          "n": 3,
+          "alerta": true
+        },
+        {
+          "titulo": "Cobrar",
+          "detalle": "2 pagos pendientes",
+          "n": 2
+        },
+        {
+          "titulo": "Responder",
+          "detalle": "5 mensajes",
+          "n": 5
+        },
+        {
+          "titulo": "Publicar",
+          "detalle": "1 video listo"
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "cuenta": 0.6
+      }
+    },
+    "recupera": {
+      "from": 0,
+      "to": 5,
+      "rotulo": "Recupera *ventas perdidas*",
+      "resumen": "Carrito abandonado",
+      "cliente": "Pedro Ramírez",
+      "hace": "hace 2 horas",
+      "monto": "$129.900",
+      "at": {
+        "rotulo": 0.2,
+        "cursor": 1.0,
+        "recupera": 2.4,
+        "pagado": 2.6
+      }
+    },
+    "remate": {
+      "from": 0,
+      "to": 4.5,
+      "lineas": [
+        "¡Tú *creas!*",
+        "La IA *edita.*"
+      ],
+      "gigante": "10x",
+      "at": {
+        "palabras": [
+          0.2,
+          0.55,
+          0.9,
+          1.2,
+          1.55
+        ],
+        "gigante": 2.2
+      }
+    },
+    "final": {
+      "from": 0,
+      "to": 5,
+      "marca": "Tu Marca",
+      "lema": "Edita menos, *crea más*",
+      "boton": "tumarca.com",
+      "at": {
+        "lema": 0.9,
+        "boton": 1.8
+      }
+    },
+    "bars": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Horas de edición por video",
+      "barras": [
+        {
+          "etiqueta": "Manual",
+          "valor": 6,
+          "max": 6
+        },
+        {
+          "etiqueta": "Plantillas",
+          "valor": 3.5,
+          "max": 6
+        },
+        {
+          "etiqueta": "Con IA",
+          "valor": 0.6,
+          "max": 6,
+          "acento": true
+        }
+      ],
+      "fuente": "Encuesta interna, 2026 (n=120)",
+      "at": {
+        "rotulo": 0.2,
+        "bar0": 0.8,
+        "bar1": 1.1,
+        "bar2": 1.4,
+        "fuente": 2.6
+      }
+    },
+    "gauge": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Satisfacción de clientes",
+      "valor": 94,
+      "max": 100,
+      "etiqueta": "de 100 puntos",
+      "at": {
+        "rotulo": 0.2,
+        "gauge": 0.7,
+        "etiqueta": 2.2
+      }
+    },
+    "ranking": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Canales que más venden",
+      "items": [
+        {
+          "etiqueta": "WhatsApp",
+          "valor": 48
+        },
+        {
+          "etiqueta": "Web",
+          "valor": 31
+        },
+        {
+          "etiqueta": "Instagram",
+          "valor": 14
+        },
+        {
+          "etiqueta": "Correo",
+          "valor": 7
+        }
+      ],
+      "fuente": "Ventas Q1 2026, % del total",
+      "at": {
+        "rotulo": 0.2,
+        "item0": 0.7,
+        "item1": 1.0,
+        "item2": 1.3,
+        "item3": 1.6,
+        "fuente": 2.8
+      }
+    },
+    "stats": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Un mes con el sistema",
+      "cards": [
+        {
+          "valor": 312,
+          "etiqueta": "videos",
+          "acento": true
+        },
+        {
+          "valor": 48,
+          "etiqueta": "horas ahorradas"
+        },
+        {
+          "valor": 27,
+          "etiqueta": "% más alcance"
+        }
+      ],
+      "fuente": "Datos de mayo 2026",
+      "at": {
+        "rotulo": 0.2,
+        "card0": 0.7,
+        "card1": 0.95,
+        "card2": 1.2,
+        "fuente": 2.8
+      }
+    },
+    "timeline": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Cómo llegamos aquí",
+      "items": [
+        {
+          "etiqueta": "Idea",
+          "fecha": "2023"
+        },
+        {
+          "etiqueta": "Beta",
+          "fecha": "2024"
+        },
+        {
+          "etiqueta": "Lanzamiento",
+          "fecha": "2025"
+        },
+        {
+          "etiqueta": "10k usuarios",
+          "fecha": "2026"
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "item0": 0.8,
+        "item1": 1.3,
+        "item2": 1.8,
+        "item3": 2.3
+      }
+    },
+    "quote": {
+      "from": 0,
+      "to": 6,
+      "texto": "Pasamos de un video por semana a *uno por día* sin contratar a nadie.",
+      "autor": "Laura Martínez",
+      "rol": "Directora de marketing",
+      "estrellas": 4.5,
+      "at": {
+        "card": 0.2,
+        "texto": 0.6,
+        "autor": 3.0
+      }
+    },
+    "versus": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Antes y *después*",
+      "izquierda": {
+        "etiqueta": "Antes",
+        "items": [
+          "6 h por video",
+          "Un editor",
+          "Sin datos"
+        ]
+      },
+      "derecha": {
+        "etiqueta": "Después",
+        "items": [
+          "35 min",
+          "Todo el equipo",
+          "Métricas al día"
+        ]
+      },
+      "at": {
+        "rotulo": 0.2,
+        "izq": 0.8,
+        "der": 1.6
+      }
+    },
+    "confetti": {
+      "from": 0,
+      "to": 4,
+      "texto": "¡10.000 usuarios!",
+      "subtexto": "Gracias por estar aquí",
+      "at": {
+        "particulas": 0.3,
+        "texto": 0.5,
+        "subtexto": 1.1
+      }
+    },
+    "typewriter": {
+      "from": 0,
+      "to": 5,
+      "texto": "Escribe la idea. El video se arma solo.",
+      "fuente": "Demo con datos ficticios",
+      "at": {
+        "rotulo": 0.2,
+        "cursor": 0.5,
+        "fuente": 3.8
+      }
+    },
+    "kenburns": {
+      "from": 0,
+      "to": 5,
+      "imagen": "foto_muestra.png",
+      "titulo": "Un lugar para volver",
+      "subtitulo": "Temporada 2026",
+      "zoom_from": 1.0,
+      "zoom_to": 1.15,
+      "pan_x": 0.03,
+      "pan_y": -0.02,
+      "dur_kb": 5.0,
+      "at": {
+        "kenburns": 0.0,
+        "texto": 0.8,
+        "subtitulo": 1.6
+      }
+    },
+    "pasos": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Tres pasos",
+      "items": [
+        {
+          "titulo": "Escribe",
+          "texto": "La idea en una frase",
+          "at": 0.8
+        },
+        {
+          "titulo": "Revisa",
+          "texto": "El plan y la voz",
+          "at": 1.9
+        },
+        {
+          "titulo": "Publica",
+          "texto": "En todas tus redes",
+          "at": 3.0
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "item0": 0.8,
+        "item1": 1.9,
+        "item2": 3.0
+      }
+    },
+    "countdown": {
+      "from": 0,
+      "to": 5,
+      "segundos": 3,
+      "rotulo": "Empezamos en",
+      "final": "¡EN VIVO!",
+      "at": {
+        "rotulo": 0.1,
+        "inicio": 0.4
+      }
+    },
+    "oferta": {
+      "from": 0,
+      "to": 6,
+      "rotulo": "Solo esta semana",
+      "antes": 199000,
+      "descuento": 30,
+      "moneda": "$",
+      "miles": ".",
+      "decimal": ",",
+      "codigo": "VERANO30",
+      "vence": "Hasta el domingo 18",
+      "cta": "Compra ya",
+      "at": {
+        "rotulo": 0.1,
+        "descuento": 0.4,
+        "tachado": 1.1,
+        "precio": 1.5,
+        "codigo": 2.6,
+        "vence": 3.4,
+        "cta": 4.0
+      }
+    },
+    "demo": {
+      "from": 0,
+      "to": 7,
+      "captura": "captura_muestra.png",
+      "url": "app.ejemplo.com/proyectos",
+      "rotulo": "Así de *simple*",
+      "pasos": [
+        {
+          "x": 0.82,
+          "y": 0.12,
+          "at": 1.6,
+          "zoom": 1.6,
+          "texto": "Crea un proyecto",
+          "captura": "captura_muestra_2.png"
+        },
+        {
+          "x": 0.3,
+          "y": 0.62,
+          "at": 4.0,
+          "zoom": 1.5,
+          "texto": "Exporta con un clic"
+        }
+      ],
+      "at": {
+        "rotulo": 0.1,
+        "ventana": 0.3
+      }
+    },
+    "rotulo_inferior": {
+      "from": 0,
+      "to": 5,
+      "nombre": "Laura Martínez",
+      "rol": "Directora de marketing",
+      "at": {
+        "entra": 0.3
+      }
+    },
+    "hero": {
+      "from": 0,
+      "to": 5,
+      "badge": "NUEVO MOTOR 2.0",
+      "titulo": "Videos con *física real*",
+      "subtitulo": "Del guion al corte final en minutos",
+      "metrica": "3.4x",
+      "etiqueta_metrica": "más retención en redes",
+      "cta": "Pruébalo hoy",
+      "at": {
+        "badge": 0.15,
+        "titulo": 0.45,
+        "card": 1.05,
+        "cta": 1.75
+      }
+    },
+    "bento": {
+      "from": 0,
+      "to": 5,
+      "rotulo": "Todo en *una grilla*",
+      "items": [
+        {
+          "icono": "01",
+          "titulo": "Motor fluido",
+          "texto": "Resortes y cámara viva",
+          "acento": true
+        },
+        {
+          "icono": "02",
+          "titulo": "Marca blanca",
+          "texto": "Fidelidad total al pack"
+        },
+        {
+          "icono": "03",
+          "titulo": "Auto-QA",
+          "texto": "Verificado cuadro a cuadro"
+        }
+      ],
+      "pie": "PRODUCCIÓN LISTA PARA REDES",
+      "at": {
+        "rotulo": 0.15,
+        "item0": 0.65,
+        "item1": 1.0,
+        "item2": 1.35,
+        "pie": 2.1
+      }
+    },
+    "buscador": {
+      "from": 0,
+      "to": 5.5,
+      "rotulo": "¿Cómo encontrar la *mejor solución?*",
+      "query": "cómo automatizar video con IA",
+      "resultados": [
+        {
+          "texto": "EditorIA: render fluido y paramétrico",
+          "desc": "Automatización total de video en segundos",
+          "acento": true
+        },
+        {
+          "texto": "Plantillas dinámicas con animaciones",
+          "desc": "Física de resortes y composición en capas"
+        },
+        {
+          "texto": "Generación multi-formato 9:16 y 16:9",
+          "desc": "Exportación optimizada para redes"
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "query": 0.6,
+        "res0": 2.2,
+        "res1": 2.6,
+        "res2": 3.0
+      }
+    },
+    "notificacion": {
+      "from": 0,
+      "to": 5.5,
+      "rotulo": "Alertas *en tiempo real*",
+      "items": [
+        {
+          "app": "Editor",
+          "titulo": "Video generado",
+          "texto": "Tu render de 30s está listo para publicar",
+          "hora": "ahora",
+          "icono": "🎬"
+        },
+        {
+          "app": "Redes",
+          "titulo": "Campaña activa",
+          "texto": "3 publicaciones programadas para hoy",
+          "hora": "hace 2 min",
+          "icono": "📱"
+        },
+        {
+          "app": "Métricas",
+          "titulo": "Nuevo récord",
+          "texto": "+140% de retención en el primer minuto",
+          "hora": "hace 5 min",
+          "icono": "📈"
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "item0": 0.8,
+        "item1": 1.7,
+        "item2": 2.6
+      }
+    },
+    "comentario": {
+      "from": 0,
+      "to": 5.5,
+      "rotulo": "Lo que dicen *los creadores*",
+      "autor": "Carlos Mendoza",
+      "usuario": "@carlos_mendoza",
+      "iniciales": "CM",
+      "verificado": true,
+      "estrellas": 5.0,
+      "texto": "Pasamos de tardar horas editando cada clip a tener decenas de variantes *listas para publicar* en minutos.",
+      "likes": "1.420",
+      "fecha": "Ayer a las 18:40",
+      "at": {
+        "rotulo": 0.2,
+        "card": 0.6,
+        "texto": 1.1,
+        "likes": 2.2
+      }
+    },
+    "pie": {
+      "from": 0,
+      "to": 5.5,
+      "titulo": "Distribución de *audiencia*",
+      "porciones": [
+        {
+          "etiqueta": "Móvil (Reels/TikTok)",
+          "valor": 55,
+          "acento": true
+        },
+        {
+          "etiqueta": "Escritorio (Web)",
+          "valor": 30
+        },
+        {
+          "etiqueta": "Tablet & TV",
+          "valor": 15
+        }
+      ],
+      "centro": "100%",
+      "fuente": "Estudio de consumo de video digital",
+      "at": {
+        "rotulo": 0.2,
+        "pie": 0.7,
+        "p0": 1.1,
+        "p1": 1.5,
+        "p2": 1.9,
+        "fuente": 2.8
+      }
+    },
+    "orbita": {
+      "from": 0,
+      "to": 5.0,
+      "kicker": "MOTOR DE GENERACIÓN 2.0",
+      "titulo": "Animación *autónoma*",
+      "subtitulo": "Física real, tipografía y movimiento continuo",
+      "at": {
+        "kicker": 0.2,
+        "titulo": 0.6,
+        "subtitulo": 1.4
+      }
+    },
+    "audiowave": {
+      "from": 0,
+      "to": 5.5,
+      "rotulo": "Audio y *voz en off*",
+      "archivo": "narracion_sintetica.wav",
+      "hablante": "Voz generada por IA",
+      "transcripcion": "Sincronización cuadro a cuadro.",
+      "estado": "REC ● 00:14",
+      "at": {
+        "rotulo": 0.2,
+        "tarjeta": 0.6,
+        "onda": 1.0,
+        "texto": 1.8
+      }
+    },
+    "callout": {
+      "from": 0,
+      "to": 5,
+      "titulo": "El *dato* que lo cambia todo",
+      "captura": "captura_muestra.png",
+      "objeto": {
+        "x": 0.62,
+        "y": 0.42,
+        "r": 0.34
+      },
+      "etiqueta": "El 60 % decide el resultado",
+      "detalle": "Del total de clientes activos",
+      "fuente": "Estudio interno 2025",
+      "at": {
+        "rotulo": 0.2,
+        "circulo": 0.6,
+        "etiqueta": 1.5,
+        "fuente": 2.4
+      }
+    },
+    "index": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Lo que *vamos a ver*",
+      "items": [
+        {
+          "texto": "El problema real"
+        },
+        {
+          "texto": "Lo que nadie mide"
+        },
+        {
+          "texto": "El método que funciona"
+        },
+        {
+          "texto": "Empezamos"
+        }
+      ],
+      "at": {
+        "rotulo": 0.2,
+        "item0": 0.6,
+        "item1": 0.9,
+        "item2": 1.2,
+        "item3": 1.5
+      }
+    },
+    "orbOpen": {
+      "from": 0,
+      "to": 5,
+      "titulo": "Empezamos",
+      "subtitulo": "Tres ideas que cambian el resultado",
+      "at": {
+        "titulo": 0.8,
+        "subtitulo": 1.4
+      }
+    }
+  }
 }

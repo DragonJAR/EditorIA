@@ -54,6 +54,12 @@ pip3 install pillow numpy
 Notas macOS:
 - Las fuentes se resuelven desde `/System/Library/Fonts` y `~/Library/Fonts`.
 - `fc-match` no existe por defecto: la resolución usa los directorios del sistema.
+- El `ffmpeg` de Homebrew **no trae libass** (faltan `drawtext`, `subtitles`, `ass`).
+  Para rotular sobre video existente: `brew install ffmpeg-full`. Es **keg-only**
+  (no entra al PATH), pero las herramientas lo **encuentran solas** para el
+  comando que quema texto — no hace falta exportar nada a mano. Sin él, la
+  creación por plan sigue funcionando (el motor dibuja el texto con PIL); solo
+  fallan los subtítulos quemados. Ver `references/capacidades.md`.
 
 ### Linux (Debian/Ubuntu)
 
@@ -77,3 +83,7 @@ Fedora: `sudo dnf install ffmpeg python3-pip`.
 - Nunca se asume `python3` como binario: `check_env.py` usa el intérprete en ejecución.
 - `ffmpeg`/`ffprobe` se buscan en el PATH con mensajes de instalación por SO si faltan.
 - Rutas con `~` se expanden con `os.path.expanduser` (funciona en los tres SO).
+
+---
+
+→ Canónico: `references/instalacion.md` · Dominio: operacion · Vecinos: `references/capacidades.md`, `references/auto-mejora.md`, `references/mapa.md`

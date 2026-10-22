@@ -206,8 +206,8 @@ def main():
                      f"fontsize=h/14:box=1:boxcolor=black@0.55:boxborderw=4:x=6:y=6")
         vf = (f"select='{expr}',scale={tile_w}:-2{stamp},"
               f"tile={cols}x{rows}:padding=2:margin=2:color=0x202020")
-        run(ffmpeg_base() + ["-i", args.input, "-vf", vf, "-frames:v", "1",
-                             "-fps_mode", "vfr", args.sheet])
+        run(ffmpeg_base(texto=True) + ["-i", args.input, "-vf", vf, "-frames:v", "1",
+                                      "-fps_mode", "vfr", args.sheet])
         info(f"escribi {args.sheet}")
         result["sheet"] = args.sheet
 
