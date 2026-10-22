@@ -26,7 +26,7 @@ import referencia as REF
 import speech_estimate as SE
 
 
-# Familias de escenas compatibles para variación de layouts visuales (100% catálogo oficial de 36 escenas)
+# Familias de escenas compatibles para variación de layouts visuales (100% catálogo oficial de 39 escenas)
 FAMILIAS_ESCENAS = {
     "hook": ["titular", "apertura", "hero", "pildoras", "countdown", "buscador"],
     "dato": ["stats", "ranking", "bars", "gauge", "pie", "bento"],
@@ -52,6 +52,24 @@ MAPEO_ESCENAS_VALIDAS = {
     "logogrid": "final",
     "pantalla": "demo"
 }
+
+
+def _ajustar_voz(texto, dur_escena):
+    """Corta la voz para que quepa en la escena, con el margen real.
+
+    `auditar_plan_voces` mide contra `to - from - AIRE_VOZ` (la voz entra en
+    from+0.4 s). Si la variante nace con la voz desbordada, el plan no pasa
+    la puerta y el agente tiene que descubrirlo al auditar el plan, no al
+    generarlo. Aqui se recorta POR PALABRAS hasta que entra.
+    """
+    util = max(0.2, dur_escena - SE.AIRE_VOZ)
+    palabras = texto.split()
+    while palabras and SE.estimar_duracion(" ".join(palabras), "es") > util:
+        palabras.pop()
+    if not palabras:
+        # ni una palabra entra: el texto se deja vacio y lo escribe el agente
+        return ""
+    return " ".join(palabras)
 
 
 def rebase_at(obj, offset, factor=1.0):
@@ -196,6 +214,8 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
 
     print(f"Generando {num_variantes} variantes para el tema: '{tema}'...")
 
+    needing = []            # variantes cuya voz todavia no cabe
+    variantes_con_voz = []  # planes escritos
     for v_idx in range(1, num_variantes + 1):
         var_dir = os.path.join(out_dir, f"variante_{v_idx}")
         os.makedirs(var_dir, exist_ok=True)
@@ -204,7 +224,7 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
         for seg in segmentos:
             rol = seg["rol"]
             opciones = FAMILIAS_ESCENAS.get(rol, ["titular"])
-            # Alternar tipo de escena según variante y normalizar a catálogo de 36 escenas
+            # Alternar tipo de escena según variante y normalizar a catálogo de 39 escenas
             raw_tipo = opciones[(v_idx - 1) % len(opciones)]
             tipo = MAPEO_ESCENAS_VALIDAS.get(raw_tipo, raw_tipo)
 
@@ -223,12 +243,13 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
             if "kicker" in base_escena:
                 base_escena["kicker"] = f"Variante {v_idx}"
 
-            # Inyectar voz para narración y auditar que quepa en la duración
+            # Inyectar voz para narración y ajustar que quepa en la duración.
+            # El margen es el MISMO que usa la auditoría (`AIRE_VOZ`): la voz
+            # entra en from+0.4 s, asi que el tiempo utile es to-from-0.4.
+            # Antes se comparaba contra la duración completa (0.4 s de
+            # optimismo) y el recorte solo funcionaba si el texto tenia ":".
             txt_voz = base_escena.get("titulo") or base_escena.get("rotulo") or f"{tema} punto clave {seg['indice']}"
-            base_escena["voz"] = txt_voz.replace("*", "")
-            dur_est = SE.estimar_duracion(base_escena["voz"], "es")
-            if dur_est > seg["duracion"]:
-                base_escena["voz"] = base_escena["voz"].split(":")[0]
+            base_escena["voz"] = _ajustar_voz(txt_voz.replace("*", ""), seg["duracion"])
 
             escenas_plan.append(base_escena)
 
@@ -247,9 +268,27 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
 
         # Auditar con speech_estimate
         audi = SE.auditar_plan_voces(plan)
-        print(f"OK Variante {v_idx}: {len(escenas_plan)} escenas -> {plan_path} ({'Voz OK' if audi['valido'] else 'Ajustar voz'})")
+        if audi["valido"]:
+            print(f"OK Variante {v_idx}: {len(escenas_plan)} escenas -> {plan_path} (voz OK)")
+        else:
+            # el plan NO pasa la puerta: decirlo, no venderlo como "OK"
+            print(f"AVISO Variante {v_idx}: {len(escenas_plan)} escenas -> {plan_path} "
+                  f"({len(audi['alertas'])} escenas con la voz desbordada)")
+            for a in audi["alertas"][:3]:
+                print(f"        escena {a['escena_index']}: la voz se sale en "
+                      f"{a['exceso_segundos']}s -> alarga la escena o recorta el texto")
+            needing.append(v_idx)
+        # el texto de voz es un placeholder de la referencia: hay que reescribirlo
+        variantes_con_voz.append(plan_path)
 
-    print(f"\nOK {num_variantes} variantes generadas exitosamente en: {out_dir}")
+    print(f"\n{num_variantes} variantes en: {out_dir}")
+    if needing:
+        print(f"ATENCION: {len(needing)} variante(s) con la voz desbordada (arriba). "
+              "El texto de voz es un PLACEHOLDER de la referencia: reescribilo y "
+              "re-audita antes de renderizar.")
+    else:
+        print("La voz cabe en todas las escenas. El texto sigue siendo un PLACEHOLDER "
+              "de la referencia: reescribilo con el copy real antes de renderizar.")
     print(f"Renderizar con: python3 scripts/render_plan.py {os.path.join(out_dir, 'variante_1', 'plan.json')} -o out_v1.mp4")
 
 

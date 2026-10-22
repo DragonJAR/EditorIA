@@ -187,7 +187,60 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
             add("AVISO", fin, f"plan['duracion']={plan['duracion']}s pero la última "
                               f"escena termina en {fin:.2f}s")
 
+    for msg in credenciales_en(plan):
+        add("ERROR", 0.0, msg)
+
     return hallazgos
+
+
+#: como se ve una credencial. El plan va al repo y al guion: una key pegada
+#: ahi se publica. La regla del SKILL.md ("no credentials or API keys appear
+#: in plan.json or brand/*.json") era una promesa sin ningun check: ahora la
+#: cumple el mismo comando que el agente corre antes de renderizar.
+_PATRONES_CRED = (
+    (re.compile(r"sk-[A-Za-z0-9_\-]{12,}"), "una key con formato sk-..."),
+    (re.compile(r"(?i)\b(eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.)"), "un JWT"),
+    (re.compile(r"(?i)\b(?:api[_\-]?key|apikey|secret|token|password|passwd|bearer|authorization)\b\s*[:=]"),
+     "una clave o un token"),
+    (re.compile(r"(?i)\b[A-Z][A-Z0-9_]{4,}(?:API[_\-]?KEY|SECRET|TOKEN|PASSWORD)\b"),
+     "el nombre de una variable de entorno con una key"),
+)
+
+#: el nombre del campo es la senal: "secret", "api_key", "token"...
+_NOMBRE_CRED = re.compile(
+    r"(?i)^(api[_\-]?key|apikey|secret|secret[_\-]?key|access[_\-]?token|auth[_\-]?token|"
+    r"token|password|passwd|pwd|bearer|authorization|credential[s]?)$")
+
+#: valores que NO son una credencial (placeholders de un pack o de un ejemplo)
+_PLACEHOLDER = re.compile(r"(?i)^(x{3,}|\.{3,}|<[^>]*>|null|none|todo|changeme|placeholder|"
+                          r"your[_\-]?\w*|mi[_\-]?\w*|aqu[ií]|xxx+|\$\{.*\}|%.*%)$")
+
+
+def credenciales_en(datos, ruta=""):
+    """Mensajes con las credenciales que aparecen en un JSON (plan o pack)."""
+    hallados = []
+    if isinstance(datos, dict):
+        for k, v in datos.items():
+            donde = f"{ruta}.{k}" if ruta else str(k)
+            if isinstance(v, str):
+                for pat, que in _PATRONES_CRED:
+                    if pat.search(v):
+                        hallados.append(f"posible credencial en '{donde}' ({que}): "
+                                        f"quitalo — el plan se publica en el repo")
+                        break
+            else:
+                hallados += credenciales_en(v, donde)
+            # el NOMBRE del campo tambien delata: una clave llamada "secret"
+            # o "api_key" en un plan significa que alguien la pego ahi
+            if isinstance(v, str) and v.strip() and not _PLACEHOLDER.search(v):
+                if _NOMBRE_CRED.search(str(k)):
+                    hallados.append(f"el campo '{donde}' parece una credencial "
+                                    f"(nombre de campo sensible): quitalo — el plan "
+                                    f"se publica en el repo")
+    elif isinstance(datos, list):
+        for i, v in enumerate(datos):
+            hallados += credenciales_en(v, f"{ruta}[{i}]")
+    return hallados
 
 
 def main():
@@ -227,7 +280,9 @@ def main():
                          ensure_ascii=False, indent=1))
     else:
         if not hallazgos:
-            print(f"OK plan limpio: {len(escenas)} escenas auditadas")
+            # el string importa: el SKILL.md promete "PLAN VALIDO" y el agente
+            # busca esa palabra para saber que el plan esta listo
+            print(f"OK · PLAN VALIDO: {len(escenas)} escenas auditadas")
         else:
             print(f"{errores} error(es), {len(hallazgos)-errores} aviso(s) "
                   f"en {len(escenas)} escenas:")

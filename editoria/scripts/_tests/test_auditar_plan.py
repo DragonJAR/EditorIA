@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""Tests del auditor de plan: credenciales, estructura y voz.
+
+Lo que motivó esto: el SKILL.md promete, en la seccion "Critical", que
+"no credentials or API keys appear in plan.json or brand/*.json", y nadie lo
+verificaba. Un plan con una key pegada se publica en el repo con la pieza.
+Ahora el mismo comando que el agente corre antes de renderizar lo dice.
+
+Run with: python3 -m unittest discover -s SKILL/scripts/_tests
+"""
+
+import json
+import os
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SCRIPTS = os.path.dirname(HERE)
+sys.path.insert(0, SCRIPTS)
+
+import auditar_plan as AP  # noqa: E402
+
+
+def _plan(**extra):
+    plan = {"duracion": 3.0,
+            "escenas": [{"tipo": "apertura", "from": 0, "to": 3, "texto1": ["Hola"]}]}
+    plan.update(extra)
+    return plan
+
+
+class TestCredenciales(unittest.TestCase):
+    """Una credencial en el plan se publica con la pieza."""
+
+    def _errores(self, plan):
+        return [h["msg"] for h in AP.auditar_estructura(plan) if h["nivel"] == "ERROR"]
+
+    def test_una_key_con_formato_sk_falla(self):
+        errs = self._errores(_plan(api_key="sk-abc1234567890xyz"))
+        self.assertTrue(errs)
+        self.assertIn("credencial", errs[0])
+
+    def test_un_campo_que_se_llama_secret_falla(self):
+        errs = self._errores(_plan(marca={"secret": "AKIAIOSFODNN7EXAMPLE"}))
+        self.assertTrue(errs)
+
+    def test_una_variable_de_entorno_con_key_falla(self):
+        errs = self._errores(_plan(guion="ELEVENLABS_API_KEY=abcd1234"))
+        self.assertTrue(errs)
+
+    def test_un_jwt_falla(self):
+        errs = self._errores(_plan(nota="Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc"))
+        self.assertTrue(errs)
+
+    def test_un_plan_limpio_no_da_falso_positivo(self):
+        self.assertEqual(self._errores(_plan(rotulo="Mi marca", tokens_de_diseno="abc")), [])
+
+    def test_un_placeholder_no_es_credencial(self):
+        self.assertEqual(self._errores(_plan(api_key="<tu key>")), [])
+        self.assertEqual(self._errores(_plan(secret="xxx")), [])
+
+    def test_los_packs_de_ejemplo_estan_limpios(self):
+        """Todos los packs que se publican, sin nombrar ninguno en el fuente.
+
+        Los packs se descubren con un glob: el nombre del pack de ejemplo es
+        una marca de la casa y no puede quedar escrito en el codigo.
+        """
+        import glob
+        packs = glob.glob(os.path.join(SCRIPTS, "..", "brand", "*.json"))
+        if not packs:
+            self.skipTest("este arbol no trae packs de ejemplo")
+        for pack in packs:
+            with open(pack, encoding="utf-8") as f:
+                self.assertEqual(AP.credenciales_en(json.load(f)), [],
+                                 f"credencial en el pack {os.path.basename(pack)}")
+
+    def test_la_credencial_aparece_en_el_archivo_del_plan(self):
+        """No basta con la funcion: el ERROR tiene que salir en la salida real."""
+        with tempfile.TemporaryDirectory() as d:
+            ruta = os.path.join(d, "plan.json")
+            with open(ruta, "w", encoding="utf-8") as f:
+                json.dump(_plan(api_key="sk-abc1234567890xyz"), f)
+            import subprocess
+            r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "auditar_plan.py"), ruta],
+                               capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("credencial", r.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -157,6 +157,21 @@ for x in packs:
 check(not pack_malos, "brand packs validos: JSON + nombre + acento "
       + (f"({len(packs) - len(pack_malos)}/{len(packs)} OK; {chr(59).join(pack_malos[:3])})"
          if pack_malos else f"({len(packs)}/{len(packs)} OK)"))
+# los packs se publican con la skill: una key pegada ahi se filtra al mundo
+# (la misma regla del SKILL.md para plan.json, ahora con un check de verdad)
+try:
+    import auditar_plan as _AP
+    _cred = []
+    for x in packs:
+        try:
+            _datos = json.load(open(x, encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for _m in _AP.credenciales_en(_datos):
+            _cred.append(f"{os.path.basename(x)}: {_m}")
+except Exception as _e:                       # noqa: BLE001
+    _cred = [f"el verificador de credenciales fallo: {_e}"]
+check(not _cred, f"sin credenciales ni keys en los brand packs ({'; '.join(_cred[:3]) or 'ninguna'})")
 marcas = [os.path.splitext(os.path.basename(x))[0] for x in packs]
 colores = []
 for x in packs:
@@ -369,14 +384,36 @@ req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
 for f in req:
     check(os.path.exists(os.path.join(BASE, f)), f"existe {f}")
 readmes_internos, zips_internos = [], []
+def _git_ignorado(rel_f):
+    """True si git ya excluye el archivo: no puede llegar a una distribucion,
+    asi que no es basura de la skill (el .DS_Store lo regenera Finder en
+    macOS y hacia fallar la validacion de la copia del repo para siempre)."""
+    try:
+        p = subprocess.run(["git", "check-ignore", "-q", os.path.join(BASE, rel_f)],
+                           cwd=os.path.dirname(BASE), capture_output=True, timeout=10)
+        return p.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+def _basura_del_sistema(rel_f):
+    """El .DS_Store lo pone el sistema, no la skill.
+
+    En el repo, git ya lo excluye. En la copia INSTALADA (que vive fuera de
+    un repo, en ~/.minimax/skills) `git check-ignore` no aplica y el archivo
+    se cuela: Finder lo regenera en cuanto el usuario abre la carpeta y la
+    validacion nunca converge. Un check que no puede dar verde es un check
+    roto, no una garantia: aqui se descarta el archivo del sistema y se
+    sigue vigilando la basura de verdad (.zip, .bak...).
+    """
+    return os.path.basename(rel_f) == ".DS_Store"
 for dp, _dn, fn in os.walk(BASE):
     if "__pycache__" in dp:
         continue
     for f in fn:
         rel_f = os.path.relpath(os.path.join(dp, f), BASE)
-        if f.lower().startswith("readme"):
+        if f.lower().startswith("readme") and not _git_ignorado(rel_f):
             readmes_internos.append(rel_f)
-        if f.lower().endswith(".zip") or f == ".DS_Store":
+        if (f.lower().endswith(".zip") or f == ".DS_Store") and not (
+                _git_ignorado(rel_f) or _basura_del_sistema(rel_f)):
             zips_internos.append(rel_f)
 check(not readmes_internos, f"sin README.md en ninguna subcarpeta de la skill ({', '.join(readmes_internos) or 'ninguno'})")
 check(not zips_internos, f"sin archivos .zip ni .DS_Store dentro de la skill ({', '.join(zips_internos) or 'ninguno'})")
@@ -483,8 +520,32 @@ try:
         R.formato(ancho, alto)
         ctx = R.Ctx()
         fuera, escenas_ok = [], 0
+        fuera_letra = []
+        # espia de la letra: el motor no puede dibujar texto por debajo de su
+        # PROPIO piso (MIN_LETRA). Se mide el tamaño AUTORADO (el que escribe el
+        # motor): si una escena lo incumple con un texto de tamaño fijo, el QA
+        # la rechaza siempre y la pieza no se puede entregar ni acortando el
+        # copy. Se mide el máximo por texto (la entrada con resorte pasa por
+        # tamaños chicos: el tamaño en reposo es el mayor).
+        _tam_texto = {}
+        _ID = __import__("PIL.ImageDraw", fromlist=["ImageDraw"])
+        _texto_orig = _ID.ImageDraw.text
+
+        def _espia_letra(self, xy, text, fill=None, font=None, *a, **k):
+            if font is not None and str(text).strip() and self.im.size == (R.W, R.H):
+                t = str(text)
+                if any(c.isalnum() for c in t):
+                    s = int(getattr(font, "size", 0))
+                    if s > _tam_texto.get(t, 0):
+                        _tam_texto[t] = s
+            # se llama a la ORIGINAL guardada: por el atributo de la clase se
+            # llamaria a la espia (recursion infinita)
+            return _texto_orig(self, xy, text, fill, font, *a, **k)
+
+        _ID.ImageDraw.text = _espia_letra
         for nombre, fn in R.SCENES.items():
             e = dict(muestras.get(nombre, {"from": 0, "to": 5, "at": {}}), tipo=nombre)
+            _tam_texto.clear()
             try:
                 # además de 3 instantes, CADA entrada del plan (at + 0/16/33/100 ms):
                 # ahí los resortes son diminutos y nacen las geometrías inválidas
@@ -516,11 +577,22 @@ try:
                 # ignora la zona segura y en el tope el contenido queda bajo la UI
                 if f < 0.75:
                     fuera.append(f"{nombre} x{f:.2f}")
+                # el piso de letra: ninguna escena dibuja texto por debajo de
+                # MIN_LETRA (el glifo "✓" no cuenta: no tiene alfanumericos)
+                bajo = {t_: s_ for t_, s_ in _tam_texto.items() if s_ < R.MIN_LETRA}
+                if bajo:
+                    t_malo = min(bajo, key=lambda k: bajo[k])
+                    fuera_letra.append(f"{nombre} {bajo[t_malo]} px ({t_malo[:26]!r})")
                 escenas_ok += 1
             except Exception as ex:
                 check(False, f"escena {nombre} {ancho}x{alto}: {type(ex).__name__}: {ex}")
         check(escenas_ok == n_total,
               f"{ancho}x{alto}: {n_total}/{n_total} escenas renderizan ({escenas_ok}/{n_total})")
+        check(not fuera_letra,
+              f"{ancho}x{alto}: ninguna escena dibuja texto bajo el piso de letra "
+              f"({R.MIN_LETRA} px)"
+              + ("" if not fuera_letra else ": " + "; ".join(fuera_letra)))
+        _ID.ImageDraw.text = _texto_orig
         check(not fuera, f"{ancho}x{alto}: muestras caben en la zona segura sin encogerse "
                          f"bajo x0.75 ({', '.join(fuera) or 'todas'})")
         # fondo vivo: en el hold asentado la imagen cambia lo que auto_qa exige
@@ -1173,6 +1245,53 @@ _ut = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", os.pat
                      capture_output=True, text=True, timeout=300)
 _ut_res = (_ut.stderr.strip().splitlines() or ["?"])[-1]
 check(_ut.returncode == 0, f"tests unitarios de scripts/_tests ({_ut_res})")
+
+# 9. la skill es un sistema y no un archon: todo alcanzable desde SKILL.md,
+#    cada referencia con su canonico y sus vecinos, y el mapa sin contradicciones
+_mapa = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "auditar_mapa.py")],
+                       capture_output=True, text=True, timeout=300)
+check(_mapa.returncode == 0,
+      "la skill no tiene islas: mapa, canonicos y vecinos coherentes (scripts/auditar_mapa.py)")
+for _l in (_mapa.stdout.strip().splitlines() or [])[:6]:
+    if _l.strip().startswith(("MAPA:", "  ")):
+        print("   " + _l.strip())
+
+# 10. los comandos que dice el SKILL.md se pueden correr: la doc no puede
+#     pedirle al agente un comando que el argparse rechaza
+sys.path.insert(0, os.path.join(BASE, "scripts"))
+try:
+    import _comandos_doc
+    _probs = _comandos_doc.verificar_todo(BASE)   # SKILL.md, referencias y README
+except Exception as _e:                       # noqa: BLE001
+    _probs = [f"el verificador de comandos fallo: {_e}"]
+for _p in _probs:
+    print("   comando documentado roto: " + _p)
+check(not _probs, f"los comandos documentados (SKILL.md, referencias y README) se pueden ejecutar "
+                   f"({len(_probs)} rotos)")
+
+# 11. la skill declara Windows 10/11, macOS y Linux: el codigo no puede
+#     depender de POSIX (senal POSIX, /tmp, shell de unix, rutas a mano)
+_POSIX = (
+    (r"\bsignal\.SIGALRM\b", "señal POSIX (no existe en Windows)"),
+    (r"\bos\.fork\b|\bmultiprocessing\.set_start_method\(['\"]fork", "fork de POSIX"),
+    (r"\bfcntl\.|\btermios\.", "módulo POSIX"),
+    (r"shell\s*=\s*True", "subprocess con shell de unix"),
+    (r"[\"']/tmp/", "ruta /tmp absoluta"),
+    (r"\bos\.path\.join\([^)]*[\"']/", "separador de unix pegado a mano"),
+)
+_posix_hits = []
+for _f in sorted(glob.glob(os.path.join(BASE, "scripts", "**", "*.py"), recursive=True)):
+    if "__pycache__" in _f:
+        continue
+    with open(_f, encoding="utf-8") as _fh:
+        _src = _fh.read()
+    for _pat, _que in _POSIX:
+        for _m in re.finditer(_pat, _src):
+            _line = _src[:_m.start()].count("\n") + 1
+            _posix_hits.append(f"{os.path.relpath(_f, BASE)}:{_line} {_que}")
+check(not _posix_hits,
+      f"el codigo no depende de POSIX (la skill declara Windows, macOS y Linux) "
+      f"({'; '.join(_posix_hits[:4]) or 'limpio'})")
 
 print()
 if fails:
