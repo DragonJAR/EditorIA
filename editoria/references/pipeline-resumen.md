@@ -72,3 +72,7 @@ Adaptadas de su `CLAUDE.md` (Windows/Remotion; lo portable a este entorno Linux)
   (ver `references/thumbnails.md` — el QA de thumbnails manda sobre esta nota).
 - Vertical: gancho en los primeros 2,8 s; subtítulos en zona segura (y≈1420 en 1920).
 - Regla de oro: mirar los fotogramas antes del render completo, siempre.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/scoring-shorts.md`, `references/modos-rapidos.md`, `references/video-real.md`

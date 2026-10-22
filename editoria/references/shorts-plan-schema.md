@@ -47,3 +47,7 @@ timeline del short (los cues fuera de los segmentos se descartan) |
 - Los segmentos no se solapan (se ordenan por `from`).
 - La duración total SHOULD ser ≤ 180s (formato short); si la excede, aviso.
 - El hook (`hook_overlay` en el primer segmento) SHOULD durar 1–3s.
+
+---
+
+→ Canónico: `references/plan-video.md` · Dominio: plan · Vecinos: `references/modos-rapidos.md`, `references/formatos.md`, `references/mapa.md`

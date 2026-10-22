@@ -52,15 +52,9 @@ cortes, roles y `plantilla.json`. Anotar la URL en `ANALYSIS.md`. Una referencia
 
 ## 3. Hacer visible el tiempo
 
-1. **Palabras con tiempo**: `python scripts/alinear.py fuente.mp4 -o
-   fuente.palabras.json --idioma {es|en}` (sin guion = transcripción por
-   palabra; acepta video). La transcripción es evidencia, no interpretación:
-   un nombre mal reconocido no es un error de pronunciación.
-2. **Cortes**: `python scripts/ffmpeg_tools/scenes.py fuente.mp4 --sheet
-   evidencia/cortes.png`. Un corte de cámara ayuda a navegar; no decide qué
-   va junto (un objeto que sobrevive al corte pertenece a un sistema más largo).
-3. **Cadencia**: `python scripts/verificar_ritmo.py` sobre la referencia
-   (regla dura de `references/ritmo.md`).
+1. **Palabras con tiempo**: `python scripts/alinear.py fuente.mp4 -o fuente.palabras.json --idioma es` (sin guion = transcripción por palabra; acepta video). La transcripción es evidencia, no interpretación: un nombre mal reconocido no es un error de pronunciación.
+2. **Cortes**: `python scripts/ffmpeg_tools/scenes.py fuente.mp4 --sheet evidencia/cortes.png`. Un corte de cámara ayuda a navegar; no decide qué va junto (un objeto que sobrevive al corte pertenece a un sistema más largo).
+3. **Cadencia**: `python scripts/verificar_ritmo.py fuente.mp4` sobre la referencia (regla dura de `references/ritmo.md`).
 4. **Mosaicos con palabras** (`scripts/contact_sheet.py`), a la escala de la pregunta:
 
 | Pregunta | Mosaico |
@@ -197,3 +191,7 @@ tramo cambiado con sus relevos y juzgarlo dentro de la pieza entera.
 Antes de cualquier trabajo pagado (TTS, música IA), acordar con el usuario
 qué cubre y cuánto, y anotarlo en `BRIEF.md`. Lo que exceda ese acuerdo es
 decisión del usuario. `PROGRESO.md` lleva el gasto real frente al acordado.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-rapidos.md`, `references/estilos.md`, `references/copy.md`

@@ -265,3 +265,7 @@ Build a 20-second product launch video for {{PRODUCT}} using tokens from
   convierte en entregable.
 - Promesas de tiempo/costo de la tabla de arriba como garantía: son datos
   de terceros, no un SLA.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/recetas-ai-video.md`, `references/scene-patterns-from-internet.md`, `references/copy.md`

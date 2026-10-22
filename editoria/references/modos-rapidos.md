@@ -22,6 +22,7 @@ el relevo en `at.cambio`.
 
 ```bash
 python scripts/auditar_plan.py plan.json
+python scripts/lint_copy.py plan.json
 python scripts/render_plan.py plan.json -o carta.mp4 --blur 5
 python scripts/qa_entrega.py carta.mp4 --plan plan.json
 ```
@@ -33,7 +34,7 @@ python scripts/qa_entrega.py carta.mp4 --plan plan.json
 - Salida: fade de 0,3 s. Duración 3-6 s según la longitud.
 - Tipografía: la de titulares del brand pack (ExtraBold; en modo libre, una
   sans geométrica de peso alto). Fondo: el vivo del motor, con el acento del
-  pack.
+  pack o de la paleta elegida (`references/paleta.md`).
 
 ## quick-montage — montaje de clips con música (15-60s)
 

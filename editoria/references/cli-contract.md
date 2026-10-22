@@ -60,3 +60,7 @@ Notes: la fuente era VFR, se conformó a 30 fps
 
 Si falla: `Done:` se vuelve `Failed:` con el `error.message` citado, no
 parafraseado. `Look: not needed` solo en trabajos sin cambio de imagen.
+
+---
+
+→ Canónico: `references/instalacion.md` · Dominio: operacion · Vecinos: `references/capacidades.md`, `references/arquitectura.md`, `references/mapa.md`

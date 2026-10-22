@@ -72,3 +72,7 @@ Cuando se parte de un video de referencia o se quiere modelar una estructura vir
 - No cortar una frase por la mitad para "apretar el ritmo": se reescribe el
   guion o se deja el aire.
 - No poner música con letra bajo una voz hablando.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/tecnicas-reutilizables.md`, `references/montaje.md`

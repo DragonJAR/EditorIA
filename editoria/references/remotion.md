@@ -26,7 +26,10 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
   grande — el costo es real, no asumir gratuidad universal.
 - **Versiones fijadas**: todos los paquetes `@remotion/*` deben quedar en
   la misma versión exacta, sin `^` (ej. `4.0.532`). El scaffolder oficial
-  `npx remotion@latest new` ya lo deja así.
+  `npx create-video@latest` ya lo deja así. Ojo: `npx remotion@latest new`
+  **no funciona** — el paquete `remotion` no declara ningún binario (el CLI
+  vive en `@remotion/cli`), así que npm responde "could not determine
+  executable to run". Verificado contra el registro de npm.
 - **`tsc` correcto**: `npx tsc --noEmit` sin el paquete `typescript`
   instalado descarga el obsoleto `tsc@2.0.4` (NO valida nada). Después de
   `npm install`, usar `./node_modules/.bin/tsc --noEmit` o `npm run lint`.
@@ -73,3 +76,7 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
 - Regla: si la pieza se resuelve en <10 escenas del plan, el motor Python
   suele ser más rápido. Remotion brilla a partir de lógica que Python
   expresaría con dificultad.
+
+---
+
+→ Canónico: `references/capacidades.md` · Dominio: opcional · Vecinos: `references/hyperframes.md`, `references/instalacion.md`, `references/prompt-motion-graphics.md`

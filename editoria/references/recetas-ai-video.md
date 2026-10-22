@@ -157,3 +157,7 @@ Remotion o el motor Python), checklist mínimo:
    si la música tiene golpes que sincronizar.
 6. Plan de revisión: contact sheet pre-render
    (`scripts/contact_sheet.py`) + loop cerrado (`references/auto-qa.md`).
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/prompt-motion-graphics.md`, `references/modos-produccion.md`, `references/modos-rapidos.md`

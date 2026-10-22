@@ -13,9 +13,19 @@ festival de cine — cada frame intencional, nada decorativo, nada accidental.
 - Un solo color de acento en todo el video (del brand pack, o el elegido en
   modo libre). El acento marca lo importante, lo nuevo y la cifra; reservado
   (~10% del plano como máximo). El resto: neutros.
+  **Sin marca, el acento se elige, no se hereda**: del catálogo de
+  `references/paleta.md`, según la teoría del color y el brief. El pack
+  manda solo si el usuario nombró una marca.
 - Un solo sistema tipográfico: una familia para titulares, una para texto,
   una monoespaciada para kickers/datos. Kickers siempre en mayúsculas con
   letterspacing. (Sin pack: Plus Jakarta Sans / Montserrat, empaquetadas.)
+- **Una sola escala tipográfica para todo el catálogo** (`ESCALA` en
+  `scripts/render_plan.py`): un rol = un tamaño, en todo el video.
+  `titular` 120 · `rotulo` 44 · `dato` 36 · `secundario` 32 · `nota` 28.
+  El `titular` es el único que se auto-ajusta (el copy se acorta, no la
+  tipografía). **Nada de la tipografía de la pieza baja de 28 px**: el texto
+  dibujado *dentro* de un mockup diegético (teléfono, app, post) es parte de
+  la imagen, no de la tipografía del video, y por eso no lo mide el QA.
 - Un solo sistema de componentes: badges, píldoras, tarjetas con radio
   consistente, iconografía geométrica simple. No mezclar estilos dentro del
   mismo video.
@@ -36,7 +46,9 @@ festival de cine — cada frame intencional, nada decorativo, nada accidental.
 ## 3. Efectos especiales deslumbrantes y acordes
 - El fondo animado (ondas, aurora, partículas) es el *escenario*: continuo, sutil,
   en tonos profundos del acento. Nunca compite con el contenido.
-- Entradas: fade + elevación 50px en 0,45s. Salidas: fade 0,35s.
+- Entradas: fade + elevación 30px en 0,45s (`ELEV` en el motor: una sola cifra
+  para titular, rótulo y grupos). Salidas: fade 0,35s, solapado con la entrada
+  siguiente para que no quede un corte en negro.
 - Revelados secuenciales para datos que se cuentan: grilla celda por celda (0,12s),
   filas que aparecen en cascada (0,3s), barras, providers.
 - Regla de oro: **el efecto presenta información, no decora**. Si un efecto no ayuda
@@ -51,6 +63,12 @@ dato verificado, ortografía perfecta, cada frame se sostiene solo, y el QA
 ## Gusto (taste)
 
 Principios de restricción.
+
+**El copy es una decision de diseno, no un relleno**: se escribe antes que
+el plan, en texto plano, y el plan es su puesta en escena. El contrato
+completo (el argumento primero, la aritmetica del titular, la prueba sin
+inventarla, los tells de genero) esta en `references/copy.md`, y lo
+comprueba `scripts/lint_copy.py`.
 
 **Restar antes de sumar**: preferir menos objetos más fuertes a muchos
 detalles decorativos. Un detalle solo es válido si mejora comprensión,
@@ -121,3 +139,7 @@ imagen, la escena no está lista.
 | Plano fijo mientras se narra otra cosa | Plano hacia el elemento que narra (wide ↔ medium ↔ close-up) |
 
 Atención en orden: frase → objeto → detalle. Nunca al revés.
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/dramaturgia.md`, `references/copy.md`, `references/brand-packs.md`

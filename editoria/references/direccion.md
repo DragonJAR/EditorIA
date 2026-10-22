@@ -102,3 +102,7 @@ dictan la solución ("hazla más rápida"): preferir corregir el problema.
 4. **Cruces de locación con puente** — dos clips de locaciones distintas se
    unen por puente de sonido o match de acción/forma; nunca fingir plano
    secuencia donde no lo hay.
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/ritmo.md`, `references/rubrica-premios.md`

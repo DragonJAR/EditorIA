@@ -26,6 +26,24 @@ partículas, transiciones de mancha. Ver `references/plan-video.md`,
 El video real y la animación se complementan: la persona cuenta, la animación
 explica. La integración debe ser coherente, confiable y orgánica.
 
+### Footage generado: revisa los clips ANTES de componer
+
+Un generador de video por IA no entrega solo imagenes: **inventa**. En la
+practica ha metido una tarjeta de presentacion con un nombre y una foto, un
+rostro reconocible y un monitor quemado a blanco. Todo eso parece material
+real de marca y no lo es: si compone sobre el, la pieza afirma cosas que
+nunca dijeron el cliente.
+
+Por eso, antes de componer, **mira una hoja de contactos de TODOS los clips
+generados** (`scripts/contact_sheet.py --video clip.mp4 --cada 1 -o hoja.png`)
+y descarta el clip que tenga texto inventado, credenciales, un rostro
+identificable o una marca de agua. Si hay que regenerar, se regenera con el
+prompt corregido ("sin objetos sobre la mesa", "el rostro nunca visible",
+"sin pantallas ni monitores"), no se disimula con un recorte.
+
+Es el mismo principio que aplica a las capturas de producto: **no se dibuja
+lo que no existe**; se usa lo real, o se deja hueco.
+
 ### Puentes visuales (la costura invisible)
 
 - **Match cut real→animado**: el gesto o la forma del plano real continúa en la
@@ -110,3 +128,7 @@ rehechas las sombras del sujeto en el fondo — nunca flotando.
 | Hay footage pero plano/aburrido | Híbrido: ritmo en edición + beats animados |
 
 Ante la duda: híbrido. La persona da confianza, la animación da claridad.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-rapidos.md`, `references/media-hard-rules.md`, `references/prompt-motion-graphics.md`

@@ -7,6 +7,11 @@ propósito, ningún corte es brusco o accidental, ninguna entrada es lineal.
 transiciones *dentro* de la escena.)
 
 ## Motor de movimiento
+- **Antes de animar, decide para qué**: coherencia espacial, indicación de
+  estado, explicación, evitar un cambio brusco, feedback o deleite. Si no lo
+  puedes nombrar, el movimiento sobra. El índice inverso intención → escena
+  (con la receta de movimiento de cada una) está en
+  `references/intencion-escena.md`.
 - **Resortes, no lineales**: toda entrada usa física de resorte (stiffness/damping)
   o `easeOutBack` (overshoot). Lo lineal se siente robótico; el resorte se siente vivo.
 - **easeInOutCubic** para desplazamientos largos; **easeOutCubic** para apariciones.
@@ -14,6 +19,28 @@ transiciones *dentro* de la escena.)
   hasta 10% solo en el elemento focal de piezas de alta energía.
   (Canónico aquí; `tecnicas-video.md` lo referencia.)
 - **Nada aparece de golpe**: fade + escala 0.9→1.0 + elevación, mínimo 0.35s.
+- **Movimiento barato vs. movimiento con masa**: un `easeOutCubic` lleva de A
+  a B por una curva fija; un resorte **acelera, se pasa un pelo y se calma**.
+  Lo caro es lo que tiene masa. Cuando el elemento es pequeno (un cursor, un
+  boton), el rebote debe ser casi imperceptible: `stiff=260, damp=26` da 1,4%
+  de overshoot y asienta en 0,33 s.
+- **Resorte MULTI-DESTINO (`track`)**: cuando un valor cambia de objetivo
+  varias veces (un cursor que visita tres puntos, una caja que crece y luego
+  encoge, una barra que salta), **no se reinicia el resorte**: se suma un
+  resorte por cambio, cada uno con su instante. Asi el movimiento sigue
+  siendo continuo (nada frena en seco entre tramos) y sigue siendo
+  **funcion pura del tiempo**: el frame 812 se pinta sin simular los 811
+  anteriores, que es lo que permite el cache de frames y el render
+  incremental. Es la primitiva que usa el cursor de la escena `demo`.
+
+  ```python
+  paradas = [(0.0, 0.0), (1.0, 1.0), (3.0, 1.0), (4.0, 0.0)]
+  valor = track(t, paradas, stiff=260, damp=26)
+  ```
+
+  `paradas` es una lista `[(instante, valor), ...]` ordenada por instante: el
+  valor antes del primer cambio es `paradas[0][1]`, y cada cambio anade su
+  delta. Si dos tramos se solapan, el cursor no frena entre ellos.
 
 ## Continuidad
 - **Fondo vivo**: el mundo de fondo (blobs de color, partículas, ondas) se mueve
@@ -66,3 +93,7 @@ ajustan para aproximar la duración y el overshoot de la columna.
 ## Verificación
 En el QA, mirar el video a 0.5x: cualquier salto, aparición brusca o fondo
 congelado es un defecto que se corrige antes de entregar.
+
+---
+
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/animacion.md`, `references/reglas-tecnicas.md`, `references/ritmo.md`

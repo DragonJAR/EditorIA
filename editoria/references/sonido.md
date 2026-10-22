@@ -343,3 +343,7 @@ está en `checklist-qa.md`.)
 5. Mastering pre-entrega: highpass → acompressor → loudnorm → alimiter
    (−14 LUFS enérgico / −16 LUFS calmo, −1.5 dBTP). Verificar niveles: voz al
    frente, sin clipping.
+
+---
+
+→ Canónico: `references/sonido.md` · Dominio: sonido · Vecinos: `references/audio.md`, `references/sfx.md`, `references/formatos.md`

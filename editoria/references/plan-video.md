@@ -33,6 +33,34 @@ instantes (`at`) en que aparece cada elemento. El renderizador lo ejecuta.
 }
 ```
 
+## El modelo antes del dibujo (`datos`)
+
+Las cifras de una pieza se declaran **una vez**, arriba, con su fuente; las
+escenas las referencian. Asi ninguna escena puede contradecir a otra, y el
+linter (`scripts/lint_copy.py`) avisa si dos escenas dan valores distintos
+para la misma etiqueta, si un dato no declara su fuente, o si una escena
+pide un dato que el plan no define.
+
+```json
+{
+  "datos": {
+    "servicios":  {"valor": 6,   "fuente": "catálogo comercial 2026"},
+    "hallazgos":  {"valor": 1240,"fuente": "escaneo Q3"}
+  },
+  "escenas": [
+    { "tipo": "stats", "cards": [
+        {"valor": {"$dato": "servicios"}, "etiqueta": "servicios"},
+        {"valor": {"$dato": "hallazgos"}, "etiqueta": "hallazgos"} ] }
+  ]
+}
+```
+
+`{"$dato": "nombre"}` se resuelve al `valor` de ese dato antes de componer.
+Si el nombre no existe, el render muere con un mensaje claro (fail-loud).
+El bloque `datos` es opcional: una escena puede seguir escribiendo su cifra
+a mano (con su `fuente`), pero entonces el linter no puede garantizar que
+dos escenas no se contradigan.
+
 ## Los SFX del plan (`sfx`)
 
 El plan puede declarar los golpes de sonido de la pieza. Cada cue dice
@@ -113,8 +141,10 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
 - **Marca**: el plan puede declarar `"brand": "brand/dragonjar.json"` (ruta
   absoluta, relativa al directorio actual o a la carpeta de la skill); el
   motor hereda de ahí colores, tipografías, logos y reglas. Sin `"brand"`,
-  modo libre: acento neutro y fuentes empaquetadas; el plan puede fijar su
-  propio `"acento": "#RRGGBB"`.
+  modo libre: el plan puede declarar `"paleta": "menta"` (catálogo de
+  `references/paleta.md`, elegida según el brief) o su propio
+  `"acento": "#RRGGBB"` para un tono suelto. Sin ninguno: el respaldo
+  neutro (azul frío sin identidad). **La marca manda sobre la paleta.**
 - **Logos**: el isotipo/logotipo del pack solo aparece junto al nombre de su
   propia marca (`marca` == `nombre` del pack); nunca acompaña a otro nombre.
 - **Presupuesto de "mancha"**: como máximo 2 por pieza (1 si el pack fija
@@ -135,7 +165,7 @@ python scripts/render_plan.py plan.json -o final.mp4 --blur 5 --force  # entrega
 los frames que ya existen.
 
 **Tamaño**: `"tamano": "1920x1080"` en el plan (o `--tamano`) para 16:9; la
-zona segura pasa a la de YouTube. Default 1080×1920. Las 36 escenas se
+zona segura pasa a la de YouTube. Default 1080×1920. Las 39 escenas se
 componen en los dos formatos (validadas en 9:16 y 16:9 por `validate_skill.py`
 y `galeria.py`): los tamaños de letra van en `unidad()` (lado corto), las
 pilas se miden con `pila()` y las escenas de lectura en columna (`chat`,
@@ -179,13 +209,13 @@ python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mo
 - El plan resuelto de cada fila queda junto a su video (`*.plan.json`).
 - Una variante por variable: en tests A/B, la tabla cambia UNA columna.
 
-## Tipos de escena (36)
+## Tipos de escena (39)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·
 `listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final` · `bars` ·
 `gauge` · `ranking` · `stats` · `timeline` · `quote` · `versus` · `confetti` ·
 `typewriter` · `kenburns` · `pasos` · `countdown` · `oferta` · `demo` ·
 `rotulo_inferior` · `hero` · `bento` · `buscador` · `notificacion` · `comentario` ·
-`pie` · `orbita` · `audiowave`
+`pie` · `orbita` · `audiowave` · `index` · `callout` · `orbOpen`
 
 Ver `references/escenas.md` para los parámetros de cada una.
 Ver `scripts/render_plan.py` para el renderizador de referencia.

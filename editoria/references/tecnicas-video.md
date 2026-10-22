@@ -1051,3 +1051,7 @@ progreso visible.
 Disciplina: el carrusel promete control al espectador; en video el control es
 ilusión — mantener el ritmo del editor, no esperar al "swipe". Un carrusel por
 video; dos carruseles distintos compiten entre sí.
+
+---
+
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/reglas-tecnicas.md`, `references/fluidez.md`, `references/scene-patterns-from-internet.md`

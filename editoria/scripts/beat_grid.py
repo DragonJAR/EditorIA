@@ -218,15 +218,56 @@ def secciones(compases, duracion, umbral_db=3.0, frase=4):
     return out
 
 
-def analizar(ruta, min_bpm=90, max_bpm=140):
+def picos_transitorios(on_full, rms, dur, delta=0.5, wait_ms=120):
+    """Picos de ataque de la banda completa: los instantes donde la musica
+    PEGA (un golpe, un stab, un golpe de bajo) y no solo donde cae el beat.
+
+    La grilla dice DONDE hay un compás; los picos dicen DONDE hay un
+    impacto. Un SFX de golpe, click o impacto pegado a un transitorio real
+    suena pegado a la musica; pegado al beat, se nota el retraso.
+
+    `delta` es cuanto tiene que standout el pico sobre su entorno (multiplos
+    de la desviacion local) y `wait_ms` el silencio minimo entre picos.
+    """
+    n = len(on_full)
+    if n < 3 or np is None:
+        return []
+    env = np.asarray(on_full[:n], dtype=float)
+    if env.max() <= 0:
+        return []
+    env = env / env.max()
+    ventana = max(3, int(0.05 * FPS))     # ~50 ms antes/despues para comparar
+    largo_ventana = max(3, int(0.25 * FPS))
+    salida = []
+    ultimo = -10 ** 9
+    min_sep = max(1, int(wait_ms / 1000.0 * FPS))
+    for i in range(ventana, n - ventana):
+        if env[i] <= env[max(0, i - ventana):i + ventana + 1].max() - 1e-12:
+            continue
+        zona = env[max(0, i - largo_ventana):i + largo_ventana + 1]
+        if env[i] < zona.mean() + delta * (zona.std() + 1e-9):
+            continue
+        if i - ultimo < min_sep:
+            continue
+        ultimo = i
+        t = round(i / FPS, 3)
+        if t > dur:
+            break
+        salida.append({"t": t, "fuerza": round(float(env[i]), 3),
+                       "db": round(float(20 * math.log10((rms[i] if i < len(rms) else 0.0) + 1e-9)), 1)})
+    return salida
+
+
+def analizar(ruta, min_bpm=90, max_bpm=140, delta=3.0, espera=200):
     """Rejilla de la música: bpm, beat0 (primer beat), compas0 (primer tiempo
-    fuerte: de las 4 fases del compás, la de más kick) y compases con su
-    marca de kicks y nivel. Sin efectos de consola: la usa render_plan."""
+    fuerte: de las 4 fases del compás, la de más kick), compases con su
+    marca de kicks, nivel, y los picos transitorios donde la musica pega."""
     banda_completa = decodificar(ruta, "anull")
     banda_baja = decodificar(ruta, "lowpass=f=150,lowpass=f=150")
     dur = len(banda_completa) / SR
     on_baja, on_full, rms = onset(banda_baja), onset(banda_completa), rms_por_frame(banda_completa)
     n = min(len(on_baja), len(on_full))
+    picos = picos_transitorios(on_full, rms, dur, delta=delta, wait_ms=espera)
     if np is not None:
         env = maximum_filter1d(
             on_baja[:n] / (on_baja.max() + 1e-9) + 0.5 * on_full[:n] / (on_full.max() + 1e-9), 3)
@@ -271,7 +312,8 @@ def analizar(ruta, min_bpm=90, max_bpm=140):
             compases.append({"compas": c, "t": round(t, 3), "kick": "".join("K" if k > umbral else "." for k in ks),
                              "db": round(float(db), 1)})
     return {"bpm": round(float(bpm), 2), "beat0": round(float(b0), 3), "compas0": round(float(c0), 3),
-            "duracion": round(dur, 2), "compases": compases, "secciones": secciones(compases, round(dur, 2))}
+            "duracion": round(dur, 2), "compases": compases, "secciones": secciones(compases, round(dur, 2)),
+            "picos": picos}
 
 
 def main():
@@ -283,11 +325,17 @@ def main():
     ap.add_argument("--min-bpm", type=float, default=90, help="BPM mínimo a buscar (def: 90)")
     ap.add_argument("--max-bpm", type=float, default=140, help="BPM máximo a buscar (def: 140)")
     ap.add_argument("--json", dest="salida_json", default=None,
-                    help="guarda {bpm, beat0, compas0, duracion, compases, secciones} en este archivo JSON")
+                    help="guarda {bpm, beat0, compas0, duracion, compases, secciones, picos} en este archivo JSON")
+    ap.add_argument("--delta", type=float, default=3.0,
+                    help="sensibilidad de los picos transitorios: desviaciones locales sobre el entorno "
+                         "que el pico debe destacar (def. 3.0; menor = mas picos, mayor = solo los "
+                         "impactos mas fuertes)")
+    ap.add_argument("--espera", type=int, default=200,
+                    help="silencio minimo entre picos, en milisegundos (def. 200)")
     a = ap.parse_args()
     if not Path(a.archivo).is_file():
         sys.exit(f"No existe el archivo: {a.archivo}")
-    g = analizar(a.archivo, a.min_bpm, a.max_bpm)
+    g = analizar(a.archivo, a.min_bpm, a.max_bpm, a.delta, a.espera)
     print(f"OK {a.archivo}\n duración {g['duracion']:.2f}s  rejilla: BPM {g['bpm']:.2f} · "
           f"BEAT0 {g['beat0']:.3f}s · primer tiempo fuerte {g['compas0']:.3f}s")
     for c in g["compases"]:
@@ -297,6 +345,11 @@ def main():
         print(f"  {s_['nombre']:10s} {s_['inicio']:7.2f}–{s_['fin']:7.2f}s  energía {s_['energia']:5s} "
               f"{s_['db']:6.1f} dB  corte cada {s_['cortes_cada_beats']} beats")
     print("Usa BPM y BEAT0 para alinear cortes, zooms y captions con la música.")
+    if g.get("picos"):
+        print(f" picos transitorios ({len(g['picos'])}): candidatos a impacto para los SFX; "
+              f"elige los que casen con un evento visual (máx 8-12 cues/min)")
+        for p_ in g["picos"][:24]:
+            print(f"   {p_['t']:7.3f}s  fuerza {p_['fuerza']:.2f}  {p_['db']:6.1f} dB")
     if a.salida_json:
         Path(a.salida_json).write_text(json.dumps(g, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"OK rejilla guardada en {a.salida_json}")

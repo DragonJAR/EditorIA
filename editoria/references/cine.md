@@ -91,3 +91,7 @@ no resume — provoca.
 **Pacing de trailer**: arrancar contenido (sin setup), escalar en 3 oleadas
 con silent stops entre ellas, el momento más grande al ~80%, y salir en el
 pico — nunca en la resolución.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/brand-packs.md`, `references/tonos.md`

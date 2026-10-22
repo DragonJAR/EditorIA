@@ -89,3 +89,7 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 - Handoff (concepto, no implementado): un `plan.json` de EditorIA se
   traduciría 1:1 a una composición HyperFrames (escena → sección HTML
   con `data-start`/`data-duration`).
+
+---
+
+→ Canónico: `references/capacidades.md` · Dominio: opcional · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/recetas-ai-video.md`

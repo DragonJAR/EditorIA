@@ -92,3 +92,7 @@ Penalizar segmentos donde >30% del tiempo es relleno, repetición o tangentes.
 - El texto del hook en pantalla NO repite las primeras palabras habladas:
   línea 1 (4–8 palabras, la afirmación que atrapa) + línea 2 (3–6 palabras,
   contexto) en la tipografía de titulares (del brand pack o del modo libre).
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/pipeline-resumen.md`, `references/video-real.md`, `references/modos-rapidos.md`

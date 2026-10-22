@@ -18,6 +18,13 @@ eje solo si la pide o si algo no se pudo resolver.
 | 2 | **Dramaturgia** | Arco completo (marco → tensión → giro → resonancia); el final recontextualiza el inicio | Hay orden, pero sin tensión ni giro | Lista de cosas sin arco |
 | 3 | **Animación** | Los 12 principios aplicados (`animacion.md`); motion blur en la entrega; overlapping y arcos; nada se detiene en seco | Resortes y easing correctos, pero todo entra igual | Fades lineales, apariciones de golpe |
 | 4 | **Composición y tipografía** | Cada frame congelado es un póster; un foco por plano; zona segura respetada; jerarquía impecable | Ordenado pero plano; algún frame lleno | Solapes, texto cortado, tamaños arbitrarios |
+
+El eje 4 se mide con el motor (`scripts/puntuar.py` con `--plan`): letra real
+en reposo, factor de la zona segura y solapes. **El piso de letra (26 px) es
+una regla dura**: si el texto no se lee en un teléfono, el eje 4 no puede
+llegar a 4 aunque el resto de la composición sea impecable. Es la misma regla
+que hace fallar la puerta de entrega (`scripts/qa_entrega.py`), con la misma
+medición: las dos no pueden decir cosas distintas.
 | 5 | **Sistema visual** | Una paleta, una familia de curvas, un idioma de transición y un momento firma memorable | Coherente, sin momento firma | Estilos mezclados |
 | 6 | **Sonido** | Música con intención, cada golpe visual con su sonido, silencio usado como recurso; mezcla medida (LUFS y true peak en spec) | Música de fondo correcta, sin diseño sonoro | Música genérica, picos, voz tapada |
 | 7 | **Verdad y marca** | Cero confabulación; marca con fidelidad total (o modo libre con identidad propia y consistente) | Algún texto genérico o claim sin fuente marcado `[PENDIENTE]` | Claims inventados o logo deformado |
@@ -42,3 +49,7 @@ eje solo si la pide o si algo no se pudo resolver.
 - Honestidad sobre límites (`dramaturgia.md`): si el brief pide algo que
   EditorIA no puede llevar a 4 (actuación de personajes, lip-sync), se dice
   antes de producir y se propone la alternativa que sí puede.
+
+---
+
+→ Canónico: `references/qa-entrega.md` · Dominio: qa · Vecinos: `references/checklist-qa.md`, `references/auto-qa.md`, `references/direccion.md`

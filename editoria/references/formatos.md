@@ -149,3 +149,7 @@ una narración, un pasaje con presentador. Escribir en el `TRATAMIENTO.md`
 del proyecto (`scripts/proyecto.py`) qué relación organiza cada pasaje:
 eso decide cómo se juzga la actuación, la cobertura y la prueba en la
 revisión.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-rapidos.md`, `references/dramaturgia.md`, `references/prompt-motion-graphics.md`

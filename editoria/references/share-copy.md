@@ -72,3 +72,7 @@ proyecto/
   video_final_poster.jpg   # ver scripts/poster_frame.py
   share-copy.txt           # este archivo
 ```
+
+---
+
+→ Canónico: `references/copy.md` · Dominio: copy · Vecinos: `references/copy.md`, `references/i18n.md`, `references/referencia-video.md`

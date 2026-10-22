@@ -37,7 +37,8 @@
   que hacen ver profesional un video: iconos centrados al píxel (centro = h/2 del
   contenedor), bloques de texto centrados verticalmente en su tarjeta, columnas
   decorativas con centro matemático en W/2 (7 columnas: x=135+ci*135, no 90+ci*135),
-  centro de la mancha = centro del titular. Márgenes laterales unificados (90px).
+  centro de la mancha = centro del titular. Márgenes laterales unificados (151px,
+  los de la zona segura; ver `references/coherencia-espacial.md`).
   Revisar cada escena con esta lupa antes de entregar.
 - 2026-10-03 · **Flotación idle**: `flota(t,t0,amp,freq)` — respiración sutil (±4-6px)
   en elementos ya asentados (tarjetas, burbujas). Nada se queda totalmente quieto.
@@ -292,3 +293,7 @@
 - 2026-10-06 · **Un comando fallido nunca borra lo que lee**: _comun.run borraba cmd[-1] tras cualquier fallo para limpiar la salida parcial de ffmpeg; en ffprobe cmd[-1] es la ENTRADA: un probe sobre un .json borró scripts/demo_plan.json y el commit siguiente se llevó el borrado (git add -A). Solo se limpia si el binario es ffmpeg y el archivo no es un -i. validate_skill lo prueba con ffprobe y ffmpeg fallidos sobre un archivo real.
 - 2026-10-06 · **Fundido con ease en ffmpeg: no vale su costo**: xfade=transition=custom con smoothstep (expr por píxel: st(0,1-P);st(1,ld(0)*ld(0)*(3-2*ld(0)));A*(1-ld(1))+B*ld(1)) funciona pero cuesta ~60x (19.5 s vs 0.3 s por transición de 0.5 s a 1080p). Las herramientas ffmpeg (pase, transicion, audio_viz) se quedan con el fundido lineal estándar de todo NLE (2 puntos de 'arranque' en el banco por transición, aceptados a sabiendas); el motor de escenas sí usa ease porque compone en Python.
 - 2026-10-18 · **Guards de importacion van tras parse_args y bajo __main__**: Llamar sys.exit en el tope del modulo al faltar PIL o numpy rompia --help (rc=1 sin usage) en 4 CLIs (alinear, beat_grid, medir_mezcla, thumbnail) e impedia importar render_plan como libreria. Regla: diferir el chequeo de dependencias opcionales hasta despues de ap.parse_args() o restringir sys.exit a __name__ == '__main__'; para audio f32le de ffmpeg, struct.unpack y math dan un fallback determinista en stdlib (100.0 BPM exactos en 0.96s).
+
+---
+
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/animacion.md`, `references/fluidez.md`, `references/coherencia-espacial.md`

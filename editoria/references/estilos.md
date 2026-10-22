@@ -141,3 +141,7 @@ Cuando el usuario pida el look de un producto real o entregue un archivo
      **píldora de anuncio/tab activa** (`badge`), el **botón CTA con halo**
      (`boton_halo`) y la **firma tipográfica al pie** (`pie`), descartando
      menús complejos o pies de página llenos de enlaces SEO.
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/brand-packs.md`, `references/scene-patterns-from-internet.md`

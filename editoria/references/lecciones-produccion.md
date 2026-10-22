@@ -63,3 +63,7 @@ de Windows/Remotion se omiten; el detalle completo vive en el ZIP original.
   caracteres de control dentro de strings).
 - **Subtítulos**: anticiparse a la palabra hasta 0,45 s es estilo; llegar
   más de 0,12 s tarde es error.
+
+---
+
+→ Canónico: `references/auto-mejora.md` · Dominio: operacion · Vecinos: `references/instalacion.md`, `references/auto-qa.md`, `references/mapa.md`

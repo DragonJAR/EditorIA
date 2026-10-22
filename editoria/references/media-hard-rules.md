@@ -54,3 +54,7 @@ Anti-pattern 9 (typewriter) is a **polish improvement** known.
 When the model makes a change to EditorIA, it can use this table to verify
 that it does not break any Hard Rule. The doc also serves as a **quick
 reference** of where each rule lives, so the model can read the relevant code.
+
+---
+
+→ Canónico: `references/plan-video.md` · Dominio: plan · Vecinos: `references/reglas-tecnicas.md`, `references/modos-produccion.md`, `references/qa-entrega.md`

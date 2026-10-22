@@ -195,3 +195,7 @@ El que construye no es el que juzga:
    pequeños.
 4. **Verificar con crítico nuevo**: FIXED / PARTLY / STILL PRESENT.
 5. **Ledger de rondas**: registrar qué se encontró y qué cambió, ronda por ronda.
+
+---
+
+→ Canónico: `references/qa-entrega.md` · Dominio: qa · Vecinos: `references/auto-qa.md`, `references/rubrica-premios.md`, `references/direccion.md`

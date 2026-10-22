@@ -22,16 +22,24 @@ un aprendizaje; una corazonada sin evidencia no es un hecho.
 | Hecho técnico puntual (comando, flag, trampa, número) | `references/reglas-tecnicas.md` (log fechado) |
 | Doctrina que toca un pilar de `principios.md` | `references/principios.md` |
 | Específico de un dominio (audio, ritmo, marca, cine...) | la referencia del dominio; si es transversal, enlace desde `reglas-tecnicas.md` |
+| Referencia nueva (un archivo que no existía) | el dominio que le toque en `references/mapa.md`, con su pie de enlace |
 
 El contenido vive en UN solo lugar; los demás enlazan, nunca copian.
 Si dudas entre dos destinos, elige el más específico y enlaza desde el general.
 
+Una referencia nueva sin enlazar convierte la skill en un archon: el pie
+(`→ Canónico: ... · Dominio: ... · Vecinos: ...`) y su fila en el mapa son
+obligatorios, y `scripts/auditar_mapa.py` lo verifica.
+
 ## 3. Cómo registrar (eficiente: un comando)
 
 ```bash
-python scripts/registrar_aprendizaje.py --titulo "..." --detalle "..." \
-    [--destino reglas|principios|ref --ref audio]
+python scripts/registrar_aprendizaje.py --titulo "Que aprendimos" --detalle "Lo que se vio y por que" \
+    --destino reglas
 ```
+
+`--destino` acepta `reglas` (por defecto), `principios` o `ref` — este
+último necesita `--ref` con el nombre del archivo de referencia (sin `.md`).
 
 El script:
 
@@ -49,6 +57,8 @@ Formato canónico:
 
 - Después de registrar: `python scripts/validate_skill.py` debe seguir en
   `SKILL VALIDO`. Si rompe, el registro está mal hecho, no el validador.
+- Ese validador incluye el **chequeo de islas**: toda referencia nueva tiene
+  que ser alcanzable desde `SKILL.md`, llevar su pie y entrar en el mapa.
 - Si el aprendizaje cambia el comportamiento de un script, el cambio va en el
   script, no solo en la documentación.
 - Si el aprendizaje corrige una regla existente, se edita la regla en su lugar;
@@ -64,3 +74,7 @@ Formato canónico:
 - Registrar por registrar: un aprendizaje sólido vale más que cinco obviedades.
 - Reescribir archivos enteros para un aprendizaje de una línea: se anexa la
   entrada, nada más.
+
+---
+
+→ Canónico: `references/instalacion.md` · Dominio: operacion · Vecinos: `references/lecciones-produccion.md`, `references/auto-qa.md`, `references/mapa.md`

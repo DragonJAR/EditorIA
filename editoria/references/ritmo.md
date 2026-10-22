@@ -121,3 +121,7 @@ Reglas de cordura:
 falla la pieza si la cadencia es uniforme o si no hay pausas. La prueba de
 encadenamiento es de diseño (revisar el plan: ¿cada beat nace del anterior?),
 no de píxeles.
+
+---
+
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/fluidez.md`, `references/formatos.md`, `references/direccion.md`

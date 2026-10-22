@@ -97,3 +97,7 @@ Tinkerers — las técnicas se portan, los colores no.
   hereda entre versiones sin re-auditar su texto.
 - Transiciones con blur en un video cuyo brand pack fije cortes secos
   (`reglas.transiciones: corte_seco`) romperían la regla — adaptar la técnica al pack, no copiarla tal cual.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/video-real.md`, `references/referencia-video.md`, `references/montaje.md`

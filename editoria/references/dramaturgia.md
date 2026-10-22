@@ -50,3 +50,7 @@ lo que EditorIA sí puede generar.
 Lo que SÍ puede: piezas gráficas con alma de fábula — motion graphics con
 restricción deliberada, acabado táctil y estructura dramática completa.
 Ese es el carril donde puede competir.
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/formatos.md`, `references/direccion.md`, `references/copy.md`

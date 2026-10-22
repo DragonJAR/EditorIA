@@ -103,3 +103,7 @@ ritmo y estructura, pero conservar su dirección en el brief y el plan.
   `ritmo.md`).
 - **Específico.** La pieza debe sentirse hecha para este tema exacto, no para
   cualquier tema.
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/estilos.md`, `references/direccion.md`, `references/formatos.md`
