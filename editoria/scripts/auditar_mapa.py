@@ -39,6 +39,7 @@ SCRIPT_REF = re.compile(r"scripts/[A-Za-z0-9_./-]+\.py")
 # la auditoria no marque ruido real.
 EXCEPCIONES = {
     "metricas/historial.json": "artefacto de runtime: lo crea --historial al medir",
+    "brand/mi_pack.json": "ejemplo del pack propio del usuario (references/brand-packs.md)",
     "assets/isotipo.png": "ejemplo de la plantilla de un brand pack (references/brand-packs.md)",
     "assets/logotipo.png": "ejemplo de la plantilla de un brand pack (references/brand-packs.md)",
     "assets/mono.ttf": "ejemplo de la plantilla de un brand pack (references/brand-packs.md)",

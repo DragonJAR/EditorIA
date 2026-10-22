@@ -160,3 +160,7 @@ solo se enlazan.
 - **Qué no cabe, qué no funciona, qué es inapropiado**: del 16:9 al 9:16 no se recorta, se recompone (`ffmpeg_tools/verticalizar.py` para footage; `render_plan.py` con `tamano` para planes); del largo al corto se eligen los momentos fuertes (`scoring-shorts.md`) y se reordena el argumento, no se acelera.
 - **Contenido**: más corto y más grande en el formato pequeño; progresión por planos en vez de todo a la vez; el sonido que se entiende en mudo (subtítulos que importan).
 - **Verificar**: `delivery_check.py` contra la plataforma de destino, y el mosaico (`contact_sheet.py`) de cada formato mirado por separado.
+
+---
+
+→ Canónico: `references/qa-entrega.md` · Dominio: qa · Vecinos: `references/auto-qa.md`, `references/checklist-qa.md`, `references/rubrica-premios.md`

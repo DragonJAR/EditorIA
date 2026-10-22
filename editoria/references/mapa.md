@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-53 referencias, 36 scripts, 19 herramientas de ffmpeg y 22 suites de tests. Este
+55 referencias, 37 scripts, 19 herramientas de ffmpeg y 23 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con 52 piezas sueltas; con el mapa, es un sistema.
@@ -74,6 +74,7 @@ contradigan.
 | `principios.md` | los principios permanentes (3 pilares, el gusto, la marca) | estructura |
 | `dramaturgia.md` | el arco: marco, tensión, giro, resonancia | estructura |
 | `direccion.md` | el listón medido, los 10 patrones, la dirección de energía | estructura |
+| `direccion-de-arte.md` | la dirección de arte: la idea del sujeto, las direcciones repartidas, el registro de tells | estructura |
 | `tonos.md` | la energía creativa de la pieza | estructura |
 | `estilos.md` | los lenguajes visuales aprendidos | estructura |
 | `scene-patterns-from-internet.md` | patrones de escena validados | estructura |
@@ -98,6 +99,7 @@ contradigan.
 | `qa-entrega.md` | la puerta de entrega: cinco comprobaciones, un veredicto | qa |
 | `auto-qa.md` | el loop de ver, detectar y corregir | qa |
 | `checklist-qa.md` | la lista de verificación humana | qa |
+| `pasadas.md` | las pasadas de refinamiento: corregir lo nombrado, sin tocar el resto | qa |
 | `rubrica-premios.md` | el gate de premios: los 8 ejes | qa |
 | `brand-packs.md` | cómo se declara y se aplica una identidad | marca |
 | `formatos.md` | qué sostiene cada tipo de pieza | produccion |

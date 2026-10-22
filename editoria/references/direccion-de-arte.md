@@ -41,7 +41,9 @@ claro hacia el gusto propio es un fallo.
    plantilla (gancho, logos, tres funciones, testimonio, precio, CTA): el orden
    de la pieza es el orden del argumento.
 4. **Modo** de la pieza (abajo) y **dirección**:
-   `python scripts/direccion_arte.py repartir --brief "..." --sector S --tono T --modo M --tiene fotos capturas`
+   Los valores de `--sector` se listan con `python scripts/direccion_arte.py listar sectores` (`--tono` y `--modo` tambien).
+
+   `python scripts/direccion_arte.py repartir --brief "video de ciberseguridad" --sector ciberseguridad --tono demo --modo explicar --tiene capturas`
    reparte tres; se elige una; `elegir ID --out CARPETA` escribe `SISTEMA.md` y,
    si el motor la compone, `estilo.json` (usable con `--brand`).
 5. **La idea** (abajo). No se construye hasta llenar los dos huecos.
@@ -240,3 +242,7 @@ pero delgada. El mismo riesgo existe en video: el paso de *sustancia* de
 - Estilos y style packs: `references/estilos.md`; transiciones y personalidad de
   movimiento: `references/fluidez.md`; tonos: `references/tonos.md`.
 - Qué escena para qué dato: `references/escenas.md` (tabla al final).
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/direccion.md`, `references/estilos.md`, `references/tonos.md`
