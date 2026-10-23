@@ -68,7 +68,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 53 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 55 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 

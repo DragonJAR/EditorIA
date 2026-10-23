@@ -314,6 +314,22 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("clave del plan sin documentar", out)
         self.assertIn(nueva, out)
 
+    def test_detecta_un_conteo_obsoleto_en_ingles(self):
+        # el SKILL.md esta en ingles y decia "53 references" cuando hay 55:
+        # los patrones del guard buscaban la forma "en kebab-case" y la prosa
+        # en ingles se escapaba entera
+        raiz = _copia_completa(os.path.join(self.dir, "skill_ingles"))
+        s = os.path.join(raiz, "SKILL.md")
+        with open(s, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertRegex(txt, r"\d+\s+references",
+                         "el SKILL.md deberia enunciar el numero de referencias")
+        with open(s, "w", encoding="utf-8") as f:
+            f.write(re.sub(r"(\d+)\s+references", "53 references", txt, count=1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el conteo obsoleto en ingles no se detecto:\n{out}")
+        self.assertIn("conteo obsoleto", out)
+
 
 class TestCifrasDelCodigo(unittest.TestCase):
     """Las cifras de la prosa tienen que ser las del codigo.

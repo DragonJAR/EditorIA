@@ -1,9 +1,9 @@
 # Mapa de EditorIA — el índice de la skill
 
-55 referencias, 37 scripts, 19 herramientas de ffmpeg y 23 suites de tests. Este
+55 referencias, 38 scripts, 19 herramientas de ffmpeg y 23 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
-archivo con 52 piezas sueltas; con el mapa, es un sistema.
+archivo con piezas sueltas; con el mapa, es un sistema.
 
 Cada referencia lleva al pie a quién pertenece y a sus vecinos:
 

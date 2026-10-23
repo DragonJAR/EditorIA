@@ -445,6 +445,8 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
         return
     n_prim = _n_primitivas_dry(scripts_dir)
     n_escenas = _n_escenas(scripts_dir)
+    n_root = len([f for f in os.listdir(scripts_dir)
+                  if f.endswith(".py") and os.path.isfile(os.path.join(scripts_dir, f))])
     patrones = (
         # "N primitivas DRY" solo se vigila en los README: en las referencias
         # es una cifra historica ("la ronda 4 aporto 3 primitivas DRY")
@@ -475,6 +477,13 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
         (r"with\s+(\d+)\s+scene\s+types", n_escenas, "escenas del catalogo"),
         (r"(\d+)/(\d+)\s+scenes\s+render", n_escenas, "escenas del catalogo"),
         (r"(\d+)\s+m[óo]dulos\s+de\s+post-producci[óo]n", n_fft, "modulos de post-produccion"),
+        # los scripts raiz, contados de tres formas distintas: el desglose
+        # en ingles, el desglose en espanol y la forma corta del encabezado
+        # del mapa. Antes solo se cubria la primera: un README en espanol
+        # ("37 motores raiz + ... = 79 scripts") podia envejecer en silencio
+        (r"(\d+)\s+motores\s+ra[ií]z", n_root, "scripts root"),
+        (r"(\d+)\s+scripts,\s*\d+\s+herramientas\s+de\s+ffmpeg", n_root, "scripts root"),
+        (r"(\d+)\s+scripts,\s*\d+\s+ffmpeg\s+tools", n_root, "scripts root"),
     )
     # donde mirar: los README (si existen) y TODO lo de dentro de la skill
     archivos = []
@@ -498,6 +507,17 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
                 (r"(\d+)\s+primitivas\s+DRY", n_prim, "primitivas DRY"),
                 (r"(\d+)\s+DRY\s+primitives", n_prim, "primitivas DRY"),
             )
+        if etiqueta.startswith("README") or etiqueta == "SKILL.md" \
+                or etiqueta.endswith("mapa.md"):
+            # en la puerta de entrada, "N references" es SIEMPRE el total: no
+            # hay cifras historicas ahi. Y hace falta porque el SKILL.md esta
+            # en ingles: los patrones de arriba solo buscan la forma "en
+            # kebab-case", asi que un "53 references" se escapaba del guard
+            # entero y el numero se agingaba sin que nadie lo viera.
+            _pat = _pat + (
+                (r"(\d+)\s+references\b", n_refs, "referencias"),
+                (r"(\d+)\s+referencias\b", n_refs, "referencias"),
+            )
         for patron, real, que in _pat:
             for mt in re.finditer(patron, texto):
                 grupos = [g for g in mt.groups() if g]
@@ -510,8 +530,10 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
                             "msg": f"dice {que} {g} y hay {real}"})
                         break
         # el desglose de scripts: "N root + N in ffmpeg_tools/ + N in _tests/ = N scripts"
-        for mt in re.finditer(r"(\d+)\s+root\s*\+\s*(\d+)\s+in\s+ffmpeg_tools/?\s*\+\s*"
-                              r"(\d+)\s+in\s+_tests/?\s*=\s*(\d+)\s+scripts", texto):
+        # y su forma en espanol ("N motores raiz + N en ffmpeg_tools/ + N en _tests/")
+        for mt in re.finditer(r"(\d+)\s+(?:root|motores\s+ra[ií]z)\s*\+\s*(\d+)\s+"
+                              r"(?:in\s+|en\s+)ffmpeg_tools/?\s*\+\s*"
+                              r"(\d+)\s+(?:in\s+|en\s+)_tests/?\s*=\s*(\d+)\s+scripts", texto):
             r_, f_, t_, s_ = (int(x) for x in mt.groups())
             n_root = len([f for f in os.listdir(scripts_dir)
                           if f.endswith(".py") and os.path.isfile(os.path.join(scripts_dir, f))])
