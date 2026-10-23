@@ -9,7 +9,8 @@ completo, en 9:16 y 16:9, sin codificar, y mide sobre los frames reales:
   tirones    jerk de la curva de movimiento + frames muertos en mitad de un
              movimiento (animación entrecortada)
   muerto     % del hold con movimiento bajo el umbral de auto_qa
-  densidad   eventos de movimiento por segundo (doctrina: uno cada 0.8–1.5 s)
+  densidad   eventos de movimiento por segundo (banda del motor: 0.5–2.0
+             eventos/s; ritmo cómodo: uno cada 0.8–1.5 s)
   letra      tamaño mínimo de texto dibujado (px sobre el lado corto 1080)
   zona       factor de escala_segura (1 = compuesta dentro de la zona segura)
   costo      segundos por frame

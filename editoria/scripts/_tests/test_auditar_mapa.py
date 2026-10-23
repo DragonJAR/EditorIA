@@ -240,6 +240,36 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn(f"dens > {m.group(2)}", motor,
                       "el umbral alto de densidad tiene que ser el del motor")
 
+    def test_la_banda_del_motor_se_vigila_en_todos_los_documentos(self):
+        # la banda que el motor vigila se dice igual en los tres sitios que la
+        # enuncian (glosario, auto-qa y fluidez). Si uno la escribe con otra
+        # forma ("0,5-2 s" sin el segundo decimal), el patron del guard no la
+        # ve y esa cifra deja de vigilarse en silencio.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("auditar_mapa_mod", AUDITAR)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        regla = next(r for r in mod.REGLAS_UNICAS if r["nombre"] == "densidad de movimiento")
+        for nombre in ("glosario.md", "auto-qa.md", "fluidez.md"):
+            with open(os.path.join(BASE, "references", nombre), encoding="utf-8") as f:
+                txt = f.read()
+            ms = list(re.finditer(regla["patron"], txt))
+            self.assertTrue(ms, f"{nombre} no enuncia la banda del motor en una forma que el guard vea")
+            for mt in ms:
+                v = tuple(float(g.replace(",", ".")) for g in [x for x in mt.groups() if x])
+                self.assertEqual(v, regla["valor"],
+                                 f"{nombre} dice {v} y el motor vigila {regla['valor']}")
+
+    def test_la_palabra_doctrina_no_equivoca_a_la_banda_del_motor(self):
+        # "doctrina" es el ritmo de DISEÑO (mas estrecho); la banda que el motor
+        # vigila se llama asi. Si un documento vuelve a llamar "doctrina" a la
+        # banda, la palabra significa dos cosas.
+        for nombre in ("auto-qa.md", "glosario.md"):
+            with open(os.path.join(BASE, "references", nombre), encoding="utf-8") as f:
+                txt = f.read()
+            self.assertNotRegex(txt, r"[Dd]octrina:?\s*0?\.?5",
+                                f"{nombre} llama 'doctrina' a la banda del motor")
+
     def test_la_densidad_de_cues_no_se_inventa(self):
         # los cues por minuto que enuncia la prosa tienen que ser los que
         # `mezclar_audio.py` avisa (CUES_MIN_MIN y CUES_MIN_MAX)
@@ -263,9 +293,8 @@ class TestAuditarMapa(unittest.TestCase):
         with open(os.path.join(raiz, "references", "glosario.md"), encoding="utf-8") as f:
             txt = f.read()
         self.assertIn("motor", txt.lower())
-        nuevo = re.sub(r"[Ee]l motor penaliza fuera de [\d.,]+-[\d.,]+ s",
-                       "El motor pide uno cada 0,8-1,5 s", txt)
-        self.assertNotEqual(txt, nuevo, "el glosario debe enunciar la densidad del motor")
+        nuevo, n = re.subn(r"0,5-2,0 eventos/s", "0,8-1,5 eventos/s", txt)
+        self.assertEqual(n, 1, "el glosario debe enunciar la banda del motor del motor")
         with open(os.path.join(raiz, "references", "glosario.md"), "w", encoding="utf-8") as f:
             f.write(nuevo)
         rc, out = _auditar(raiz)

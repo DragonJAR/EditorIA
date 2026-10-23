@@ -57,7 +57,7 @@ Qué mide cada número (calibrado con casos sintéticos en `validate_skill.py`):
   frame) o un frame que se mueve 4× más que sus dos vecinos (teletransporte).
 - **muerto**: % del hold con quietud SOSTENIDA (≥ 0.5 s bajo el umbral de
   auto_qa); el punto de giro de una flotación no cuenta.
-- **densidad**: eventos de movimiento por segundo en la parte activa (sin la salida común), con umbral relativo al pico propio de la escena (30 %, piso 0.15: la respiración sola no es un evento). Doctrina: 0.5–2.
+- **densidad**: eventos de movimiento por segundo en la parte activa (sin la salida común), con umbral relativo al pico propio de la escena (30 %, piso 0.15: la respiración sola no es un evento). Banda del motor: 0.5–2.0 eventos/s.
 - **solapes**: textos visibles que se pisan con cada escena asentada (55 % y 80 %), por caja de tinta real; −10 por cada uno (máx. 3). Las métricas de movimiento no ven composición: este sí. Con `--plan` mide los textos REALES del agente, antes de renderizar.
 - **letra**: tamaño mínimo de texto **en reposo** (≥ 26 px sobre 1080). En reposo
   = con el tamaño con el que el texto se queda: si un botón entra con resorte y

@@ -58,7 +58,7 @@ un parametro del plan, esta es su definicion.
 | **rebote / overshoot** | el resorte se pasa de su objetivo y vuelve. Techo general: 8 % | `references/animacion.md` |
 | **curva / easing** | la forma del movimiento: `ease_out` (entrar), `ease_in_out` (mover lo que ya esta ahi), resorte (todo lo demas) | `references/animacion.md` |
 | **arco** | el recorrido en pantalla de un elemento: entra por un lado y sale por el otro, en curva | `references/animacion.md` |
-| **densidad** | eventos de movimiento por segundo. El motor penaliza fuera de 0,5-2 s | `references/fluidez.md` |
+| **densidad** | eventos de movimiento por segundo. El motor penaliza fuera de 0,5-2,0 eventos/s | `references/fluidez.md` |
 | **piso de letra** | el minimo de tamano de texto que se lee en un telefono: **26 px** sobre 1080. Se mide EN REPOSO, no durante la entrada | `references/coherencia-espacial.md` |
 | **piso de lectura** | el tiempo minimo que un texto debe quedar asentado para poder leerse: 0,8 s por etiqueta, 0,3 s por palabra | `references/ritmo.md` |
 | **zona segura** | la parte del cuadro que la UI de la plataforma no tapa. Vertical: 151 px a los lados | `references/coherencia-espacial.md` |
