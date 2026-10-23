@@ -1289,6 +1289,90 @@ def _chequear_contrato_cli(problemas):
             "msg": f"dice que hay {total} CLIs en ffmpeg_tools/ y hay {n_clis}"})
 
 
+#: La lista de escenas que enuncia la prosa. El NUMERO ya lo vigila el guard
+#: de cifras; la lista que va al lado es OTRA cosa, y puede estar incompleta
+#: con el numero siendo correcto. El enfasis se tolera ("**39 scene types**"
+#: en el ingles, "con 39 tipos" en el espanol).
+#: La lista se captura HASTA LA SIGUIENTE VIÑETA (no hasta el fin de linea):
+#: asi una lista partida en varias lineas se comprueba igual, y no hace falta
+#: que el guard se apague en silencio cuando alguien parte la linea.
+LISTA_DE_ESCENAS = re.compile(
+    r"(?:\*)*(\d+)(?:\*)*\s+(?:tipos(?:\s+de\s+escena)?|scene\s+types|scenes)"
+    r"(?:\*)*\s*[\u2014-]\s*(.+?)(?=\n\s*[-*]\s|\n\s*\n|\Z)", re.M | re.S)
+
+
+def _claves_de_escenas(ruta):
+    """Los nombres de escena del catalogo: las claves de SCENES.
+
+    Por AST y sin importar el modulo: un guard tiene que ser barato y no
+    arrastrar el motor entero.
+    """
+    import ast
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            arbol = ast.parse(fh.read())
+    except (OSError, SyntaxError, ValueError):
+        return set()
+    for n in ast.walk(arbol):
+        if not isinstance(n, ast.Assign) or not isinstance(n.value, ast.Dict):
+            continue
+        for t in n.targets:
+            if isinstance(t, ast.Name) and t.id == "SCENES":
+                return {k.value for k in n.value.keys
+                        if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+    return set()
+
+
+def _chequear_lista_de_escenas(problemas):
+    """Que la lista de escenas que enuncia la prosa sea el conjunto real.
+
+    El guard de cifras compara el NUMERO ("39 tipos") con el catalogo del
+    motor: los dos dicen 39 y sale verde. La lista que va al lado es OTRA
+    cosa, y ahi no miraba nadie: el README en espanol listaba 36 de las 39
+    (faltaban `callout`, `index` y `orbOpen`) mientras el ingles las
+    listaba todas. La cifra era la que se vigilaba y la enumeracion la que
+    no.
+
+    Se compara POR CONJUNTO contra el catalogo, no contra el numero: una
+    lista puede tener el numero correcto y faltar una escena.
+    """
+    render = os.path.join(BASE, "scripts", "render_plan.py")
+    if not os.path.isfile(render):
+        return
+    catalogo = _claves_de_escenas(render)
+    if not catalogo:
+        return
+    raiz = os.path.dirname(BASE)          # los README viven un nivel arriba
+    for nombre in ("README.md", "README.en.md"):
+        ruta = os.path.join(raiz, nombre)
+        if not os.path.exists(ruta):
+            continue
+        with open(ruta, encoding="utf-8") as fh:
+            texto = fh.read()
+        for mt in LISTA_DE_ESCENAS.finditer(texto):
+            declarado = int(mt.group(1))
+            nombres = re.findall(r"`([^`]+)`", mt.group(2))
+            if not nombres:
+                continue
+            faltan = sorted(catalogo - set(nombres))
+            sobran = sorted(set(nombres) - catalogo)
+            if not faltan and not sobran and len(nombres) == declarado:
+                continue
+            partes = []
+            if faltan:
+                partes.append(f"no menciona {len(faltan)} escenas del catalogo: "
+                              f"{', '.join(faltan)}")
+            if sobran:
+                partes.append(f"menciona nombres que no son escenas: {', '.join(sobran)}")
+            if len(nombres) != declarado:
+                partes.append(f"la lista tiene {len(nombres)} nombres y el texto dice "
+                              f"{declarado}")
+            problemas.append({
+                "tipo": "lista de escenas desfasada", "archivo": nombre,
+                "msg": ("la lista de escenas no es el catalogo: " + "; ".join(partes)
+                        + ". los nombres son las claves de SCENES en scripts/render_plan.py")})
+
+
 def _todos_los_checks(problemas, mds):
     """Todos los checks, sobre el arbol que este activo.
 
@@ -1427,6 +1511,9 @@ def _todos_los_checks(problemas, mds):
 
     # ---- 15b. ningun texto fijo sobre una caja de acento -------------
     _chequear_texto_fijo_sobre_acento(problemas)
+
+    # ---- 15b2. la lista de escenas es el conjunto real ---------------
+    _chequear_lista_de_escenas(problemas)
 
     # ---- 15c. todo test declarado se ejecuta --------------------------
     _chequear_tests_que_no_se_ejecutan(problemas)
