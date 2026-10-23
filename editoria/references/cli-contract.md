@@ -6,8 +6,11 @@ repite en cada script.
 
 ## Flags compartidos
 
-Las 16 CLIs de `ffmpeg_tools/` usan `add_common(ap)` + `apply_common(args)`
-de `_comun.py` y terminan con `emit(output, ...)`:
+Las CLIs de `ffmpeg_tools/` usan `add_common(ap)` + `apply_common(args)`
+de `_comun.py` y terminan con `emit(output, ...)`. 15 de las 16 cumplen el
+contrato entero; la excepcion es `variantes.py`: usa los flags compartidos,
+pero produce N variantes en un directorio y por eso imprime sus rutas en vez
+de emitir un JSON.
 
 **Alcance**: el contrato es de `ffmpeg_tools/`. Las CLIs de `scripts/` —las
 de análisis, render y medir— tienen su propia salida y sus propios errores, y

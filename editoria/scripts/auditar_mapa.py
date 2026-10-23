@@ -1044,6 +1044,24 @@ def _chequear_tests_que_no_se_ejecutan(problemas):
                 for m in c.body:
                     if isinstance(m, ast.FunctionDef) and m.name.startswith("test"):
                         ids_recogidos.add(id(m))
+        # un metodo REPETIDO en la misma clase: Python conserva el ultimo y
+        # el primero es codigo muerto. no se ve: el nombre sigue ahi, con el
+        # mismo aspecto, y el segundo parece el unico.
+        for c in arbol.body:
+            if not isinstance(c, ast.ClassDef):
+                continue
+            visto = {}
+            for m in c.body:
+                if not (isinstance(m, ast.FunctionDef) and m.name.startswith("test")):
+                    continue
+                if m.name in visto:
+                    problemas.append({
+                        "tipo": "test que no se ejecuta",
+                        "archivo": f"scripts/_tests/{f}",
+                        "msg": f"'{m.name}' esta definido dos veces en la clase "
+                               f"'{c.name}' (lineas {visto[m.name]} y {m.lineno}): Python "
+                               f"conserva el ultimo y el primero no se ejecuta"})
+                visto[m.name] = m.lineno
         for nodo, padre in _hijos(arbol, None):
             if not (isinstance(nodo, ast.FunctionDef) and nodo.name.startswith("test")):
                 continue
@@ -1236,8 +1254,16 @@ def _chequear_contrato_cli(problemas):
             n_cumplen += 1
     with open(doc, encoding="utf-8") as fh:
         texto = fh.read()
-    mt = re.search(r"(\d+)\s+CLIs\s+de\s+`?ffmpeg_tools`?\s+usan", texto)
+    mt = re.search(r"\*?(\d+)\s+de\s+las\s+\d+\s+cumplen\s+el\s+contrato", texto)
     if not mt:
+        # el patron dejo de casar con la prosa (una palabra distinta, una
+        # barra) y el guard se apagaba en silencio: decia "todo bien" sin
+        # mirar nada. un guard que no encuentra su objeto tiene que decirlo,
+        # porque su objeto es el numero que verifica
+        problemas.append({
+            "tipo": "guard sin objeto", "archivo": "references/cli-contract.md",
+            "msg": "no encuentro la frase del contrato ('N de las M cumplen el "
+                   "contrato'): este guard no comprueba nada hasta que la frase vuelva"})
         return
     declarado = int(mt.group(1))
     if declarado != n_cumplen:

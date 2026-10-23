@@ -453,17 +453,17 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("suite perdida en el commit", out)
         self.assertIn(victim, out)
 
-    def test_detecta_una_cifra_de_cli_obsoleta(self):
+    def test_detecta_una_cifra_de_clis_obsoleta_en_el_contrato(self):
         # el contrato de CLI declara cuantos scripts lo cumplen: si ese
         # numero no es el real, el documento miente sobre la skill
-        raiz = self._completa()
+        raiz = _copia_completa(os.path.join(self.dir, "skill_contrato"))
         doc = os.path.join(raiz, "references", "cli-contract.md")
         with open(doc, encoding="utf-8") as f:
             txt = f.read()
-        mt = re.search(r"(\d+)\s+CLIs\s+de\s+`?ffmpeg_tools`?\s+usan", txt)
+        mt = re.search(r"(\d+)\s+de\s+las\s+\d+\s+cumplen\s+el\s+contrato", txt)
         self.assertIsNotNone(mt, "el contrato debe decir cuantas CLIs lo cumplen")
         with open(doc, "w", encoding="utf-8") as f:
-            f.write(txt.replace(mt.group(0), mt.group(0).replace(mt.group(1), "99"), 1))
+            f.write(txt.replace(mt.group(0), mt.group(0).replace(mt.group(1), "7"), 1))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"la cifra del contrato no se detecto:\n{out}")
         self.assertIn("CLIs con el contrato", out)
@@ -599,6 +599,24 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("test que no se ejecuta", out)
         self.assertIn("test_este_no_se_ejecuta", out)
 
+    def test_detecta_un_test_duplicado_en_la_misma_clase(self):
+        # un metodo repetido en la misma clase: Python conserva el ultimo y
+        # el primero es codigo muerto. no se ve: el nombre sigue ahi, con el
+        # mismo aspecto, y el segundo parece el unico (y el conteo de tests
+        # no se mueve, asi que nada lo delata).
+        raiz = _copia_completa(os.path.join(self.dir, "skill_duplicado"))
+        p = os.path.join(raiz, "scripts", "_tests", "test_paleta.py")
+        with open(p, encoding="utf-8") as f:
+            txt = f.read()
+        marca = "    def test_una_paleta_inexistente_es_error_explicito(self):"
+        self.assertIn(marca, txt, "el fixture tiene que traer el test")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt.replace(marca, marca + "\n        pass\n\n" + marca, 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el test duplicado no se detecto:\n{out}")
+        self.assertIn("test que no se ejecuta", out)
+        self.assertIn("definido dos veces", out)
+
     def test_detecta_un_fichero_de_test_roto(self):
         # un fichero de test que no se puede leer no es un test que no corre:
         # es un test ROTO. saltarselo en silencio deja el hueco sin vigilar.
@@ -691,7 +709,7 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"el conteo obsoleto en ingles no se detecto:\n{out}")
         self.assertIn("conteo obsoleto", out)
 
-    def test_detecta_una_cifra_de_cli_obsoleta(self):
+    def test_detecta_una_cifra_de_operaciones_obsoleta(self):
         # el SKILL.md dice "montaje.py (19 operations)": si la CLI gana una
         # operacion, ese numero tiene que avisar
         raiz = _copia_completa(os.path.join(self.dir, "skill_cli"))
