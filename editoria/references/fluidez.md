@@ -65,8 +65,10 @@ transiciones *dentro* de la escena.)
 ## Ritmo
 - Los tiempos `at:{}` del plan anclan cada elemento a la palabra que se oye
   (o al beat). La animación respira con el contenido, no con un metrónomo.
-- Densidad: un evento de movimiento cada 0.8-1.5s. Más rápido abruma, más lento
-  aburre. Ojo: densidad de *movimiento*, no de *elementos* — un elemento nuevo
+- Densidad: **la banda que el motor vigila es 0,5-2,0 eventos/s** — fuera de
+  esa banda penaliza: menos de uno cada 2 s aburre, más de 2/s abruma. La
+  doctrina de diseño (más estrecha) es un evento cada 0,8-1,5 s, dentro de esa
+  banda. Ojo: densidad de *movimiento*, no de *elementos* — un elemento nuevo
   cada segundo es saturación, no dinamismo. El dinamismo es que los pocos
   elementos presentes estén vivos y armoniosos (ver "Saturación" en
   `principios.md`).
