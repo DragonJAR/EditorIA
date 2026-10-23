@@ -1768,6 +1768,12 @@ def sc_gauge(ctx, e, t):
         ke = smoothstep(clamp01((t - t_et) / 0.3))
         d.text((cx, cy + r * 0.707 + 40 + (1 - ke) * 16), e.get("etiqueta", ""), font=ctx.fX(ESCALA["dato"], 600),
                fill=GRIS + (int(255 * ke),), anchor="mt")
+    # la fuente de la cifra, al pie de la zona segura: el gauge ES una cifra
+    # y una cifra sin fuente a la vista es una cifra suelta (references/copy.md
+    # §4). el linter acepta el campo `fuente` en cualquier escena, asi que
+    # aqui tiene que dibujarse de verdad.
+    if e.get("fuente"):
+        pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 2.0))
     return capa_salida(layer, t, e["to"])
 
 

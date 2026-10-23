@@ -167,6 +167,26 @@ def analizar(plan):
     # 12) los cues de SFX: sonido conocido, ancla valida, densidad con turno
     _chequear_sfx(plan, fallos, avisos)
 
+    # 10b) una fuente declarada en una escena que NO la dibuja: el
+    # espectador no la vera y la regla "toda cifra lleva su fuente" no se
+    # cumple. se comprueba contra el motor, no contra una lista a mano.
+    _dibujan = _escenas_que_dibujan_la_fuente()
+    if isinstance(_dibujan, str):
+        avisos.append({"ruta": "escenas[]",
+                       "msg": f"no se puede leer el motor para saber que escenas dibujan "
+                              f"la fuente ({_dibujan}): este check no puede afirmar nada"})
+        _dibujan = None
+    if _dibujan is not None:
+        for i, esc in enumerate(plan.get("escenas") or []):
+            if not isinstance(esc, dict) or not esc.get("fuente"):
+                continue
+            tipo = str(esc.get("tipo", "")).lower()
+            if tipo and tipo not in _dibujan:
+                avisos.append({"ruta": f"escenas[{i}]",
+                               "msg": f"la escena '{tipo}' declara fuente pero no la dibuja: "
+                                      f"el espectador no la vera. anade pie_fuente al motor "
+                                      f"o quita el campo `fuente`"})
+
     # 11) cita: su origen o marca que es voz de marca
     for i, esc in enumerate(plan.get("escenas") or []):
         if isinstance(esc, dict) and str(esc.get("tipo", "")).lower() == "quote":
@@ -194,6 +214,36 @@ def analizar(plan):
         avisos.append({"ruta": "plan", "msg": f"{n_em} rayas em: usa punto"})
 
     return fallos, avisos
+
+
+def _escenas_que_dibujan_la_fuente():
+    """Los tipos de escena que DIBUJAN la fuente (leido del motor por AST).
+
+    El linter acepta el campo `fuente` en cualquier escena, pero el motor
+    solo lo dibuja en las que lo llaman: si una escena declara una fuente y
+    no la dibuja, el espectador no la ve y la regla "toda cifra lleva su
+    fuente" es una mentira para esa escena. Se lee del motor para que la
+    lista no se pueda quedar vieja.
+    """
+    import ast
+    import os
+    motor = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "render_plan.py")
+    try:
+        with open(motor, encoding="utf-8") as fh:
+            arbol = ast.parse(fh.read())
+    except (OSError, SyntaxError, ValueError) as e:
+        # NO se traga en silencio: si el motor no se puede leer, este check
+        # no puede affirmar nada, y callar seria un check apagado
+        return f"__error__:{type(e).__name__}"
+    out = set()
+    for n in arbol.body:
+        if not isinstance(n, ast.FunctionDef):
+            continue
+        if any(isinstance(x, ast.Call) and isinstance(x.func, ast.Name)
+               and x.func.id == "pie_fuente" for x in ast.walk(n)):
+            out.add(n.name[3:])          # sc_gauge -> gauge
+    return out
 
 
 def _cifras_de(esc):

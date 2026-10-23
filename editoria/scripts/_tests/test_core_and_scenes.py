@@ -469,6 +469,39 @@ class TestPostProductionAndLearningModules(unittest.TestCase):
         self.assertIsInstance(img_med, Image.Image)
 
 
+class TestLaFuenteSeDibuja(unittest.TestCase):
+    """Toda escena con cifras tiene que DIBUJAR su fuente.
+
+    El linter acepta el campo `fuente` en cualquier escena, pero si el
+    motor no lo dibuja, el espectador no lo ve: el plan dice una cosa y la
+    pieza dice otra. El gauge era el caso: es una cifra y no la dibujaba.
+    """
+
+    def _escenas_que_dibujan(self):
+        import ast
+        with open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8") as fh:
+            arbol = ast.parse(fh.read())
+        out = set()
+        for n in arbol.body:
+            if isinstance(n, ast.FunctionDef) and any(
+                    isinstance(x, ast.Call) and isinstance(x.func, ast.Name)
+                    and x.func.id == "pie_fuente" for x in ast.walk(n)):
+                out.add(n.name[3:])
+        return out
+
+    def test_el_gauge_dibuja_la_fuente(self):
+        self.assertIn("gauge", self._escenas_que_dibujan(),
+                      "el gauge es una cifra y tiene que dibujar su fuente al pie")
+
+    def test_el_linter_y_el_motor_cuentan_lo_mismo(self):
+        # las dos listas tienen que salir del MISMO motor: si el linter dice
+        # que una escena dibuja la fuente y el motor no, el aviso miente
+        import lint_copy as L
+        del_linter = L._escenas_que_dibujan_la_fuente()
+        del_motor = self._escenas_que_dibujan()
+        self.assertEqual(sorted(del_linter), sorted(del_motor))
+
+
 class TestViralFeaturesAndPrimitives(unittest.TestCase):
     def test_primitivas_movimiento_overshoot_arco_flash(self):
         # 1. curva_overshoot: en p=0 es 0, en p=1 es 1, y tiene sobrepaso > 1.0 en [0.6, 0.9]

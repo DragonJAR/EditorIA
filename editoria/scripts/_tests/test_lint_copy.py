@@ -123,6 +123,20 @@ class TestAnalisis(unittest.TestCase):
         fallos, avisos = L.analizar(plan)
         self.assertFalse(any("cifra sin fuente" in a["msg"] for a in avisos))
 
+    def test_fuente_en_una_escena_que_no_la_dibuja_avisa(self):
+        # el linter acepta el campo `fuente` en cualquier escena, pero el
+        # motor solo lo dibuja en las que lo llaman. si no se dibuja, el
+        # espectador no la ve y la regla "toda cifra lleva su fuente" no se
+        # cumple: el plan dice una cosa y la pieza dice otra.
+        plan = _plan([{"tipo": "bento", "titulo": "Tres cosas",
+                       "items": [{"titulo": "Uno", "texto": "A"},
+                                 {"titulo": "Dos", "texto": "B"},
+                                 {"titulo": "Tres", "texto": "C"}],
+                       "fuente": "CVSS 3.1"}])
+        fallos, avisos = L.analizar(plan)
+        self.assertTrue(any("no la dibuja" in a["msg"] for a in avisos),
+                        f"una fuente que no se dibuja tiene que avisar: {avisos}")
+
     def test_cita_sin_origen_avisa(self):
         plan = _plan([{"tipo": "quote", "texto": "Una cita", "autor": "Alguien"}])
         _f, avisos = L.analizar(plan)
