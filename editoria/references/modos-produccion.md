@@ -66,6 +66,48 @@ lo que no existe**; se usa lo real, o se deja hueco.
 - Annotation pins sobre producto/pantalla que la persona muestra.
 - Subrayados y círculos dibujados (draw-on) sobre el footage para señalar.
 
+### Componer la animación sobre el footage (el paso automático)
+
+Lo anterior es para cuando **otra persona** edita la pieza. Cuando la
+compone el agente, el overlay se mete con una cadena de filtros: la
+mascara del desenfoque sale del **ALFA** del overlay (no de un rectangulo),
+asi que el fondo se desenfoca SOLO detras de la tipografia y el resto del
+cuadro queda nitido.
+
+1. Render del overlay con alfa: `render_plan.py plan.json -o capa.mov`
+   (ProRes 4444 ✓) y el footage base **a la misma tasa** (24 fps si el
+   footage es de 24: convertirlo a 30 duplica cuadros y el medidor los lee
+   como tirones ✗).
+2. Composicion (ffmpeg, un solo comando):
+
+```bash
+ffmpeg -v error -y -i base.mp4 -i capa.mov -i velo.png -i audio.wav \
+  -filter_complex "\
+[0:v]split=2[sh][fb];\
+[fb]boxblur=luma_radius=24:luma_power=2,eq=saturation=0.40:brightness=-0.20:contrast=0.9[bl];\
+[1:v]split=2[ov][ovs];\
+[ovs]format=rgba,alphaextract,format=gray[al];\
+[al]boxblur=luma_radius=45:luma_power=2[ab];\
+[ab]lut=y='if(gt(val,28),min(1,(val-28)/130),0)'[mk];\
+[sh][bl][mk]maskedmerge[mm];\
+[mm][ov]overlay=0:0:format=auto[ov2];\
+[ov2][2:v]overlay=0:0:format=auto,format=yuv420p[v]" \
+  -map "[v]" -map 3:a -t DUR -r 24 \
+  -c:v libx264 -preset slow -crf 19 -profile:v high -level 4.1 \
+  -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k -ar 48000 -shortest out.mp4
+```
+
+Que hace cada trozo, porque tocarlos sin entenderlos rompe la pieza:
+
+- `split` + `boxblur` + `eq`: el base se desenfoca, se desatura y se oscurece.
+- `alphaextract`: la mascara sale del alfa del overlay (donde hay letra).
+- `boxblur` + `lut`: la mascara se ablanda (el borde del desenfoque no se
+  nota como borde) y se recorta para que solo la tipografia.
+- `maskedmerge`: el base **nítido** vuelve donde NO hay letra.
+- `overlay` dos veces: primero el overlay, luego el velo de marca (el PNG que
+  oscurece arriba y abajo, donde llega la UI de la plataforma).
+- `-r 24` y `-t DUR`: la tasa del footage y la duracion del plan.
+
 ### Overlays con alfa (entregar capas al editor)
 
 Cuando el footage lo edita otra persona (o vive en OBS), el gráfico se entrega
