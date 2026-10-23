@@ -330,6 +330,20 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"el conteo obsoleto en ingles no se detecto:\n{out}")
         self.assertIn("conteo obsoleto", out)
 
+    def test_detecta_una_cifra_de_cli_obsoleta(self):
+        # el SKILL.md dice "montaje.py (19 operations)": si la CLI gana una
+        # operacion, ese numero tiene que avisar
+        raiz = _copia_completa(os.path.join(self.dir, "skill_cli"))
+        s = os.path.join(raiz, "SKILL.md")
+        with open(s, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertRegex(txt, r"\d+\s+operations", "el SKILL.md deberia enunciar las operaciones")
+        with open(s, "w", encoding="utf-8") as f:
+            f.write(re.sub(r"(\d+)\s+operations", "3 operations", txt, count=1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la cifra de la CLI no se detecto:\n{out}")
+        self.assertIn("operaciones de montage.py", out)
+
 
 class TestCifrasDelCodigo(unittest.TestCase):
     """Las cifras de la prosa tienen que ser las del codigo.

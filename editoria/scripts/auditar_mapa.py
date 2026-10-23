@@ -802,6 +802,50 @@ def _chequear_claves_del_plan(problemas):
                    f"y ningun documento la menciona"})
 
 
+def _n_subcomandos(ruta):
+    """Cuantos subcomandos declara una CLI (los `add_parser` de argparse)."""
+    import ast
+    if not os.path.exists(ruta):
+        return None
+    with open(ruta, encoding="utf-8") as fh:
+        arbol = ast.parse(fh.read())
+    subs = set()
+    for n in ast.walk(arbol):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
+                and n.func.attr == "add_parser":
+            if n.args and isinstance(n.args[0], ast.Constant) \
+                    and isinstance(n.args[0].value, str):
+                subs.add(n.args[0].value)
+    return len(subs)
+
+
+def _chequear_cifras_de_cli(problemas):
+    """Que el numero de operaciones que dice la prosa sea el de la CLI.
+
+    El SKILL.md dice "montaje.py (19 operations)" y montaje.md dice "19
+    operaciones de cirugia de clips": el codigo tiene 19 subcomandos. Si
+    anaden uno, los dos numeros envejecen en silencio.
+    """
+    ruta = os.path.join(BASE, "scripts", "ffmpeg_tools", "montaje.py")
+    n = _n_subcomandos(ruta)
+    if not n:
+        return
+    for etiqueta, ruta_doc, patron in (
+        ("SKILL.md", os.path.join(BASE, "SKILL.md"), r"(\d+)\s+operations\b"),
+        ("references/montaje.md", os.path.join(REFS, "montaje.md"), r"(\d+)\s+operaciones\b"),
+    ):
+        if not os.path.exists(ruta_doc):
+            continue
+        with open(ruta_doc, encoding="utf-8") as fh:
+            texto = _prosa(fh.read())
+        for mt in re.finditer(patron, texto):
+            g = mt.group(1)
+            if int(g) != n:
+                problemas.append({
+                    "tipo": "conteo obsoleto", "archivo": etiqueta,
+                    "msg": f"dice {g} operaciones de montage.py y la CLI tiene {n}"})
+
+
 def main():
     ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
                                  epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
@@ -936,6 +980,9 @@ def main():
 
     # ---- 13. toda clave del plan que el motor lee esta documentada -----
     _chequear_claves_del_plan(problemas)
+
+    # ---- 14. las cifras de una CLI son las de sus subcomandos ---------
+    _chequear_cifras_de_cli(problemas)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}
