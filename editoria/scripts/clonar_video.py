@@ -219,6 +219,20 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
     tema = tema or "Ciberseguridad y Productividad Digital"
     segmentos = plantilla.get("segmentos", [])
 
+    if not segmentos:
+        # Una plantilla sin segmentos no es una plantilla: no hay estructura que
+        # variar. Lo mas probable es que se haya pasado un plan.json donde se
+        # espera la plantilla (el motor acepta la abreviatura --plan por
+        # --plantilla). Decir "OK Variante 1: 0 escenas" era honesto en los
+        # numeros y mentiroso en la palabra: una variante sin escenas no es
+        # una variante, y el plan que sale revienta al renderizarlo.
+        sys.exit(
+            "ERROR: la plantilla no trae 'segmentos' (la estructura de la referencia): "
+            "no hay nada que variar.\n"
+            "  Este comando espera la plantilla que produce 'analizar' (plantilla.json).\n"
+            "  Si le has pasado un plan.json, el motor acepta la abreviatura --plan por "
+            "--plantilla: renombralo o usa el plan con render_plan.py.")
+
     print(f"Generando {num_variantes} variantes para el tema: '{tema}'...")
 
     needing = []            # variantes cuya voz todavia no cabe
