@@ -304,9 +304,54 @@ def mancha_mask(ctx,t,t0,dur=0.7,fx=0.5,fy=0.45):
     d.polygon(pts,fill=255)
     return mask
 
+
+def marca_fondo(ctx, layer, cx, cy, r, t, t0, dur=0.7, color=None, alpha=90):
+    """La MARCA del pack (el isotipo) como fondo que CRECE y se ENCOGE.
+
+    El gesto es el de la apertura (nace de un punto, crece y se encoge con el
+    cambio de titular); lo que cambia es la FORMA: donde antes habia un blob
+    organico de cuatro lobulos ahora esta la identidad de la marca.
+
+    Va como FONDO (misma luz, misma curva, misma zona) para no competir con el
+    titular: el pack lo declara con `reglas.isotipo_con_protagonista: false` y
+    por eso va TENUE, no como firma.
+
+    Devuelve False si el pack no trae isotipo: el que llama cae al blob de
+    siempre. El gesto no depende de que la marca tenga isotipo.
+    """
+    iso = getattr(ctx, "iso", None)
+    if iso is None:
+        return False
+    k = clamp01((t - t0) / max(1e-6, dur))
+    if k <= 0 or r <= 4:
+        return True
+    col = color or ACENTO
+    # el resplandor: la misma luz difusa del fondo, crecida con el radio
+    g = max(16, int(r * 1.7))
+    halo = ctx.blob_mid.resize((g, g), Image.BILINEAR)
+    halo.putalpha(halo.getchannel("A").point(lambda v: int(v * k)))
+    layer.alpha_composite(halo, (int(cx - g / 2), int(cy - g / 2)))
+    # la MARCA, como silueta en el color de la marca: el isotipo en su propio
+    # color es la verdad de la marca, y el texto (blanco) encima conserva el
+    # contraste. En blanco la silueta se lavaria sobre un plano claro y
+    # taparia el titular.
+    s = max(12, int(r * 1.45))
+    paso = max(8, (s // 8) * 8)
+    cache = getattr(ctx, "_iso_cache", None)
+    if cache is None:
+        cache = ctx._iso_cache = {}
+    if paso not in cache:
+        sil = Image.new("RGBA", iso.size, tuple(col[:3]) + (0,))
+        sil.putalpha(iso.getchannel("A"))
+        cache[paso] = sil.resize((paso, paso), Image.LANCZOS)
+    im = cache[paso].copy()
+    im.putalpha(im.getchannel("A").point(lambda v: int(v * k * alpha / 255)))
+    layer.alpha_composite(im, (int(cx - paso / 2), int(cy - paso / 2)))
+    return True
+
+
 def iris_mask(ctx, t, t0, dur=0.7, fx=0.5, fy=0.38):
     """Máscara de círculo que crece desde un punto: la apertura en iris.
-
     Es el corte firma del video con presentador: la escena entra desde la
     cara. Comparte el presupuesto de la `mancha` (las dos piden atención).
     Determinista: el radio es función pura del tiempo."""
@@ -1078,15 +1123,18 @@ def estrellas(layer, cx, cy, valor, maximo=5, tam=46, k=1.0, color=None):
 def sc_apertura(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     cambio=e["at"]["cambio"]
-    # mancha de entrada tras el titular (centrada con el titular: H*0.44)
+    # fondo de entrada tras el titular (centrado con el titular: H*0.44)
     r=W*0.42*entra(t, e["from"], "lento")*(1-prog(t,cambio-0.15,cambio+0.35)*0.75)
     if r>4:
-        pts=[]
-        for i in range(72):
-            a=i/72*math.pi*2+t*0.8
-            rr=r*(1+0.28*math.sin(a*4+t*2))
-            pts.append((W/2+rr*math.cos(a),H*0.44+rr*math.sin(a)))
-        d.polygon(pts,fill=ACENTO+(58,))
+        # con isotipo en el pack, el fondo es la MARCA (crece y se encoge igual);
+        # sin isotipo, el blob organico de cuatro lobulos de siempre
+        if not marca_fondo(ctx, layer, W/2, H*0.44, r, t, e["from"], 0.7):
+            pts=[]
+            for i in range(72):
+                a=i/72*math.pi*2+t*0.8
+                rr=r*(1+0.28*math.sin(a*4+t*2))
+                pts.append((W/2+rr*math.cos(a),H*0.44+rr*math.sin(a)))
+            d.polygon(pts,fill=ACENTO+(58,))
     # micro-idle: el titular asentado respira (±5 px), nunca queda congelado
     if t < cambio:   # el primer titular se va (fundido + sube) en vez de desaparecer de golpe
         ks=prog(t,cambio-0.35,cambio)   # cúbica: arranca suave

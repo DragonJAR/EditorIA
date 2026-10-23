@@ -85,7 +85,9 @@ Claves `reglas` reconocidas:
   sin que el brief los pida (`false` = solo a pedido).
 - `isotipo_con_protagonista`: si el isotipo puede compartir plano con un
   protagonista grande (casi siempre `false`: o no aparece, o tiene un rol
-  claro y recurrente).
+  claro y recurrente). El fondo de la `apertura` ES un rol claro y recurrente:
+  la silueta de la marca crece y se encoge detrás del titular, siempre en el
+  color de la marca y siempre de fondo, nunca como firma.
 
 ## Crear un pack nuevo
 
