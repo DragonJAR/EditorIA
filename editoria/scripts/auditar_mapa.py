@@ -71,8 +71,14 @@ REGLAS_UNICAS = [
      "patron": r"zona segura de (\d{3})\s*px|(\d{3})\s*px de (?:la )?zona segura"},
     {"nombre": "techo general de overshoot", "tipo": "exacto", "valor": 8,
      "patron": r"techo general (\d+)\s?%"},
-    {"nombre": "densidad de movimiento", "tipo": "exacto", "valor": (0.8, 1.5),
-     "patron": r"evento de movimiento cada (\d\.\d)[-–](\d\.\d)\s*s"},
+    # la densidad: el motor penaliza fuera de 0.5-2.0 eventos/s. El patron
+    # exige que el bloque ATRIBUYA la cifra al motor: hay dos cosas distintas
+    # y no se pueden mezclar. Lo que el motor VIGILA (una cifra) y el ritmo
+    # que se considera comodo (otra, mas estrecha) son reglas diferentes, y
+    # el enunciado que dice "el motor pide" tiene que decir la del motor.
+    {"nombre": "densidad de movimiento", "tipo": "exacto", "valor": (0.5, 2.0),
+     "patron": r"[Mm]otor[^.\n]{0,60}?cada\s+(\d[.,]\d)\s*[-–]\s*(\d[.,]\d)"
+               r"|[Mm]otor[^.\n]{0,60}?(\d[.,]\d)\s*[-–]\s*(\d[.,]\d)\s*(?:eventos|s\b)"},
     {"nombre": "piso de letra", "tipo": "exacto", "valor": 26,
      "patron": r"(?:[Pp]iso de letra|letra m[ií]nima|m[ií]nimo de tama[ñn]o de texto|"
                r"tama[ñn]o m[ií]nimo de texto|letra que no se lee)[^.\n]{0,120}?(\d{2})\s*px"},
@@ -122,10 +128,17 @@ def _chequear_reglas(problemas):
                 grupos = [g for g in m.groups() if g]
                 if not grupos:
                     continue
-                if isinstance(regla["valor"], tuple):
-                    v = tuple(float(g) for g in grupos)
-                else:
-                    v = float(grupos[0])
+                # el decimal puede venir con coma ("0,5-2 s") o con punto:
+                # sin normalizar, float() revienta y la regla NUNCA se compara
+                # (un numero con coma se escapa del guard por mucho que se
+                # enuncie en la prosa)
+                try:
+                    if isinstance(regla["valor"], tuple):
+                        v = tuple(float(g.replace(",", ".")) for g in grupos)
+                    else:
+                        v = float(grupos[0].replace(",", "."))
+                except ValueError:
+                    continue
                 valores.setdefault(v, set()).add(f)
         esperado = regla["valor"]
         for v, fs in sorted(valores.items()):

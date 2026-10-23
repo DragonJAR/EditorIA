@@ -225,6 +225,38 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")
 
+    def test_el_umbral_de_densidad_no_se_inventa(self):
+        # la cifra que la skill enuncia para la densidad tiene que ser la que el
+        # motor PENALIZA: menos de 0.5 (aburre) y mas de 2.0 (abrumba)
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"densidad de movimiento".*?"valor":\s*\(([\d.]+),\s*([\d.]+)\)',
+                      txt, re.S)
+        self.assertIsNotNone(m, "la regla de la densidad debe estar en auditar_mapa.py")
+        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
+            motor = f.read()
+        self.assertIn(f"dens < {m.group(1)}", motor,
+                      "el umbral bajo de densidad tiene que ser el del motor")
+        self.assertIn(f"dens > {m.group(2)}", motor,
+                      "el umbral alto de densidad tiene que ser el del motor")
+
+    def test_detecta_una_densidad_atribuida_al_motor_que_no_es_la_del_motor(self):
+        # el glosario decia "el motor pide uno cada 0,8-1,5 s" cuando el motor
+        # penaliza fuera de 0,5-2: un numero falso en la prosa, y el guard
+        # no lo veia porque comparaba contra el mismo numero equivocado
+        raiz = self.raiz
+        with open(os.path.join(raiz, "references", "glosario.md"), encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("motor", txt.lower())
+        nuevo = re.sub(r"[Ee]l motor penaliza fuera de [\d.,]+-[\d.,]+ s",
+                       "El motor pide uno cada 0,8-1,5 s", txt)
+        self.assertNotEqual(txt, nuevo, "el glosario debe enunciar la densidad del motor")
+        with open(os.path.join(raiz, "references", "glosario.md"), "w", encoding="utf-8") as f:
+            f.write(nuevo)
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la densidad falsa no se detecto:\n{out}")
+        self.assertIn("densidad de movimiento", out)
+
 
 class TestCifrasDelCodigo(unittest.TestCase):
     """Las cifras de la prosa tienen que ser las del codigo.
