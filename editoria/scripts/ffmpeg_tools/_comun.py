@@ -1131,7 +1131,20 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
             cues = parse_srt(base + ".srt")
             write_srt(cues, out_srt)
             return cues
-        info("whisper.cpp encontrado pero fallo: " + (proc.stderr.strip().splitlines() or ["?"])[-1][:200])
+        lineas = [ln.strip() for ln in (proc.stderr or "").strip().splitlines() if ln.strip()]
+        # whisper.cpp, cuando le falta el modelo, imprime su AYUDA entera: la
+        # ultima linea es texto de uso ("-vo N, --vad-samples-overlap...") y
+        # no dice nada del fallo real. Se busca la primera linea de error de
+        # verdad y, si no hay, se dice que falta el modelo (que es el caso
+        # normal: el binario esta, el modelo no).
+        causa = next((ln for ln in lineas
+                      if "error" in ln.lower() or "fail" in ln.lower()
+                      or "not found" in ln.lower() or "no such" in ln.lower()),
+                     None)
+        if causa is None:
+            causa = (f"no se encuentra el modelo {model_path!r}" if not os.path.exists(model_path)
+                     else (lineas[-1] if lineas else "?"))
+        info("whisper.cpp encontrado pero fallo: " + causa[:200])
     # 2. faster-whisper (paquete python)
     try:
         from faster_whisper import WhisperModel  # type: ignore
