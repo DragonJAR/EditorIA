@@ -8,6 +8,7 @@ la skill REAL pasa.
 Run with: python3 -m unittest discover -s SKILL/scripts/_tests
 """
 
+import ast
 import os
 import re
 import shutil
@@ -650,26 +651,43 @@ class TestAuditarMapa(unittest.TestCase):
         repo = os.path.join(self.dir, "repo_lista")
         os.makedirs(repo, exist_ok=True)
         skill = _copia_completa(os.path.join(repo, "editoria"))
-        # el README vive un nivel arriba de la skill, como en el repo real
-        real = os.path.join(os.path.dirname(BASE), "README.md")
-        with open(real, encoding="utf-8") as f:
-            txt = f.read()
-        self.assertIn("39 tipos", txt, "el README real tiene que traer la lista")
-        incompleta = txt.replace("`callout`, ", "")
-        self.assertNotEqual(incompleta, txt, "el README real tendria que traer 'callout'")
+        # la lista se arma desde el catalogo del motor de la COPIA, no desde
+        # el README del repo: ese archivo no viaja en la copia instalada y un
+        # test que depende de el falla ahi (y falla justo en el entorno donde
+        # la puerta se usa). Un test tiene que pasar con lo que se publica.
+        render = os.path.join(skill, "scripts", "render_plan.py")
+        with open(render, encoding="utf-8") as f:
+            arbol = ast.parse(f.read())
+        catalogo = []
+        for n in ast.walk(arbol):
+            if isinstance(n, ast.Assign) and isinstance(n.value, ast.Dict):
+                for t in n.targets:
+                    if isinstance(t, ast.Name) and t.id == "SCENES":
+                        catalogo = [k.value for k in n.value.keys
+                                    if isinstance(k, ast.Constant)]
+        self.assertTrue(catalogo, "el motor tiene que traer SCENES")
+        faltan = catalogo[-1]
+        incompletos = catalogo[:-1]
+
+        def _readme(nombres, partir=False):
+            lista = ", ".join(f"`{n}`" for n in nombres)
+            if partir:
+                lista = lista.replace(", ", ",\n  ", 1)
+            return (f"- Renderizar por plan declarativo con {len(catalogo)} tipos — "
+                    f"{lista}.\n")
+
+        # la lista incompleta: el caso que se dio (36 de las 39)
         with open(os.path.join(repo, "README.md"), "w", encoding="utf-8") as f:
-            f.write(incompleta)
+            f.write(_readme(incompletos))
         rc, out = _auditar(skill)
         self.assertEqual(rc, 1, f"la lista incompleta no se detecto:\n{out}")
         self.assertIn("lista de escenas desfasada", out)
-        self.assertIn("callout", out, "el fallo tiene que decir que escena falta")
+        self.assertIn(faltan, out, "el fallo tiene que decir que escena falta")
 
         # y la lista COMPLETA, aunque parta en dos lineas, no da falso positivo:
         # un detector que llora se desactiva
-        partida = txt.replace("`chat`, `leads`,", "`chat`,\n  `leads`,")
-        self.assertNotEqual(partida, txt)
         with open(os.path.join(repo, "README.md"), "w", encoding="utf-8") as f:
-            f.write(partida)
+            f.write(_readme(catalogo, partir=True))
         rc, out = _auditar(skill)
         self.assertEqual(rc, 0, f"una lista partida en dos lineas dio falso positivo:\n{out}")
         self.assertNotIn("lista de escenas desfasada", out)
