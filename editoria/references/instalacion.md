@@ -12,7 +12,7 @@ referencias) y los README del repo. Se instala copiándola a la carpeta
 donde el agente carga las skills (en MCode, `~/.minimax/skills/`):
 
 ```bash
-git clone <repo> editoria-repo
+git clone URL_DEL_REPO editoria-repo
 python editoria-repo/editoria/scripts/sincronizar_instalada.py --destino ~/.minimax/skills
 ```
 
