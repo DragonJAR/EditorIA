@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import wave
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.dirname(HERE)
@@ -195,6 +196,46 @@ class TestConAudioReal(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertNotIn("Traceback", r.stderr)
         self.assertIn("solapadas", (r.stdout + r.stderr).lower())
+
+
+class TestFinDelVideo(unittest.TestCase):
+    """La voz que se pasa del FINAL DEL VIDEO se corta contra el borde.
+
+    Es el unico desborde que no es un aviso: la voz puede continuar sobre la
+    siguiente imagen (eso es normal), pero sobre el final del video no hay
+    nada que la tape. Antes solo era un AVISO en las dos herramientas, asi
+    que un plan escrito asi pasaba la puerta en verde: el defecto que
+    tenian las 10 piezas de la demo."""
+
+    def _wav(self, segundos=2.0):
+        d = tempfile.mkdtemp()
+        ruta = os.path.join(d, "f.wav")
+        with wave.open(ruta, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(44100)
+            w.writeframes(b"\x00\x00" * int(44100 * segundos))
+        return ruta
+
+    def test_una_voz_que_termina_despues_del_video_falla(self):
+        wav = self._wav(2.0)
+        # la voz entra en 1.5 s y dura 2 s: termina en 3.5 s; el video dura 3
+        segs = [(wav, 1500, {"tipo": "final", "from": 1.0, "to": 3.0})]
+        with self.assertRaises(SystemExit) as ctx:
+            VL.verificar_reloj(segs, duracion_video=3.0)
+        self.assertIn("corta", str(ctx.exception).lower())
+
+    def test_una_voz_que_termina_antes_del_video_pasa(self):
+        wav = self._wav(2.0)
+        segs = [(wav, 1500, {"tipo": "final", "from": 1.0, "to": 3.0})]
+        # 1.5 + 2 = 3.5 s de voz, el video dura 4 s: cabe
+        VL.verificar_reloj(segs, duracion_video=4.0)
+
+    def test_sin_duracion_no_se_comprueba(self):
+        """Sin el dato no se puede afirmar nada: no se inventa un fallo."""
+        wav = self._wav(2.0)
+        segs = [(wav, 1500, {"tipo": "final", "from": 1.0, "to": 3.0})]
+        VL.verificar_reloj(segs)
 
 
 if __name__ == "__main__":

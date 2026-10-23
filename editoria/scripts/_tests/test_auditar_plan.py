@@ -136,6 +136,27 @@ class TestRelojDeLaNarracion(unittest.TestCase):
         # con el hueco muy justo: la estimacion excede un 40% -> error
         self.assertIn("ERROR", self._niveles(self._plan(est * 0.6)))
 
+    def test_la_voz_que_se_pasa_del_final_del_video_avisa(self):
+        """La voz que se sale del FINAL no tiene otra imagen que la tape:
+        se corta contra el borde. Con la estimacion no se puede probar el
+        corte, asi que avisa (quien falla es el TTS real)."""
+        texto = "Esta frase es deliberadamente larguisima para ocupar mucho tiempo de reloj."
+        est = estimar_duracion(texto)
+        plan = {"duracion": est * 0.5,
+                "escenas": [{"tipo": "final", "from": 0.0, "to": est * 0.5, "voz": texto}]}
+        avisos = [h for h in AP.auditar_estructura(plan)
+                  if h["nivel"] == "AVISO" and "final del video" in h["msg"]]
+        self.assertTrue(avisos, "la voz que se pasa del final del video no avisa")
+
+    def test_una_voz_que_cabe_no_avisa_del_final(self):
+        texto = "Una frase corta."
+        est = estimar_duracion(texto)
+        plan = {"duracion": est * 4,
+                "escenas": [{"tipo": "final", "from": 0.0, "to": est * 4, "voz": texto}]}
+        avisos = [h for h in AP.auditar_estructura(plan)
+                  if h["nivel"] == "AVISO" and "final del video" in h["msg"]]
+        self.assertFalse(avisos, "una voz que cabe no avisa del final del video")
+
 
 if __name__ == "__main__":
     unittest.main()

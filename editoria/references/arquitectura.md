@@ -26,7 +26,14 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   español → Fernanda Sanmiguel, inglés → Brian (`--voz`/`--idioma` para cambiar).
   La API key sale de `$ELEVENLABS_API_KEY` (ver `~/.secrets.env`, nunca en el skill).
   Dirección completa en `references/sonido.md`. La narración manda el reloj:
-  mide cada segmento y falla antes de mezclar si una voz pisa a la siguiente.
+  mide cada segmento y falla antes de mezclar si una voz pisa a la siguiente
+  o si la de la última escena se pasa del final del video (ahí se corta
+  contra el borde y no hay otra imagen que la tape).
+- **scripts/voz_local.py** — la misma narración con la voz del sistema, sin
+  API: mismo contrato que `voz_off.py` (plan → una pista, `--guion`), mismo
+  reloj (importa la misma comprobación), y la voz que hay instalada en la
+  máquina. Es una entrega de maqueta (sin dirección emocional) y falla en
+  voz alta si no hay voz del idioma pedido. Ver `references/sonido.md`.
 - **scripts/auto_qa.py** — ojos máquina sobre el render: negros, congelados,
   flashes, silencios, clipping, fotosensibilidad (≤3 destellos/s a fps
   completo), sobresaltos (+6 dB al entrar un corte), costura de loop
@@ -100,6 +107,11 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   escenas vacías, voz sin texto, huecos, coherencia con `duracion`, tipos
   leídos de `SCENES` de render_plan y que cada voz quepa en su escena sin
   pisar la siguiente, estimada con `speech_estimate.py`: una sola fuente).
+  El margen del reloj es PROPORCIONAL al hueco (la estimación silábica se
+  desvía del tiempo real entre un 9% y un 24%: un margen fijo más pequeño
+  que ese error rechazaba planes válidos; `BANDA_ESTIMACION` en
+  `speech_estimate.py`). Avisa también de la voz que se pasa del final del
+  video, que es el único desborde que se corta contra el borde.
   Correr antes de renders largos y antes de pagar TTS.
 - **scripts/speech_estimate.py** — estimador determinista de sílabas y duración
   de locución pre-TTS para español e inglés (`estimar_duracion_habla`,

@@ -152,9 +152,14 @@ Antes de timar escenas: la duración de la escena se deriva de la VO, no al rev�
   mide su ritmo real. Una escena sin VO (beat puramente visual) necesita
   ≥1.0s para registrar. **La narración manda el reloj**: `auditar_plan.py`
   estima así si cada voz cabe en su escena antes de pagar TTS, y
-  `voz_off.py` mide la voz real y falla si una pisa a la siguiente (dirá
-  cuántos segundos alargar). Si la voz no cabe, se alarga la escena o se
-  recorta el texto; nunca se acelera la voz.
+  `voz_off.py` (o `voz_local.py`) mide la voz real y falla si una pisa a la
+  siguiente (dirá cuántos segundos alargar). Si la voz no cabe, se alarga la
+  escena o se recorta el texto; nunca se acelera la voz.
+  **Y el final del video es un caso aparte**: la voz de la última escena no
+  tiene otra imagen que la tape, así que si termina después de que acaba el
+  video se CORTA contra el borde. `auditar_plan.py` avisa (con la estimación
+  no se puede probar el corte) y `voz_off.py` / `voz_local.py` fallan (ahí sí
+  se mide el audio de verdad).
 - **Pronunciación**: el campo `voz` lleva lo que se DICE y los campos de
   texto lo que se VE. Siglas, nombres inventados y cifras cuya lectura
   importa se escriben como deben sonar ("A P I", "ese cu ele" o "sequel",

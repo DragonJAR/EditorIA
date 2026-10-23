@@ -76,11 +76,18 @@ def duracion(path):
                         "-of", "csv=p=0", path], capture_output=True, text=True)
     return float(r.stdout.strip() or 0)
 
-def verificar_reloj(segs):
+def verificar_reloj(segs, duracion_video=None, tolerancia_fin=0.20):
     """La narración manda el reloj: mide cada segmento real. Si una voz pisa
     a la siguiente, amix las sumaría (dos voces a la vez): se falla ANTES de
     mezclar, diciendo cuánto alargar. Los segmentos quedan en caché (no se
-    re-pagan al re-ejecutar tras corregir el plan)."""
+    re-pagan al re-ejecutar tras corregir el plan).
+
+    `duracion_video` (la duración del plan, en segundos) añade la ÚLTIMA
+    comprobación, que es la que no se puede ver en el reloj entre escenas:
+    si la voz de la última escena termina después del final del video, la
+    narración SE CORTA contra el borde. No hay otra imagen que la tape: es
+    un defecto, no un aviso. Sin ese dato la comprobación no se hace (no
+    todas las llamadas saben la duración)."""
     errores = []
     for k, (f, dl, e) in enumerate(segs):
         fin = dl / 1000 + duracion(f)
@@ -91,6 +98,14 @@ def verificar_reloj(segs):
         elif fin > e.get("to", fin):
             print(f"AVISO escena {e['tipo']}@{e['from']}s: la voz termina {fin - e['to']:.2f}s "
                   f"después de la escena (cae sobre la siguiente imagen)", flush=True)
+    if duracion_video and segs:
+        f, dl, e = segs[-1]
+        fin = dl / 1000 + duracion(f)
+        if fin > duracion_video + tolerancia_fin:
+            errores.append(f"escena {e['tipo']}@{e['from']}s: la voz termina {fin:.2f}s y el "
+                           f"video dura {duracion_video:.2f}s — la narración se CORTA contra "
+                           f"el final: acortar el texto "
+                           f"{fin - duracion_video:.2f}s o alargar el video")
     if errores:
         sys.exit("ERROR voces solapadas:\n  " + "\n  ".join(errores))
 
@@ -142,7 +157,7 @@ def main():
         else:
             print(f"TTS escena {i} ({e['tipo']}): {vox[:50]}…",flush=True)
             tts(vox, f, voz_id, a.model)
-    verificar_reloj(segs)
+    verificar_reloj(segs, duracion_video=plan.get("duracion"))
     # mezcla con delays
     fc=[]; amix=[]
     for i,(f,dl,_) in enumerate(segs):

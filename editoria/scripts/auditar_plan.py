@@ -194,6 +194,21 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
         elif to_v is not None and fin > to_v:
             add("AVISO", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
                 f"{dur:.1f}s) se sale de la escena en {fin - to_v:.1f}s")
+    # La voz que se sale del FINAL DEL VIDEO no tiene otra imagen que la
+    # tape: se corta contra el borde. Es el unico desborde que no es un
+    # aviso (la voz puede continuar sobre la siguiente imagen, pero no
+    # sobre el final). Con la estimacion no se puede PROBAR el corte, asi
+    # que sale como aviso; el que falla es el TTS real (voz_off.py /
+    # voz_local.py), que mide el audio sintetizado.
+    dur_video = _t_num(plan.get("duracion"))
+    if con_voz and dur_video is not None:
+        idx, e = con_voz[-1]
+        fr_v = _t_num(e.get("from"))
+        fin = fr_v + AIRE_VOZ + estimar_duracion(e["voz"], idioma, ritmo)
+        if fin > dur_video:
+            add("AVISO", fr_v, f"escena {idx}: la voz puede salirse del final del video "
+                f"(estimada hasta {fin:.1f}s, el video dura {dur_video:.1f}s) — "
+                f"verificar con voz_off.py / voz_local.py (miden el audio real)")
 
     ordenadas_con_t = [(idx, e) for idx, e in ordenadas
                        if _t_num(e.get("from")) is not None and _t_num(e.get("to")) is not None]

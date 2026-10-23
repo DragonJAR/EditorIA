@@ -387,7 +387,10 @@ def main():
         archivos.append((destino, delay_ms, e))
 
     # La narracion manda el reloj: la MISMA comprobacion que voz_off.py.
-    verificar_reloj(archivos)
+    # Con la duracion del plan: si la voz de la ultima escena se pasa del
+    # final del video, la narracion se corta contra el borde (no hay otra
+    # imagen que la tape) y eso es un ERROR, no un aviso.
+    verificar_reloj(archivos, duracion_video=plan.get("duracion"))
 
     # Ritmo REAL de esta voz: el estimador silabico es una aproximacion
     # (mide su error contra esta cifra) y el agente necesita saber cuanto
