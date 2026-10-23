@@ -109,7 +109,8 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   siguiente (y antes del final del video), estimada con `speech_estimate.py`:
   una sola fuente).
   El margen del reloj es PROPORCIONAL al hueco: un 25 % del hueco, con un
-  mínimo de 0,3 s (la estimación silábica se desvía del tiempo real entre
+  mínimo de 0,3 s (un hueco muy corto no tolera un margen proporcional;
+  la estimación silábica se desvía del tiempo real entre
   un 9% y un 24%: un margen fijo más pequeño que ese error rechazaba planes
   válidos; `BANDA_ESTIMACION` en `speech_estimate.py`). Avisa también de la voz que se pasa del final del
   video, que es el único desborde que se corta contra el borde.

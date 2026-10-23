@@ -43,7 +43,7 @@ from speech_estimate import AIRE_VOZ  # el aire de voz: la MISMA constante que
 SONIDOS = ("click", "pop", "drop", "whoosh", "ding", "thud", "tick", "swell")
 CUES_MIN_MIN = 8      # la doctrina: max 8-12 cues por minuto
 CUES_MIN_MAX = 12
-OFFSET_VOZ = AIRE_VOZ  # la voz de cada escena entra en from + el aire (0.4 s)
+OFFSET_VOZ = AIRE_VOZ  # la voz de cada escena entra en from + el aire
 
 
 def _escenas(plan):

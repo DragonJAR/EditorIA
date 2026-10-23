@@ -157,7 +157,7 @@ Antes de timar escenas: la duración de la escena se deriva de la VO, no al rev�
   siguiente (dirá cuántos segundos alargar). Si la voz no cabe, se alarga la
   escena o se recorta el texto; nunca se acelera la voz.
   El margen va con el hueco disponible: un **25 % del hueco**, con un
-  **mínimo de 0,3 s** (un hueco de 0,5 s no tolera un margen de 0,125 s).
+  **mínimo de 0,3 s** (un hueco muy corto no tolera un margen proporcional).
   Los dos números los vigila el guard de la prosa (`auditar_mapa.py`),
   atados al código por tests: si el motor cambia la banda, la prosa avisa
   en vez de quedarse con el número viejo.
