@@ -157,6 +157,24 @@ contradigan.
    `qa-entrega.md`, y el paso de edicion del `SKILL.md` tiene que nombrarla.
 8. **La prosa es para el juicio, el codigo para el hecho.** Un numero que se
    puede calcular no se escribe a mano en la referencia: se calcula.
+9. **"Que se encuentre" tiene tres capas, y cada una necesita su guard.** Que
+   una herramienta este enlazada en algun sitio no basta: puede existir, estar
+   enlazada y seguir siendo invisible. Por eso hay tres preguntas y tres
+   guards:
+   - *¿Existe y esta enlazada de ALGO?* -> el check de huerfanos
+     (`scripts/validate_skill.py`): un archivo que ninguna referencia
+     encuentra es un archivo que nadie usa.
+   - *¿Esta en la ENTRADA que el agente lee primero?* -> el guard del indice
+     del `SKILL.md` (`scripts/auditar_mapa.py`): una CLI enlazada solo en una
+     referencia es media invisible. El caso: `galeria.py` (las 39 escenas del
+     catalogo) y `beat_file.py` (el camino inverso a `beat_grid.py`: el beat se
+     autora primero y la musica nace de el) estaban enlazadas en una
+     referencia y no en el indice: el agente no las encontraba.
+   - *¿La doc que la describe dice la verdad?* -> los guards de cifras y de
+     reglas: un numero que no coincide con el motor es una promesa rota, por
+     muy bien enlazada que este la pagina.
+   Pasar la primera capa no dice nada de las otras dos, y la segunda encuentra
+   cosas que la primera daba por buenas.
 
 ## 5. Los scripts
 
