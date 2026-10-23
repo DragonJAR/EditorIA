@@ -184,6 +184,18 @@ contradigan.
     (`check_env.py` para el bytecode fantasma; `sincronizar_instalada.py
     --check` para la copia). El orden importa: al reves, se "arregla" lo que
     no estaba roto. El procedimiento, en `references/instalacion.md`.
+11. **Un guard que no puede verificar lo que dice, lo dice; y un guard que
+    nunca ha fallado es una hipotesis.** Un patron que deja de casar con la
+    prosa —una palabra, una barra, una negrita— hace que el check salga en
+    silencio diciendo "todo bien" sin mirar nada; lo mismo con un contador
+    que lee el archivo equivocado y devuelve 0. Por eso los guards que
+    verifican un numero avisan cuando no encuentran la frase que vigilan, y
+    por eso cada guard nuevo se prueba INYECTANDO el defecto en el sitio
+    exacto donde mira: un guard que no se ha visto fallar no esta
+    verificado, esta supuesto. Y cuando un guard se reactiva, puede
+    destapar un numero falso que llevaba tiempo publicado: ese es el precio
+    de haber tenido el guard apagado, y el numero PUBLICO tiene que quedar
+    cierto, no solo detectable.
 
 ## 5. Los scripts
 
