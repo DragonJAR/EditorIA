@@ -240,6 +240,21 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn(f"dens > {m.group(2)}", motor,
                       "el umbral alto de densidad tiene que ser el del motor")
 
+    def test_la_densidad_de_cues_no_se_inventa(self):
+        # los cues por minuto que enuncia la prosa tienen que ser los que
+        # `mezclar_audio.py` avisa (CUES_MIN_MIN y CUES_MIN_MAX)
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"densidad de cues".*?"valor":\s*\(([\d.]+),\s*([\d.]+)\)',
+                      txt, re.S)
+        self.assertIsNotNone(m, "la regla de la densidad de cues debe estar en auditar_mapa.py")
+        with open(os.path.join(SCRIPTS, "mezclar_audio.py"), encoding="utf-8") as f:
+            codigo = f.read()
+        self.assertIn(f"CUES_MIN_MIN = {m.group(1)}", codigo,
+                      "el minimo de cues tiene que ser el del mezclador")
+        self.assertIn(f"CUES_MIN_MAX = {m.group(2)}", codigo,
+                      "el maximo de cues tiene que ser el del mezclador")
+
     def test_detecta_una_densidad_atribuida_al_motor_que_no_es_la_del_motor(self):
         # el glosario decia "el motor pide uno cada 0,8-1,5 s" cuando el motor
         # penaliza fuera de 0,5-2: un numero falso en la prosa, y el guard

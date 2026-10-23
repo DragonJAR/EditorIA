@@ -71,6 +71,13 @@ REGLAS_UNICAS = [
      "patron": r"zona segura de (\d{3})\s*px|(\d{3})\s*px de (?:la )?zona segura"},
     {"nombre": "techo general de overshoot", "tipo": "exacto", "valor": 8,
      "patron": r"techo general (\d+)\s?%"},
+    # la densidad de cues: "8-12 cues/min", "8-12 por minuto", "entre 8 y 12
+    # cues por minuto". El patron exige la unidad (por minuto / per minute):
+    # sin ella engancharia la cantidad TOTAL de cues de una variante de tono
+    # ("2-3 cues secos" en sfx.md), que es otra magnitud.
+    {"nombre": "densidad de cues", "tipo": "exacto", "valor": (8, 12),
+     "patron": r"(\d+)\s*(?:[-–]|\s+y\s*)\s*(\d+)\s+"
+               r"(?:cues\s*(?:/\s*min\b|por\s+minuto|per\s+minute)|por\s+minuto)"},
     # la densidad: el motor penaliza fuera de 0.5-2.0 eventos/s. El patron
     # exige que el bloque ATRIBUYA la cifra al motor: hay dos cosas distintas
     # y no se pueden mezclar. Lo que el motor VIGILA (una cifra) y el ritmo
