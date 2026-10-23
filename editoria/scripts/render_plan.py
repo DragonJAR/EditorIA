@@ -1950,6 +1950,9 @@ def sc_timeline(ctx, e, t):
                        fill=BLANCO + (al,), anchor="mm")
             if it.get("fecha"):
                 d.text((x, y + 56), it["fecha"], font=fnt_d, fill=GRIS + (al,), anchor="mm")
+
+    if e.get("fuente"):
+        pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 1.5))
     return capa_salida(layer, t, e["to"])
 
 
@@ -2061,7 +2064,7 @@ def sc_versus(ctx, e, t):
     n = max(1, *(len(l[0].get("items", [])) for l in lados))
     y_label = H * 0.29
     y_items = H * 0.38
-    fila_h = min(150, (y1 - 40 - y_items) / n)
+    fila_h = min(150, (y1 - 40 - y_items - (60 if e.get("fuente") else 0)) / n)
     todos = [it for l in lados for it in l[0].get("items", [])] or [""]
     largo = max(todos, key=lambda x: ctx.tmp.textlength(x, font=ctx.fX(40, 600)))
     fnt = fuente_que_cabe(ctx.fX, largo, min(56, fila_h * 0.42), col_w - 20, 600)
@@ -2086,6 +2089,9 @@ def sc_versus(ctx, e, t):
                 continue
             yi = y_items + i * fila_h + fila_h / 2 + (1 - min(1, ki)) * 24
             d.text((cx, yi), it, font=fnt, fill=BLANCO + (int(255 * clamp01(ki * 1.3)),), anchor="mm")
+
+    if e.get("fuente"):
+        pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 2.0))
     return capa_salida(layer, t, e["to"])
 
 
@@ -2253,14 +2259,15 @@ def sc_pasos(ctx, e, t):
     items = e.get("items", [])
     n = len(items)
     if n == 0:
-        return capa_salida(layer, t, e["to"])
+            return capa_salida(layer, t, e["to"])
     vertical = H > W  # layout en columna para 9:16
     if vertical:
         # columna
         _, _, _, zy1 = caja_segura()
         y0 = rotulo_y() + 90
-        fila_h = min(260, (zy1 - y0) / n)
-        y0 += ((zy1 - y0) - fila_h * n) / 2
+        _res = 60 if e.get("fuente") else 0
+        fila_h = min(260, (zy1 - y0 - _res) / n)
+        y0 += ((zy1 - y0 - _res) - fila_h * n) / 2
         cx = W / 2
         for i, it in enumerate(items):
             t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
@@ -2324,6 +2331,8 @@ def sc_pasos(ctx, e, t):
                 ds.line([xi + 2 * radio + 10, cy, x0 + (i + 1.5) * col_w - radio - 10, cy],
                        fill=(120, 120, 120, 255), width=3)
             fundir(layer, sub, k)
+    if e.get("fuente"):
+        pie_fuente(ctx, ImageDraw.Draw(layer), e, t, at.get("fuente", e["from"] + 1.5))
     return capa_salida(layer, t, e["to"])
 
 
@@ -2447,7 +2456,8 @@ def sc_oferta(ctx, e, t):
                ("vence", 50 if e.get("vence") else 0), ("cta", 120 if e.get("cta") else 0)]
     bloques = [b for b in bloques if b[1]]
     top_pila = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=0.3) if e.get("rotulo") else zy0 + 20
-    ys, f = pila([a for _, a in bloques], top_pila, zy1 - 10, gap=26)
+    ys, f = pila([a for _, a in bloques], top_pila,
+                zy1 - (60 if e.get("fuente") else 10), gap=26)
     Y = {n: y for (n, _), y in zip(bloques, ys)}
     px = lambda v: max(MIN_LETRA, int(v * f))   # noqa: E731  (nunca ilegible)
     t_d = at.get("descuento", fr + 0.4)
@@ -2508,6 +2518,9 @@ def sc_oferta(ctx, e, t):
             d.rounded_rectangle([x0, y0, x0 + bw_ * s_, y0 + bh_ * s_], radius=int(bh_ * s_ / 2),
                                 fill=ACENTO + (al,))
             d.text((W / 2, y0 + bh_ * s_ / 2), e["cta"], font=fnt, fill=BLANCO + (al,), anchor="mm")
+
+    if e.get("fuente"):
+        pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 2.0))
     return capa_salida(layer, t, e["to"])
 
 
@@ -2836,7 +2849,7 @@ def sc_bento(ctx, e, t):
     ])[:4]
     n = len(items)
     top_grid = bajo_rotulo(yr, 44, aire=1.15)
-    bot_grid = y1 - (82 if e.get("pie") else 20)
+    bot_grid = y1 - ((82 if e.get("pie") else 20) + (46 if e.get("fuente") else 0))
     cols = 1 if (H > W and n <= 3) else 2
     cajas = cuadricula(x0, int(top_grid), x1 - x0, int(bot_grid - top_grid), cols, n)
     for i, (it, (cx0, cy0, cw, ch)) in enumerate(zip(items, cajas)):
@@ -2881,8 +2894,11 @@ def sc_bento(ctx, e, t):
         kp = entra(t, t_pie, "suave")
         alp = int(255 * clamp01(kp * 1.4))
         fp = fuente_que_cabe(ctx.fM, pie_txt.upper(), ESCALA["nota"], x1 - x0 - 20, 700)
-        ImageDraw.Draw(layer).text((W / 2, y1 - 24), pie_txt.upper(), font=fp,
+        ImageDraw.Draw(layer).text((W / 2, y1 - 24 - (46 if e.get("fuente") else 0)),
+                                   pie_txt.upper(), font=fp,
                                    fill=ACENTO + (alp,), anchor="mb")
+    if e.get("fuente"):
+        pie_fuente(ctx, ImageDraw.Draw(layer), e, t, at.get("fuente", e["from"] + 1.5))
     return capa_salida(layer, t, e["to"])
 
 
@@ -3517,7 +3533,7 @@ def sc_index(ctx, e, t):
     zx0, zy0, zx1, zy1 = caja_segura()
     n = len(items)
     top = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=1.15)
-    alto = zy1 - top - 20
+    alto = zy1 - top - (60 if e.get("fuente") else 20)
     fila_h = min(int(alto / max(1, n)), 150)
     y0 = top + max(0, (alto - fila_h * n) // 2)
     for i, it in enumerate(items):
@@ -3543,6 +3559,9 @@ def sc_index(ctx, e, t):
         if activo:
             d.line([(zx0 + 52, y + 22), (zx0 + 52 + ctx.tmp.textlength(texto, font=fnt),
                                      y + 22)], fill=ACENTO + (int(150 * al),), width=2)
+
+    if e.get("fuente"):
+        pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 1.5))
     return capa_salida(layer, t, e["to"])
 
 

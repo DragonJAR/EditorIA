@@ -493,6 +493,15 @@ class TestLaFuenteSeDibuja(unittest.TestCase):
         self.assertIn("gauge", self._escenas_que_dibujan(),
                       "el gauge es una cifra y tiene que dibujar su fuente al pie")
 
+    def test_las_escenas_con_cifras_dibujan_la_fuente(self):
+        # el linter acepta el campo `fuente` en cualquier escena, asi que las
+        # escenas con cifras tienen que dibujarla: si no, el plan dice una
+        # cosa y la pieza otra
+        faltan = {"gauge", "bento", "index", "oferta", "pasos", "timeline",
+                  "versus"} - self._escenas_que_dibujan()
+        self.assertEqual(faltan, set(),
+                         f"escenas con cifras que no dibujan su fuente: {sorted(faltan)}")
+
     def test_el_linter_y_el_motor_cuentan_lo_mismo(self):
         # las dos listas tienen que salir del MISMO motor: si el linter dice
         # que una escena dibuja la fuente y el motor no, el aviso miente

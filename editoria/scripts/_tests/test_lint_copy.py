@@ -128,10 +128,8 @@ class TestAnalisis(unittest.TestCase):
         # motor solo lo dibuja en las que lo llaman. si no se dibuja, el
         # espectador no la ve y la regla "toda cifra lleva su fuente" no se
         # cumple: el plan dice una cosa y la pieza dice otra.
-        plan = _plan([{"tipo": "bento", "titulo": "Tres cosas",
-                       "items": [{"titulo": "Uno", "texto": "A"},
-                                 {"titulo": "Dos", "texto": "B"},
-                                 {"titulo": "Tres", "texto": "C"}],
+        plan = _plan([{"tipo": "hero", "titulo": "Un titular",
+                       "texto1": ["Una", "linea"], "texto2": ["Otra"],
                        "fuente": "CVSS 3.1"}])
         fallos, avisos = L.analizar(plan)
         self.assertTrue(any("no la dibuja" in a["msg"] for a in avisos),
