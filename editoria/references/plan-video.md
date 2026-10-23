@@ -109,7 +109,7 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   cifra animada y a los precios que no fijen los suyos. Público hispano → `"es"`.
 - **Voz (estimación)**: `"idioma": "es"|"en"` y `"ritmo_voz": "slow"|"normal"|"fast"`
   a nivel de plan fijan cómo `scripts/auditar_plan.py` estima si cada `voz`
-  cabe en su escena (sílabas habladas con cifras expandidas,
+  cabe antes de la voz siguiente (sílabas habladas con cifras expandidas,
   `scripts/speech_estimate.py`). Sin `idioma`, sale de `numeros` o del texto.
   Escribe en `voz` lo que se DICE ("A P I", "dos mil veinticuatro" si importa
   la lectura) y en los campos de texto lo que se VE ("API", "2024").

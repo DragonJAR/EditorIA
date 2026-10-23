@@ -20,6 +20,7 @@ SCRIPTS = os.path.dirname(HERE)
 sys.path.insert(0, SCRIPTS)
 
 import auditar_plan as AP  # noqa: E402
+import speech_estimate as SE  # noqa: E402
 from speech_estimate import estimar_duracion  # noqa: E402
 
 
@@ -138,15 +139,28 @@ class TestRelojDeLaNarracion(unittest.TestCase):
 
     def test_la_voz_que_se_pasa_del_final_del_video_avisa(self):
         """La voz que se sale del FINAL no tiene otra imagen que la tape:
-        se corta contra el borde. Con la estimacion no se puede probar el
-        corte, asi que avisa (quien falla es el TTS real)."""
+        se corta contra el borde. Si el exceso sale de la banda de error de
+        la estimacion, el corte es PROVABLE y es ERROR; si no, es un aviso
+        (la estimacion no puede probarlo: quien falla es el TTS real)."""
+        texto = "Esta frase es deliberadamente larguisima para ocupar mucho tiempo de reloj."
+        est = estimar_duracion(texto)
+        # el video dura casi lo que la voz: el exceso es pequeno -> aviso
+        plan = {"duracion": est * 0.95,
+                "escenas": [{"tipo": "final", "from": 0.0, "to": est * 0.95, "voz": texto}]}
+        avisos = [h for h in AP.auditar_estructura(plan)
+                  if h["nivel"] == "AVISO" and "final del video" in h["msg"]]
+        self.assertTrue(avisos, "la voz que se pasa del final del video no avisa")
+
+    def test_una_voz_que_se_pasa_muy_por_encima_del_final_es_error(self):
+        """Si el exceso es mayor que la banda de error de la estimacion, el
+        corte no se puede negar: es un ERROR, no un aviso."""
         texto = "Esta frase es deliberadamente larguisima para ocupar mucho tiempo de reloj."
         est = estimar_duracion(texto)
         plan = {"duracion": est * 0.5,
                 "escenas": [{"tipo": "final", "from": 0.0, "to": est * 0.5, "voz": texto}]}
-        avisos = [h for h in AP.auditar_estructura(plan)
-                  if h["nivel"] == "AVISO" and "final del video" in h["msg"]]
-        self.assertTrue(avisos, "la voz que se pasa del final del video no avisa")
+        errores = [h for h in AP.auditar_estructura(plan)
+                   if h["nivel"] == "ERROR" and "final del video" in h["msg"]]
+        self.assertTrue(errores, "una voz que se pasa muy por encima del final no es error")
 
     def test_una_voz_que_cabe_no_avisa_del_final(self):
         texto = "Una frase corta."
@@ -156,6 +170,52 @@ class TestRelojDeLaNarracion(unittest.TestCase):
         avisos = [h for h in AP.auditar_estructura(plan)
                   if h["nivel"] == "AVISO" and "final del video" in h["msg"]]
         self.assertFalse(avisos, "una voz que cabe no avisa del final del video")
+
+
+class TestUnaSolaRegla(unittest.TestCase):
+    """La regla del reloj de la voz, en UN solo sitio.
+
+    `auditar_plan.py` (el plan) y `speech_estimate.auditar_plan_voces` (lo
+    usa `clonar_video.py`)SON la misma regla: la voz no puede pisar a la voz
+    siguiente ni el final del video. Antes cada una tenia la suya: una
+    media contra la voz siguiente y la otra exigia que la voz terminase
+    DENTRO de su propia escena (mas estricto que el resto de la skill), y
+    se contradecian en los 10 planes de la demo (una decia "cabe" y la otra
+    "no cabe", cuando la narracion real si cabia).
+
+    Este test es el que habria atrapado esa isla."""
+
+    def _planes(self):
+        # 1. la voz cruza el final de su escena pero no pisa a la siguiente
+        yield ("cabe aunque cruce su escena", {
+            "duracion": 12.0,
+            "escenas": [
+                {"tipo": "apertura", "from": 0.0, "to": 3.0,
+                 "voz": "Una voz bastante larga que se pasa de su escena."},
+                {"tipo": "final", "from": 4.0, "to": 12.0, "voz": "Corta."}]})
+        # 2. la voz pisa a la siguiente
+        yield ("pisa a la siguiente", {
+            "duracion": 12.0,
+            "escenas": [
+                {"tipo": "apertura", "from": 0.0, "to": 3.0,
+                 "voz": "Esta voz es tan larga que no hay manera de que quepa antes de que empiece la voz que viene despues."},
+                {"tipo": "final", "from": 4.0, "to": 12.0, "voz": "Corta."}]})
+        # 3. la ultima voz se pasa del final del video
+        yield ("se pasa del final del video", {
+            "duracion": 4.0,
+            "escenas": [
+                {"tipo": "final", "from": 0.0, "to": 4.0,
+                 "voz": "Una voz deliberadamente larguisima que no cabe de ninguna manera."}]})
+
+    def test_las_dos_herramientas_dicen_lo_mismo(self):
+        for nombre, plan in self._planes():
+            se = SE.auditar_plan_voces(plan)
+            errores_voz = [h for h in AP.auditar_estructura(plan)
+                           if h["nivel"] == "ERROR" and "voz" in h["msg"]]
+            self.assertEqual(
+                se["valido"], not errores_voz,
+                f"'{nombre}': auditar_plan_voces dice {se['valido']} y "
+                f"auditar_plan dice {not errores_voz}. Son la misma regla.")
 
 
 if __name__ == "__main__":

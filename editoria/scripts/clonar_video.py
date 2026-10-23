@@ -54,15 +54,22 @@ MAPEO_ESCENAS_VALIDAS = {
 }
 
 
-def _ajustar_voz(texto, dur_escena):
-    """Corta la voz para que quepa en la escena, con el margen real.
+def _ajustar_voz(texto, hueco):
+    """Corta la voz para que quepa en el hueco, con el margen real.
 
-    `auditar_plan_voces` mide contra `to - from - AIRE_VOZ` (la voz entra en
-    from+0.4 s). Si la variante nace con la voz desbordada, el plan no pasa
-    la puerta y el agente tiene que descubrirlo al auditar el plan, no al
-    generarlo. Aqui se recorta POR PALABRAS hasta que entra.
+    `hueco` es el tiempo hasta donde empieza la voz SIGUIENTE (o hasta el
+    final del video), y la voz entra en `from + 0.4 s` (el aire), asi que el
+    tiempo util es `hueco - AIRE_VOZ`. Es la MISMA cuenta que la auditoria
+    (`speech_estimate.auditar_plan_voces`).
+
+    Antes se comparaba contra la duracion de la PROPIA escena: un criterio
+    mas estricto que el del resto de la skill (una locucion que cruza el
+    corte es normal, de hecho es lo habitual), asi que el clonado perdia
+    palabras que si cabian. Si la variante nace con la voz desbordada, el
+    plan no pasa la puerta y el agente tiene que descubrirlo al auditar el
+    plan, no al clonarlo. Aqui se recorta POR PALABRAS hasta que entra.
     """
-    util = max(0.2, dur_escena - SE.AIRE_VOZ)
+    util = max(0.2, hueco - SE.AIRE_VOZ)
     palabras = texto.split()
     while palabras and SE.estimar_duracion(" ".join(palabras), "es") > util:
         palabras.pop()
@@ -221,7 +228,7 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
         os.makedirs(var_dir, exist_ok=True)
         escenas_plan = []
 
-        for seg in segmentos:
+        for k, seg in enumerate(segmentos):
             rol = seg["rol"]
             opciones = FAMILIAS_ESCENAS.get(rol, ["titular"])
             # Alternar tipo de escena según variante y normalizar a catálogo de 39 escenas
@@ -243,13 +250,20 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
             if "kicker" in base_escena:
                 base_escena["kicker"] = f"Variante {v_idx}"
 
-            # Inyectar voz para narración y ajustar que quepa en la duración.
-            # El margen es el MISMO que usa la auditoría (`AIRE_VOZ`): la voz
-            # entra en from+0.4 s, asi que el tiempo utile es to-from-0.4.
-            # Antes se comparaba contra la duración completa (0.4 s de
-            # optimismo) y el recorte solo funcionaba si el texto tenia ":".
+            # Inyectar voz para narración y ajustar que quepa en el HUECO:
+            # el tiempo hasta donde empieza la voz siguiente (o hasta el
+            # final del video), que es lo que mide la auditoría. La voz
+            # entra en from+0.4 s (el aire), asi que el tiempo util es
+            # hueco-AIRE_VOZ. Antes se comparaba contra la duración de la
+            # PROPIA escena: un criterio mas estricto que el del resto de
+            # la skill, que hacia perder palabras que si cabian.
             txt_voz = base_escena.get("titulo") or base_escena.get("rotulo") or f"{tema} punto clave {seg['indice']}"
-            base_escena["voz"] = _ajustar_voz(txt_voz.replace("*", ""), seg["duracion"])
+            if k + 1 < len(segmentos):
+                hueco = float(segmentos[k + 1]["from"]) - float(seg["from"])
+            else:
+                # la ultima voz: el borde del video
+                hueco = float(plantilla.get("duracion_referencia", 30.0)) - float(seg["from"])
+            base_escena["voz"] = _ajustar_voz(txt_voz.replace("*", ""), hueco)
 
             escenas_plan.append(base_escena)
 

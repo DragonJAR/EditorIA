@@ -105,8 +105,9 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   corta dentro de una palabra). Completa el quick-cut v2 con `silence.py`.
 - **scripts/auditar_plan.py** — audita un plan.json (solapes, duraciones,
   escenas vacías, voz sin texto, huecos, coherencia con `duracion`, tipos
-  leídos de `SCENES` de render_plan y que cada voz quepa en su escena sin
-  pisar la siguiente, estimada con `speech_estimate.py`: una sola fuente).
+  leídos de `SCENES` de render_plan y que cada voz quepa ANTES de la voz
+  siguiente (y antes del final del video), estimada con `speech_estimate.py`:
+  una sola fuente).
   El margen del reloj es PROPORCIONAL al hueco (la estimación silábica se
   desvía del tiempo real entre un 9% y un 24%: un margen fijo más pequeño
   que ese error rechazaba planes válidos; `BANDA_ESTIMACION` en

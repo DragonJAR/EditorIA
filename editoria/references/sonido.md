@@ -151,7 +151,8 @@ Antes de timar escenas: la duración de la escena se deriva de la VO, no al rev�
   slow|normal|fast`). Para una voz concreta, `--calibrar voz.palabras.json`
   mide su ritmo real. Una escena sin VO (beat puramente visual) necesita
   ≥1.0s para registrar. **La narración manda el reloj**: `auditar_plan.py`
-  estima así si cada voz cabe en su escena antes de pagar TTS, y
+  estima así si cada voz cabe antes de la voz siguiente (y antes del final
+  del video) antes de pagar TTS, y
   `voz_off.py` (o `voz_local.py`) mide la voz real y falla si una pisa a la
   siguiente (dirá cuántos segundos alargar). Si la voz no cabe, se alarga la
   escena o se recorta el texto; nunca se acelera la voz.

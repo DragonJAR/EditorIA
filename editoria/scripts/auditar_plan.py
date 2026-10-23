@@ -20,7 +20,7 @@ Reporta cada hallazgo con su timestamp. Solo stdlib.
 """
 import argparse, json, os, re, statistics, sys
 
-from speech_estimate import (AIRE_VOZ, BANDA_ESTIMACION, RITMOS, detectar_idioma,
+from speech_estimate import (AIRE_VOZ, RITMOS, auditar_plan_voces, detectar_idioma,
                              estimar_duracion, silabas)
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
@@ -165,50 +165,73 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
     if ritmo not in RITMOS[idioma]:
         add("AVISO", 0.0, f"ritmo_voz '{ritmo}' desconocido ({', '.join(RITMOS[idioma])}); uso normal")
         ritmo = "normal"
-    for k, (idx, e) in enumerate(con_voz):
-        fr_v = _t_num(e.get("from"))
-        to_v = _t_num(e.get("to"))
-        n, dur = silabas(e["voz"], idioma), estimar_duracion(e["voz"], idioma, ritmo)
-        fin = fr_v + AIRE_VOZ + dur
-        sig = (_t_num(con_voz[k + 1][1]["from"]) + AIRE_VOZ) if k + 1 < len(con_voz) else None
-        # La tolerancia NO puede ser un numero plano: la estimacion silabica
-        # NO es exacta. Medida contra audio real (50 frases de la voz del
-        # sistema, Paulina es-MX a 178 ppm), overestimate el tiempo real
-        # entre un 9% y un 24% (mediana 12%). Un margen fijo de 0.3s es
-        # MENOR que ese error: el plan cuya narracion cabe de verdad se
-        # rechaza (falso positivo) y el agente recorta copy que no sobra.
-        # El margen va con el hueco disponible; por debajo de la banda de
-        # error es AVISO, y quien decide es el TTS real (voz_off.py /
-        # voz_local.py), que mide el audio sintetizado y FALLA si las voces
-        # se pisan.
-        hueco = (sig - (fr_v + AIRE_VOZ)) if sig is not None else None
-        umbral = sig + max(0.3, BANDA_ESTIMACION * hueco) if hueco is not None else None
-        if umbral is not None and fin > umbral:
+    # LA REGLA DEL RELOJ, en un solo sitio: `speech_estimate.auditar_plan_voces`
+    # (la fuente). Antes cada script tenia la suya: esta midia contra la voz
+    # siguiente, `auditar_plan_voces` (que usa `clonar_video.py`) exigia que
+    # la voz terminase dentro de su PROPIA escena — un criterio mas estricto
+    # que el del resto de la skill. Se contradecian en los 10 planes de la
+    # demo (una decia "cabe" y la otra "no cabe", cuando la narracion real
+    # si cabia) y el clonado recortaba copy de mas por nada.
+    #
+    # El margen es proporcional al hueco (BANDA_ESTIMACION, en
+    # speech_estimate.py): la estimacion silabica NO es exacta. Medida contra
+    # audio real (50 frases de la voz del sistema, Paulina es-MX a 178 ppm),
+    # overestimate el tiempo real entre un 9% y un 24% (mediana 12%). Un
+    # margen fijo de 0.3s es MENOR que ese error: el plan cuya narracion
+    # cabe de verdad se rechaza (falso positivo) y el agente recorta copy
+    # que no sobra. Por debajo de la banda es AVISO, y quien decide es el
+    # TTS real (voz_off.py / voz_local.py), que mide el audio sintetizado y
+    # FALLA si se pisan.
+    reloj = auditar_plan_voces(plan, idioma=idioma, aire_inicial=AIRE_VOZ, ritmo=ritmo)
+    por_indice = {idx: e for idx, e in con_voz}
+    for a in reloj["alertas"]:
+        idx = a["escena_index"]
+        n, dur = a["silabas"], a["tiempo_estimado"]
+        fr_v = _t_num(por_indice[idx].get("from"))
+        if a["contra_final"]:
+            add("ERROR", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ {dur:.1f}s) "
+                f"se sale del final del video en {a['exceso_segundos']:.1f}s — "
+                f"acortar el texto o alargar el video")
+        else:
             add("ERROR", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
-                f"{dur:.1f}s) pisaría la voz siguiente en {fin - sig:.1f}s — "
+                f"{dur:.1f}s) pisaría la voz siguiente en {a['exceso_segundos']:.1f}s — "
                 f"alargar la escena o recortar el texto")
-        elif sig is not None and fin > sig:
+    for a in reloj["avisos"]:
+        idx = a["escena_index"]
+        n, dur = a["silabas"], a["tiempo_estimado"]
+        fr_v = _t_num(por_indice[idx].get("from"))
+        if a["contra_final"]:
+            # La voz que se sale del FINAL DEL VIDEO no tiene otra imagen que
+            # la tape: se corta contra el borde. Con la estimacion no se
+            # puede PROBAR el corte, asi que sale como aviso; el que falla
+            # es el TTS real.
+            dur_video = _t_num(plan.get("duracion"))
+            add("AVISO", fr_v, f"escena {idx}: la voz puede salirse del final del video "
+                f"(estimada hasta {fr_v + AIRE_VOZ + dur:.1f}s, el video dura {dur_video:.1f}s) — "
+                f"verificar con voz_off.py / voz_local.py (miden el audio real)")
+        else:
             add("AVISO", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
                 f"{dur:.1f}s) roza la voz siguiente — verificar con "
                 f"voz_off.py / voz_local.py (miden el audio real)")
-        elif to_v is not None and fin > to_v:
-            add("AVISO", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
-                f"{dur:.1f}s) se sale de la escena en {fin - to_v:.1f}s")
-    # La voz que se sale del FINAL DEL VIDEO no tiene otra imagen que la
-    # tape: se corta contra el borde. Es el unico desborde que no es un
-    # aviso (la voz puede continuar sobre la siguiente imagen, pero no
-    # sobre el final). Con la estimacion no se puede PROBAR el corte, asi
-    # que sale como aviso; el que falla es el TTS real (voz_off.py /
-    # voz_local.py), que mide el audio sintetizado.
-    dur_video = _t_num(plan.get("duracion"))
-    if con_voz and dur_video is not None:
-        idx, e = con_voz[-1]
+    # La voz que se pasa del final de SU escena no es un defecto (una
+    # locucion que cruza el corte es normal): se dice, pero no se falla, y
+    # solo si esa escena no tiene ya un aviso del reloj (si "roza" a la voz
+    # siguiente, ese es el aviso que importa: dos avisos por escena son
+    # ruido).
+    con_roce = {a["escena_index"] for a in reloj["avisos"]} | {
+        a["escena_index"] for a in reloj["alertas"]}
+    for idx, e in con_voz:
+        if idx in con_roce:
+            continue
         fr_v = _t_num(e.get("from"))
+        to_v = _t_num(e.get("to"))
+        if to_v is None:
+            continue
         fin = fr_v + AIRE_VOZ + estimar_duracion(e["voz"], idioma, ritmo)
-        if fin > dur_video:
-            add("AVISO", fr_v, f"escena {idx}: la voz puede salirse del final del video "
-                f"(estimada hasta {fin:.1f}s, el video dura {dur_video:.1f}s) — "
-                f"verificar con voz_off.py / voz_local.py (miden el audio real)")
+        if fin > to_v:
+            add("AVISO", fr_v, f"escena {idx}: la voz ({silabas(e['voz'], idioma)} sílabas ≈ "
+                f"{estimar_duracion(e['voz'], idioma, ritmo):.1f}s) se sale de la escena "
+                f"en {fin - to_v:.1f}s")
 
     ordenadas_con_t = [(idx, e) for idx, e in ordenadas
                        if _t_num(e.get("from")) is not None and _t_num(e.get("to")) is not None]

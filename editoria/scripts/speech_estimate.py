@@ -235,34 +235,76 @@ BANDA_ESTIMACION = 0.25
 
 def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = AIRE_VOZ,
                        ritmo: str = "normal") -> dict:
-    """Revisa un plan.json y detecta si la locución proyectada de alguna escena
-    supera el tiempo disponible (to - from - aire_inicial). Retorna dict con estado y lista de alertas/desbordes."""
+    """Revisa un plan.json: ¿la voz de alguna escena pisa a la siguiente?
+
+    LA REGLA, en un solo sitio (esta es la fuente: la usan `auditar_plan.py`
+    y `clonar_video.py`): la voz no puede solaparse con la voz SIGUIENTE ni
+    con el final del video. Que la voz termine despues del final de SU
+    propia escena NO es un defecto: una locucion que cruza el corte es
+    normal, de hecho es lo habitual (por eso la voz entra en `from + 0.4`).
+
+    Antes esta funcion exigia que la voz terminase dentro de su propia
+    escena: un criterio mas estricto que el del resto de la skill, con el
+    que los dos-herramientas se contradijian en los 10 planes de la demo
+    (esta decia "no cabe" y la otra "cabe", cuando la narracion real SI
+    cabia) y `clonar_video.py` recortaba copy de mas paralana.
+
+    El margen es proporcional al hueco (BANDA_ESTIMACION): la estimacion
+    silabica se desvía del tiempo real entre un 9% y un 24%, asi que un
+    margen fijo rechazaria planes validos. Por debajo de la banda es un
+    AVISO ("roza"); el que falla es el TTS real, que mide el audio.
+
+    Devuelve {"valido": bool, "alertas": [...], "avisos": [...]}:
+      · alertas: la voz pisa a la siguiente (o al final del video)
+      · avisos: la roza (esta dentro de la banda de error de la estimacion)
+    """
     if isinstance(plan_or_path, dict):
         plan = plan_or_path
     else:
         with open(plan_or_path, encoding="utf-8") as f:
             plan = json.load(f)
-    
-    alertas = []
-    for i, e in enumerate(plan.get("escenas", [])):
-        voz = e.get("voz", "")
-        if not voz:
+
+    # las escenas CON voz, en orden: la voz siguiente es la que viene despues
+    con_voz = [(i, e) for i, e in enumerate(plan.get("escenas", [])) if e.get("voz")]
+    dur_video = plan.get("duracion")
+    alertas, avisos = [], []
+    for k, (idx, e) in enumerate(con_voz):
+        fr_v = float(e.get("from", 0))
+        n = silabas(e["voz"], idioma)
+        dur = estimar_duracion(e["voz"], idioma=idioma, ritmo=ritmo)
+        fin = fr_v + aire_inicial + dur
+        if k + 1 < len(con_voz):
+            # el limite es donde empieza la voz siguiente
+            limite = float(con_voz[k + 1][1].get("from", 0)) + aire_inicial
+            contra_fin = False
+        elif dur_video is not None:
+            # la ultima voz: el borde del video
+            limite = float(dur_video)
+            contra_fin = True
+        else:
+            limite = None
+            contra_fin = False
+        if limite is None:
             continue
-        t_bruto = float(e.get("to", 0)) - float(e.get("from", 0))
-        t_disp = max(0.0, t_bruto - aire_inicial)
-        t_est = estimar_duracion(voz, idioma=idioma, ritmo=ritmo)
-        if t_est > t_disp:
-            diff = round(t_est - t_disp, 2)
-            alertas.append({
-                "escena_index": i,
-                "tipo": e.get("tipo", "desconocido"),
-                "tiempo_bruto": t_bruto,
-                "tiempo_disponible_voz": t_disp,
-                "tiempo_estimado": t_est,
-                "exceso_segundos": diff,
-                "voz": voz
-            })
-    return {"valido": not bool(alertas), "alertas": alertas}
+        hueco = limite - (fr_v + aire_inicial)
+        if fin <= limite:
+            continue
+        exceso = round(fin - limite, 2)
+        base = {
+            "escena_index": idx,
+            "tipo": e.get("tipo", "desconocido"),
+            "voz": e["voz"],
+            "silabas": n,
+            "tiempo_estimado": dur,
+            "tiempo_disponible_voz": round(hueco, 2),
+            "exceso_segundos": exceso,
+            "contra_final": contra_fin,
+        }
+        if exceso > max(0.3, BANDA_ESTIMACION * max(hueco, 0)):
+            alertas.append(base)
+        else:
+            avisos.append(base)
+    return {"valido": not bool(alertas), "alertas": alertas, "avisos": avisos}
 
 
 def main():
