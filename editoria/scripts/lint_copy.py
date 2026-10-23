@@ -251,6 +251,15 @@ def _cifras_de(esc):
     out = []
     if isinstance(esc.get("valor"), (int, float)):
         out.append(str(esc["valor"]))
+    # la oferta es un DATO con precio: antes/ahora/descuento son cifras en
+    # pantalla y necesitan su fuente igual que un gauge
+    for clave in ("antes", "ahora", "descuento"):
+        if isinstance(esc.get(clave), (int, float)):
+            out.append(f"{clave}={esc[clave]}")
+    # una valoracion tambien es una cifra (y en un testimonio, la valoracion
+    # es parte de lo que se afirma)
+    if isinstance(esc.get("estrellas"), (int, float)):
+        out.append(f"estrellas={esc['estrellas']}")
     for clave in ("cards", "barras", "items"):
         for sub in esc.get(clave) or []:
             if isinstance(sub, dict) and isinstance(sub.get("valor"), (int, float)):

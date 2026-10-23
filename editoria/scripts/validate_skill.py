@@ -1291,6 +1291,27 @@ for _l in (_mapa.stdout.strip().splitlines() or [])[:6]:
     if _l.strip().startswith(("MAPA:", "  ")):
         print("   " + _l.strip())
 
+# 9b. las muestras de la galeria (el catalogo que la skill ensena) pasan el
+#     linter de copy. si no se lintan NUNCA, un fallo de copy en las muestras
+#     no lo ve nadie: el aviso preexistente del "bento de tres" vivia ahi sin
+#     que nadie lo notara. los AVISOS son heuristicos (el "bento de tres" no
+#     puede saber la intencion del autor) y no rompen; los FALLOS si.
+try:
+    import json as _json
+    import lint_copy as _LC
+    _muestras = _json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"),
+                                encoding="utf-8"))["escenas"]
+    _fallos_muestras = []
+    for _nombre, _esc in _muestras.items():
+        _f, _a = _LC.analizar({"escenas": [dict(_esc, tipo=_nombre)]})
+        for _x in _f:
+            _fallos_muestras.append(f"{_nombre}: {_x['msg']}")
+    check(not _fallos_muestras,
+          "las muestras de la galeria pasan el linter de copy: "
+          + "; ".join(_fallos_muestras[:4]))
+except Exception as _e:                       # noqa: BLE001
+    check(False, f"no se pudieron lintear las muestras de la galeria: {_e}")
+
 # 10. los comandos que dice el SKILL.md se pueden correr: la doc no puede
 #     pedirle al agente un comando que el argparse rechaza
 sys.path.insert(0, os.path.join(BASE, "scripts"))

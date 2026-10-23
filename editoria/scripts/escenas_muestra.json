@@ -331,6 +331,7 @@
       "to": 5,
       "titulo": "Satisfacción de clientes",
       "valor": 94,
+      "fuente": "Encuesta interna, 2026",
       "max": 100,
       "etiqueta": "de 100 puntos",
       "at": {
@@ -437,6 +438,7 @@
       "autor": "Laura Martínez",
       "rol": "Directora de marketing",
       "estrellas": 4.5,
+      "fuente": "Testimonio de ejemplo",
       "at": {
         "card": 0.2,
         "texto": 0.6,
@@ -725,7 +727,9 @@
       "iniciales": "CM",
       "verificado": true,
       "estrellas": 5.0,
+      "fuente": "Comentario de ejemplo",
       "texto": "Pasamos de tardar horas editando cada clip a tener decenas de variantes *listas para publicar* en minutos.",
+      "texto": "De tardar horas a publicar decenas de variantes en minutos.",
       "likes": "1.420",
       "fecha": "Ayer a las 18:40",
       "at": {

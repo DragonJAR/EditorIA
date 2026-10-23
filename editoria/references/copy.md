@@ -126,6 +126,12 @@ Lo que **no** se hace: poner la fuente de un tercero que no ha dicho eso
 ("Gartner 2024" sobre una cifra inventada). Fabricar la fuente es peor que
 no tenerla: convierte una cifra suelta en una cita falsa.
 
+Y las muestras de la galeria (`scripts/escenas_muestra.json`) traen su propia
+fuente porque son las que el motor dibuja: son de EJEMPLO, de un mundo
+ficticio. Al copiarlas a una pieza real, se cambia la fuente por la real: si
+"Encuesta interna, 2026 (n=120)" sobrevive a una pieza de cliente, es una
+encuesta que nadie hizo.
+
 ## 5. Lo que se lee como generado
 
 - Verbos y adjetivos del genero: potencia, impulsa, transforma, eleva,
