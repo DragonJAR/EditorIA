@@ -1052,19 +1052,14 @@ def _chequear_contrato_cli(problemas):
             "msg": f"dice {declarado} CLIs con el contrato y {n_cumplen} lo cumplen"})
 
 
-def main():
-    ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
-                                 epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
-    ap.add_argument("--json", help="guarda el informe en este archivo")
-    args = ap.parse_args()
+def _todos_los_checks(problemas, mds):
+    """Todos los checks, sobre el arbol que este activo.
 
-    if not os.path.isdir(REFS):
-        print("ERROR: no se encuentra la skill", file=sys.stderr)
-        return 2
-
-    mds = sorted(f for f in os.listdir(REFS) if f.endswith(".md"))
-    problemas = []
-
+    Se corre dos veces: una sobre el arbol de trabajo y otra sobre un
+    export de HEAD (lo publicado). Asi el guard distingue lo que ya
+    esta publico (fallo) de lo que solo se ha desviado en el arbol
+    (aviso: todavia no se ha publicado).
+    """
     # ---- 1. el pie de cada referencia --------------------------------
     canonicos, dominios = {}, {}
     for f in mds:
@@ -1199,6 +1194,82 @@ def main():
     # ---- 17. el contrato de CLI dice los que lo cumplen ----------------
     _chequear_contrato_cli(problemas)
 
+    return dominios, canonicos
+
+
+def _exportar_head(destino, raiz):
+    """Exporta el estado PUBLICADO (HEAD) a un directorio.
+
+    Se exporta la carpeta de la skill TAL COMO esta en el repo (puede ser
+    "editoria/" o cualquier otra): el guard tiene que funcionar igual en
+    un repo de pruebas que en el de verdad.
+    """
+    import io
+    import tarfile
+    rel = os.path.relpath(os.path.realpath(BASE), raiz).replace(os.sep, "/")
+    r = subprocess.run(["git", "-C", raiz, "archive", "HEAD", rel],
+                       capture_output=True)
+    if r.returncode != 0:
+        return None
+    with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
+        tar.extractall(destino)
+    return os.path.join(destino, rel)
+
+
+def _dos_pasadas():
+    """Corre los checks dos veces: lo PUBLICADO (HEAD) y el ARBOL de trabajo.
+
+    - Lo publicado se mide contra si mismo: si el doc de HEAD no cuadra con
+      el codigo de HEAD, lo que hay en GitHub miente, y es un FALLO.
+    - El arbol de trabajo se mide contra si mismo tambien, pero lo que solo
+      se desvia ahi es un AVISO: todavia no se ha publicado, y lo que toca
+      es correr la herramienta que actualiza los numeros.
+
+    Asi un doc que se lleva trabajo en vuelo (el c37a417) se ve ANTES de
+    commitear, y lo ya publicado no puede quedar mintiendo.
+    """
+    global BASE, REFS
+    import tempfile
+    mds = sorted(f for f in os.listdir(REFS) if f.endswith(".md"))
+    problemas = []
+    dominios, canonicos = _todos_los_checks(problemas, mds)
+
+    avisos = []
+    raiz = _raiz_git()
+    if raiz:
+        with tempfile.TemporaryDirectory() as tmp:
+            base_head = _exportar_head(tmp, raiz)
+            if base_head:
+                b0, r0 = BASE, REFS
+                BASE, REFS = base_head, os.path.join(base_head, "references")
+                try:
+                    publicados = []
+                    mds_head = sorted(f for f in os.listdir(REFS) if f.endswith(".md"))
+                    _todos_los_checks(publicados, mds_head)
+                finally:
+                    BASE, REFS = b0, r0
+                # lo que esta en el arbol y no en lo publicado: todavia no
+                # sale, es un aviso (y el arreglo es la herramienta)
+                claves_pub = {(pr["tipo"], pr["archivo"]) for pr in publicados}
+                for pr in problemas:
+                    if (pr["tipo"], pr["archivo"]) not in claves_pub:
+                        avisos.append(pr)
+                problemas = publicados
+    return problemas, avisos, mds, dominios, canonicos
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
+                                 epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
+    ap.add_argument("--json", help="guarda el informe en este archivo")
+    args = ap.parse_args()
+
+    if not os.path.isdir(REFS):
+        print("ERROR: no se encuentra la skill", file=sys.stderr)
+        return 2
+
+    problemas, avisos, mds, dominios, canonicos = _dos_pasadas()
+
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}
     for f, d in sorted(dominios.items()):
@@ -1206,13 +1277,20 @@ def main():
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump({"ok": not problemas, "problemas": problemas,
+                       "avisos": avisos,
                        "dominios": {k: v for k, v in sorted(dominios_resumen.items())},
                        "alcanzables": len(alcance)}, f, ensure_ascii=False, indent=1)
+    if avisos:
+        print(f"AVISOS ({len(avisos)}): lo que se ha desviado en el arbol de "
+              f"trabajo y todavia no se ha publicado")
+        for p in avisos:
+            print(f"  {p['tipo']:22} {p['archivo']:36} {p['msg']}")
+        print("  (corre `python scripts/actualizar_conteos.py` antes de commitear)")
     if problemas:
         print(f"MAPA: {len(problemas)} problemas")
         for p in problemas:
             print(f"  {p['tipo']:22} {p['archivo']:36} {p['msg']}")
-    else:
+    elif not avisos:
         print(f"MAPA: OK · {len(mds)} referencias, {len(dominios_resumen)} dominios, "
               f"todo alcanzable desde SKILL.md")
         for d, fs in sorted(dominios_resumen.items()):

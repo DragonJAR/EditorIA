@@ -39,10 +39,11 @@ def _copia_completa(destino):
                     ignore=shutil.ignore_patterns("__pycache__"))
     shutil.copytree(os.path.join(BASE, "references"), os.path.join(destino, "references"))
     shutil.copy(os.path.join(BASE, "SKILL.md"), os.path.join(destino, "SKILL.md"))
-    for sub in ("brand", "metricas"):
+    for sub in ("brand", "film", "assets", "metricas"):
         origen = os.path.join(BASE, sub)
         if os.path.isdir(origen):
-            shutil.copytree(origen, os.path.join(destino, sub))
+            shutil.copytree(origen, os.path.join(destino, sub),
+                            ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
     return destino
 
 
@@ -340,6 +341,43 @@ class TestAuditarMapa(unittest.TestCase):
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"la suite fantasma no se detecto:\n{out}")
         self.assertIn("suite listada que no existe", out)
+
+    def test_el_desvio_del_arbol_es_aviso_y_lo_publicado_es_fallo(self):
+        # el guard mira las DOS cosas: lo publicado (si lo publicado miente,
+        # es un fallo) y el arbol de trabajo (si se ha desviado ahi pero
+        # aun no se ha publicado, es un aviso: lo que toca es correr la
+        # herramienta que actualiza los numeros)
+        repo = os.path.join(self.dir, "repo_dos_pasadas")
+        skill = _copia_completa(os.path.join(repo, "skill"))
+
+        def _git(*args):
+            subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+
+        _git("init", "-q")
+        _git("config", "user.email", "test@local")
+        _git("config", "user.name", "test")
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "uno")
+
+        mapa = os.path.join(skill, "references", "mapa.md")
+        with open(mapa, encoding="utf-8") as f:
+            txt = f.read()
+        roto = re.sub(r"\d+ referencias, \d+ scripts", "99 referencias, 99 scripts", txt)
+        self.assertNotEqual(txt, roto, "el mapa debe enunciar los conteos")
+
+        # 1) desfasado SOLO en el arbol de trabajo: aviso, y no es fallo
+        with open(mapa, "w", encoding="utf-8") as f:
+            f.write(roto)
+        rc, out = _auditar(skill)
+        self.assertEqual(rc, 0, f"un desvio sin publicar deberia ser aviso, no fallo:\n{out}")
+        self.assertIn("AVISOS", out)
+
+        # 2) el mismo desvio PUBLICADO: ahi si es fallo
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "dos")
+        rc, out = _auditar(skill)
+        self.assertEqual(rc, 1, f"lo publicado desfasado tiene que ser fallo:\n{out}")
+        self.assertIn("MAPA:", out)
 
     def test_detecta_un_commit_que_arrastra_trabajo(self):
         # un commit puede llevarse trabajo en vuelo al arbol commiteado: el
