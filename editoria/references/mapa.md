@@ -196,6 +196,17 @@ contradigan.
     destapar un numero falso que llevaba tiempo publicado: ese es el precio
     de haber tenido el guard apagado, y el numero PUBLICO tiene que quedar
     cierto, no solo detectable.
+12. **El historial dice quien escribio cada commit, porque el campo 'autor'
+    no lo dice.** Las sesiones de trabajo comparten la misma identidad de git,
+    asi que "autor" no distingue nada. Cada commit lleva en el mensaje el
+    sufijo de la sesion que lo escribio (`[sesion-a153]`, `[sesion-524d]`): un
+    id unico, estable y greppable (`git log --grep=sesion-524d`), que no
+    promete una semantica que se pueda cumplir mal —un "[mia]" solo significa
+    algo con la conversacion a la vista, y por eso los commits mas antiguos
+    lo llevan—. El aviso de `scripts/auditar_mapa.py` sale cuando el
+    historial no dice quien escribio cada commit; es un AVISO y no un fallo:
+    romper la puerta por higiene del historial seria la forma correcta de que
+    la gente aprendiera a odiar la puerta.
 
 ## 5. Los scripts
 

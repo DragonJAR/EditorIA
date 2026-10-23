@@ -512,6 +512,15 @@ class TestAuditarMapa(unittest.TestCase):
         rc, out = _auditar(skill)
         self.assertEqual(rc, 0, f"la atribucion ambigua es un aviso, no un fallo:\n{out}")
         self.assertIn("autribucion ambigua", out)
+        # el aviso tiene que decir QUE hacer, y lo que dice tiene que existir:
+        # un aviso que manda a leer una convencion que no esta escrita en
+        # ningun lado es un aviso que no sirve. la convencion vive en
+        # references/mapa.md (regla 12).
+        self.assertIn("references/mapa.md", out,
+                      "el aviso tiene que decir donde esta la convencion")
+        with open(os.path.join(skill, "references", "mapa.md"), encoding="utf-8") as f:
+            self.assertIn("[sesion-", f.read(),
+                          "la convencion de sufijos tiene que estar escrita")
 
         # con dos identidades distintas, el historial SI dice quien escribio
         _git("config", "user.name", "otra sesion")

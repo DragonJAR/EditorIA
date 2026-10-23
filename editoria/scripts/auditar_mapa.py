@@ -1520,8 +1520,9 @@ def _chequear_atribucion(problemas):
     se pierde.
 
     Pero el aviso mira tambien la SOLUCION: si los mensajes llevan un
-    sufijo de sesion ("[mia]", "[tuyo]"), la atribucion se puede leer ahi y
-    no hay nada que avisar.
+    sufijo de sesion ("[sesion-a153]", "[sesion-524d]"), la atribucion se
+    puede leer ahi y no hay nada que avisar. La convencion esta en
+    references/mapa.md (regla 12).
 
     Arreglo: una identidad de git por sesion (`git config user.name`), o
     un sufijo en el mensaje del commit.
@@ -1554,7 +1555,8 @@ def _chequear_atribucion(problemas):
             "tipo": "autribucion ambigua", "archivo": "historial",
             "msg": f"{len(autores)} commits y un solo autor ({autores[0]}): el campo "
                    f"'autor' no dice quien escribio cada uno. Una identidad de git por "
-                   f"sesion, o un sufijo en el mensaje del commit (p.ej. [mia])",
+                   f"sesion, o un sufijo en el mensaje del commit (la convencion esta en "
+                   f"references/mapa.md: [sesion-XXXX])",
             "severidad": "aviso"})
 
 
