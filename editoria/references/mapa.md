@@ -207,6 +207,18 @@ contradigan.
     historial no dice quien escribio cada commit; es un AVISO y no un fallo:
     romper la puerta por higiene del historial seria la forma correcta de que
     la gente aprendiera a odiar la puerta.
+13. **El patron de un guard puede ser estrecho, y debe serlo.** Un patron
+    ancho —cualquier cifra suelta de la prosa— no distingue el numero que
+    verifica de un numero cualquiera, asi que termina marcando cosas que
+    estan bien, y un detector que llora se desactiva. Lo que permite el
+    patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
+    palabra que dice que variante es. Solo asi el patron distingue lo que
+    tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
+    guard nuevo se cuentan contra las 55 referencias, no se estiman.
+    Y al escribir la prosa, OJO: un ejemplo literal que parezca una
+    afirmacion es una afirmacion para el guard (esto looyo en la regla
+    misma: un ejemplo con la cifra equivocada hacia saltar al guard que
+    escribe las reglas).
 
 ## 5. Los scripts
 
