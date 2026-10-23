@@ -525,6 +525,10 @@ try:
     for ancho, alto in ((1080, 1920), (1920, 1080)):
         R.formato(ancho, alto)
         ctx = R.Ctx()
+        # el aviso de recorte se limpia al EMPEZAR el formato: el bloque de
+        # estres (copy x2) deja la lista poblada y, sin esto, la primera escena
+        # del formato siguiente se cargaba los recortes de la anterior
+        getattr(R, "RECORTES", []).clear()
         fuera, escenas_ok = [], 0
         fuera_letra = []
         fuera_copy = []
