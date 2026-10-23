@@ -90,7 +90,10 @@ def _paths_publicados(subruta):
         if "__pycache__" in d:
             continue
         for f in fs:
-            out.append(os.path.relpath(os.path.join(d, f), base).replace(os.sep, "/"))
+            # el prefijo es el de la RAMA GIT ("scripts/render_plan.py"), no el
+            # de la carpeta ("render_plan.py"): las dos ramas tienen que contar
+            # igual, o el conteo raiz se lleva los archivos de las subcarpetas
+            out.append(os.path.relpath(os.path.join(d, f), BASE).replace(os.sep, "/"))
     return out
 
 
