@@ -776,7 +776,7 @@
       "from": 0,
       "to": 5.5,
       "rotulo": "Audio y *voz en off*",
-      "archivo": "narracion_sintetica.wav",
+      "archivo": "narracion_ia.wav",
       "hablante": "Voz generada por IA",
       "transcripcion": "Sincronización cuadro a cuadro.",
       "estado": "REC ● 00:14",
