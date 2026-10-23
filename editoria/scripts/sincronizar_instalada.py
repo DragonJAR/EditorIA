@@ -58,11 +58,25 @@ def _caches(base):
     return out
 
 
-def _bytecode_fantasma(base):
-    """Los .pyc MAS NUEVOS que su .py: python ejecutara ese codigo, no el actual.
+def _codigo_del_pyc(ruta):
+    """El objeto de codigo que guarda un .pyc."""
+    import marshal
+    with open(ruta, "rb") as f:
+        f.read(16)          # magic + flags + mtime + tamaño
+        return marshal.load(f)
 
-    Es exactamente el caso del bug: `git archive` deja el .py con el mtime
-    del commit (pasado) y el .pyc compilado antes queda mas nuevo.
+
+def _bytecode_fantasma(base):
+    """Los .pyc cuyo codigo NO es el del .py actual (codigo fantasma).
+
+    Un .pyc mas nuevo que su .py NO es prueba de nada: al compilar, el
+    .pyc nace con la hora de ahora y el .py puede tener el mtime del
+    commit (pasado), que es justo el caso de una copia recien
+    sincronizada. Con fechas daria falsos positivos.
+
+    La comprobacion fiable es de CONTENIDO: se compila el .py actual y se
+    compara su objeto de codigo con el que guarda el .pyc (el nombre del
+    archivo no cuenta: el .pyc guardo el de cuando se compilo).
     """
     for d, _dirs, files in os.walk(base):
         if os.path.basename(d) != "__pycache__":
@@ -72,7 +86,15 @@ def _bytecode_fantasma(base):
                 continue
             pyc = os.path.join(d, f)
             py = os.path.join(os.path.dirname(d), f.split(".")[0] + ".py")
-            if os.path.exists(py) and os.path.getmtime(pyc) > os.path.getmtime(py):
+            if not os.path.exists(py):
+                continue
+            try:
+                guardado = _codigo_del_pyc(pyc)
+                actual = compile(open(py, encoding="utf-8").read(),
+                                 os.path.basename(py), "exec")
+            except (OSError, ValueError, EOFError, SyntaxError):
+                continue
+            if guardado.replace(co_filename="") != actual.replace(co_filename=""):
                 yield pyc, py
 
 

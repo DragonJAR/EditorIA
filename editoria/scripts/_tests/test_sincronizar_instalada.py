@@ -55,14 +55,24 @@ class TestSincronizarInstalada(unittest.TestCase):
         _copia_skill(os.path.join(self.destino, "editoria"))
 
     def _pyc_fantasma(self):
-        """Un .pyc mas nuevo que su .py: python ejecuta ese codigo."""
+        """Un .pyc LEGITIMO pero con codigo distinto al de su .py.
+
+        Con este se ve por que la comparacion tiene que ser de contenido: el
+        .pyc es valido, python lo usaria, y aun asi ejecuta un codigo que
+        ya no esta en el .py.
+        """
+        import importlib.util
+        import marshal
         scripts = os.path.join(self.destino, "editoria", "scripts")
         py = os.path.join(scripts, "medir_animacion.py")
         cache = os.path.join(scripts, "__pycache__")
         os.makedirs(cache, exist_ok=True)
         pyc = os.path.join(cache, "medir_animacion.cpython-314.pyc")
+        otro = compile("CODIGO_VIEJO = 1\n", os.path.basename(py), "exec")
         with open(pyc, "wb") as f:
-            f.write(b"\x00\x00\x00\x00")
+            f.write(importlib.util.MAGIC_NUMBER)
+            f.write(b"\x00" * 12)      # flags + mtime + tamaño
+            f.write(marshal.dumps(otro))
         # mas nuevo que su .py: el caso de git archive sobre una copia con cache
         os.utime(pyc, (os.path.getmtime(py) + 3600, os.path.getmtime(py) + 3600))
         return pyc
@@ -89,6 +99,25 @@ class TestSincronizarInstalada(unittest.TestCase):
     def test_sin_fantasma_no_problema(self):
         r = _corre(self.destino, "--check")
         self.assertEqual(r.returncode, 0, f"sin fantasma deberia salir limpio:\n{r.stdout}")
+        self.assertIn("sin bytecode fantasma", r.stdout)
+
+    def test_un_pyc_recien_compilado_no_es_fantasma(self):
+        # al compilar, el .pyc nace con la hora de ahora y el .py puede
+        # tener el mtime del commit (pasado): con FECHAS pareceria
+        # fantasma, y no lo es. La comparacion es de contenido.
+        import py_compile
+        scripts = os.path.join(self.destino, "editoria", "scripts")
+        py = os.path.join(scripts, "medir_animacion.py")
+        cache = os.path.join(scripts, "__pycache__")
+        os.makedirs(cache, exist_ok=True)
+        pyc = os.path.join(cache, "medir_animacion.cpython-314.pyc")
+        py_compile.compile(py, cfile=pyc, doraise=False)
+        # el .py con el mtime del commit (pasado): el .pyc queda mas nuevo
+        os.utime(py, (1000000, 1000000))
+        self.assertGreater(os.path.getmtime(pyc), os.path.getmtime(py),
+                           "el .pyc deberia quedar mas nuevo que su .py")
+        r = _corre(self.destino, "--check")
+        self.assertEqual(r.returncode, 0, f"no deberia marcar fantasma:\n{r.stdout}")
         self.assertIn("sin bytecode fantasma", r.stdout)
 
     def test_sincroniza_desde_head(self):
