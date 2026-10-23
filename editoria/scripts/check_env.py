@@ -181,6 +181,82 @@ rep("hyperframes", ok_hf,
     "instalado en este proyecto" if ok_hf else
     "HTML→video determinista (HeyGen, Apache 2.0) — ver references/hyperframes.md")
 
+print("== Cache de bytecode ==")
+# Una copia instalada puede quedar con un .pyc MAS NUEVO que su .py: python usa
+# el .pyc y ejecuta un motor que ya no existe ("codigo fantasma"). Pasa al
+# copiar con `tar`/`git archive` (preservan el mtime del commit) sobre una
+# copia que ya tenia __pycache__. Con git se puede ver: si el .py cambio
+# DESPUES de compilarse el .pyc, el .pyc es un fantasma.
+import struct  # noqa: E402
+
+
+def _bytecode_fantasma():
+    """Los .pyc cuyo codigo NO es el del .py actual (codigo fantasma).
+
+    Un .pyc mas nuevo que su .py hace que python ejecute un codigo que ya no
+    existe. Pasa al copiar con `tar`/`git archive` (preservan el mtime del
+    commit) sobre una copia que ya tenia __pycache__. La comparacion es de
+    CONTENIDO: se compila el .py actual y se compara con lo que guarda el
+    .pyc. Un commit posterior no importa: lo que importa es si el codigo
+    compilado es el mismo.
+    """
+    import marshal
+    import types
+
+    def _igual(a, b):
+        """Dos objetos de codigo son el mismo si coinciden sus bytes, sus
+        constantes y sus nombres. El `co_filename` NO se compara: el .pyc se
+        compilo con la ruta absoluta y el .py actual con la relativa, y eso
+        no dice nada sobre el codigo."""
+        if not isinstance(a, types.CodeType) or not isinstance(b, types.CodeType):
+            return a == b
+        if a.co_code != b.co_code or a.co_names != b.co_names:
+            return False
+        if a.co_varnames != b.co_varnames or a.co_argcount != b.co_argcount:
+            return False
+        if len(a.co_consts) != len(b.co_consts):
+            return False
+        return all(_igual(x, y) for x, y in zip(a.co_consts, b.co_consts))
+
+    fantasmas = []
+    for d, _, archivos in os.walk(os.path.join(BASE, "scripts")):
+        if not d.endswith("__pycache__"):
+            continue
+        for a in archivos:
+            if not a.endswith(".pyc"):
+                continue
+            mod = a.split(".")[0] + ".py"
+            py = os.path.join(os.path.dirname(d), mod)
+            if not os.path.exists(py):
+                continue
+            with open(os.path.join(d, a), "rb") as fh:
+                crudo = fh.read()
+            if len(crudo) < 16:
+                continue
+            magic, flags = struct.unpack("<4sI", crudo[:8])
+            if flags & 0b1:            # pyc por hash: Python lo valida solo
+                continue
+            try:
+                with open(py, encoding="utf-8") as fh:
+                    src = fh.read()
+                actual = compile(src, py, "exec")
+                guardado = marshal.loads(crudo[16:])
+            except Exception:
+                continue
+            if not _igual(actual, guardado):
+                fantasmas.append(os.path.relpath(py, BASE))
+    return fantasmas
+
+
+_fantasmas = _bytecode_fantasma()
+rep("sin codigo fantasma (bytecode vigente)", not _fantasmas,
+    "" if not _fantasmas else
+    f"borrar __pycache__ de la copia: {', '.join(sorted(set(_fantasmas))[:3])}",
+    critico=False)
+if _fantasmas:
+    print("     el .pyc guarda un codigo que el .py ya no tiene: python ejecuta el VIEJO")
+    print(f"     rm -rf {os.path.join(BASE, 'scripts')}/**/__pycache__")
+
 print("== Capacidades del modelo (asumidas, verificar en sesión) ==")
 print("INFO visión multimodal — QA cuadro por cuadro (extraer frames y mirarlos)")
 print("INFO generación de imágenes — assets vía pipeline de medios si se necesitan")
