@@ -87,7 +87,12 @@ def verificar_reloj(segs, duracion_video=None, tolerancia_fin=0.20):
     si la voz de la última escena termina después del final del video, la
     narración SE CORTA contra el borde. No hay otra imagen que la tape: es
     un defecto, no un aviso. Sin ese dato la comprobación no se hace (no
-    todas las llamadas saben la duración)."""
+    todas las llamadas saben la duración).
+
+    Ojo al leer el reloj a mano: la voz entra en `from + 0.4` (el aire), así
+    que el fin de la voz es la duración CRUDA del wav MÁS 0,40. Tomar la
+    duración del wav como "cuándo acaba la voz" hace ver desbordes que no
+    hay (o al revés)."""
     errores = []
     ultimo = len(segs) - 1
     for k, (f, dl, e) in enumerate(segs):

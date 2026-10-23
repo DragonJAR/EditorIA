@@ -155,6 +155,13 @@ Antes de timar escenas: la duración de la escena se deriva de la VO, no al rev�
   `voz_off.py` (o `voz_local.py`) mide la voz real y falla si una pisa a la
   siguiente (dirá cuántos segundos alargar). Si la voz no cabe, se alarga la
   escena o se recorta el texto; nunca se acelera la voz.
+- **Cómo se lee el reloj real**: la voz entra en `inicio de escena + 0.4 s`,
+  así que **el fin de la voz = duración CRUDA del wav (la de la caché) + 0,40**.
+  Tomar la duración del wav como "cuándo acaba la voz" hace creer que hay un
+  desborde que no existe (o al revés): si el wav crudo dura 4,81 s y la
+  escena acaba en 5,0 s, la voz termina en 5,21 s y sí se sale. Es la misma
+  cuenta que hace `verificar_reloj`, y por eso los dos caminos (estimado y
+  real) coinciden cuando el guion está bien medido.
   **Y el final del video es un caso aparte**: la voz de la última escena no
   tiene otra imagen que la tape, así que si termina después de que acaba el
   video se CORTA contra el borde. `auditar_plan.py` avisa (con la estimación
