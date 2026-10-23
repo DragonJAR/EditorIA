@@ -40,6 +40,14 @@ cualquier video ya renderizado (a su propio fps) y `--cortes` la ventana de
 cada corte entre escenas consecutivas del catálogo (27 pares × 2 formatos):
 toda escena se prueba saliendo y entrando contra otra.
 
+El contraste es la otra mitad de la legibilidad: `python scripts/medir_contraste.py`
+mide el ratio real del texto contra la superficie que tiene debajo, con la misma
+técnica que el piso de letra (intercepta `ImageDraw.text` y compone el color
+real, no el pedido). Un texto de acento sobre una banda del mismo acento es
+ilegible y no se ve leyendo el código: se ve midiendo. Se juzga **en reposo**
+(el estado en el que el espectador lo lee) y el umbral es 3.0:1, el de WCAG
+para texto grande.
+
 Qué mide cada número (calibrado con casos sintéticos en `validate_skill.py`):
 - **pop**: en un frame, ≥ 35 % de los bloques que cambian de golpe no tienen
   origen cerca en el frame anterior (ni exacto ni suavizado). Lo que aparece
