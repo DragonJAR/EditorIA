@@ -238,5 +238,69 @@ class TestFinDelVideo(unittest.TestCase):
         VL.verificar_reloj(segs)
 
 
+class TestElAvisoDiceLaVerdad(unittest.TestCase):
+    """Un aviso que dice algo que no pasa tambien es ruido.
+
+    El aviso de "la voz se sale de su escena" decia siempre "cae sobre la
+    siguiente imagen": en la ULTIMA escena no hay siguiente imagen, y a veces
+    no hay nada detras (se corta contra el final del video)."""
+
+    def _wav(self, segundos):
+        d = tempfile.mkdtemp()
+        ruta = os.path.join(d, "f.wav")
+        with wave.open(ruta, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(44100)
+            w.writeframes(b"\x00\x00" * int(44100 * segundos))
+        return ruta
+
+    def _aviso(self, segs, duracion_video=None):
+        """El texto del aviso (o "" si no avisa)."""
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            VL.verificar_reloj(segs, duracion_video=duracion_video)
+        for linea in buf.getvalue().splitlines():
+            if linea.startswith("AVISO"):
+                return linea
+        return ""
+
+    def test_si_hay_siguiente_voz_dice_la_siguiente_imagen(self):
+        wav = self._wav(3.0)
+        segs = [(wav, 400, {"tipo": "apertura", "from": 0.0, "to": 2.0}),
+                (wav, 10000, {"tipo": "final", "from": 10.0, "to": 20.0})]
+        self.assertIn("siguiente imagen", self._aviso(segs))
+
+    def test_en_la_ultima_escena_dice_lo_que_viene_despues(self):
+        """La escena acaba en 5 s pero el video dura 10: la voz cae sobre lo
+        que viene despues (no sobre una "siguiente imagen": no hay otra voz)."""
+        wav = self._wav(6.0)          # entra en 0.4 y acaba en 6.4
+        segs = [(wav, 400, {"tipo": "final", "from": 0.0, "to": 5.0})]
+        aviso = self._aviso(segs, duracion_video=10.0)
+        self.assertIn("lo que viene despues", aviso)
+        self.assertNotIn("siguiente imagen", aviso)
+
+    def test_si_el_video_acaba_con_la_escena_dice_que_se_corta(self):
+        wav = self._wav(2.7)          # entra en 0.4 y acaba en 3.1 (video: 3.0)
+        segs = [(wav, 400, {"tipo": "final", "from": 0.0, "to": 3.0})]
+        aviso = self._aviso(segs, duracion_video=3.0)
+        self.assertIn("se corta contra el final", aviso)
+
+    def test_cuando_el_error_lo_dice_no_hay_aviso_que_lo_contradiga(self):
+        """Si la voz se corta contra el final, el aviso de "cae sobre la
+        siguiente imagen" Calla: el error de abajo ya lo dice."""
+        wav = self._wav(5.0)
+        segs = [(wav, 400, {"tipo": "final", "from": 0.0, "to": 3.0})]
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            with self.assertRaises(SystemExit):
+                VL.verificar_reloj(segs, duracion_video=3.0)
+        self.assertNotIn("siguiente imagen", buf.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

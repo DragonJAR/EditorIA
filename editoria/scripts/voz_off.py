@@ -89,15 +89,34 @@ def verificar_reloj(segs, duracion_video=None, tolerancia_fin=0.20):
     un defecto, no un aviso. Sin ese dato la comprobación no se hace (no
     todas las llamadas saben la duración)."""
     errores = []
+    ultimo = len(segs) - 1
     for k, (f, dl, e) in enumerate(segs):
         fin = dl / 1000 + duracion(f)
         if k + 1 < len(segs) and fin > segs[k + 1][1] / 1000:
             errores.append(f"escena {e['tipo']}@{e['from']}s: la voz dura hasta {fin:.2f}s y "
                            f"pisa la siguiente ({segs[k+1][1]/1000:.2f}s) — alargar la escena "
                            f"{fin - segs[k+1][1]/1000 + 0.2:.2f}s o recortar el texto")
-        elif fin > e.get("to", fin):
-            print(f"AVISO escena {e['tipo']}@{e['from']}s: la voz termina {fin - e['to']:.2f}s "
-                  f"después de la escena (cae sobre la siguiente imagen)", flush=True)
+            continue
+        to_v = e.get("to")
+        if to_v is None or fin <= to_v:
+            continue
+        # El aviso tiene que decir lo que pasa de verdad: si la voz se corta
+        # contra el final del video, lo dice el ERROR de abajo (un aviso que
+        # dice una cosa y el error otra es ruido). Y en la ultima escena no
+        # hay "siguiente imagen": lo que hay es lo que viene despues de la
+        # escena, o nada (el borde).
+        se_corta = (k == ultimo and duracion_video is not None
+                    and fin > duracion_video + tolerancia_fin)
+        if se_corta:
+            continue
+        if k < ultimo:
+            detalle = "cae sobre la siguiente imagen"
+        elif duracion_video is not None and duracion_video <= to_v + 0.05:
+            detalle = "se corta contra el final del video"
+        else:
+            detalle = "cae sobre lo que viene despues de la escena"
+        print(f"AVISO escena {e['tipo']}@{e['from']}s: la voz termina {fin - to_v:.2f}s "
+              f"después de la escena ({detalle})", flush=True)
     if duracion_video and segs:
         f, dl, e = segs[-1]
         fin = dl / 1000 + duracion(f)
