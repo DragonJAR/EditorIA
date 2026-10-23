@@ -176,6 +176,14 @@ contradigan.
      muy bien enlazada que este la pagina.
    Pasar la primera capa no dice nada de las otras dos, y la segunda encuentra
    cosas que la primera daba por buenas.
+10. **Un fallo que sale en un sitio y no en otro no es del codigo: es del
+    entorno.** Si un check falla en la copia instalada y no en el repo, el
+    motor puede estar perfecto y el sintoma —una escena que no se comporta, un
+    recorte que no cuadra— apuntar al sitio equivocado. Se REPRODUCE A MANO
+    antes de culpar al codigo: primero en el repo, luego el entorno
+    (`check_env.py` para el bytecode fantasma; `sincronizar_instalada.py
+    --check` para la copia). El orden importa: al reves, se "arregla" lo que
+    no estaba roto. El procedimiento, en `references/instalacion.md`.
 
 ## 5. Los scripts
 
