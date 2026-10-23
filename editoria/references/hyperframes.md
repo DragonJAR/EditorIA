@@ -30,6 +30,12 @@ al proyecto (`agent/skills/`). Requiere headless Chrome + FFmpeg. El
 render local **no exige login ni cuenta** (verificado 2026-10-04). El
 router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
+> **Estos comandos son de la herramienta externa** (Node, HyperFrames y el
+> paquete `skills` de npm), no CLIs de la skill: **la puerta no los verifica**.
+> Y `npx -y skills add ...` instala y ejecuta código de internet con
+> confirmación automática (`-y`): revisa el origen del paquete antes de
+> correrlo.
+
 ## Cómo funciona
 
 - La composición es un `index.html`: los elementos declaran timing con

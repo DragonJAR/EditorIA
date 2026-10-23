@@ -294,6 +294,8 @@
 - 2026-10-06 · **Fundido con ease en ffmpeg: no vale su costo**: xfade=transition=custom con smoothstep (expr por píxel: st(0,1-P);st(1,ld(0)*ld(0)*(3-2*ld(0)));A*(1-ld(1))+B*ld(1)) funciona pero cuesta ~60x (19.5 s vs 0.3 s por transición de 0.5 s a 1080p). Las herramientas ffmpeg (pase, transicion, audio_viz) se quedan con el fundido lineal estándar de todo NLE (2 puntos de 'arranque' en el banco por transición, aceptados a sabiendas); el motor de escenas sí usa ease porque compone en Python.
 - 2026-10-18 · **Guards de importacion van tras parse_args y bajo __main__**: Llamar sys.exit en el tope del modulo al faltar PIL o numpy rompia --help (rc=1 sin usage) en 4 CLIs (alinear, beat_grid, medir_mezcla, thumbnail) e impedia importar render_plan como libreria. Regla: diferir el chequeo de dependencias opcionales hasta despues de ap.parse_args() o restringir sys.exit a __name__ == '__main__'; para audio f32le de ffmpeg, struct.unpack y math dan un fallback determinista en stdlib (100.0 BPM exactos en 0.96s).
 
+- 2026-10-22 · **Un comando de otra herramienta no lo verifica la puerta**: los flags de la cadena externa (Node, Remotion, HyperFrames: `npx tsc --noEmit`, `--browser-executable`, `npx skills add ...`) no son CLIs de la skill, asi que el verificador de comandos documentados no los ejecuta ni los comprueba. Documentarlos como externos es la honestidad minima: quien los lea sabe que estan SIN vigilar. (Y el verificador SI ve los flags de un subcomando nuestro: intercepta `argparse.parse_args` con los argumentos reales, asi que `--variantes` y su alias `-n` se miran los dos.)
+
 ---
 
 → Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/animacion.md`, `references/fluidez.md`, `references/coherencia-espacial.md`
