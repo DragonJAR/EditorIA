@@ -583,10 +583,10 @@ class TestAuditarMapa(unittest.TestCase):
         p = os.path.join(raiz, "scripts", "ffmpeg_tools", "shorts_plan.py")
         with open(p, encoding="utf-8") as f:
             txt = f.read()
-        self.assertIn("fontcolor={texto_sobre(acento)}", txt,
+        self.assertIn("fontcolor={texto_sobre(acento", txt,
                       "el fixture tiene que traer el arreglo")
         with open(p, "w", encoding="utf-8") as f:
-            f.write(txt.replace("fontcolor={texto_sobre(acento)}", "fontcolor=#FAF8F6"))
+            f.write(txt.replace("fontcolor={texto_sobre(acento, tokens=_tok)}", "fontcolor=#FAF8F6"))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"el texto fijo sobre acento no se detecto:\n{out}")
         self.assertIn("texto fijo sobre acento", out)
@@ -603,7 +603,7 @@ class TestAuditarMapa(unittest.TestCase):
             txt = f.read()
         self.assertIn("boxcolor={acento}", txt, "el fixture tiene que traer la caja de acento")
         with open(p, "w", encoding="utf-8") as f:
-            f.write(txt.replace("fontcolor={texto_sobre(acento)}", "fontcolor=#FAF8F6")
+            f.write(txt.replace("fontcolor={texto_sobre(acento, tokens=_tok)}", "fontcolor=#FAF8F6")
                         .replace("boxcolor={acento}", "boxcolor={acento2}"))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"el texto fijo sobre acento con otra forma de nombre "

@@ -68,6 +68,14 @@ lo que falte lo decide el agente con criterio (y lo documenta en el brief).
 `logos.ancla`: punto de interés del isotipo en px del PNG original (el ancla
 compositiva de los films); sin él se usa el centro de masa del logo.
 
+`colores.blanco` y `colores.negro` son la **TINTA** de la marca: el color del
+texto de la pieza. El motor la instala (`BLANCO`) y el verificador de
+dirección de arte le exige 7:1 sobre el fondo. Todo lo que lleve texto la
+viste, incluido el titular del hook de un short (`shorts_plan.py`), que la
+elige por contraste contra el acento. Si la tinta de la marca no llegara al
+piso de 4.5:1 sobre ese acento, se usaría la neutra de la skill: la
+legibilidad no se negocia.
+
 Todas las herramientas leen el pack con las mismas funciones
 (`scripts/ffmpeg_tools/_comun.py`: `colores_marca`, `fuente_marca`,
 `ruta_de_pack`, `identidad_pieza`). Sin `--brand` (ni `"brand"` en el plan)

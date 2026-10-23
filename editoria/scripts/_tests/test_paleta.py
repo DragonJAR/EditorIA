@@ -34,7 +34,8 @@ BASE = os.path.dirname(SCRIPTS)
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
 from _comun import (NEUTRO, PALETAS, info_paleta, paleta_libre,  # noqa: E402
-                    hex_a_rgb, contraste, texto_sobre, TEXTO_CLARO)
+                    hex_a_rgb, contraste, texto_sobre, TEXTO_CLARO, TEXTO_OSCURO,
+                    rgb_a_hex, tokens_efectivos)
 
 TOKENS = ("acento", "acento_oscuro", "negro", "blanco", "gris")
 
@@ -108,10 +109,48 @@ class TestPaletas(unittest.TestCase):
         with open(os.path.join(SCRIPTS, "ffmpeg_tools", "shorts_plan.py"),
                   encoding="utf-8") as f:
             src = f.read()
-        self.assertIn("fontcolor={texto_sobre(acento)}", src,
+        self.assertIn("fontcolor={texto_sobre(acento", src,
                       "el hook tiene que calcular el color del texto sobre el acento")
         self.assertNotIn("fontcolor=#FAF8F6", src,
                          "el hook no puede volver a un color de texto fijo")
+
+    def test_el_hook_lleva_la_tinta_de_la_marca(self):
+        # el motor ya instala la tinta de la identidad (BLANCO) y pinta su
+        # texto con ella; si el hook del short se queda con la tinta neutra
+        # de la skill, el titular de una marca ajena se sale de su identidad.
+        tokens = {"acento": (26, 40, 60), "blanco": (245, 239, 224), "negro": (26, 26, 26)}
+        color = texto_sobre(tokens["acento"], tokens=tokens)
+        self.assertEqual(color, rgb_a_hex(tokens["blanco"]),
+                         "el hook tiene que llevar la tinta de la marca, no la neutra")
+        self.assertNotEqual(color, TEXTO_CLARO,
+                            "el hook seguia llevando la tinta neutra de la skill")
+        self.assertGreaterEqual(contraste(color, tokens["acento"]), 4.5)
+
+    def test_si_la_tinta_de_la_marca_no_llega_al_piso_gana_la_neutra(self):
+        # la legibilidad no se negocia: una marca con una tinta gris (que no
+        # llega al piso sobre el fondo) no puede dejar el titular ilegible.
+        tokens = {"acento": (130, 130, 130), "blanco": (140, 140, 140), "negro": (120, 120, 120)}
+        color = texto_sobre(tokens["acento"], tokens=tokens)
+        self.assertIn(color, (TEXTO_CLARO, TEXTO_OSCURO),
+                      "con una tinta que no llega al piso tiene que entrar la neutra")
+        self.assertGreaterEqual(contraste(color, tokens["acento"]), 4.5,
+                                "el titular tiene que se leerse pase lo que pase")
+
+    def test_la_tinta_del_pack_del_repo_llega_al_piso_sobre_su_acento(self):
+        # cada pack declara su propia tinta (direccion_arte.py la llama
+        # "tinta" y le exige 7:1 sobre el fondo); el hook la tiene que poder
+        # usar sobre el ACENTO, que es un fondo distinto.
+        import glob
+        packs = glob.glob(os.path.join(BASE, "brand", "*.json"))
+        self.assertTrue(packs, "deberia haber al menos un pack de ejemplo")
+        for pack in packs:
+            tok = tokens_efectivos(pack)
+            color = texto_sobre(tok["acento"], tokens=tok)
+            self.assertGreaterEqual(contraste(color, tok["acento"]), 4.5,
+                                    f"{os.path.basename(pack)}: el titular sobre su acento "
+                                    f"no se lee (contraste {contraste(color, tok['acento']):.2f})")
+            self.assertIn(color, (rgb_a_hex(tok["blanco"]), rgb_a_hex(tok["negro"])),
+                          f"{os.path.basename(pack)}: el hook tiene que llevar la tinta del pack")
 
     def test_el_respaldo_no_es_el_color_de_ningun_pack(self):
         # el modo libre no puede parecerse a una marca: se compara con TODOS

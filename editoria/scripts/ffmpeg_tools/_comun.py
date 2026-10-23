@@ -697,6 +697,17 @@ def hex_a_rgb(value: str) -> Tuple[int, int, int]:
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
+def rgb_a_hex(color) -> str:
+    """Convierte una tupla RGB (R, G, B) 0-255 a '#E8480C'.
+
+    La vuelta de `hex_a_rgb`: una sola fuente de verdad para las dos
+    direcciones (DRY). Los tokens de la identidad son tuplas; un filtro de
+    ffmpeg los quiere en hex.
+    """
+    r, g, b = (int(v) for v in tuple(color)[:3])
+    return "#%02X%02X%02X" % (r, g, b)
+
+
 # Cadencia (references/ritmo.md, falla 1): coeficiente de variación mínimo de las
 # duraciones de toma. Debajo, la pieza es un metrónomo. Fuente única: la usan
 # verificar_ritmo.py (sobre el video) y auditar_plan.py (sobre el plan).
@@ -731,7 +742,21 @@ TEXTO_CLARO = "#FAF8F6"
 TEXTO_OSCURO = "#0A0A0A"
 
 
-def texto_sobre(fondo, claro=TEXTO_CLARO, oscuro=TEXTO_OSCURO) -> str:
+def _mejor_contraste(fondo, a, b) -> str:
+    """El de MAS contraste entre los dos colores, con el piso de 4.5:1.
+
+    Si ninguno llega al piso se queda con el mejor: es mejor un texto por
+    debajo del piso que un texto invisible.
+    """
+    ca, cb = contraste(a, fondo), contraste(b, fondo)
+    if ca >= 4.5 and ca >= cb:
+        return a
+    if cb >= 4.5:
+        return b
+    return a if ca >= cb else b
+
+
+def texto_sobre(fondo, claro=TEXTO_CLARO, oscuro=TEXTO_OSCURO, tokens=None) -> str:
     """El color de texto que se lee sobre `fondo` (piso 4.5:1).
 
     Un texto con color FIJO sobre un fondo que cambia es una letra ilegible
@@ -741,14 +766,19 @@ def texto_sobre(fondo, claro=TEXTO_CLARO, oscuro=TEXTO_OSCURO) -> str:
 
     Elige el de MAS contraste entre los dos, y solo lo baja del piso si
     ningun color llega (aun asi se queda con el mejor).
+
+    `tokens` es la identidad de la pieza (pack de marca o paleta): su TINTA
+    (blanco/negro de la marca) va primero, porque el motor ya la instala
+    (BLANCO) y el hook tiene que llevar la misma; con la tinta neutra de la
+    skill, el titular de una marca ajena se sale de su identidad. Si la tinta
+    de la marca no llega al piso sobre ese fondo, se cae a la neutra: la
+    legibilidad no se negocia.
     """
-    c_claro = contraste(claro, fondo)
-    c_oscuro = contraste(oscuro, fondo)
-    if c_claro >= 4.5 and c_claro >= c_oscuro:
-        return claro
-    if c_oscuro >= 4.5:
-        return oscuro
-    return claro if c_claro >= c_oscuro else oscuro
+    if tokens is not None:
+        tinta = _mejor_contraste(fondo, rgb_a_hex(tokens["blanco"]), rgb_a_hex(tokens["negro"]))
+        if contraste(tinta, fondo) >= 4.5:
+            return tinta
+    return _mejor_contraste(fondo, claro, oscuro)
 
 
 # ---------- identidad: modo libre por defecto, el brand pack solo si se pide ----------
