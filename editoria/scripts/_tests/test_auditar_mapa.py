@@ -297,6 +297,23 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"la suite fantasma no se detecto:\n{out}")
         self.assertIn("suite listada que no existe", out)
 
+    def test_detecta_una_clave_del_plan_sin_documentar(self):
+        # el plan es el contrato: si el motor lee una clave que ningun
+        # documento menciona, el que escribe el plan no la conoce
+        raiz = _copia_completa(os.path.join(self.dir, "skill_completa"))
+        p = os.path.join(raiz, "scripts", "render_plan.py")
+        with open(p, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn('plan.get("paleta"', txt, "el motor lee la paleta del plan")
+        nueva = "clave_" + "nueva_del_plan"
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt.replace('plan.get("paleta"',
+                                'plan.get("%s", plan.get("paleta")' % nueva, 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la clave sin documentar no se detecto:\n{out}")
+        self.assertIn("clave del plan sin documentar", out)
+        self.assertIn(nueva, out)
+
 
 class TestCifrasDelCodigo(unittest.TestCase):
     """Las cifras de la prosa tienen que ser las del codigo.

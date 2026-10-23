@@ -736,6 +736,50 @@ def _chequear_lista_de_suites(problemas):
             "msg": f"el SKILL.md lista scripts/_tests/{f} y ese archivo no existe"})
 
 
+# los scripts que leen el PLAN DE VIDEO. `shorts_plan.py` y `chapters.py`
+# leen OTRO plan (el de un shorts y el de un capitulado): sus claves no son
+# del plan de video y no se comparan.
+_SCRIPTS_DEL_PLAN = ["render_plan.py", "auditar_plan.py", "medir_animacion.py",
+                     "mezclar_audio.py", "voz_off.py", "lint_copy.py", "_copy.py"]
+
+
+def _chequear_claves_del_plan(problemas):
+    """Que toda clave del plan que el motor lee este en algun documento.
+
+    El plan es el contrato entre el que escribe y el que dibuja. El motor
+    lee claves del nivel raiz; cada una tiene que estar explicada en
+    algun sitio, o el agente que escribe el plan no la conoce, la pieza
+    sale con el default, y nadie sabe por que.
+    """
+    refs = os.path.join(BASE, "references")
+    if not os.path.isdir(refs):
+        return
+    docs = [os.path.join(BASE, "SKILL.md")]
+    docs += [os.path.join(refs, f) for f in sorted(os.listdir(refs)) if f.endswith(".md")]
+    texto = "\n".join(open(d, encoding="utf-8").read() for d in docs if os.path.exists(d))
+    if not texto.strip():
+        return
+    leidas = {}
+    for f in _SCRIPTS_DEL_PLAN:
+        ruta = os.path.join(BASE, "scripts", f)
+        if not os.path.exists(ruta):
+            continue
+        t = open(ruta, encoding="utf-8").read()
+        for pat in (r'\bplan\[\s*["\']([a-zA-Z_]+)["\']',
+                    r'\bplan\.get\(\s*["\']([a-zA-Z_]+)["\']',
+                    r'\bplan\.setdefault\(\s*["\']([a-zA-Z_]+)["\']'):
+            for k in re.findall(pat, t):
+                leidas.setdefault(k, set()).add(f)
+    for k in sorted(leidas):
+        if re.search(r'["`]%s["`]' % re.escape(k), texto) or \
+           re.search(r'\b%s\b' % re.escape(k), texto):
+            continue
+        problemas.append({
+            "tipo": "clave del plan sin documentar", "archivo": "references/plan-video.md",
+            "msg": f"el motor lee plan['{k}'] ({', '.join(sorted(leidas[k]))}) "
+                   f"y ningun documento la menciona"})
+
+
 def main():
     ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
                                  epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
@@ -867,6 +911,9 @@ def main():
 
     # ---- 12. la lista de suites del SKILL.md es el conjunto real -------
     _chequear_lista_de_suites(problemas)
+
+    # ---- 13. toda clave del plan que el motor lee esta documentada -----
+    _chequear_claves_del_plan(problemas)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}
