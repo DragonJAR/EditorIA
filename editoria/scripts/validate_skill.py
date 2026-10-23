@@ -16,6 +16,12 @@ def _mkdtemp(prefix="editoria_"):
     return d
 atexit.register(lambda: [shutil.rmtree(d, ignore_errors=True) for d in _TMP_DIRS])
 
+#: Un directorio temporal PROPIO de esta corrida. Las rutas fijas en el
+#: temp del sistema se pisan cuando hay dos validaciones a la vez (y el
+#: choque sale como un FAIL del motor, que es justo el sintoma que mas
+#: confunde: apunta al sitio equivocado).
+_TMP_RUN = _mkdtemp(prefix="editoria_run_")
+
 for _extra_bin in ("/opt/homebrew/bin", "/usr/local/bin"):
     if os.path.isdir(_extra_bin) and _extra_bin not in os.environ.get("PATH", "").split(os.pathsep):
         os.environ["PATH"] = _extra_bin + os.pathsep + os.environ.get("PATH", "")
@@ -1039,7 +1045,9 @@ except (Exception, SystemExit) as ex:
 
 try:
     import aplicar_edl as AE
-    edl_tmp = os.path.join(tempfile.gettempdir(), "editoria_val_edl.txt")
+    # ruta PROPIA de esta corrida: una ruta fija en el temp se pisa si hay
+    # dos validaciones a la vez (y el fallo sale como un FAIL del motor)
+    edl_tmp = os.path.join(_mkdtemp(prefix="editoria_edl_"), "val_edl.txt")
     open(edl_tmp, "w", encoding="utf-8").write("5.000-7.000\n# comentario\n1.000-3.000\n2.500-4.000\n\n")
     segs = AE.leer_edl(edl_tmp)
     check(segs == [(1.0, 4.0), (5.0, 7.0)], f"aplicar_edl: ordena y fusiona ({segs})")
@@ -1116,19 +1124,19 @@ try:
     # medir_lufs sobre un tono sintetico
     r = subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-         "-i", "sine=frequency=440:d=1", "-c:a", "aac", os.path.join(tempfile.gettempdir(), "editoria_val_lufs.m4a")],
+         "-i", "sine=frequency=440:d=1", "-c:a", "aac", os.path.join(_TMP_RUN, "lufs.m4a")],
         capture_output=True, timeout=60)
     if r.returncode == 0:
-        lufs = VA.medir_lufs(os.path.join(tempfile.gettempdir(), "editoria_val_lufs.m4a"))
+        lufs = VA.medir_lufs(os.path.join(_TMP_RUN, "lufs.m4a"))
         check(-40 < lufs < 0, f"variantes: medir_lufs ({lufs:.1f} LUFS)")
-        os.remove(os.path.join(tempfile.gettempdir(), "editoria_val_lufs.m4a"))
+        os.remove(os.path.join(_TMP_RUN, "lufs.m4a"))
     else:
         check(False, "variantes: no se pudo sintetizar audio de prueba")
 except (Exception, SystemExit) as ex:
     check(False, f"smoke variantes: {ex}")
 
 try:
-    _base = os.path.join(tempfile.gettempdir(), "editoria_val_thumb.png")
+    _base = os.path.join(_TMP_RUN, "thumb.png")
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
                     "-i", "color=c=#1e1e28:s=640x360", "-frames:v", "1", _base], check=True)
     r2 = subprocess.run(
@@ -1140,16 +1148,16 @@ try:
         from PIL import Image as _I
         r = subprocess.run(
             [sys.executable, os.path.join(BASE, "scripts/ffmpeg_tools/thumbnail.py"),
-             _base, "--texto", "PRUEBA UNO", "-o", os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")],
+             _base, "--texto", "PRUEBA UNO", "-o", os.path.join(_TMP_RUN, "thumb_out.png")],
             capture_output=True, timeout=60)
-        ok_thumb = r.returncode == 0 and os.path.exists(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
+        ok_thumb = r.returncode == 0 and os.path.exists(os.path.join(_TMP_RUN, "thumb_out.png"))
         if ok_thumb:
-            im = _I.open(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
+            im = _I.open(os.path.join(_TMP_RUN, "thumb_out.png"))
             ok_thumb = im.size == (1280, 720)
         check(ok_thumb, "thumbnail: compone 1280x720")
     else:
         print("AVISO [no evaluado sin PIL]: thumbnail: compone 1280x720")
-    for p in (_base, os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")):
+    for p in (_base, os.path.join(_TMP_RUN, "thumb_out.png")):
         if os.path.exists(p):
             os.remove(p)
 except (Exception, SystemExit) as ex:

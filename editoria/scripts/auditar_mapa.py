@@ -1034,17 +1034,31 @@ def _chequear_tests_que_no_se_ejecutan(problemas):
                 "msg": f"el fichero no se puede leer ({type(e).__name__}): "
                        f"un test roto no vigila nada"})
             continue
-        # que clases heredan (directa o indirectamente) de TestCase
+        # que clases heredan (directa o indirectamente) de TestCase, y cuales
+        # NO se pueden resolver SIN IMPORTAR (una base definida en otro
+        # modulo: no se acusa, porque no se puede saber, y un detector que
+        # llora se desactiva)
+        definidos_en_modulo = {c.name for c in arbol.body
+                               if isinstance(c, ast.ClassDef)}
         clases_test = set()
+        clases_desconocidas = set()
         for _ in range(len(arbol.body) + 1):
             for c in arbol.body:
                 if not isinstance(c, ast.ClassDef) or c.name in clases_test:
                     continue
+                if c.name in clases_desconocidas:
+                    continue
+                base_fuera = False
                 for b in c.bases:
                     nb = ast.unparse(b)
                     if "TestCase" in nb or nb in clases_test:
                         clases_test.add(c.name)
                         break
+                    if nb not in definidos_en_modulo:
+                        base_fuera = True
+                else:
+                    if base_fuera:
+                        clases_desconocidas.add(c.name)
         # los metodos que unittest recoge: en una clase de primer nivel
         ids_recogidos = set()
         for c in arbol.body:
@@ -1078,6 +1092,10 @@ def _chequear_tests_que_no_se_ejecutan(problemas):
             if isinstance(padre, ast.FunctionDef):
                 caso = "esta dentro de una funcion: unittest no la recoge"
             elif isinstance(padre, ast.ClassDef):
+                if padre.name in clases_desconocidas:
+                    # su base esta en otro modulo: no se puede saber sin
+                    # importarla, y acusar a ciegas es peor que callar
+                    continue
                 caso = (f"la clase '{padre.name}' no hereda de TestCase: "
                         f"unittest no la recoge")
             else:

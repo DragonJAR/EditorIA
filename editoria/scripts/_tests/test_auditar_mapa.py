@@ -692,6 +692,41 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 0, f"una lista partida en dos lineas dio falso positivo:\n{out}")
         self.assertNotIn("lista de escenas desfasada", out)
 
+    def test_no_acusa_una_clase_con_la_base_en_otro_modulo(self):
+        # una clase que hereda de una base definida en OTRO modulo (un
+        # BaseTest compartido) no se puede resolver sin importarla: acusar a
+        # ciegas es peor que callar, porque un detector que llora se
+        # desactiva. Hoy ninguna suite usa una base asi, pero el dia que
+        # haya una, el guard no puede marcarla.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_base_externa"))
+        p = os.path.join(raiz, "scripts", "_tests", "test_paleta.py")
+        with open(p, encoding="utf-8") as f:
+            txt = f.read()
+        marca = "class TestPaletas(unittest.TestCase):"
+        self.assertIn(marca, txt, "el fixture tiene que traer la clase")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt.replace(
+                marca,
+                "class TestAjeno(BaseDeOtroModulo):\n"
+                "    def test_algo(self):\n"
+                "        pass\n\n\n" + marca, 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 0, f"una base de otro modulo dio falso positivo:\n{out}")
+        self.assertNotIn("test que no se ejecuta", out)
+
+        # y una base LOCAL que no es TestCase SI se acusa: ahi si se puede saber
+        p2 = os.path.join(raiz, "scripts", "_tests", "test_paleta.py")
+        with open(p2, encoding="utf-8") as f:
+            txt2 = f.read()
+        with open(p2, "w", encoding="utf-8") as f:
+            f.write(txt2.replace(
+                marca,
+                "class Helper:\n    pass\n\n\nclass TestNoTestCase(Helper):\n"
+                "    def test_algo(self):\n        pass\n\n\n" + marca, 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"una clase que no hereda de TestCase no se acuso:\n{out}")
+        self.assertIn("test que no se ejecuta", out)
+
     def test_detecta_un_test_duplicado_en_la_misma_clase(self):
         # un metodo repetido en la misma clase: Python conserva el ultimo y
         # el primero es codigo muerto. no se ve: el nombre sigue ahi, con el
