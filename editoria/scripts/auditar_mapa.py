@@ -24,10 +24,80 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REFS = os.path.join(BASE, "references")
+
+
+def _raiz_git():
+    """La raiz del repo donde vive la skill, o None si no hay repo."""
+    try:
+        r = subprocess.run(["git", "-C", BASE, "rev-parse", "--show-toplevel"],
+                           capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _contenido_publicado(rel):
+    """El contenido PUBLICADO de un archivo de la skill (HEAD si hay repo).
+
+    Los numeros que enuncia la prosa describen la skill que se publica, no
+    el arbol de trabajo: si alguien esta escribiendo un script nuevo, el
+    documento sigue describiendo lo que hay en GitHub. Cuando la skill
+    corre desde la copia instalada (que no es un repo), el disco ES la
+    version publicada.
+    """
+    raiz = _raiz_git()
+    if raiz:
+        rel_repo = os.path.relpath(os.path.join(BASE, rel), raiz).replace(os.sep, "/")
+        try:
+            r = subprocess.run(["git", "-C", raiz, "show", f"HEAD:{rel_repo}"],
+                               capture_output=True, text=True, timeout=15)
+        except (OSError, subprocess.SubprocessError):
+            r = None
+        if r is not None and r.returncode == 0:
+            return r.stdout
+    ruta = os.path.join(BASE, rel)
+    if os.path.exists(ruta):
+        with open(ruta, encoding="utf-8") as fh:
+            return fh.read()
+    return ""
+
+
+def _paths_publicados(subruta):
+    """Las rutas (relativas a `subruta`) de la VERSION PUBLICADA de esa carpeta."""
+    raiz = _raiz_git()
+    if raiz:
+        rel = os.path.relpath(BASE, raiz).replace(os.sep, "/")
+        try:
+            r = subprocess.run(["git", "-C", raiz, "ls-tree", "-r", "--name-only",
+                                "HEAD", f"{rel}/{subruta}"],
+                               capture_output=True, text=True, timeout=15)
+        except (OSError, subprocess.SubprocessError):
+            r = None
+        if r is not None and r.returncode == 0 and r.stdout.strip():
+            prefijo = rel + "/"
+            return [ln[len(prefijo):] if ln.startswith(prefijo) else ln
+                    for ln in r.stdout.splitlines()]
+    base = os.path.join(BASE, subruta)
+    if not os.path.isdir(base):
+        return []
+    out = []
+    for d, _, fs in os.walk(base):
+        if "__pycache__" in d:
+            continue
+        for f in fs:
+            out.append(os.path.relpath(os.path.join(d, f), base).replace(os.sep, "/"))
+    return out
+
+
+def _n_publicados(subruta, filtro):
+    """Cuantos archivos hay en la VERSION PUBLICADA de una carpeta."""
+    return len([p for p in _paths_publicados(subruta) if filtro(p)])
+
 MAPA = "references/mapa.md"
 PIE = re.compile(r"^→ Canónico: `(?P<can>[^`]+)` · Dominio: (?P<dom>[^·]+?) · "
                   r"Vecinos: (?P<vec>[^\n]+)$", re.M)
@@ -178,7 +248,7 @@ def _chequear_conteos(problemas):
                   r"\s+de\s+ffmpeg\s+y\s*(\d+)\s+suites", texto)
     if not m:
         return
-    n_refs = len([f for f in os.listdir(REFS) if f.endswith(".md")])
+    n_refs = _n_publicados("references", lambda p: p.endswith(".md"))
     scripts_dir = os.path.join(BASE, "scripts")
     fft_dir = os.path.join(scripts_dir, "ffmpeg_tools")
     tests_dir = os.path.join(scripts_dir, "_tests")
@@ -186,11 +256,11 @@ def _chequear_conteos(problemas):
     # el conteo solo se puede verificar sobre la skill completa
     if not (os.path.isdir(fft_dir) and os.path.isdir(tests_dir)):
         return
-    n_scripts = len([f for f in os.listdir(scripts_dir)
-                      if f.endswith(".py") and os.path.isfile(os.path.join(scripts_dir, f))])
-    n_fft = len([f for f in os.listdir(fft_dir) if f.endswith(".py")])
-    n_tests = len([f for f in os.listdir(tests_dir)
-                   if f.endswith(".py") and f != "__init__.py"])
+    n_scripts = _n_publicados("scripts", lambda p: p.endswith(".py")
+                               and p.count("/") == 1)
+    n_fft = _n_publicados("scripts/ffmpeg_tools", lambda p: p.endswith(".py"))
+    n_tests = _n_publicados("scripts/_tests", lambda p: p.endswith(".py")
+                             and p != "__init__.py")
     for declarado, real, que in ((int(m.group(1)), n_refs, "referencias"),
                                  (int(m.group(2)), n_scripts, "scripts"),
                                  (int(m.group(3)), n_fft, "herramientas de ffmpeg"),
@@ -542,8 +612,8 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
                               r"(?:in\s+|en\s+)ffmpeg_tools/?\s*\+\s*"
                               r"(\d+)\s+(?:in\s+|en\s+)_tests/?\s*=\s*(\d+)\s+scripts", texto):
             r_, f_, t_, s_ = (int(x) for x in mt.groups())
-            n_root = len([f for f in os.listdir(scripts_dir)
-                          if f.endswith(".py") and os.path.isfile(os.path.join(scripts_dir, f))])
+            n_root = _n_publicados("scripts", lambda p: p.endswith(".py")
+                                   and p.count("/") == 1)
             for declarado, real, que in ((r_, n_root, "scripts root"), (f_, n_fft, "ffmpeg_tools"),
                                          (t_, n_tests, "suites de tests"),
                                          (s_, n_root + n_fft + n_tests, "scripts en total")):
@@ -555,9 +625,7 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
 def _n_primitivas_dry(scripts_dir):
     """Cuantas primitivas DRY declara el motor (las que el README cuenta)."""
     import ast
-    ruta = os.path.join(scripts_dir, "render_plan.py")
-    with open(ruta, encoding="utf-8") as fh:
-        arbol = ast.parse(fh.read())
+    arbol = ast.parse(_contenido_publicado("scripts/render_plan.py"))
     nombres = {n.name for n in arbol.body if isinstance(n, ast.FunctionDef)}
     conocidas = {"barra_h", "cuenta_up", "arco", "particulas", "cuadricula", "linewrap",
                  "tarjeta_cristal", "boton_halo", "insignia_3d", "tarjeta", "texto_que_cabe",
@@ -569,9 +637,7 @@ def _n_primitivas_dry(scripts_dir):
 def _n_escenas(scripts_dir):
     """Cuantas escenas declara el motor (SCENES)."""
     import ast
-    ruta = os.path.join(scripts_dir, "render_plan.py")
-    with open(ruta, encoding="utf-8") as fh:
-        arbol = ast.parse(fh.read())
+    arbol = ast.parse(_contenido_publicado("scripts/render_plan.py"))
     for n in arbol.body:
         if isinstance(n, ast.Assign) and any(getattr(x, "id", "") == "SCENES" for x in n.targets):
             return len(n.value.keys)
@@ -636,10 +702,10 @@ def _pasos_de_la_puerta(scripts_dir):
     """
     import ast
     ruta = os.path.join(scripts_dir, "qa_entrega.py")
-    if not os.path.exists(ruta):
+    txt = _contenido_publicado("scripts/ffmpeg_tools/montaje.py")
+    if not txt:
         return None
-    with open(ruta, encoding="utf-8") as fh:
-        arbol = ast.parse(fh.read())
+    arbol = ast.parse(txt)
     main_fn = next((n for n in arbol.body
                     if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
     if main_fn is None:
@@ -752,8 +818,9 @@ def _chequear_lista_de_suites(problemas):
     listadas = set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt))
     if not listadas:
         return
-    reales = {f for f in os.listdir(tests_dir)
-              if f.startswith("test_") and f.endswith(".py")}
+    reales = {os.path.basename(p) for p in _paths_publicados("scripts/_tests")
+              if os.path.basename(p).startswith("test_")
+              and os.path.basename(p).endswith(".py")}
     for f in sorted(reales - listadas):
         problemas.append({
             "tipo": "suite sin enlistar", "archivo": "SKILL.md",
@@ -790,10 +857,9 @@ def _chequear_claves_del_plan(problemas):
         return
     leidas = {}
     for f in _SCRIPTS_DEL_PLAN:
-        ruta = os.path.join(BASE, "scripts", f)
-        if not os.path.exists(ruta):
+        t = _contenido_publicado(os.path.join("scripts", f))
+        if not t:
             continue
-        t = open(ruta, encoding="utf-8").read()
         for pat in (r'\bplan\[\s*["\']([a-zA-Z_]+)["\']',
                     r'\bplan\.get\(\s*["\']([a-zA-Z_]+)["\']',
                     r'\bplan\.setdefault\(\s*["\']([a-zA-Z_]+)["\']'):
@@ -812,10 +878,10 @@ def _chequear_claves_del_plan(problemas):
 def _n_subcomandos(ruta):
     """Cuantos subcomandos declara una CLI (los `add_parser` de argparse)."""
     import ast
-    if not os.path.exists(ruta):
+    txt = _contenido_publicado("scripts/ffmpeg_tools/montaje.py")
+    if not txt:
         return None
-    with open(ruta, encoding="utf-8") as fh:
-        arbol = ast.parse(fh.read())
+    arbol = ast.parse(txt)
     subs = set()
     for n in ast.walk(arbol):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
