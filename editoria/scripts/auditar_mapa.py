@@ -155,6 +155,15 @@ REGLAS_UNICAS = [
     {"nombre": "escala tipografica", "tipo": "exacto", "valor": (120.0, 44.0, 36.0, 32.0, 28.0),
      "patron": r"`titular`\s*(\d+)\s*·\s*`rotulo`\s*(\d+)\s*·\s*`dato`\s*(\d+)\s*·\s*"
                r"`secundario`\s*(\d+)\s*·\s*`nota`\s*(\d+)"},
+    # el target de sonoridad de la skill: -14 enérgico / -16 calmo. son DOS
+    # valores legitimos y ninguno mas: un "-16/-15 para calmado" deja a quien
+    # mezcla sin saber a donde apuntar el loudnorm, y el patron engancha el
+    # numero que PRECEDE al calificador ("-16 LUFS (calmo)", "-15 para
+    # calmado") o al que lo sigue cuando no hay otro entre medias.
+    {"nombre": "target de sonoridad enérgico", "tipo": "exacto", "valor": -14.0,
+     "patron": r"([−\-]?\d{1,2})\s*(?:LUFS\s*)?[^\w]{0,3}(?:para\s+|de\s+)?en[ée]rg\w*"},
+    {"nombre": "target de sonoridad calmo", "tipo": "exacto", "valor": -16.0,
+     "patron": r"([−\-]?\d{1,2})\s*(?:LUFS\s*)?[^\w]{0,3}(?:para\s+|de\s+)?calm\w*"},
 ]
 
 
@@ -178,6 +187,18 @@ def _prosa(texto):
     return "\n".join(out)
 
 
+def _numero(texto):
+    """El numero de la prosa, listo para float().
+
+    La prosa escribe los decimales con coma ("0,5") y el menos con el signo
+    tipografico U+2212 ("-14"), que float() no entiende: sin normalizar,
+    float() reventaria, la regla se compararia NUNCA y el numero equivocado
+    pasaria sin que nadie lo viera. Un guard que se salta la mitad de sus
+    reglas no es un guard: es una costumbre.
+    """
+    return texto.replace(",", ".").replace("−", "-").replace("–", "-")
+
+
 def _chequear_reglas(problemas):
     """Que una regla con un valor unico no se enuncie con otro valor."""
     for regla in REGLAS_UNICAS:
@@ -190,24 +211,28 @@ def _chequear_reglas(problemas):
             # por BLOQUES (parrafos), no por lineas: una regla puede estar
             # partida en dos lineas y el numero caerse en la segunda
             for bloque in re.split(r"\n\s*\n", texto):
-                m = re.search(regla["patron"], bloque)
-                if not m:
-                    continue
-                grupos = [g for g in m.groups() if g]
-                if not grupos:
-                    continue
-                # el decimal puede venir con coma ("0,5-2 s") o con punto:
-                # sin normalizar, float() revienta y la regla NUNCA se compara
-                # (un numero con coma se escapa del guard por mucho que se
-                # enuncie en la prosa)
-                try:
-                    if isinstance(regla["valor"], tuple):
-                        v = tuple(float(g.replace(",", ".")) for g in grupos)
-                    else:
-                        v = float(grupos[0].replace(",", "."))
-                except ValueError:
-                    continue
-                valores.setdefault(v, set()).add(f)
+                # TODOS los enunciados del bloque, no solo el primero: un
+                # bloque puede decir el valor bueno y el malo a la vez (la
+                # forma "-16 LUFS (calmo) ... -15 para calmado"), y con un
+                # solo enunciado el guard no veria el segundo
+                for m in re.finditer(regla["patron"], bloque):
+                    grupos = [g for g in m.groups() if g]
+                    if not grupos:
+                        continue
+                    # el decimal puede venir con coma ("0,5-2 s") o con punto:
+                    # sin normalizar, float() reventa y la regla NUNCA se compara
+                    # (un numero con coma se escapa del guard por mucho que se
+                    # enuncie en la prosa). y el menos de la prosa es el U+2212
+                    # ("-14"), que float() tampoco entiende: una regla con
+                    # valor NEGATIVO se compararia sola si no se normaliza
+                    try:
+                        if isinstance(regla["valor"], tuple):
+                            v = tuple(float(_numero(g)) for g in grupos)
+                        else:
+                            v = float(_numero(grupos[0]))
+                    except ValueError:
+                        continue
+                    valores.setdefault(v, set()).add(f)
         esperado = regla["valor"]
         for v, fs in sorted(valores.items()):
             if isinstance(v, tuple):

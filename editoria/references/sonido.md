@@ -164,7 +164,7 @@ Obliga a elegir en vez de aceptar defaults:
 - Mapa de energía: escena → intro/build/drop/break/outro; qué entra y qué
   sale en cada una; cambios cada 2–4 compases para que no suene a loop.
 - Transiciones: risers, silencios, stops — en qué cues.
-- Mix: LUFS target (−14 default; −14 (el canon de la skill es −14 enérgico / −16 calmo; ver `checklist-qa.md`); −16/−15 para calmado),
+- Mix: LUFS target (−14 enérgico / −16 calmo; ver `checklist-qa.md`),
   qué hace ducking bajo qué (voz al frente; música ~15 dB bajo la voz).
 - Diferente del último video porque: género/tempo/key/kit/groove distintos.
   Un nuevo acorde sobre el mismo kit, groove y tempo ES la misma canción para

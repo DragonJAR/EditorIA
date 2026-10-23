@@ -120,6 +120,42 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("valor divergente", out)
 
+    def test_detecta_un_target_de_sonoridad_que_no_es_el_canon(self):
+        # el target de sonoridad de la skill es -14 enérgico / -16 calmo: son
+        # dos valores y ninguno mas. un "-16/-15 para calmado" deja a quien
+        # mezcla sin saber a donde apuntar el loudnorm.
+        #
+        # el bloque dice el valor BUENO y el MALO ("-16 calmo" y despues
+        # "-15 para calmado"): con un solo enunciado por bloque el guard
+        # miraria el bueno y daria el bloque por limpio.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_lufs"))
+        s = os.path.join(raiz, "references", "sonido.md")
+        with open(s, encoding="utf-8") as f:
+            txt = f.read()
+        bueno = "−14 enérgico / −16 calmo; ver `checklist-qa.md`)"
+        self.assertIn(bueno, txt, "el fixture tiene que traer el canon")
+        with open(s, "w", encoding="utf-8") as f:
+            f.write(txt.replace(bueno, bueno[:-1] + "; −16/−15 para calmado)"))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el target de sonoridad divergente no se detecto:\n{out}")
+        self.assertIn("valor divergente", out)
+        self.assertIn("sonoridad", out, "el fallo tiene que decir que regla fallo")
+
+    def test_el_menos_tipografico_no_escapea_del_guard(self):
+        # la prosa escribe "-14" con el signo tipografico (U+2212). float() no
+        # lo entiende: sin normalizarlo, la regla se compararia NUNCA y un
+        # target equivocado pasaria sin que nadie lo viera.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_signo"))
+        s = os.path.join(raiz, "references", "sonido.md")
+        with open(s, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("−14 enérgico", txt, "el fixture tiene que traer el canon")
+        with open(s, "w", encoding="utf-8") as f:
+            f.write(txt.replace("−14 enérgico", "−13 enérgico"))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el target equivocado no se detecto:\n{out}")
+        self.assertIn("valor divergente", out)
+
     def test_detecta_ruta_de_entregable_sin_puerta(self):
         # una ruta que produce un video tiene que acabar en la puerta
         _ruta, txt = self._pie_de("mapa.md")
