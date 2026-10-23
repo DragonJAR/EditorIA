@@ -592,6 +592,25 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("texto fijo sobre acento", out)
         self.assertIn("shorts_plan.py", out)
 
+    def test_el_guard_no_depende_de_la_forma_del_nombre_del_acento(self):
+        # la regla es "el color de la caja menciona el acento". un patron que
+        # exigiera frontera de palabra despues de "acento" se escapaba con un
+        # nombre como "acento2": el nombre cambia de forma, la caja sigue
+        # siendo la del acento y el texto fijo sigue sin poder leerse.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_texto2"))
+        p = os.path.join(raiz, "scripts", "ffmpeg_tools", "shorts_plan.py")
+        with open(p, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("boxcolor={acento}", txt, "el fixture tiene que traer la caja de acento")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt.replace("fontcolor={texto_sobre(acento)}", "fontcolor=#FAF8F6")
+                        .replace("boxcolor={acento}", "boxcolor={acento2}"))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el texto fijo sobre acento con otra forma de nombre "
+                                 f"no se detecto:\n{out}")
+        self.assertIn("texto fijo sobre acento", out)
+        self.assertIn("shorts_plan.py", out)
+
     def test_detecta_una_clave_del_plan_sin_documentar(self):
         # el plan es el contrato: si el motor lee una clave que ningun
         # documento menciona, el que escribe el plan no la conoce
