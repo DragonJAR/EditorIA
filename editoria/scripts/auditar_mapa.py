@@ -47,25 +47,12 @@ def _raiz_git():
 
 
 def _contenido_publicado(rel):
-    """El contenido PUBLICADO de un archivo de la skill (HEAD si hay repo).
+    """El contenido de un archivo de la skill, tal cual esta en el arbol.
 
-    Los numeros que enuncia la prosa describen la skill que se publica, no
-    el arbol de trabajo: si alguien esta escribiendo un script nuevo, el
-    documento sigue describiendo lo que hay en GitHub. Cuando la skill
-    corre desde la copia instalada (que no es un repo), el disco ES la
-    version publicada.
+    El guard compara el documento contra el codigo, y los dos viven en el
+    arbol de trabajo. Lo que se compara contra el HISTORICO (el commit
+    anterior) es otra cosa, y va a git explicitamente.
     """
-    raiz = _raiz_git()
-    if raiz:
-        rel_repo = os.path.relpath(os.path.realpath(os.path.join(BASE, rel)),
-                                   raiz).replace(os.sep, "/")
-        try:
-            r = subprocess.run(["git", "-C", raiz, "show", f"HEAD:{rel_repo}"],
-                               capture_output=True, text=True, timeout=15)
-        except (OSError, subprocess.SubprocessError):
-            r = None
-        if r is not None and r.returncode == 0:
-            return r.stdout
     ruta = os.path.join(BASE, rel)
     if os.path.exists(ruta):
         with open(ruta, encoding="utf-8") as fh:
@@ -74,20 +61,15 @@ def _contenido_publicado(rel):
 
 
 def _paths_publicados(subruta):
-    """Las rutas (relativas a `subruta`) de la VERSION PUBLICADA de esa carpeta."""
-    raiz = _raiz_git()
-    if raiz:
-        rel = os.path.relpath(os.path.realpath(BASE), raiz).replace(os.sep, "/")
-        try:
-            r = subprocess.run(["git", "-C", raiz, "ls-tree", "-r", "--name-only",
-                                "HEAD", f"{rel}/{subruta}"],
-                               capture_output=True, text=True, timeout=15)
-        except (OSError, subprocess.SubprocessError):
-            r = None
-        if r is not None and r.returncode == 0 and r.stdout.strip():
-            prefijo = rel + "/"
-            return [ln[len(prefijo):] if ln.startswith(prefijo) else ln
-                    for ln in r.stdout.splitlines()]
+    """Las rutas (relativas a `subruta`) de los archivos de esa carpeta.
+
+    Se cuenta el ARBOL, no lo commiteado: el guard compara el documento
+    contra el codigo, y los dos viven en el arbol de trabajo. Compararlos
+    contra HEAD (una tercera cosa) haria que el guard marcara documentos
+    que estan bien para lo publicado. Lo que si se vigila contra el
+    historico es el commit que arrastra trabajo en vuelo: ese lo mira
+    `_chequear_commit_que_arrastra_trabajo`, que va a git explicitamente.
+    """
     base = os.path.join(BASE, subruta)
     if not os.path.isdir(base):
         return []
@@ -104,7 +86,7 @@ def _paths_publicados(subruta):
 
 
 def _n_publicados(subruta, filtro):
-    """Cuantos archivos hay en la VERSION PUBLICADA de una carpeta."""
+    """Cuantos archivos hay en esa carpeta del ARBOL."""
     return len([p for p in _paths_publicados(subruta) if filtro(p)])
 
 MAPA = "references/mapa.md"
@@ -623,6 +605,7 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
             r_, f_, t_, s_ = (int(x) for x in mt.groups())
             n_root = _n_publicados("scripts", lambda p: p.endswith(".py")
                                    and p.count("/") == 1)
+
             for declarado, real, que in ((r_, n_root, "scripts root"), (f_, n_fft, "ffmpeg_tools"),
                                          (t_, n_tests, "suites de tests"),
                                          (s_, n_root + n_fft + n_tests, "scripts en total")):
@@ -810,6 +793,18 @@ def _chequear_cifras_del_codigo(problemas):
                         "msg": f"afirma '{mt.group(1)} comprobaciones' y la puerta corre {siempre}"})
 
 
+def _suites_publicadas():
+    """Las suites de test que hay en el ARBOL.
+
+    La usa el guard (para comparar con la lista del SKILL.md) y la
+    herramienta que reescribe esa lista: si cuentas distinto, los dos
+    pueden discrepar.
+    """
+    return {os.path.basename(p) for p in _paths_publicados("scripts/_tests")
+            if os.path.basename(p).startswith("test_")
+            and os.path.basename(p).endswith(".py")}
+
+
 def _chequear_lista_de_suites(problemas):
     """Que la lista de suites del SKILL.md sea el conjunto real.
 
@@ -827,9 +822,7 @@ def _chequear_lista_de_suites(problemas):
     listadas = set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt))
     if not listadas:
         return
-    reales = {os.path.basename(p) for p in _paths_publicados("scripts/_tests")
-              if os.path.basename(p).startswith("test_")
-              and os.path.basename(p).endswith(".py")}
+    reales = _suites_publicadas()
     for f in sorted(reales - listadas):
         problemas.append({
             "tipo": "suite sin enlistar", "archivo": "SKILL.md",
