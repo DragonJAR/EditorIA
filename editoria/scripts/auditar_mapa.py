@@ -922,6 +922,31 @@ def _chequear_cifras_de_cli(problemas):
                     "msg": f"dice {g} operaciones de montage.py y la CLI tiene {n}"})
 
 
+def _chequear_clis_del_sk(problemas):
+    """Que toda CLI de la skill se pueda encontrar desde el SKILL.md.
+
+    El check de huerfanos exige que un script este enlazado desde ALGUN
+    .md. Pero el .md que el agente lee primero es el SKILL.md: una CLI
+    enlazada solo en una referencia es una herramienta que el agente no
+    va a descubrir. Los modulos privados (los que empiezan por "_") no
+    son CLIs y quedan fuera.
+    """
+    skill = os.path.join(BASE, "SKILL.md")
+    scripts_dir = os.path.join(BASE, "scripts")
+    if not (os.path.exists(skill) and os.path.isdir(scripts_dir)):
+        return
+    with open(skill, encoding="utf-8") as fh:
+        texto = fh.read()
+    for f in sorted(os.listdir(scripts_dir)):
+        if not f.endswith(".py") or f.startswith("_"):
+            continue
+        if f not in texto:
+            problemas.append({
+                "tipo": "CLI fuera del SKILL.md", "archivo": "SKILL.md",
+                "msg": f"scripts/{f} no aparece en el SKILL.md: el agente entra "
+                       f"por ahi y no la encuentra"})
+
+
 def main():
     ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
                                  epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
@@ -1059,6 +1084,9 @@ def main():
 
     # ---- 14. las cifras de una CLI son las de sus subcomandos ---------
     _chequear_cifras_de_cli(problemas)
+
+    # ---- 15. toda CLI se encuentra desde el SKILL.md -------------------
+    _chequear_clis_del_sk(problemas)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}

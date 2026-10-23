@@ -42,6 +42,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (39 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
 | Meeting or transcript summary | **Composition**: `references/pipeline-resumen.md` + styles from `references/estilos.md` |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
+| See what the engine can draw (the 39 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
 | Quick kinetic card (one phrase) | **Quick**: recipe `quick-kinetic` in `references/modos-rapidos.md` |
 | Clip assembly with music | **Quick**: recipe `quick-montage` in `references/modos-rapidos.md` |
 | Trim or adapt an existing video | **Quick**: recipe `quick-cut` in `references/modos-rapidos.md` |
@@ -136,6 +137,8 @@ python scripts/voz_off.py plan.json -o voz.mp3 --guion guion.txt   # un segmento
 python scripts/alinear.py voz.mp3 guion.txt -o voz.palabras.json
 python scripts/musica.py gen --prompt "modern upbeat electronic" --dur 30 -o mus.mp3
 python scripts/beat_grid.py mus.mp3 --json grid.json          # para anclar por beat y por pico
+# el camino inverso: si el BEAT se autora primero, la musica nace de el
+python scripts/beat_file.py -o beat.json
 python scripts/mezclar_audio.py plan.json --video out.mp4 \
     --voz voz.mp3 --voz-palabras voz.palabras.json \
     --grid grid.json --pack assets/sfx --musica mus.mp3 -o final.mp4

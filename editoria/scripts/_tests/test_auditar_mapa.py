@@ -358,6 +358,17 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("clave del plan sin documentar", out)
         self.assertIn(nueva, out)
 
+    def test_detecta_una_cli_fuera_del_skill_md(self):
+        # una CLI enlazada solo en una referencia es una herramienta que el
+        # agente no descubre: el .md que lee primero es el SKILL.md
+        raiz = _copia_completa(os.path.join(self.dir, "skill_clis"))
+        with open(os.path.join(raiz, "scripts", "cli_nueva.py"), "w", encoding="utf-8") as f:
+            f.write("# una CLI que nadie encuentra\n")
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la CLI fuera del SKILL.md no se detecto:\n{out}")
+        self.assertIn("CLI fuera del SKILL.md", out)
+        self.assertIn("cli_nueva.py", out)
+
     def test_detecta_un_conteo_obsoleto_en_ingles(self):
         # el SKILL.md esta en ingles y decia "53 references" cuando hay 55:
         # los patrones del guard buscaban la forma "en kebab-case" y la prosa
