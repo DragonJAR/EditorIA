@@ -575,6 +575,23 @@ class TestAuditarMapa(unittest.TestCase):
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 0, f"un modulo de apoyo no es una suite:\n{out}")
 
+    def test_detecta_un_texto_fijo_sobre_una_caja_de_acento(self):
+        # el hook de un short ponia el titular con color fijo sobre un box del
+        # acento de la marca: con menta el titular quedaba a 2:1. el acento lo
+        # elige el usuario, asi que el texto tiene que seguir al fondo.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_texto"))
+        p = os.path.join(raiz, "scripts", "ffmpeg_tools", "shorts_plan.py")
+        with open(p, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("fontcolor={texto_sobre(acento)}", txt,
+                      "el fixture tiene que traer el arreglo")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt.replace("fontcolor={texto_sobre(acento)}", "fontcolor=#FAF8F6"))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el texto fijo sobre acento no se detecto:\n{out}")
+        self.assertIn("texto fijo sobre acento", out)
+        self.assertIn("shorts_plan.py", out)
+
     def test_detecta_una_clave_del_plan_sin_documentar(self):
         # el plan es el contrato: si el motor lee una clave que ningun
         # documento menciona, el que escribe el plan no la conoce

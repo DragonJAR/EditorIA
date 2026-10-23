@@ -958,6 +958,62 @@ def _chequear_cifras_de_cli(problemas):
                     "msg": f"dice {g} operaciones de montage.py y la CLI tiene {n}"})
 
 
+#: un texto con color FIJO (literal) y una caja de acento (variable): el
+#: texto se pinta sobre un fondo que el usuario elige, y el color no lo
+#: sigue. con blanco fijo, el hook de un short quedaba a 2:1 en menta.
+COLOR_DE_TEXTO_FIJO = re.compile(r"fontcolor=(#[0-9A-Fa-f]{6}|white|black)\b")
+CAJA_DE_ACENTO = re.compile(r"boxcolor=\{?(?:[A-Za-z_]*[Aa][Cc][Ee][Nn][Tt][Oo][A-Za-z_]*|acento)\b")
+
+
+def _chequear_texto_fijo_sobre_acento(problemas):
+    """Que ningun texto con color fijo se pinte sobre una caja de acento.
+
+    El hook de un short pone el titular sobre un box del ACENTO de la marca,
+    y el acento lo elige el usuario. Con el color de texto fijo, el titular
+    quedaba a 2:1 en menta (ilegible) y por debajo del piso en las 8
+    paletas del catalogo. El color tiene que seguir al fondo: `texto_sobre`
+    (scripts/ffmpeg_tools/_comun.py) elige el claro o el oscuro.
+
+    Se mira el AST, no el texto crudo: un filtro de ffmpeg se arma con
+    varias cadenas pegadas y el color y la caja caen en literales distintos.
+    """
+    import ast
+    for sub in ("scripts", "scripts/ffmpeg_tools"):
+        d = os.path.join(BASE, sub)
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if not f.endswith(".py") or f.startswith("_"):
+                continue
+            ruta = os.path.join(d, f)
+            try:
+                with open(ruta, encoding="utf-8") as fh:
+                    arbol = ast.parse(fh.read())
+            except (OSError, SyntaxError, ValueError):
+                continue
+            for n in ast.walk(arbol):
+                if isinstance(n, ast.Constant) and isinstance(n.value, str):
+                    texto = n.value
+                elif isinstance(n, ast.JoinedStr):
+                    # un f-string pegado a otro forma un solo nodo: el color y
+                    # la caja caen en literales distintos pero la cadena final
+                    # es una. ast.unparse deja el codigo con sus llaves, que
+                    # es justo lo que buscan los patrones ({acento}).
+                    texto = ast.unparse(n)
+                else:
+                    continue
+                m_fc = COLOR_DE_TEXTO_FIJO.search(texto)
+                m_box = CAJA_DE_ACENTO.search(texto)
+                if not (m_fc and m_box):
+                    continue
+                problemas.append({
+                    "tipo": "texto fijo sobre acento",
+                    "archivo": os.path.relpath(ruta, BASE).replace(os.sep, "/"),
+                    "msg": f"el texto se pinta con '{m_fc.group(1)}' fijo sobre una caja de "
+                           f"acento: el acento lo elige el usuario y el color fijo no se "
+                           f"lee. usa texto_sobre(acento)"})
+
+
 def _chequear_clis_del_sk(problemas):
     """Que toda CLI de la skill se pueda encontrar desde el SKILL.md.
 
@@ -1224,6 +1280,9 @@ def _todos_los_checks(problemas, mds):
 
     # ---- 15. toda CLI se encuentra desde el SKILL.md -------------------
     _chequear_clis_del_sk(problemas)
+
+    # ---- 15b. ningun texto fijo sobre una caja de acento -------------
+    _chequear_texto_fijo_sobre_acento(problemas)
 
     # ---- 16. el commit no arrastro trabajo en vuelo --------------------
     _chequear_commit_que_arrastra_trabajo(problemas)
