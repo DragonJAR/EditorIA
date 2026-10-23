@@ -124,6 +124,13 @@ EXCEPCIONES = {
 #   patron : regex con un grupo = el valor enunciado
 #   tipo   : "exacto" | "minimo" | "maximo"
 #   valor  : el valor que dice el motor
+#: los numeros que la prosa enuncia EN PALABRAS. Solo estos: cualquier otra
+#: palabra delante de "comprobaciones" ("todas las", "ambas") no es una cifra.
+NUMEROS_EN_PALABRAS = {
+    "un": 1, "uno": 1, "una": 1, "dos": 2, "tres": 3, "cuatro": 4, "cinco": 5,
+    "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10,
+}
+
 LOG_FECHA = re.compile(r"^\s*-\s*\d{4}-\d{2}-\d{2}\s*·")   # entrada de log: registro, no regla
 REGLAS_UNICAS = [
     {"nombre": "margen lateral en vertical", "tipo": "minimo", "valor": 151,
@@ -731,7 +738,7 @@ def _pasos_de_la_puerta(scripts_dir):
     """
     import ast
     ruta = os.path.join(scripts_dir, "qa_entrega.py")
-    txt = _contenido_publicado("scripts/ffmpeg_tools/montaje.py")
+    txt = _contenido_publicado("scripts/qa_entrega.py")
     if not txt:
         return None
     arbol = ast.parse(txt)
@@ -811,23 +818,33 @@ def _chequear_cifras_del_codigo(problemas):
     if pasos:
         siempre, solo_con_plan = pasos
         total_plan = siempre + solo_con_plan
-        doc = os.path.join(REFS, "qa-entrega.md")
-        if os.path.exists(doc):
+        # DONDE se enuncia el numero: la ficha del mapa y el doc de la puerta.
+        # antes solo se miraba qa-entrega.md, donde la prosa dice "todas las
+        # comprobaciones" (que el patron se salta): el numero vivia en
+        # mapa.md y el guard no lo miraba nunca. Un guard que no mira donde
+        # esta el numero es un guard que no mira.
+        for etiqueta, doc in (("references/mapa.md", os.path.join(REFS, "mapa.md")),
+                              ("references/qa-entrega.md", os.path.join(REFS, "qa-entrega.md"))):
+            if not os.path.exists(doc):
+                continue
             texto = _prosa(open(doc, encoding="utf-8").read())
             for mt in re.finditer(r"\b([a-zA-ZáéíóúñÁÉÍÓÚÑ]+|\d+)\s+comprobaciones\b", texto):
                 palabra = mt.group(1).lower()
-                if palabra in ("una", "un", "las", "los", "estas", "esos", "sus", "todas"):
+                if palabra in NUMEROS_EN_PALABRAS:
+                    n = NUMEROS_EN_PALABRAS[palabra]
+                elif palabra.isdigit():
+                    n = int(palabra)
+                else:
+                    continue    # "todas las comprobaciones": no es una cifra
+                if n == total_plan:
                     continue
                 if siempre != total_plan:
-                    problemas.append({
-                        "tipo": "cifra falsa", "archivo": "references/qa-entrega.md",
-                        "msg": f"afirma '{mt.group(1)} comprobaciones', pero la puerta corre "
-                               f"{siempre} sin plan y {total_plan} con plan: "
-                               f"un numero fijo en la prosa es un numero falso"})
+                    msg = (f"afirma '{mt.group(1)} comprobaciones', pero la puerta corre "
+                           f"{siempre} sin plan y {total_plan} con plan: un numero fijo en "
+                           f"la prosa es un numero falso")
                 else:
-                    problemas.append({
-                        "tipo": "cifra falsa", "archivo": "references/qa-entrega.md",
-                        "msg": f"afirma '{mt.group(1)} comprobaciones' y la puerta corre {siempre}"})
+                    msg = f"afirma '{mt.group(1)} comprobaciones' y la puerta corre {siempre}"
+                problemas.append({"tipo": "cifra falsa", "archivo": etiqueta, "msg": msg})
 
 
 def _suites_publicadas():

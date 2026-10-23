@@ -52,9 +52,13 @@ Tambien acepta `--ignorar-inicio` para un fade-in intencional.
 | `delivery_check` | el spec de la plataforma: resolucion, fps, duracion, bitrate, sonoridad, true peak | la composicion |
 | `medir_animacion` | coherencia de movimiento: pops, tirones, arranques, densidad | el copy, la narrativa |
 | `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan | el copy, el movimiento fino |
-| `medir_contraste` | el contraste real del texto contra la superficie que tapa | el copy, el color de marca |
 
-**Por que los dos ultimos van juntos**: `auto_qa` mira el render con ojos
+**`medir_contraste` NO es un paso de la puerta**: no mira la pieza que
+entregas, sino el CATALOGO de escenas del motor (el texto de cada escena
+contra la superficie que tapa). Se corre cuando se toca el motor o una
+paleta, no en cada entrega.
+
+**Por que `auto_qa` y `medir_animacion` van juntos**: `auto_qa` mira el render con ojos
 maquina (luminosidad, congelamiento, destellos) y no ve un corte seco entre
 dos planos ni unaConversion de fps que inventa cuadros. `medir_animacion`
 si los ve, pero no juzga el copy. Ninguno de los dos ve el otro: por eso la
@@ -85,7 +89,10 @@ por eso comparten la medicion y no dos implementaciones.
   eso no cuenta (ver `references/coherencia-espacial.md`). Y el texto tiene
   que **contrastar** con lo que tapa: un color de acento sobre una banda del
   mismo color de acento es ilegible, y eso no se ve leyendo el codigo, se
-  ve midiendo (`scripts/medir_contraste.py`).
+  ve midiendo (`scripts/medir_contraste.py`). Ese check mide el CATALOGO del
+  motor, no esta pieza: el contraste de un texto que pinta una herramienta
+  con ffmpeg se garantiza al construirlo (el texto sigue al fondo), no en la
+  puerta.
 
 ## Orden recomendado de trabajo
 

@@ -185,6 +185,8 @@ python scripts/medir_animacion.py --plan plan.json
 python scripts/medir_contraste.py
 ```
 
+`medir_contraste.py` is the exception: it does not look at your piece, it walks the engine's scene **catalog** (the text of each scene against the surface under it). Run it when you touch the engine or a palette, not on every delivery.
+
 ### Step 6: Edit Footage You Already Have (transcripts, free pieces, post-production)
 
 When summarizing meetings or editing camera-first footage (`references/video-real.md`; the v2 pipeline in `references/pipeline-resumen.md` is legacy):
