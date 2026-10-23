@@ -152,7 +152,7 @@ Expected output: `final.mp4` with voice on top, music ducked ~15 dB under active
 
 **The loudness step is part of the mix, not an extra**: the mixer only sums voices, music and cues — it does not normalize. A mix left at the mixer's own level lands around -18 LUFS and the delivery gate rejects it (`delivery:reels`), so `loudness.py` closes the pipeline. Run it before the gate, not after.
 
-**Without an API key**: `python scripts/voz_off.py` stops and says so; there is no silent fallback to a robotic voice. If the user asks for the system voice, `scripts/voz_local.py` does the same job with the same contract (plan in, one audio track out, `--guion` written, the voice placed at `from + 0.4 s`, and a hard failure if two voices overlap): `python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt`. It is a **draft** voice — no emotional direction, since the system voice cannot read `[slowly]` — and that is said to the user. See `references/sonido.md`.
+**Without an API key**: the `voz_off.py` script stops and says so; there is no silent fallback to a robotic voice. If the user asks for the system voice, `scripts/voz_local.py` does the same job with the same contract (plan in, one audio track out, `--guion` written, the voice placed at `from + 0.4 s`, and a hard failure if two voices overlap): `python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt`. It is a **draft** voice — no emotional direction, since the system voice cannot read `[slowly]` — and that is said to the user. See `references/sonido.md`.
 
 ### Step 5: Run Quality Assurance and Verify Delivery
 
