@@ -176,6 +176,14 @@ contradigan.
      muy bien enlazada que este la pagina.
    Pasar la primera capa no dice nada de las otras dos, y la segunda encuentra
    cosas que la primera daba por buenas.
+   Y la ENTRADA tiene que llevar al camino vigente, no solo a una pagina que
+   existe: una entrada correcta que apunta a un documento que se declara
+   LEGACY es PEOR que una entrada ausente, porque parece funcionar. El
+   caso: el router mandaba "resumen de una reunion" a `pipeline-resumen.md`,
+   que se declara legacy en su primera linea, cuando el v2 es el antecesor de
+   las escenas del motor y no su camino actual. Por eso, un banner legacy
+   tiene que senalar el camino vigente (no decir que doctrina manda: eso es
+   doctrina, y el que llega con una tarea no puede elegir entre tres docs).
 10. **Un fallo que sale en un sitio y no en otro no es del codigo: es del
     entorno.** Si un check falla en la copia instalada y no en el repo, el
     motor puede estar perfecto y el sintoma —una escena que no se comporta, un
