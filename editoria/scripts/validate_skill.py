@@ -185,6 +185,10 @@ for x in packs:
 literal = re.compile("|".join(re.escape(m) for m in marcas + colores) or r"$^", re.I)
 quemadas = []
 for dp, _dn, fn in os.walk(os.path.join(BASE, "scripts")):
+    # los TESTS pueden citar el pack de ejemplo: es parte de la skill
+    # publicada y hay que probarlo. El codigo de produccion no.
+    if os.path.basename(dp) == "_tests":
+        continue
     for f in fn:
         if f.endswith((".py", ".json")):
             if literal.search(open(os.path.join(dp, f), encoding="utf-8", errors="ignore").read()):
@@ -590,6 +594,13 @@ try:
                 # pieza sigue siendo legible, pero nadie sabe que le falta
                 recortes = list(getattr(R, "RECORTES", []))
                 R.RECORTES.clear()
+                # un NOMBRE DE ARCHIVO no es copy: la escena que lo dibuja lo
+                # recorta a proposito (para que no quede ilegible) y lo deja
+                # documentado. El recorte que importa es el de un texto que el
+                # espectador tiene que leer.
+                recortes = [rc for rc in recortes
+                            if not str(rc.get("texto", "")).lower().endswith(
+                                (".wav", ".mp3", ".mp4", ".m4a", ".aiff", ".mov"))]
                 if recortes:
                     fuera_copy.append(f"{nombre}: {recortes[0]['texto'][:30]!r}")
                 escenas_ok += 1
