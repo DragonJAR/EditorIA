@@ -85,25 +85,22 @@ def _borrar_cache(base, escribir):
     return rutas
 
 
-def _extraer_head(destino, raiz, escribir):
-    """Extrae el estado PUBLICADO (HEAD) a la copia instalada."""
+def _exportar_head(destino, raiz):
+    """Exporta el estado PUBLICADO (HEAD) a un directorio.
+
+    Se exporta SIEMPRE a un temporal: la comparacion tiene que ser entre
+    lo publicado y la copia, no entre la copia y si misma.
+    """
     import io
     import tarfile
     rel = os.path.relpath(os.path.realpath(BASE), raiz).replace(os.sep, "/")
     r = subprocess.run(["git", "-C", raiz, "archive", "HEAD", rel],
                        capture_output=True)
     if r.returncode != 0:
-        return None, []
-    if not escribir:
-        # en --check no se escribe: se compara en un temporal
-        import tempfile
-        tmp = tempfile.mkdtemp(prefix="editoria_sync_")
-        with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
-            tar.extractall(tmp)
-        return os.path.join(tmp, rel), [tmp]
+        return None
     with tarfile.open(fileobj=io.BytesIO(r.stdout)) as tar:
         tar.extractall(destino)
-    return os.path.join(destino, rel), []
+    return os.path.join(destino, rel)
 
 
 def _comparar(base_head, base_copia):
@@ -146,21 +143,28 @@ def main():
     raiz = _raiz_git()
     if raiz:
         print(f"repo: {raiz}")
-        base_head, temps = _extraer_head(destino, raiz, escribir)
-        if base_head:
-            solo_head, solo_copia, distintos = _comparar(base_head, copia)
-            if solo_head or solo_copia or distintos:
-                print(f"la copia se diferencia de lo publicado:")
-                for rel in solo_head:
-                    print(f"  falta en la copia:   {rel}")
-                for rel in solo_copia:
-                    print(f"  sobra en la copia:   {rel}")
-                for rel in distintos:
-                    print(f"  distinto:            {rel}")
-            else:
-                print("la copia coincide con lo publicado")
-        for t in temps:
-            shutil.rmtree(t, ignore_errors=True)
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            base_head = _exportar_head(tmp, raiz)
+            if base_head:
+                solo_head, solo_copia, distintos = _comparar(base_head, copia)
+                if solo_head or solo_copia or distintos:
+                    print("la copia se diferencia de lo publicado:")
+                    for rel in solo_head:
+                        print(f"  falta en la copia:   {rel}")
+                    for rel in solo_copia:
+                        print(f"  sobra en la copia:   {rel}")
+                    for rel in distintos:
+                        print(f"  distinto:            {rel}")
+                else:
+                    print("la copia coincide con lo publicado")
+                if escribir:
+                    for rel in solo_copia:
+                        ruta = os.path.join(copia, rel)
+                        if os.path.isfile(ruta):
+                            os.remove(ruta)
+                    shutil.copytree(base_head, copia, dirs_exist_ok=True)
+                    print("copia actualizada con lo publicado")
     else:
         print("sin repo: la copia ES lo publicado; solo se comprueba y se limpia")
 

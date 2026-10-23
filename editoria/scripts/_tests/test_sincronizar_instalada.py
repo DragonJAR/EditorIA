@@ -34,8 +34,15 @@ def _copia_skill(destino):
 
 
 def _corre(destino_padre, *args):
+    """Corre la COPIA de la herramienta (la instalada), no la del repo.
+
+    La herramienta calcula sus rutas desde su propio __file__: es lo que
+    hace que valga para la copia instalada. Si se corriera la del repo,
+    sincronizaria el repo real y el test no probaria nada.
+    """
+    copia = os.path.join(destino_padre, "editoria", "scripts", "sincronizar_instalada.py")
     return subprocess.run(
-        [sys.executable, HERRAMIENTA, "--destino", destino_padre, *args],
+        [sys.executable, copia, "--destino", destino_padre, *args],
         capture_output=True, text=True, timeout=300)
 
 
@@ -83,6 +90,42 @@ class TestSincronizarInstalada(unittest.TestCase):
         r = _corre(self.destino, "--check")
         self.assertEqual(r.returncode, 0, f"sin fantasma deberia salir limpio:\n{r.stdout}")
         self.assertIn("sin bytecode fantasma", r.stdout)
+
+    def test_sincroniza_desde_head(self):
+        # con repo: la copia queda con lo publicado, y lo que sobra se va
+        repo = os.path.join(self.dir, "repo")
+        skill = os.path.join(repo, "editoria")
+        _copia_skill(skill)
+        with open(os.path.join(skill, "references", "mapa.md"), "a", encoding="utf-8") as f:
+            f.write("\n<!-- marcador del commit -->\n")
+
+        def _git(*args):
+            subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+
+        _git("init", "-q")
+        _git("config", "user.email", "test@local")
+        _git("config", "user.name", "test")
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "uno")
+        # un archivo que solo existe en el arbol de trabajo, no en HEAD
+        with open(os.path.join(skill, "references", "mapa.md"), "a", encoding="utf-8") as f:
+            f.write("\n<!-- solo en el arbol -->\n")
+        sobra = os.path.join(skill, "references", "mapa.md")
+
+        # la copia instalada es OTRO sitio, y la herramienta se ejecuta
+        # desde la skill del repo
+        r = subprocess.run(
+            [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
+             "--destino", self.destino],
+            capture_output=True, text=True, timeout=300, cwd=skill)
+        self.assertEqual(r.returncode, 0, f"la sincronizacion fallo:\n{r.stdout}\n{r.stderr}")
+        destino_mapa = os.path.join(self.destino, "editoria", "references", "mapa.md")
+        with open(destino_mapa, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("marcador del commit", txt,
+                      "la copia tiene que quedar con lo publicado")
+        self.assertNotIn("solo en el arbol", txt,
+                         "lo que no esta publicado no puede quedar en la copia")
 
 
 if __name__ == "__main__":
