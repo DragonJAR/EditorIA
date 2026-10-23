@@ -28,7 +28,7 @@ sys.path.insert(0, KIT)
 from _comun import (add_common, apply_common, die, emit, info, probe,  # noqa: E402
                     verify_output, ffmpeg_base, run, escape_drawtext, escape_filter_path,
                     default_font_file, parse_srt, write_srt,
-                    fuente_marca, resolver_pack, tokens_efectivos)
+                    fuente_marca, resolver_pack, tokens_efectivos, texto_sobre)
 
 
 def retimear_srt(srt_path, segmentos, tmpdir):
@@ -212,7 +212,7 @@ def main():
             d_hook = min(3.0, float(primero["to"]) - float(primero["from"]))
             fp = f":fontfile={escape_filter_path(font)}" if font else ""
             txt = escape_drawtext(hook.upper())
-            dt = (f"drawtext=text='{txt}'{fp}:fontcolor=#FAF8F6:fontsize=h/14:"
+            dt = (f"drawtext=text='{txt}'{fp}:fontcolor={texto_sobre(acento)}:fontsize=h/14:"
                   f"box=1:boxcolor={acento}@0.92:boxborderw=18:x=(w-text_w)/2:y=h*0.18:"
                   f"enable='lte(t,{d_hook:.2f})'")
             hook_out = os.path.join(tmpdir, "hook.mp4")

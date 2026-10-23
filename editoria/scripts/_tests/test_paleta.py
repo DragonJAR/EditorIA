@@ -33,7 +33,8 @@ SCRIPTS = os.path.dirname(HERE)
 BASE = os.path.dirname(SCRIPTS)
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
-from _comun import NEUTRO, PALETAS, info_paleta, paleta_libre  # noqa: E402
+from _comun import (NEUTRO, PALETAS, info_paleta, paleta_libre,  # noqa: E402
+                    hex_a_rgb, contraste, texto_sobre, TEXTO_CLARO)
 
 TOKENS = ("acento", "acento_oscuro", "negro", "blanco", "gris")
 
@@ -78,6 +79,39 @@ class TestPaletas(unittest.TestCase):
             c = _contraste(p["blanco"], p["negro"])
             self.assertGreaterEqual(c, 7.0,
                                     f"la paleta '{nombre}': la tinta no se lee sobre el fondo")
+
+    def test_el_texto_sobre_el_acento_sigue_al_fondo(self):
+        # el hook de un short va sobre un box del ACENTO de la marca, y el
+        # acento lo elige el usuario: un texto de color FIJO deja el titular
+        # ilegible en media paleta (menta daba 2:1 con blanco).
+        for nombre, p in PALETAS.items():
+            texto = texto_sobre(p["acento"])
+            c = contraste(texto, p["acento"])
+            self.assertGreaterEqual(c, 4.5,
+                                    f"la paleta '{nombre}': el texto sobre el acento no se "
+                                    f"lee (contraste {c:.2f})")
+
+    def test_el_color_fijo_del_hook_no_llegaba_al_piso(self):
+        # por que existe texto_sobre(): con el color fijo, NINGUNA paleta
+        # llegaba al piso de 4.5:1. si este test deja de fallar, el catalogo
+        # cambio y hay que revisar si el helper sigue haciendo falta.
+        malos = [n for n, p in PALETAS.items()
+                 if contraste(TEXTO_CLARO, p["acento"]) < 4.5]
+        self.assertTrue(malos,
+                        "el color fijo ya pasa en todas las paletas: revisa si "
+                        "texto_sobre() sigue siendo necesario")
+
+    def test_el_hook_no_usa_un_color_de_texto_fijo(self):
+        # el color del titular tiene que seguir al acento: si el codigo
+        # vuelve a un color fijo, el texto se lee sobre un fondo que no
+        # controla y vuelve el problema de la tinta fija.
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "shorts_plan.py"),
+                  encoding="utf-8") as f:
+            src = f.read()
+        self.assertIn("fontcolor={texto_sobre(acento)}", src,
+                      "el hook tiene que calcular el color del texto sobre el acento")
+        self.assertNotIn("fontcolor=#FAF8F6", src,
+                         "el hook no puede volver a un color de texto fijo")
 
     def test_el_respaldo_no_es_el_color_de_ningun_pack(self):
         # el modo libre no puede parecerse a una marca: se compara con TODOS

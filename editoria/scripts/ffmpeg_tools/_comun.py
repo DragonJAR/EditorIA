@@ -724,6 +724,33 @@ def contraste(a, b) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
+#: El texto claro y el oscuro de la skill. Entre los dos se elige el que se
+#: lee sobre el fondo que toque: el claro para fondos oscuros, el oscuro para
+#: fondos claros (un acento de marca puede ser cualquiera de los dos).
+TEXTO_CLARO = "#FAF8F6"
+TEXTO_OSCURO = "#0A0A0A"
+
+
+def texto_sobre(fondo, claro=TEXTO_CLARO, oscuro=TEXTO_OSCURO) -> str:
+    """El color de texto que se lee sobre `fondo` (piso 4.5:1).
+
+    Un texto con color FIJO sobre un fondo que cambia es una letra ilegible
+    esperando: el hook de un short va sobre un box del ACENTO de la marca, y
+    el acento lo elige el usuario. Con blanco fijo, menta daba 2:1 y el
+    titular no se leia; ahora el texto sigue al fondo.
+
+    Elige el de MAS contraste entre los dos, y solo lo baja del piso si
+    ningun color llega (aun asi se queda con el mejor).
+    """
+    c_claro = contraste(claro, fondo)
+    c_oscuro = contraste(oscuro, fondo)
+    if c_claro >= 4.5 and c_claro >= c_oscuro:
+        return claro
+    if c_oscuro >= 4.5:
+        return oscuro
+    return claro if c_claro >= c_oscuro else oscuro
+
+
 # ---------- identidad: modo libre por defecto, el brand pack solo si se pide ----------
 # Ninguna marca concreta vive en el código; sus valores están solo en su
 # brand/*.json (references/brand-packs.md).
