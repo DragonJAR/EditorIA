@@ -27,6 +27,24 @@ LOGO=None; ISOTIPO=None; MARCA_NOMBRE=None
 TRANSICIONES="libre"   # idioma de transición; el pack puede fijar "corte_seco"
 ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida por alfa)
 
+# Las reglas que declara un pack (`reglas`) se dividen en dos familias, y hay
+# que saber en cuál está cada una: si el motor la aplica, se cumple siempre; si
+# es guía del agente, depende de que el agente la lea. Una regla que nadie
+# aplica es una promesa que nadie cumple: por eso la lista vive AQUÍ y el test
+# la comprueba contra lo que dice references/brand-packs.md y contra lo que
+# declara cada pack (si un pack declara una regla que no está en ninguna de
+# las dos listas, nadie la cumple).
+REGLAS_DEL_MOTOR = {"transiciones"}          # el motor las lee y las hace cumplir
+REGLAS_DEL_AGENTE = {"rejillas_decorativas", # guia del agente: las lee el que
+                      "efectos_glitch",      # escribe el plan, no el motor
+                      "isotipo_con_protagonista"}
+REGLAS_DEL_PACK = REGLAS_DEL_MOTOR | REGLAS_DEL_AGENTE
+
+# El copy que el motor recortó en el render actual. Un recorte es legal (la
+# pieza sigue siendo legible) pero es una pérdida de copy: si no se anota,
+# nadie se entera hasta que lee la pieza.
+RECORTES=[]
+
 W,H=1080,1920
 MARGEN=151   # margen lateral seguro simétrico (unión Reels/TikTok/Shorts, ver _delivery.py)
 SAFE={"top":192,"bottom":422,"left":151,"right":151}   # zona segura en px (se recalcula en main)
@@ -753,11 +771,16 @@ def recorta_para(texto, font, ancho_max, tmp=None):
     de escala: la letra se queda (28 px = ESCALA["nota"]) y lo que se acorta
     es el copy. Encoger hasta el piso de auto-fit (18) deja letra que el QA
     rechaza por ilegible; recortar deja la pieza legible y más corta.
+
+    Lo que se recorta se ANOTA en RECORTES: un copy que pierde palabras sin
+    aviso es un defecto que no se ve hasta que alguien lee la pieza (no hay
+    linter que sepa el ancho de cada columna: ese ancho lo decide la escena).
     """
     if tmp is None:
         tmp = ImageDraw.Draw(Image.new("L", (10, 10)))
     if tmp.textlength(texto, font=font) <= ancho_max:
         return texto
+    RECORTES.append(dict(texto=texto, ancho_max=int(ancho_max)))
     while len(texto) > 3 and tmp.textlength(texto + "…", font=font) > ancho_max:
         texto = texto[:-1]
     return texto + "…"

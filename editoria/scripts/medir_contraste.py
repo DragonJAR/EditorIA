@@ -83,26 +83,36 @@ def _espia(registro, dibujar, _orig):
     return _f
 
 
-def medir(umbral=MINIMO, alfa_min=ALFA_MIN):
-    """Recorre el catalogo completo y devuelve los textos con poco contraste."""
+def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None):
+    """Recorre el catalogo y devuelve los textos con poco contraste.
+
+    `escenas`: limita la medición a esas escenas (None = todas). Sirve para
+    medir una escena concreta sin pagar el catalogo entero.
+    """
     if np is None or Image is None:
         print("ERROR: PIL/numpy no disponibles", file=sys.stderr)
         return []
     import render_plan as R
 
-    muestras = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"),
-                              encoding="utf-8"))["escenas"]
+    with open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8") as f:
+        muestras = json.load(f)["escenas"]
     hallazgos = []
     _orig = ImageDraw.ImageDraw.text
 
     for ancho, alto in ((1080, 1920), (1920, 1080)):
         R.formato(ancho, alto)
         ctx = R.Ctx()
-        # las escenas de COLUMNA se dibujan en un lienzo de 1080 de ancho y se
-        # centran: sus coordenadas de dibujo NO son las del frame final
-        desvio = (ancho - 1080) // 2 if (ancho > alto and ancho > 1080) else 0
         for nombre in R.SCENES:
+            if escenas and nombre not in escenas:
+                continue
             e = dict(muestras.get(nombre, {"from": 0, "to": 5, "at": {}}), tipo=nombre)
+            # las escenas de COLUMNA se dibujan en un lienzo de 1080 de ancho y
+            # se centran: sus coordenadas de dibujo NO son las del frame final.
+            # Solo esas llevan el desplazamiento; en las demas, sumarlo recorta
+            # la caja equivocada.
+            desvio = ((ancho - 1080) // 2
+                      if (nombre in getattr(R, "COLUMNA", ()) and ancho > alto and ancho > 1080)
+                      else 0)
             peor = None
             for t in (0.5, e["to"] / 2, e["to"] - 0.3):
                 registros = []

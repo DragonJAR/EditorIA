@@ -523,6 +523,7 @@ try:
         ctx = R.Ctx()
         fuera, escenas_ok = [], 0
         fuera_letra = []
+        fuera_copy = []
         # espia de la letra: el motor no puede dibujar texto por debajo de su
         # PROPIO piso (MIN_LETRA). Se mide el tamaño AUTORADO (el que escribe el
         # motor): si una escena lo incumple con un texto de tamaño fijo, el QA
@@ -585,6 +586,12 @@ try:
                 if bajo:
                     t_malo = min(bajo, key=lambda k: bajo[k])
                     fuera_letra.append(f"{nombre} {bajo[t_malo]} px ({t_malo[:26]!r})")
+                # el copy que una escena recorta se pierde en silencio: la
+                # pieza sigue siendo legible, pero nadie sabe que le falta
+                recortes = list(getattr(R, "RECORTES", []))
+                R.RECORTES.clear()
+                if recortes:
+                    fuera_copy.append(f"{nombre}: {recortes[0]['texto'][:30]!r}")
                 escenas_ok += 1
             except Exception as ex:
                 check(False, f"escena {nombre} {ancho}x{alto}: {type(ex).__name__}: {ex}")
@@ -594,6 +601,9 @@ try:
               f"{ancho}x{alto}: ninguna escena dibuja texto bajo el piso de letra "
               f"({R.MIN_LETRA} px)"
               + ("" if not fuera_letra else ": " + "; ".join(fuera_letra)))
+        check(not fuera_copy,
+              f"{ancho}x{alto}: ninguna escena recorta su copy en silencio"
+              + ("" if not fuera_copy else ": " + "; ".join(fuera_copy)))
         _ID.ImageDraw.text = _texto_orig
         check(not fuera, f"{ancho}x{alto}: muestras caben en la zona segura sin encogerse "
                          f"bajo x0.75 ({', '.join(fuera) or 'todas'})")
