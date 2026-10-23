@@ -111,6 +111,21 @@ nombres de empresas o personas reales** en un contenido inventado.
 En video esto significa: **toda cifra lleva su fuente** (campo `fuente` de
 la escena). Un 9 de severidad sin escala a la vista es una cifra suelta.
 
+Y como se declara cada fuente, para que la pieza la muestre y el linter la
+acepte:
+
+- `fuente: "Escala CVSS 3.1"` — la escala o el estudio real del que sale la
+  cifra. El motor lo dibuja al pie de la zona segura ("Fuente: Escala CVSS
+  3.1") y el linter deja de avisar.
+- `fuente: "Voz de marca"` — la cifra o la cita es de la marca: una promesa
+  propia, una frase de la propia empresa. Se dice en pantalla, para que
+  quien lo ve sepa que lo afirma la marca y no un tercero.
+- `nota: "Voz de marca"` — lo mismo en una cita, que ademas lleva `autor`.
+
+Lo que **no** se hace: poner la fuente de un tercero que no ha dicho eso
+("Gartner 2024" sobre una cifra inventada). Fabricar la fuente es peor que
+no tenerla: convierte una cifra suelta en una cita falsa.
+
 ## 5. Lo que se lee como generado
 
 - Verbos y adjetivos del genero: potencia, impulsa, transforma, eleva,

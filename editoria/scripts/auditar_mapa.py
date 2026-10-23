@@ -132,6 +132,16 @@ NUMEROS_EN_PALABRAS = {
 }
 
 LOG_FECHA = re.compile(r"^\s*-\s*\d{4}-\d{2}-\d{2}\s*·")   # entrada de log: registro, no regla
+
+#: Convenciones que el CODIGO le pide al usuario (en un aviso o en un
+#: mensaje) y que tienen que estar ESCRITAS en las referencias. Un puntero a
+#: una convencion que no esta escrita en ningun lado no sirve de nada: el
+#: que recibe el aviso no puede saber que escribir. Ya ha pasado dos veces
+#: (la convencion de atribucion y la de "voz de marca").
+CONVENCIONES_QUE_EXIGEN_DOC = (
+    ("voz de marca", "references/copy.md"),
+    ("sesion-", "references/mapa.md"),
+)
 REGLAS_UNICAS = [
     {"nombre": "margen lateral en vertical", "tipo": "minimo", "valor": 151,
      "patron": r"[Mm]árgenes? laterales[\s\S]{0,120}?(\d{2,4})\s*px"},
@@ -1106,6 +1116,31 @@ def _chequear_tests_que_no_se_ejecutan(problemas):
                 "msg": f"'{nodo.name}' {caso}. Un test que no corre es codigo muerto."})
 
 
+def _chequear_convenciones_escritas(problemas):
+    """Que las convenciones que el codigo pide esten ESCRITAS en las referencias.
+
+    El codigo le dice al usuario que use una convencion ("marca que es voz de
+    marca", "el sufijo [sesion-XXXX]"). Si esa convencion no esta escrita en
+    ningun doc, el aviso es un puntero a la nada: el que lo recibe no puede
+    saber que escribir. Se ha pasado dos veces.
+    """
+    for convencion, doc in CONVENCIONES_QUE_EXIGEN_DOC:
+        ruta = os.path.join(BASE, doc)
+        if not os.path.exists(ruta):
+            problemas.append({
+                "tipo": "convencion sin escribir", "archivo": doc,
+                "msg": f"el codigo pide la convencion '{convencion}' y no hay donde "
+                       f"escribirla: el aviso seria un puntero a la nada"})
+            continue
+        with open(ruta, encoding="utf-8") as fh:
+            texto = fh.read()
+        if convencion.lower() not in texto.lower():
+            problemas.append({
+                "tipo": "convencion sin escribir", "archivo": doc,
+                "msg": f"el codigo pide la convencion '{convencion}' y {doc} no la "
+                       f"explica: quien lea el aviso no puede saber que escribir"})
+
+
 def _chequear_texto_fijo_sobre_acento(problemas):
     """Que ningun texto con color fijo se pinte sobre una caja de acento.
 
@@ -1532,6 +1567,9 @@ def _todos_los_checks(problemas, mds):
 
     # ---- 15b2. la lista de escenas es el conjunto real ---------------
     _chequear_lista_de_escenas(problemas)
+
+    # ---- 15b3. las convenciones que pide el codigo, escritas ----
+    _chequear_convenciones_escritas(problemas)
 
     # ---- 15c. todo test declarado se ejecuta --------------------------
     _chequear_tests_que_no_se_ejecutan(problemas)

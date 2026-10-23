@@ -729,6 +729,21 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"una clase que no hereda de TestCase no se acuso:\n{out}")
         self.assertIn("test que no se ejecuta", out)
 
+    def test_detecta_una_convencion_que_el_codigo_pide_y_nadie_escribe(self):
+        # el codigo le dice al usuario que use una convencion ("marca que es
+        # voz de marca"); si no esta escrita en las referencias, el aviso es
+        # un puntero a la nada. ya ha pasado dos veces.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_convencion"))
+        doc = os.path.join(raiz, "references", "copy.md")
+        with open(doc, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("Voz de marca", txt, "el fixture tiene que traer la convencion")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write(txt.replace("Voz de marca", "Lo de la marca"))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la convencion sin escribir no se detecto:\n{out}")
+        self.assertIn("convencion sin escribir", out)
+
     def test_detecta_un_test_duplicado_en_la_misma_clase(self):
         # un metodo repetido en la misma clase: Python conserva el ultimo y
         # el primero es codigo muerto. no se ve: el nombre sigue ahi, con el
