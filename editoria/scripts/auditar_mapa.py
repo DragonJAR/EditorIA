@@ -962,7 +962,11 @@ def _chequear_cifras_de_cli(problemas):
 #: texto se pinta sobre un fondo que el usuario elige, y el color no lo
 #: sigue. con blanco fijo, el hook de un short quedaba a 2:1 en menta.
 COLOR_DE_TEXTO_FIJO = re.compile(r"fontcolor=(#[0-9A-Fa-f]{6}|white|black)\b")
-CAJA_DE_ACENTO = re.compile(r"boxcolor=\{?(?:[A-Za-z_]*[Aa][Cc][Ee][Nn][Tt][Oo][A-Za-z_]*|acento)\b")
+#: la caja de acento se reconoce por el NOMBRE de su color, no por su forma:
+#: la regla es "el color de la caja menciona el acento". un patron que exijera
+#: frontera de palabra despues de "acento" (acento2, acento_2) se escapaba
+#: por un detalle de la forma del nombre, no por la regla.
+CAJA_DE_COLOR = re.compile(r"boxcolor=\{?[A-Za-z_][A-Za-z0-9_.]*")
 
 
 def _chequear_texto_fijo_sobre_acento(problemas):
@@ -1003,7 +1007,11 @@ def _chequear_texto_fijo_sobre_acento(problemas):
                 else:
                     continue
                 m_fc = COLOR_DE_TEXTO_FIJO.search(texto)
-                m_box = CAJA_DE_ACENTO.search(texto)
+                m_box = CAJA_DE_COLOR.search(texto)
+                # la caja es de acento si su color lo menciona (el acento lo
+                # elige el usuario); una caja negra o blanca no lo es
+                if m_box and "acento" not in m_box.group(0).lower():
+                    m_box = None
                 if not (m_fc and m_box):
                     continue
                 problemas.append({
