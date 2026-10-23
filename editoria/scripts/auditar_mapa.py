@@ -1251,6 +1251,7 @@ def _chequear_contrato_cli(problemas):
     if not (os.path.exists(doc) and os.path.isdir(fft_dir)):
         return
     n_cumplen = 0
+    n_clis = 0
     for f in sorted(os.listdir(fft_dir)):
         if not f.endswith(".py") or f.startswith("_"):
             continue
@@ -1258,11 +1259,12 @@ def _chequear_contrato_cli(problemas):
             t = fh.read()
         if "ArgumentParser" not in t and "argparse" not in t:
             continue          # un modulo no es una CLI
+        n_clis += 1
         if "add_common" in t and "apply_common" in t and "emit(" in t:
             n_cumplen += 1
     with open(doc, encoding="utf-8") as fh:
         texto = fh.read()
-    mt = re.search(r"\*?(\d+)\s+de\s+las\s+\d+\s+cumplen\s+el\s+contrato", texto)
+    mt = re.search(r"\*?(\d+)\s+de\s+las\s+(\d+)\s+cumplen\s+el\s+contrato", texto)
     if not mt:
         # el patron dejo de casar con la prosa (una palabra distinta, una
         # barra) y el guard se apagaba en silencio: decia "todo bien" sin
@@ -1273,11 +1275,18 @@ def _chequear_contrato_cli(problemas):
             "msg": "no encuentro la frase del contrato ('N de las M cumplen el "
                    "contrato'): este guard no comprueba nada hasta que la frase vuelva"})
         return
-    declarado = int(mt.group(1))
+    # los DOS numeros de la frase: cuantas cumplen el contrato entero y
+    # cuantas CLIs hay. vigilar solo el primero dejaba el segundo sin
+    # vigilar (y acababa de aparecer en la prosa).
+    declarado, total = int(mt.group(1)), int(mt.group(2))
     if declarado != n_cumplen:
         problemas.append({
             "tipo": "conteo obsoleto", "archivo": "references/cli-contract.md",
             "msg": f"dice {declarado} CLIs con el contrato y {n_cumplen} lo cumplen"})
+    if total != n_clis:
+        problemas.append({
+            "tipo": "conteo obsoleto", "archivo": "references/cli-contract.md",
+            "msg": f"dice que hay {total} CLIs en ffmpeg_tools/ y hay {n_clis}"})
 
 
 def _todos_los_checks(problemas, mds):

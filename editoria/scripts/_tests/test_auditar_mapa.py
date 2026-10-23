@@ -460,13 +460,29 @@ class TestAuditarMapa(unittest.TestCase):
         doc = os.path.join(raiz, "references", "cli-contract.md")
         with open(doc, encoding="utf-8") as f:
             txt = f.read()
-        mt = re.search(r"(\d+)\s+de\s+las\s+\d+\s+cumplen\s+el\s+contrato", txt)
+        mt = re.search(r"(\d+)\s+de\s+las\s+(\d+)\s+cumplen\s+el\s+contrato", txt)
         self.assertIsNotNone(mt, "el contrato debe decir cuantas CLIs lo cumplen")
         with open(doc, "w", encoding="utf-8") as f:
             f.write(txt.replace(mt.group(0), mt.group(0).replace(mt.group(1), "7"), 1))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"la cifra del contrato no se detecto:\n{out}")
         self.assertIn("CLIs con el contrato", out)
+
+    def test_detecta_un_total_de_clis_obsoleto_en_el_contrato(self):
+        # la frase del contrato tiene DOS numeros: cuantas cumplen el
+        # contrato entero y cuantas CLIs hay. vigilar solo el primero dejaba
+        # el segundo sin vigilar (y el segundo acababa de aparecer).
+        raiz = _copia_completa(os.path.join(self.dir, "skill_contrato_total"))
+        doc = os.path.join(raiz, "references", "cli-contract.md")
+        with open(doc, encoding="utf-8") as f:
+            txt = f.read()
+        mt = re.search(r"(\d+)\s+de\s+las\s+(\d+)\s+cumplen\s+el\s+contrato", txt)
+        self.assertIsNotNone(mt, "el contrato debe decir cuantas CLIs lo cumplen")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write(txt.replace(mt.group(0), mt.group(0).replace(mt.group(2), "9"), 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el total de CLIs no se detecto:\n{out}")
+        self.assertIn("en ffmpeg_tools/", out)
 
     def test_avisa_si_el_historial_no_dice_quien_escribio(self):
         # dos sesiones con la MISMA identidad de git hacen que el campo
