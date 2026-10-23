@@ -89,6 +89,37 @@ class TestCredenciales(unittest.TestCase):
             self.assertIn("credencial", r.stdout)
 
 
+class TestUnPlanSinEscenasNoEsUnaPieza(unittest.TestCase):
+    """Un plan sin escenas no pasa la auditoria.
+
+    Todos los chequeos de estructura viven dentro de bucles sobre las escenas,
+    asi que con cero escenas el plan pasaba entero ("PLAN VALIDO: 0 escenas
+    auditadas") y el motor reventaba despues con un IndexError sin mensaje.
+    Un guard que no mira nada no puede decir "todo bien"."""
+
+    def test_un_plan_sin_escenas_es_error(self):
+        plan = {"duracion": 30.0, "escenas": []}
+        hallazgos = AP.auditar_estructura(plan)
+        errores = [h for h in hallazgos if h["nivel"] == "ERROR"]
+        self.assertTrue(errores, "un plan sin escenas tiene que ser un ERROR")
+        self.assertIn("no tiene escenas", errores[0]["msg"])
+
+    def test_el_plan_vacio_no_pasa_la_auditoria(self):
+        # y por la puerta de verdad (la CLI), que es como lo ve el agente
+        import json
+        import subprocess
+        import tempfile
+        d = tempfile.mkdtemp()
+        ruta = os.path.join(d, "vacio.json")
+        with open(ruta, "w", encoding="utf-8") as f:
+            json.dump({"duracion": 30.0, "escenas": []}, f)
+        r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "auditar_plan.py"), ruta],
+                           capture_output=True, text=True, timeout=120)
+        self.assertNotEqual(r.returncode, 0,
+                            "un plan sin escenas no puede salir con codigo 0")
+        self.assertIn("no tiene escenas", (r.stdout or "") + (r.stderr or ""))
+
+
 class TestRelojDeLaNarracion(unittest.TestCase):
     """La tolerancia del audit va con el hueco disponible, no es un numero
     plano.

@@ -91,6 +91,14 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
     escenas = plan.get("escenas", [])
     if not isinstance(escenas, list):
         return [{"nivel": "ERROR", "t": 0.0, "msg": "el campo 'escenas' debe ser una lista"}]
+    if not escenas:
+        # Un plan sin escenas no es una pieza: TODOS los chequeos de abajo
+        # viven dentro de bucles sobre las escenas, asi que con cero el plan
+        # pasaba la auditoria entero ("PLAN VALIDO: 0 escenas auditadas") y
+        # el motor reventaba despues con un IndexError sin mensaje. Un guard
+        # que no mira nada no puede decir "todo bien".
+        return [{"nivel": "ERROR", "t": 0.0,
+                 "msg": "el plan no tiene escenas: un plan sin escenas no es una pieza"}]
     hallazgos = []
 
     def add(nivel, t, msg):
