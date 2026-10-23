@@ -36,7 +36,12 @@ def _raiz_git():
     try:
         r = subprocess.run(["git", "-C", BASE, "rev-parse", "--show-toplevel"],
                            capture_output=True, text=True, timeout=10)
-        return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+        if r.returncode != 0 or not r.stdout.strip():
+            return None
+        # git devuelve la ruta CANONICA (en macOS /tmp es un symlink a
+        # /private/tmp): sin canonizar, relpath entre las dos rutas da
+        # una ruta hacia arriba y nada cuadra
+        return os.path.realpath(r.stdout.strip())
     except (OSError, subprocess.SubprocessError):
         return None
 
@@ -52,7 +57,8 @@ def _contenido_publicado(rel):
     """
     raiz = _raiz_git()
     if raiz:
-        rel_repo = os.path.relpath(os.path.join(BASE, rel), raiz).replace(os.sep, "/")
+        rel_repo = os.path.relpath(os.path.realpath(os.path.join(BASE, rel)),
+                                   raiz).replace(os.sep, "/")
         try:
             r = subprocess.run(["git", "-C", raiz, "show", f"HEAD:{rel_repo}"],
                                capture_output=True, text=True, timeout=15)
@@ -71,7 +77,7 @@ def _paths_publicados(subruta):
     """Las rutas (relativas a `subruta`) de la VERSION PUBLICADA de esa carpeta."""
     raiz = _raiz_git()
     if raiz:
-        rel = os.path.relpath(BASE, raiz).replace(os.sep, "/")
+        rel = os.path.relpath(os.path.realpath(BASE), raiz).replace(os.sep, "/")
         try:
             r = subprocess.run(["git", "-C", raiz, "ls-tree", "-r", "--name-only",
                                 "HEAD", f"{rel}/{subruta}"],
@@ -947,6 +953,78 @@ def _chequear_clis_del_sk(problemas):
                        f"por ahi y no la encuentra"})
 
 
+def _chequear_commit_que_arrastra_trabajo(problemas):
+    """Que un commit no haya arrastrado trabajo en vuelo al arbol commiteado.
+
+    Cuando se commitea con cambios sin commitear en el arbol, el doc y el
+    codigo quedan COHERENTES entre si (los dos hablan de lo mismo) pero
+    no con la realidad publicada: un doc que nombra 25 suites cuando el
+    commit solo tiene 23, o una lista de suites con dos enlaces rotos.
+
+    Los guards de cifras y de lista comparan el doc contra el ARBOL, y en
+    un commit asi ambos son erroneos a la vez: no se ven. Este guard
+    mira el commit ANTERIOR: si una suite estaba listada y existia, y
+    ahora no esta en ninguno de los dos lados, alguien se la llevo.
+    """
+    raiz = _raiz_git()
+    if not raiz:
+        return
+    try:
+        r = subprocess.run(["git", "-C", raiz, "diff", "--name-only", "HEAD~1", "HEAD"],
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return
+    if r.returncode != 0 or not r.stdout.strip():
+        return
+    tocados = [p for p in r.stdout.split() if p.endswith(".md") or p.endswith(".py")]
+    if not tocados:
+        return
+
+    rel_skill = os.path.relpath(os.path.realpath(BASE), raiz).replace(os.sep, "/")
+
+    def _suites_de(commit):
+        try:
+            rr = subprocess.run(["git", "-C", raiz, "show", f"{commit}:{rel_skill}/SKILL.md"],
+                                capture_output=True, text=True, timeout=20)
+        except (OSError, subprocess.SubprocessError):
+            return set(), set()
+        if rr.returncode != 0:
+            return set(), set()
+        listadas = set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", rr.stdout))
+        reales = set()
+        try:
+            rr2 = subprocess.run(["git", "-C", raiz, "ls-tree", "-r", "--name-only",
+                                  commit, f"{rel_skill}/scripts/_tests/"],
+                                 capture_output=True, text=True, timeout=20)
+        except (OSError, subprocess.SubprocessError):
+            return listadas, set()
+        for ln in rr2.stdout.splitlines():
+            b = os.path.basename(ln)
+            if b.startswith("test_") and b.endswith(".py"):
+                reales.add(b)
+        return listadas, reales
+
+    antes_list, antes_reales = _suites_de("HEAD~1")
+    ahora_list, ahora_reales = _suites_de("HEAD")
+    if not antes_list:
+        return
+    # una suite que estaba listada Y existia, y ahora no esta en ninguno de
+    # los dos lados: se ha perdido en el commit
+    perdidas = (antes_list & antes_reales) - ahora_list - ahora_reales
+    for s in sorted(perdidas):
+        problemas.append({
+            "tipo": "suite perdida en el commit", "archivo": "SKILL.md",
+            "msg": f"{s} estaba listada y existia en HEAD~1, y en este commit "
+                   f"no esta ni en la lista ni en el arbol: el commit se llevo "
+                   f"trabajo en vuelo"})
+    # y lo inverso: una suite listada que no existe en el commit (enlace roto)
+    rotas = ahora_list - ahora_reales
+    for s in sorted(rotas):
+        problemas.append({
+            "tipo": "suite listada que no existe", "archivo": "SKILL.md",
+            "msg": f"este commit lista {s} y no la trae: enlace roto en lo publicado"})
+
+
 def main():
     ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
                                  epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
@@ -1087,6 +1165,9 @@ def main():
 
     # ---- 15. toda CLI se encuentra desde el SKILL.md -------------------
     _chequear_clis_del_sk(problemas)
+
+    # ---- 16. el commit no arrastro trabajo en vuelo --------------------
+    _chequear_commit_que_arrastra_trabajo(problemas)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}

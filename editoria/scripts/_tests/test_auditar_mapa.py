@@ -341,6 +341,44 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"la suite fantasma no se detecto:\n{out}")
         self.assertIn("suite listada que no existe", out)
 
+    def test_detecta_un_commit_que_arrastra_trabajo(self):
+        # un commit puede llevarse trabajo en vuelo al arbol commiteado: el
+        # doc y el codigo quedan coherentes entre si (los dos erroneos a la
+        # vez) y los guards de cifras no lo ven, porque comparan el doc
+        # contra el MISMO arbol erroneo. Este guard mira el commit anterior.
+        repo = os.path.join(self.dir, "repo")
+        skill = os.path.join(repo, "skill")
+        _copia_completa(skill)
+
+        def _git(*args):
+            subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+
+        _git("init", "-q")
+        _git("config", "user.email", "test@local")
+        _git("config", "user.name", "test")
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "uno")
+
+        # el segundo commit: una suite desaparece de la lista Y del arbol
+        s = os.path.join(skill, "SKILL.md")
+        with open(s, encoding="utf-8") as f:
+            txt = f.read()
+        suites = re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt)
+        self.assertTrue(suites, "el SKILL.md deberia listar suites")
+        victim = suites[0]
+        ruta = os.path.join(skill, "scripts", "_tests", victim)
+        self.assertTrue(os.path.exists(ruta), f"la suite listada {victim} deberia existir")
+        os.remove(ruta)
+        with open(s, "w", encoding="utf-8") as f:
+            f.write(re.sub(r"[,\s]*`?scripts/_tests/" + re.escape(victim) + r"`?", "", txt))
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "dos")
+
+        rc, out = _auditar(skill)
+        self.assertEqual(rc, 1, f"el commit que arrastro trabajo no se detecto:\n{out}")
+        self.assertIn("suite perdida en el commit", out)
+        self.assertIn(victim, out)
+
     def test_detecta_una_clave_del_plan_sin_documentar(self):
         # el plan es el contrato: si el motor lee una clave que ningun
         # documento menciona, el que escribe el plan no la conoce
