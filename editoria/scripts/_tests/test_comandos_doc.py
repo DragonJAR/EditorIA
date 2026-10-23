@@ -59,6 +59,18 @@ class TestComandosDoc(unittest.TestCase):
         with open(self.ruta, "w", encoding="utf-8") as f:
             f.write(txt)
 
+    def test_ve_los_flags_de_un_subcomando(self):
+        # el guard parsea los argumentos REALES (sin ejecutar la accion), asi
+        # que los flags de un SUBCOMANDO tambien se verifican: si el
+        # subparser no los acepta, el comando documentado no se puede correr
+        ok, motivo = CD._probar(self.dir, "scripts/clonar_video.py variar "
+                                             "--plantilla plantilla.json --variantes 3")
+        self.assertTrue(ok, f"un flag que existe tiene que pasar: {motivo}")
+        ok, motivo = CD._probar(self.dir, "scripts/clonar_video.py variar "
+                                             "--plantilla plantilla.json --flag-que-no-existe 1")
+        self.assertFalse(ok, "un flag inexistente en un subcomando tiene que detectarse")
+        self.assertIn("unrecognized", motivo)
+
     def test_el_comando_de_la_doc_esta_bien(self):
         self._escribir(self.skill + f"\n```bash\npython {CMDS}\n```\n")
         problemas = CD.verificar_comando(self.dir, CMDS)
