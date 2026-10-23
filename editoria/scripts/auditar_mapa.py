@@ -270,6 +270,14 @@ def _chequear_conteos(problemas):
     m = re.search(r"(\d+)\s+referencias,\s*(\d+)\s+scripts,\s*(\d+)\s+herramientas"
                   r"\s+de\s+ffmpeg\s+y\s*(\d+)\s+suites", texto)
     if not m:
+        # el encabezado se rewordio y el patron dejo de casar: el guard se
+        # apagaba en silencio y decia "todo bien" sin mirar el resumen de la
+        # skill. un guard que no encuentra su objeto tiene que decirlo
+        problemas.append({
+            "tipo": "guard sin objeto", "archivo": "references/mapa.md",
+            "msg": "no encuentro el encabezado de conteos ('N referencias, N scripts, "
+                   "N herramientas de ffmpeg y N suites'): este guard no comprueba nada "
+                   "hasta que la frase vuelva"})
         return
     n_refs = _n_publicados("references", lambda p: p.endswith(".md"))
     scripts_dir = os.path.join(BASE, "scripts")

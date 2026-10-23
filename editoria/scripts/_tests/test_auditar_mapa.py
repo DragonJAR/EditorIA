@@ -599,6 +599,23 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("test que no se ejecuta", out)
         self.assertIn("test_este_no_se_ejecuta", out)
 
+    def test_el_guard_dice_cuando_no_encuentra_su_frase(self):
+        # un guard cuyo patron deja de casar con la prosa se apaga en
+        # silencio y dice "todo bien" sin mirar nada. tiene que decirlo: su
+        # objeto es el numero que verifica.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_sin_frase"))
+        m = os.path.join(raiz, "references", "mapa.md")
+        with open(m, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("referencias, 40 scripts, 19 herramientas de ffmpeg y 30 suites",
+                      txt, "el fixture tiene que traer el encabezado")
+        with open(m, "w", encoding="utf-8") as f:
+            f.write(txt.replace("referencias, 40 scripts, 19 herramientas de ffmpeg y 30 suites",
+                                "muchas referencias y scripts"))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el guard se apago en silencio:\n{out}")
+        self.assertIn("guard sin objeto", out)
+
     def test_detecta_un_test_duplicado_en_la_misma_clase(self):
         # un metodo repetido en la misma clase: Python conserva el ultimo y
         # el primero es codigo muerto. no se ve: el nombre sigue ahi, con el
