@@ -672,8 +672,21 @@ def default_font_file(font_name: str) -> Optional[str]:
 
     Portable: busca en los directorios de fuentes del SO (Windows/macOS/Linux)
     y usa fc-match como fallback en Unix. Devuelve None si no hay coincidencia.
+
+    El import de `_plataforma` tiene que servir en los DOS contextos: este
+    modulo se importa como parte del paquete `ffmpeg_tools` (alguien hace
+    `from ffmpeg_tools._comun import ...`) o como modulo suelto (los scripts
+    de ffmpeg_tools meten su carpeta en sys.path y hacen `from _comun import
+    ...`, que es como se ejecutan desde la linea de comandos). Con el import
+    RELATIVO a secas, el segundo caso reventaba con "attempted relative
+    import with no known parent package" en cuanto se pedia una fuente: tres
+    herramientas (look.py, scenes.py y shorts_plan.py) se caian al usarse
+    tal como las documenta la skill.
     """
-    from . import _plataforma as _plat
+    try:
+        from . import _plataforma as _plat
+    except ImportError:      # importado como modulo suelto (sys.path)
+        import _plataforma as _plat
     # Incluye la sans genérica del SO como último recurso dentro de la misma llamada.
     return _plat.resolver_fuente(font_name, generica="sans")
 

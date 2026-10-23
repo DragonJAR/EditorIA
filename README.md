@@ -244,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Paquete listo para subir a Claude.ai
 ├── editoria/                          # Carpeta de la skill (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definición + frontmatter YAML + flujo principal
-│   ├── scripts/                       # 41 motores raíz + 19 en ffmpeg_tools/ + 33 en _tests/ = 93 scripts
+│   ├── scripts/                       # 41 motores raíz + 19 en ffmpeg_tools/ + 34 en _tests/ = 94 scripts
 │   │   ├── render_plan.py             # Motor principal de render por plan (39 escenas)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
