@@ -138,7 +138,7 @@ python scripts/alinear.py voz.mp3 guion.txt -o voz.palabras.json
 python scripts/musica.py gen --prompt "modern upbeat electronic" --dur 30 -o mus.mp3
 python scripts/beat_grid.py mus.mp3 --json grid.json          # para anclar por beat y por pico
 # el camino inverso: si el BEAT se autora primero, la musica nace de el
-python scripts/beat_file.py -o beat.json
+python scripts/beat_file.py --bpm 120 --duracion 30 -o beat.json  # el beat se autorea primero
 python scripts/mezclar_audio.py plan.json --video out.mp4 \
     --voz voz.mp3 --voz-palabras voz.palabras.json \
     --grid grid.json --pack assets/sfx --musica mus.mp3 -o final.mp4
