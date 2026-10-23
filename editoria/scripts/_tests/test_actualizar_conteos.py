@@ -178,6 +178,33 @@ class TestActualizarConteos(unittest.TestCase):
         self.assertIn("test_nueva_suite.py", r.stdout,
                       "el informe tiene que decir QUE suite falta, no la lista entera")
 
+    def test_la_reescritura_no_secome_el_resto_del_archivo(self):
+        # una reescritura que se come la cola (la seccion de ejemplos, los
+        # pasos que van despues) es un fallo silencioso y DESTRUCTIVO: el
+        # archivo queda mas corto, el --check dice "nada" (ya no encuentra
+        # nada que cambiar) y nadie se entera. Le pasa a esta herramienta.
+        repo, skill = self._repo()
+        ruta = os.path.join(skill, "SKILL.md")
+        with open(ruta, encoding="utf-8") as f:
+            antes = f.read()
+        # el fragmento que reescribe la herramienta, con SU patron (en el
+        # SKILL.md hay mas de un "pass via": no vale cortarr por el primero)
+        mt = re.search(r"(unit tests in )(.+?)( pass via)", antes)
+        self.assertIsNotNone(mt, "el SKILL.md tiene que traer la lista de suites")
+        pre = antes[:mt.start()]
+        post = antes[mt.end():]
+        # una suite nueva: la lista del SKILL.md tiene que cambiar
+        with open(os.path.join(skill, "scripts", "_tests", "test_nueva_suite.py"), "w",
+                  encoding="utf-8") as f:
+            f.write("import unittest\n")
+        r = _ejecuta(skill)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        with open(ruta, encoding="utf-8") as f:
+            despues = f.read()
+        self.assertTrue(despues.startswith(pre), "la reescritura se come el principio")
+        self.assertTrue(despues.endswith(post), "la reescritura se come la cola")
+        self.assertIn("test_nueva_suite.py", despues, "la suite nueva tiene que aparecer")
+
     def test_check_no_escribe(self):
         repo, skill = self._repo()
         antes = {}

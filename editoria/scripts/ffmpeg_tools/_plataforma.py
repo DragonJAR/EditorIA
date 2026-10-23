@@ -6,6 +6,7 @@ detección del SO, directorios de fuentes, directorio temporal y resolución
 de fuentes por nombre. Los scripts importan desde aquí en vez de hardcodear
 rutas POSIX.
 """
+import atexit
 import os
 import platform
 import shutil
@@ -25,9 +26,24 @@ def es_windows() -> bool:
     return platform.system() == "Windows"
 
 
+_TMP_PROCESO = None
+
+
 def dir_temp() -> str:
-    """Directorio temporal del SO (reemplaza '/tmp' hardcodeado)."""
-    return tempfile.gettempdir()
+    """Directorio temporal PROPIO de este proceso (reemplaza '/tmp' hardcodeado).
+
+    Un nombre FIJO en el temp del sistema se pisa cuando hay dos corridas a
+    la vez: dos montajes escriben la misma lista de concat y cada ffmpeg lee
+    la del otro (un video silenciosamente distinto, que es PEOR que un
+    fallo), y el borrado del segundo se lleva la lista que el primero
+    todavia esta leyendo. Cada proceso tiene el suyo, y se va solo al
+    terminar.
+    """
+    global _TMP_PROCESO
+    if _TMP_PROCESO is None:
+        _TMP_PROCESO = tempfile.mkdtemp(prefix="editoria_")
+        atexit.register(shutil.rmtree, _TMP_PROCESO, True)
+    return _TMP_PROCESO
 
 
 # Fuentes empaquetadas con la skill (OFL): assets/fonts/. Van primero.

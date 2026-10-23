@@ -122,7 +122,12 @@ def _transforma_lista_de_suites(texto, suites, cambios):
     # solo el nombre del archivo hacia que el informe reventara justo
     # cuando se anade una suite, que es cuando mas se usa esta herramienta
     cambios.append(("SKILL.md", _diff_de_suites(antes, lista), f"{len(suites)} suites"))
-    return texto[:mt.start()] + mt.group(1) + lista + mt.group(3)
+    # OJO con la cola: todo lo que viene DESPUES del fragmento tiene que
+    # seguir ahi. Una reescritura que se come el resto del archivo (la
+    # seccion de ejemplos, los pasos que van despues) es un fallo
+    # silencioso y destructivo: el archivo queda mas corto, el "--check"
+    # dice "nada" (ya no encuentra nada que cambiar) y nadie se entera.
+    return texto[:mt.start()] + mt.group(1) + lista + mt.group(3) + texto[mt.end():]
 
 
 def _transforma_readme(texto, refs, root, fft, suites, archivos, etiqueta, cambios):

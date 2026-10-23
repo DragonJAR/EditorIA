@@ -633,11 +633,13 @@ class TestAuditarMapa(unittest.TestCase):
         m = os.path.join(raiz, "references", "mapa.md")
         with open(m, encoding="utf-8") as f:
             txt = f.read()
-        self.assertIn("referencias, 40 scripts, 19 herramientas de ffmpeg y 30 suites",
-                      txt, "el fixture tiene que traer el encabezado")
+        # el encabezado se reescribe solo (el numero de suites cambia con cada
+        # suite nueva): el test no puede hardcodear la cifra
+        mt = re.search(r"referencias, \d+ scripts, \d+ herramientas de ffmpeg y \d+ suites",
+                       txt)
+        self.assertIsNotNone(mt, "el fixture tiene que traer el encabezado")
         with open(m, "w", encoding="utf-8") as f:
-            f.write(txt.replace("referencias, 40 scripts, 19 herramientas de ffmpeg y 30 suites",
-                                "muchas referencias y scripts"))
+            f.write(txt.replace(mt.group(0), "muchas referencias y scripts"))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"el guard se apago en silencio:\n{out}")
         self.assertIn("guard sin objeto", out)

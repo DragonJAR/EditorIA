@@ -44,6 +44,8 @@ SKILL = os.path.dirname(AQUI)
 sys.path.insert(0, AQUI)
 sys.path.insert(0, os.path.join(AQUI, "ffmpeg_tools"))
 
+from _plataforma import dir_temp  # noqa: E402
+
 LADO = 180             # lado CORTO de análisis (misma escala en 9:16 y 16:9: 1080 → 180)
 BLOQUE = 10            # px del bloque para detectar pops
 POP_SALTO = 70.0       # luma media de un bloque que cambia en UN frame = pop
@@ -531,7 +533,7 @@ def main():
         if a.ver:
             n_, f_, t_ = a.ver.split(":")
             ver(dict(muestras[n_], tipo=n_), f_, float(t_), a.fps,
-                os.path.join(tempfile.gettempdir(), f"pop_{n_}_{f_}_{t_}.png"))
+                os.path.join(dir_temp(), f"pop_{n_}_{f_}_{t_}.png"))
             return 0
         if a.cortes:   # cada par consecutivo del catálogo: la ventana alrededor del corte
             tipos = list(muestras)
