@@ -181,6 +181,13 @@ REGLAS_UNICAS = [
      "patron": r"([−\-]?\d{1,2})\s*(?:LUFS\s*)?[^\w]{0,3}(?:para\s+|de\s+)?en[ée]rg\w*"},
     {"nombre": "target de sonoridad calmo", "tipo": "exacto", "valor": -16.0,
      "patron": r"([−\-]?\d{1,2})\s*(?:LUFS\s*)?[^\w]{0,3}(?:para\s+|de\s+)?calm\w*"},
+    # el aire de voz: la voz entra en `from + 0,40`, asi que el fin de la voz
+    # es la duracion CRUDA del wav MAS 0,40. Sin esta regla, la prosa puede
+    # quedarse con el numero viejo si el codigo cambia el aire (y quien lea
+    # la prosa_then cuenta mal y depura el reloj a mano). El valor lo ata al
+    # codigo un test, como el piso de letra con LETRA_MIN.
+    {"nombre": "aire de voz", "tipo": "exacto", "valor": 0.40,
+     "patron": r"duración CRUDA del wav[^.\n]{0,80}?\+\s*(\d+[.,]\d+)"},
 ]
 
 

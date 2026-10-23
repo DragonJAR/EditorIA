@@ -263,6 +263,19 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")
 
+    def test_el_aire_de_voz_no_se_inventa(self):
+        # el aire de voz lo decide el codigo (AIRE_VOZ): si cambia, el valor
+        # esperado del guard cambia con el, y el guard avisara de que la prosa
+        # sigue diciendo el numero viejo
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"aire de voz".*?"valor":\s*([\d.]+)', txt, re.S)
+        self.assertIsNotNone(m, "la regla del aire de voz debe estar en auditar_mapa.py")
+        with open(os.path.join(SCRIPTS, "speech_estimate.py"), encoding="utf-8") as f:
+            motor = f.read()
+        self.assertIn(f"AIRE_VOZ = {m.group(1)}", motor,
+                      "el valor esperado tiene que ser el AIRE_VOZ real del codigo")
+
     def test_el_umbral_de_densidad_no_se_inventa(self):
         # la cifra que la skill enuncia para la densidad tiene que ser la que el
         # motor PENALIZA: menos de 0.5 (aburre) y mas de 2.0 (abrumba)
