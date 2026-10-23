@@ -52,6 +52,7 @@ Tambien acepta `--ignorar-inicio` para un fade-in intencional.
 | `delivery_check` | el spec de la plataforma: resolucion, fps, duracion, bitrate, sonoridad, true peak | la composicion |
 | `medir_animacion` | coherencia de movimiento: pops, tirones, arranques, densidad | el copy, la narrativa |
 | `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan | el copy, el movimiento fino |
+| `medir_contraste` | el contraste real del texto contra la superficie que tapa | el copy, el color de marca |
 
 **Por que los dos ultimos van juntos**: `auto_qa` mira el render con ojos
 maquina (luminosidad, congelamiento, destellos) y no ve un corte seco entre
@@ -81,7 +82,10 @@ por eso comparten la medicion y no dos implementaciones.
   escena no puede tocar el piso de la zona segura (0,70) y los textos no se
   pueden pisar. La letra se mide con el tamano con el que el texto **se
   queda**: si un boton entra con resorte y pasa por 21 px a mitad de camino,
-  eso no cuenta (ver `references/coherencia-espacial.md`).
+  eso no cuenta (ver `references/coherencia-espacial.md`). Y el texto tiene
+  que **contrastar** con lo que tapa: un color de acento sobre una banda del
+  mismo color de acento es ilegible, y eso no se ve leyendo el codigo, se
+  ve midiendo (`scripts/medir_contraste.py`).
 
 ## Orden recomendado de trabajo
 
