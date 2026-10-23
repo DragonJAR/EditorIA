@@ -106,6 +106,27 @@ Fedora: `sudo dnf install ffmpeg python3-pip`.
 - **Transcripción local**: `whisper-cli` en el PATH (o segmentos de cualquier fuente para `retakes.py`).
 - **Remotion / HyperFrames**: Remotion requiere Node.js 18+ y HyperFrames Node.js 22+ (`references/remotion.md`, `references/hyperframes.md`); `check_env.py` los detecta y sugiere instalación sin fallar si faltan.
 
+## Si un check falla en un sitio y no en el otro
+
+**Reproducirlo a mano ANTES de culpar al código.** Un check que falla en la
+copia instalada y no en el repo no está señalando un defecto del motor:
+está señalando el entorno. El motor puede estar perfecto y, aun así, el
+síntipo (una escena que no se comporta, un recorte que no cuadra) apunta
+al sitio equivocado — y por eso el fallo se busca donde no está.
+
+El orden, de arriba abajo:
+
+1. **¿Falla también en el repo?** Si sí, es el código: búscalo ahí.
+2. **¿Falla solo en la copia instalada?** Lo primero que se mira es el
+   bytecode fantasma: `python scripts/check_env.py` (compara el contenido
+   compilado, no las fechas). Un `.pyc` más nuevo que su `.py` hace que
+   python ejecute un motor que ya no existe.
+3. **¿La copia coincide con lo publicado?** `python scripts/sincronizar_instalada.py --check`
+   (compara archivo por archivo, por contenido).
+
+El orden importa: sin el paso 1, el paso 2 se aplica a un defecto de
+código real y se "arregla" lo que no estaba roto.
+
 ## Notas de portabilidad
 
 - Nunca se asume `/tmp`: los temporales usan el directorio del SO.
