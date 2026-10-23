@@ -1236,6 +1236,8 @@ def _dos_pasadas():
 
     avisos = []
     raiz = _raiz_git()
+    # esto no va por las dos pasadas: es del historial, no del arbol
+    _chequear_atribucion(problemas)
     if raiz:
         with tempfile.TemporaryDirectory() as tmp:
             base_head = _exportar_head(tmp, raiz)
@@ -1250,12 +1252,51 @@ def _dos_pasadas():
                     BASE, REFS = b0, r0
                 # lo que esta en el arbol y no en lo publicado: todavia no
                 # sale, es un aviso (y el arreglo es la herramienta)
+                # lo PUBLICAADO tiene que estar bien: eso son los fallos.
+                # lo que solo se ha desviado en el arbol de trabajo todavia no
+                # ha salido: es un aviso, y lo que hay que hacer es correr la
+                # herramienta que actualiza los numeros.
                 claves_pub = {(pr["tipo"], pr["archivo"]) for pr in publicados}
                 for pr in problemas:
-                    if (pr["tipo"], pr["archivo"]) not in claves_pub:
+                    if pr.get("severidad") == "aviso":
+                        avisos.append(pr)
+                    elif (pr["tipo"], pr["archivo"]) not in claves_pub:
                         avisos.append(pr)
                 problemas = publicados
     return problemas, avisos, mds, dominios, canonicos
+
+
+def _chequear_atribucion(problemas):
+    """Que el historial diga quien escribio cada commit (o que se avise de que no).
+
+    Dos sesiones del mismo agente sobre el mismo repo, commiteando con la
+    MISMA identidad de git, hacen que el campo "autor" no distinga quien
+    escribio cada commit. Es la unica parte del historial que no se puede
+    recuperar despues, asi que no es un fallo (la skill es valida igual):
+    es un aviso, para que quede dicho en el propio repo y no en un chat que
+    se pierde.
+
+    Arreglo: una identidad de git por sesion (`git config user.name`), o
+    un sufijo en el mensaje del commit.
+    """
+    raiz = _raiz_git()
+    if not raiz:
+        return
+    try:
+        r = subprocess.run(["git", "-C", raiz, "log", "--format=%an"],
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return
+    if r.returncode != 0 or not r.stdout.strip():
+        return
+    autores = [a for a in r.stdout.splitlines() if a.strip()]
+    if len(autores) > 5 and len(set(autores)) == 1:
+        problemas.append({
+            "tipo": "autribucion ambigua", "archivo": "historial",
+            "msg": f"{len(autores)} commits y un solo autor ({autores[0]}): el campo "
+                   f"'autor' no dice quien escribio cada uno. Una identidad de git por "
+                   f"sesion, o un sufijo en el mensaje del commit",
+            "severidad": "aviso"})
 
 
 def main():
@@ -1285,7 +1326,8 @@ def main():
               f"trabajo y todavia no se ha publicado")
         for p in avisos:
             print(f"  {p['tipo']:22} {p['archivo']:36} {p['msg']}")
-        print("  (corre `python scripts/actualizar_conteos.py` antes de commitear)")
+        if any(p.get("severidad") != "aviso" for p in avisos):
+            print("  (corre `python scripts/actualizar_conteos.py` antes de commitear)")
     if problemas:
         print(f"MAPA: {len(problemas)} problemas")
         for p in problemas:

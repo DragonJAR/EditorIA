@@ -432,6 +432,45 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"la cifra del contrato no se detecto:\n{out}")
         self.assertIn("CLIs con el contrato", out)
 
+    def test_avisa_si_el_historial_no_dice_quien_escribio(self):
+        # dos sesiones con la MISMA identidad de git hacen que el campo
+        # "autor" no distinga: es la unica parte del historial que no se
+        # puede recuperar despues, asi que queda avisado en el propio repo
+        repo = os.path.join(self.dir, "repo_autor")
+        skill = _copia_completa(os.path.join(repo, "skill"))
+
+        def _git(*args, autor=None):
+            cmd = ["git", "-C", repo, *args]
+            env = None
+            if autor:
+                import os as _os
+                env = dict(_os.environ)
+                env["GIT_AUTHOR_NAME"] = autor
+                env["GIT_COMMITTER_NAME"] = autor
+            subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+        _git("init", "-q")
+        _git("config", "user.email", "test@local")
+        _git("config", "user.name", "test")
+        for i in range(6):
+            with open(os.path.join(skill, "references", "mapa.md"), "a", encoding="utf-8") as f:
+                f.write(f"\n<!-- {i} -->\n")
+            _git("add", "-A")
+            _git("commit", "-q", "-m", f"commit {i}", autor="Una Sola Sesion")
+        rc, out = _auditar(skill)
+        self.assertEqual(rc, 0, f"la atribucion ambigua es un aviso, no un fallo:\n{out}")
+        self.assertIn("autribucion ambigua", out)
+
+        # con dos identidades distintas, el historial SI dice quien escribio
+        _git("config", "user.name", "otra sesion")
+        with open(os.path.join(skill, "references", "mapa.md"), "a", encoding="utf-8") as f:
+            f.write("\n<!-- otra -->\n")
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "commit de otra sesion", autor="Otra Sesion")
+        rc, out = _auditar(skill)
+        self.assertNotIn("autribucion ambigua", out,
+                         "con dos identidades el historial si distingue")
+
     def test_detecta_una_clave_del_plan_sin_documentar(self):
         # el plan es el contrato: si el motor lee una clave que ningun
         # documento menciona, el que escribe el plan no la conoce
