@@ -1025,6 +1025,40 @@ def _chequear_commit_que_arrastra_trabajo(problemas):
             "msg": f"este commit lista {s} y no la trae: enlace roto en lo publicado"})
 
 
+def _chequear_contrato_cli(problemas):
+    """Que el contrato de CLI diga cuantos scripts lo cumplen, y sean esos.
+
+    El documento declara una convencion ("las N CLIs de ffmpeg_tools usan
+    add_common + apply_common + emit"). Ese N tiene que ser el real: si
+    anaden una herramienta sin el contrato, o le quitan el contrato a una,
+    el documento queda mintiendo sobre la skill.
+    """
+    doc = os.path.join(REFS, "cli-contract.md")
+    fft_dir = os.path.join(BASE, "scripts", "ffmpeg_tools")
+    if not (os.path.exists(doc) and os.path.isdir(fft_dir)):
+        return
+    n_cumplen = 0
+    for f in sorted(os.listdir(fft_dir)):
+        if not f.endswith(".py") or f.startswith("_"):
+            continue
+        with open(os.path.join(fft_dir, f), encoding="utf-8") as fh:
+            t = fh.read()
+        if "ArgumentParser" not in t and "argparse" not in t:
+            continue          # un modulo no es una CLI
+        if "add_common" in t and "apply_common" in t and "emit(" in t:
+            n_cumplen += 1
+    with open(doc, encoding="utf-8") as fh:
+        texto = fh.read()
+    mt = re.search(r"(\d+)\s+CLIs\s+de\s+`?ffmpeg_tools`?\s+usan", texto)
+    if not mt:
+        return
+    declarado = int(mt.group(1))
+    if declarado != n_cumplen:
+        problemas.append({
+            "tipo": "conteo obsoleto", "archivo": "references/cli-contract.md",
+            "msg": f"dice {declarado} CLIs con el contrato y {n_cumplen} lo cumplen"})
+
+
 def main():
     ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
                                  epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
@@ -1168,6 +1202,9 @@ def main():
 
     # ---- 16. el commit no arrastro trabajo en vuelo --------------------
     _chequear_commit_que_arrastra_trabajo(problemas)
+
+    # ---- 17. el contrato de CLI dice los que lo cumplen ----------------
+    _chequear_contrato_cli(problemas)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}

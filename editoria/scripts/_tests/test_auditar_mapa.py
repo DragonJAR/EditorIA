@@ -379,6 +379,21 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("suite perdida en el commit", out)
         self.assertIn(victim, out)
 
+    def test_detecta_una_cifra_de_cli_obsoleta(self):
+        # el contrato de CLI declara cuantos scripts lo cumplen: si ese
+        # numero no es el real, el documento miente sobre la skill
+        raiz = self._completa()
+        doc = os.path.join(raiz, "references", "cli-contract.md")
+        with open(doc, encoding="utf-8") as f:
+            txt = f.read()
+        mt = re.search(r"(\d+)\s+CLIs\s+de\s+`?ffmpeg_tools`?\s+usan", txt)
+        self.assertIsNotNone(mt, "el contrato debe decir cuantas CLIs lo cumplen")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write(txt.replace(mt.group(0), mt.group(0).replace(mt.group(1), "99"), 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la cifra del contrato no se detecto:\n{out}")
+        self.assertIn("CLIs con el contrato", out)
+
     def test_detecta_una_clave_del_plan_sin_documentar(self):
         # el plan es el contrato: si el motor lee una clave que ningun
         # documento menciona, el que escribe el plan no la conoce

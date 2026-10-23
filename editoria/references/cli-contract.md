@@ -1,13 +1,18 @@
 # Contrato CLI de los scripts (SPEC-lite)
 
-Convención única para todos los scripts de `scripts/` y `scripts/ffmpeg_tools/`.
-Patrón tomado de kajisho5/ffmpeg-skill (MIT): flags compartidos, errores con
-taxonomía, probe primero. Lo que está aquí no se repite en cada script.
+Convención de las herramientas de `scripts/ffmpeg_tools/`: flags
+compartidos, errores con taxonomía, probe primero. Lo que está aquí no se
+repite en cada script.
 
 ## Flags compartidos
 
-Todo script nuevo usa `add_common(ap)` + `apply_common(args)` de
-`ffmpeg_tools/_comun.py` y termina con `emit(output, ...)`:
+Las 16 CLIs de `ffmpeg_tools/` usan `add_common(ap)` + `apply_common(args)`
+de `_comun.py` y terminan con `emit(output, ...)`:
+
+**Alcance**: el contrato es de `ffmpeg_tools/`. Las CLIs de `scripts/` —las
+de análisis, render y medir— tienen su propia salida y sus propios errores, y
+todavía no pasan por `add_common`/`emit`: cuando se muevan, el contrato es
+este.
 
 | Flag | Efecto |
 |---|---|
