@@ -53,8 +53,9 @@ contradigan.
   `qa-entrega.md`.
 - **"tengo un video grabado"** → `video-real.md` → `modos-produccion.md` → `montaje.md` →
   `qa-entrega.md`.
-- **"necesito un resumen de una reunion"** → `pipeline-resumen.md` → `scoring-shorts.md` →
-  `qa-entrega.md`.
+- **"necesito un resumen de una reunion"** → `scoring-shorts.md` (elegir los momentos) →
+  `estilos.md` (el lenguaje visual) → `qa-entrega.md`. El pipeline v2 con scripts
+  propios (`pipeline-resumen.md`) es legacy: para piezas nuevas va el motor.
 - **"el video no se siente bien"** → `qa-entrega.md` (que falla) → `auto-qa.md` (la causa) →
   `fluidez.md` (el motor) → `ritmo.md` (el encadenamiento) → `copy.md` (el texto).
 - **"quiero un thumbnail"** → `thumbnails.md` → `checklist-qa.md`.

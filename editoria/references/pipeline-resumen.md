@@ -1,9 +1,14 @@
 # Pipeline: resumen animado (estilo v2 — LEGACY)
 
-> LEGACY: documenta el pipeline del v2 (2026-10-03). Para piezas nuevas, la
-> doctrina vigente está en `principios.md`, `coherencia-espacial.md` y
-> `ritmo.md` — en caso de conflicto, mandan ellos (ej. sin rejillas
-> decorativas, música ~15 dB bajo la voz).
+> LEGACY: documenta el pipeline del v2 (2026-10-03), con scripts propios que
+> hay que escribir por pieza. Para piezas nuevas NO se escribe ese pipeline:
+> se eligen los momentos (`scoring-shorts.md`), se toma el lenguaje visual
+> (`estilos.md`) y se hace con el motor (Step 1→5 del `SKILL.md`) o cortando
+> el material real (Step 6, `video-real.md`). El v2 es el ANCESTRO de las
+> escenas del motor, no su camino actual. La doctrina vigente está en
+> `principios.md`, `coherencia-espacial.md` y `ritmo.md` — en caso de
+> conflicto, mandan ellos (ej. sin rejillas decorativas, música ~15 dB bajo
+> la voz).
 
 Probado en un resumen real de 62 s, 1080×1920, 30 fps.
 

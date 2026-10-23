@@ -40,7 +40,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Write or check the on-screen copy | **Copy**: `references/copy.md` + `scripts/lint_copy.py` (the copy is authored before the plan and checked against the engine's own auto-fit) |
 | Check the piece before delivering | **Gate**: `scripts/qa_entrega.py` (plan, copy, render, spec and motion in one verdict; `references/qa-entrega.md`) |
 | Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (39 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
-| Meeting or transcript summary | **Composition**: `references/pipeline-resumen.md` + styles from `references/estilos.md` |
+| Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles from `references/estilos.md`, then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline with its own scripts (`references/pipeline-resumen.md`) is legacy |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
 | See what the engine can draw (the 39 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the map and this file publish; `--check` only reports) |
@@ -187,7 +187,7 @@ python scripts/medir_contraste.py
 
 ### Step 6: Edit Footage You Already Have (transcripts, free pieces, post-production)
 
-When summarizing meetings or editing camera-first footage (`references/video-real.md`, `references/pipeline-resumen.md`):
+When summarizing meetings or editing camera-first footage (`references/video-real.md`; the v2 pipeline in `references/pipeline-resumen.md` is legacy):
 
 1. Extract 6 to 10 verified moments from the transcript using `references/scoring-shorts.md`.
 2. Choose the visual language in `references/estilos.md` and camera direction in `references/direccion.md`.
