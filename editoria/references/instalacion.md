@@ -5,6 +5,35 @@ puro (solo stdlib + `Pillow`/`numpy`) y llaman a `ffmpeg`/`ffprobe` del PATH.
 La detección de fuentes, rutas temporales y binarios se adapta al SO
 automáticamente (`scripts/ffmpeg_tools/_plataforma.py`).
 
+## Instalar la skill
+
+La skill son dos cosas: la carpeta `editoria/` (los scripts y las
+referencias) y los README del repo. Se instala copiándola a la carpeta
+donde el agente carga las skills (en MCode, `~/.minimax/skills/`):
+
+```bash
+git clone <repo> editoria-repo
+python editoria-repo/editoria/scripts/sincronizar_instalada.py --destino ~/.minimax/skills
+```
+
+**Usa ese script y no un `cp` a pelo.** `tar` y `git archive` conservan el
+mtime del commit, y si la carpeta de destino ya tenía un `__pycache__`, sus
+`.pyc` quedan **más nuevos** que sus `.py`: python ejecuta ese bytecode y la
+copia corre un motor que ya no existe. Los checks dan entonces fallos que
+no se reproducen en el repo — y lo peor es que un fallo así no se ve como
+fallo, se ve como un defecto del código.
+
+El script extrae lo publicado, borra la caché y comprueba archivo por
+archivo que la copia coincide.
+
+Para **verificar** que no hay bytecode fantasma (compara el contenido
+compilado, no las fechas: un commit posterior no convierte a un `.pyc` en
+fantasma):
+
+```bash
+python scripts/check_env.py
+```
+
 ## Paso 0: verificar
 
 ```bash
