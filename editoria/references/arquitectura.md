@@ -108,10 +108,10 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   leídos de `SCENES` de render_plan y que cada voz quepa ANTES de la voz
   siguiente (y antes del final del video), estimada con `speech_estimate.py`:
   una sola fuente).
-  El margen del reloj es PROPORCIONAL al hueco (la estimación silábica se
-  desvía del tiempo real entre un 9% y un 24%: un margen fijo más pequeño
-  que ese error rechazaba planes válidos; `BANDA_ESTIMACION` en
-  `speech_estimate.py`). Avisa también de la voz que se pasa del final del
+  El margen del reloj es PROPORCIONAL al hueco: un 25 % del hueco, con un
+  mínimo de 0,3 s (la estimación silábica se desvía del tiempo real entre
+  un 9% y un 24%: un margen fijo más pequeño que ese error rechazaba planes
+  válidos; `BANDA_ESTIMACION` en `speech_estimate.py`). Avisa también de la voz que se pasa del final del
   video, que es el único desborde que se corta contra el borde.
   Correr antes de renders largos y antes de pagar TTS.
 - **scripts/speech_estimate.py** — estimador determinista de sílabas y duración

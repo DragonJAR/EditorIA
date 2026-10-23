@@ -232,6 +232,12 @@ AIRE_VOZ = 0.40  # Segundos que voz_off.py deja al inicio de cada escena
 # voz_local.py), que mide el audio sintetizado.
 BANDA_ESTIMACION = 0.25
 
+# El suelo del margen: por debajo de 0,30 s el margen no puede ser
+# proporcional (un hueco de 0,5 s no tolera un margen de 0,125 s). Tambien
+# lo vigila la prosa (regla "margen minimo de la estimacion" de
+# auditar_mapa.py), atado al codigo por un test.
+MARGEN_MIN_ESTIMACION = 0.30
+
 
 def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = AIRE_VOZ,
                        ritmo: str = "normal") -> dict:
@@ -300,7 +306,7 @@ def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = A
             "exceso_segundos": exceso,
             "contra_final": contra_fin,
         }
-        if exceso > max(0.3, BANDA_ESTIMACION * max(hueco, 0)):
+        if exceso > max(MARGEN_MIN_ESTIMACION, BANDA_ESTIMACION * max(hueco, 0)):
             alertas.append(base)
         else:
             avisos.append(base)

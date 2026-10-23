@@ -276,6 +276,56 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn(f"AIRE_VOZ = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el AIRE_VOZ real del codigo")
 
+    def test_la_banda_de_la_estimacion_no_se_inventa(self):
+        # la banda (el % del hueco que se tolera) la decide el codigo
+        # (BANDA_ESTIMACION): si cambia, el valor esperado del guard cambia
+        # con el, y el guard avisara de que la prosa sigue con el numero viejo
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"banda de la estimaci[oó]n[^"]*".*?"valor":\s*([\d.]+)',
+                      txt, re.S)
+        self.assertIsNotNone(m, "la regla de la banda debe estar en auditar_mapa.py")
+        fraccion = float(m.group(1)) / 100.0   # la prosa dice %, el codigo dice fraccion
+        with open(os.path.join(SCRIPTS, "speech_estimate.py"), encoding="utf-8") as f:
+            motor = f.read()
+        self.assertIn(f"BANDA_ESTIMACION = {fraccion}", motor,
+                      "el valor esperado tiene que ser la BANDA_ESTIMACION real del codigo")
+
+    def test_el_margen_minimo_no_se_inventa(self):
+        # el suelo del margen (0,30 s) tambien lo decide el codigo
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"margen m[ií]nimo de la estimaci[oó]n".*?"valor":\s*([\d.]+)',
+                      txt, re.S)
+        self.assertIsNotNone(m, "la regla del margen minimo debe estar en auditar_mapa.py")
+        with open(os.path.join(SCRIPTS, "speech_estimate.py"), encoding="utf-8") as f:
+            motor = f.read()
+        self.assertIn(f"MARGEN_MIN_ESTIMACION = {m.group(1)}", motor,
+                      "el valor esperado tiene que ser el MARGEN_MIN_ESTIMACION real del codigo")
+
+    def test_una_regla_sin_objeto_lo_dice(self):
+        # una regla cuyo patron deja de casar se apaga en silencio (no
+        # encuentra ningun numero que comparar) y el guard dice "todo bien"
+        # sin mirar. Un guard que no encuentra su objeto tiene que decirlo.
+        # Se rompe el patron de una regla REAL (una que existe en el estado):
+        # una regla inventada no aplica, porque todavia no esta publicada.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("am_mod", AUDITAR)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        regla = next(r for r in mod.REGLAS_UNICAS if r["nombre"] == "aire de voz")
+        patron = regla["patron"]
+        regla["patron"] = r"un numero que no existe en ninguna prosa \d{7}"
+        try:
+            problemas = []
+            mod._chequear_reglas(problemas)
+        finally:
+            regla["patron"] = patron
+        sin_objeto = [p for p in problemas if p["tipo"] == "guard sin objeto"]
+        self.assertTrue(sin_objeto, "una regla que no encuentra su objeto no lo dice")
+        self.assertTrue(any("aire de voz" in p["msg"] for p in sin_objeto),
+                        "el aviso tiene que nombrar la regla que se apago")
+
     def test_el_umbral_de_densidad_no_se_inventa(self):
         # la cifra que la skill enuncia para la densidad tiene que ser la que el
         # motor PENALIZA: menos de 0.5 (aburre) y mas de 2.0 (abrumba)

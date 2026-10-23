@@ -184,10 +184,19 @@ REGLAS_UNICAS = [
     # el aire de voz: la voz entra en `from + 0,40`, asi que el fin de la voz
     # es la duracion CRUDA del wav MAS 0,40. Sin esta regla, la prosa puede
     # quedarse con el numero viejo si el codigo cambia el aire (y quien lea
-    # la prosa_then cuenta mal y depura el reloj a mano). El valor lo ata al
+    # la prosa cuenta mal y depura el reloj a mano). El valor lo ata al
     # codigo un test, como el piso de letra con LETRA_MIN.
     {"nombre": "aire de voz", "tipo": "exacto", "valor": 0.40,
      "patron": r"duración CRUDA del wav[^.\n]{0,80}?\+\s*(\d+[.,]\d+)"},
+    # la banda de error de la estimacion silabica: el margen del reloj de la
+    # voz es proporcional al hueco (un 25 % del hueco, con un minimo de 0,3 s).
+    # Mismo motivo que el aire: si el codigo cambia la banda, la prosa se
+    # queda con el numero viejo y quien la lea deduce una tolerancia que no
+    # es la real. Los dos valores los atan al codigo sendos tests.
+    {"nombre": "banda de la estimación (% del hueco)", "tipo": "exacto", "valor": 25.0,
+     "patron": r"(\d{1,2})\s*%\s*del hueco"},
+    {"nombre": "margen mínimo de la estimación", "tipo": "exacto", "valor": 0.30,
+     "patron": r"m[ií]nimo de (\d+[.,]\d+)\s*s"},
 ]
 
 
@@ -221,6 +230,28 @@ def _numero(texto):
     reglas no es un guard: es una costumbre.
     """
     return texto.replace(",", ".").replace("−", "-").replace("–", "-")
+
+
+def _regla_de_este_estado(regla):
+    """¿La regla existe tambien en el archivo de guardas de ESTE estado?
+
+    La auditoria corre dos veces: contra lo publicado (HEAD) y contra el
+    arbol de trabajo. En la pasada de lo publicado, las REGLAS que corren
+    son las del arbol de trabajo (el codigo no se recarga), asi que una
+    regla que se acaba de escribir todavia no existe en el estado
+    publicado: sin esta comprobacion, esa regla se buscaria en la prosa de
+    HEAD, no lo encontraria (su prosa va sin commitear todavia) y
+    fallaria por algo que todavia no esta publicado.
+    """
+    ruta = os.path.join(BASE, "scripts", "auditar_mapa.py")
+    if not os.path.exists(ruta):
+        return True
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            texto = fh.read()
+    except OSError:
+        return True
+    return f'"{regla["nombre"]}"' in texto
 
 
 def _chequear_reglas(problemas):
@@ -257,6 +288,26 @@ def _chequear_reglas(problemas):
                     except ValueError:
                         continue
                     valores.setdefault(v, set()).add(f)
+        if not valores:
+            # Una regla cuyo patron deja de casar se APAGA en silencio: no
+            # encuentra ningun numero que comparar y el guard dice "todo
+            # bien" sin mirar. Un guard que no encuentra su objeto tiene que
+            # decirlo (la misma regla que el encabezado de conteos).
+            #
+            # Pero solo si la regla existe en ESTE estado: la pasada de lo
+            # publicado corre con las reglas del arbol de trabajo (el codigo
+            # no se puede cambiar en caliente), y una regla nueva con su prosa
+            # todavia sin commitear no puede fallar alli. Es trabajo en
+            # vuelo, que la segunda pasada ya marca como aviso.
+            if not _regla_de_este_estado(regla):
+                continue
+            problemas.append({
+                "tipo": "guard sin objeto",
+                "archivo": "references/",
+                "msg": f"la regla '{regla['nombre']}' no encuentra su objeto en la prosa: "
+                       f"el patron {regla['patron']!r} ya no casa y esta regla no comprueba nada",
+            })
+            continue
         esperado = regla["valor"]
         for v, fs in sorted(valores.items()):
             if isinstance(v, tuple):

@@ -156,6 +156,11 @@ Antes de timar escenas: la duración de la escena se deriva de la VO, no al rev�
   `voz_off.py` (o `voz_local.py`) mide la voz real y falla si una pisa a la
   siguiente (dirá cuántos segundos alargar). Si la voz no cabe, se alarga la
   escena o se recorta el texto; nunca se acelera la voz.
+  El margen va con el hueco disponible: un **25 % del hueco**, con un
+  **mínimo de 0,3 s** (un hueco de 0,5 s no tolera un margen de 0,125 s).
+  Los dos números los vigila el guard de la prosa (`auditar_mapa.py`),
+  atados al código por tests: si el motor cambia la banda, la prosa avisa
+  en vez de quedarse con el número viejo.
 - **Cómo se lee el reloj real**: la voz entra en `inicio de escena + 0.4 s`,
   así que **el fin de la voz = duración CRUDA del wav (la de la caché) + 0,40**.
   Tomar la duración del wav como "cuándo acaba la voz" hace creer que hay un
