@@ -257,6 +257,46 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"la densidad falsa no se detecto:\n{out}")
         self.assertIn("densidad de movimiento", out)
 
+    def test_detecta_una_suite_sin_enlistar(self):
+        # el SKILL.md enumera las suites que deben pasar: si esa lista no es
+        # el conjunto real, la promesa envejece en silencio
+        raiz = self.raiz
+        d = os.path.join(raiz, "scripts", "_tests")
+        os.makedirs(d, exist_ok=True)
+        # primero, las que el SKILL.md lista, para que el check no grune
+        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as f:
+            txt = f.read()
+        for nombre in set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt)):
+            with open(os.path.join(d, nombre), "w", encoding="utf-8") as f:
+                f.write("# suite de mentira\n")
+        # ahora una suite que nadie listo (el nombre se arma en piezas: una
+        # ruta ficticia literal la marca el auditor de enlaces como rota)
+        inventada = "test_" + "inventada.py"
+        with open(os.path.join(d, inventada), "w", encoding="utf-8") as f:
+            f.write("# suite que nadie listo\n")
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la suite sin enlistar no se detecto:\n{out}")
+        self.assertIn("suite sin enlistar", out)
+        self.assertIn(inventada, out)
+        self.assertNotIn("suite listada que no existe", out,
+                         "el check debe marcar solo lo que de verdad falta")
+
+    def test_detecta_una_suite_listada_que_no_existe(self):
+        raiz = self.raiz
+        d = os.path.join(raiz, "scripts", "_tests")
+        os.makedirs(d, exist_ok=True)
+        fantasma = "test_" + "fantasma.py"
+        with open(os.path.join(d, fantasma), "w", encoding="utf-8") as f:
+            f.write("# no deberia estar aqui\n")
+        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as f:
+            txt = f.read()
+        ruta = "scripts" + "/_tests/" + fantasma
+        with open(os.path.join(raiz, "SKILL.md"), "w", encoding="utf-8") as f:
+            f.write(txt + "\n`" + ruta + "`\n")
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"la suite fantasma no se detecto:\n{out}")
+        self.assertIn("suite listada que no existe", out)
+
 
 class TestCifrasDelCodigo(unittest.TestCase):
     """Las cifras de la prosa tienen que ser las del codigo.

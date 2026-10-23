@@ -706,6 +706,36 @@ def _chequear_cifras_del_codigo(problemas):
                         "msg": f"afirma '{mt.group(1)} comprobaciones' y la puerta corre {siempre}"})
 
 
+def _chequear_lista_de_suites(problemas):
+    """Que la lista de suites del SKILL.md sea el conjunto real.
+
+    El SKILL.md enumera las suites que tienen que pasar. Esa lista es una
+    promesa: si alguien anade una suite y no la lista, la promesa sigue
+    diciendo lo mismo y nadie se entera. Y al reves, una suite listada
+    que ya no existe hace fallar la validacion por un archivo que no
+    esta.
+    """
+    skill = os.path.join(BASE, "SKILL.md")
+    tests_dir = os.path.join(BASE, "scripts", "_tests")
+    if not os.path.exists(skill) or not os.path.isdir(tests_dir):
+        return
+    txt = open(skill, encoding="utf-8").read()
+    listadas = set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt))
+    if not listadas:
+        return
+    reales = {f for f in os.listdir(tests_dir)
+              if f.startswith("test_") and f.endswith(".py")}
+    for f in sorted(reales - listadas):
+        problemas.append({
+            "tipo": "suite sin enlistar", "archivo": "SKILL.md",
+            "msg": f"existe scripts/_tests/{f} y el SKILL.md no la lista: "
+                   f"la lista de suites tiene que ser el conjunto real"})
+    for f in sorted(listadas - reales):
+        problemas.append({
+            "tipo": "suite listada que no existe", "archivo": "SKILL.md",
+            "msg": f"el SKILL.md lista scripts/_tests/{f} y ese archivo no existe"})
+
+
 def main():
     ap = argparse.ArgumentParser(description="Auditoria de conectividad de la skill (sin islas).",
                                  epilog="Sale 0 si todo esta bien, 1 si hay islas o contradicciones.")
@@ -834,6 +864,9 @@ def main():
 
     # ---- 11. las cifras de la prosa son las del codigo -----------------
     _chequear_cifras_del_codigo(problemas)
+
+    # ---- 12. la lista de suites del SKILL.md es el conjunto real -------
+    _chequear_lista_de_suites(problemas)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}
