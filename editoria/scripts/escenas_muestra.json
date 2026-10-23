@@ -421,6 +421,7 @@
           "fecha": "2026"
         }
       ],
+      "fuente": "Voz de marca",
       "at": {
         "rotulo": 0.2,
         "item0": 0.8,
@@ -462,6 +463,7 @@
           "Métricas al día"
         ]
       },
+      "fuente": "Medición interna, 2026",
       "at": {
         "rotulo": 0.2,
         "izq": 0.8,
@@ -528,6 +530,7 @@
           "at": 3.0
         }
       ],
+      "fuente": "Voz de marca",
       "at": {
         "rotulo": 0.2,
         "item0": 0.8,
@@ -558,6 +561,7 @@
       "codigo": "VERANO30",
       "vence": "Hasta el domingo 18",
       "cta": "Compra ya",
+      "fuente": "Precios de referencia, mayo 2026",
       "at": {
         "rotulo": 0.1,
         "descuento": 0.4,
@@ -644,6 +648,7 @@
         }
       ],
       "pie": "PRODUCCIÓN LISTA PARA REDES",
+      "fuente": "Voz de marca",
       "at": {
         "rotulo": 0.15,
         "item0": 0.65,
@@ -825,6 +830,7 @@
           "texto": "Empezamos"
         }
       ],
+      "fuente": "Voz de marca",
       "at": {
         "rotulo": 0.2,
         "item0": 0.6,
