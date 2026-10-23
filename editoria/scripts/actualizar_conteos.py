@@ -37,12 +37,27 @@ import auditar_mapa as AM  # noqa: E402  una sola fuente de verdad para contar
 
 
 def cuentas():
-    """(referencias, scripts raiz, ffmpeg_tools, suites) — las del guard."""
+    """(referencias, scripts raiz, ffmpeg_tools, suites, archivos en _tests/).
+
+    Las dos ultimas NO son la misma cifra y no se pueden cambiar:
+    - `suites`: los modulos que son de verdad una suite (test_*.py). es lo
+      que dice el encabezado del mapa y lo que enumera el SKILL.md.
+    - `archivos`: todo .py que vive en _tests/. es lo que dice el desglose
+      del README ("N en _tests/") y lo que suma el total de scripts.
+    un modulo de apoyo (apoyo.py) cuenta como archivo, pero no como suite.
+
+    Las dos cifras salen del GUARD (`scripts/auditar_mapa.py`), que es su
+    unico dueno: si esta cuenta distinto, la herramienta escribiria un numero
+    que el guard rechaza, y el bucle "corre la herramienta y vuelve a fallar"
+    no tendria salida.
+    """
     refs = AM._n_publicados("references", lambda p: p.endswith(".md"))
     root = AM._n_publicados("scripts", lambda p: p.endswith(".py") and p.count("/") == 1)
     fft = AM._n_publicados("scripts/ffmpeg_tools", lambda p: p.endswith(".py"))
     suites = len(AM._suites_publicadas())
-    return refs, root, fft, suites
+    archivos = AM._n_publicados("scripts/_tests", lambda p: p.endswith(".py")
+                                 and p != "__init__.py")
+    return refs, root, fft, suites, archivos
 
 
 def _lista_de_suites(nombres):
@@ -57,11 +72,16 @@ def _lista_de_suites(nombres):
 
 
 def _sustituye(texto, patron, nuevo, etiqueta, cambios):
-    """Sustituye la primera coincidencia y anota el archivo si cambio."""
+    """Sustituye la primera coincidencia y anota el detalle del cambio.
+
+    `cambios` guarda (archivo, lo que decia, lo que dira): el --check
+    imprime eso, para que el que pregunta sepa QUE esta desfasado y no
+    solo en que archivo.
+    """
     mt = re.search(patron, texto)
     if not mt or mt.group(0) == nuevo:
         return texto
-    cambios.append(etiqueta)
+    cambios.append((etiqueta, mt.group(0).strip(), nuevo.strip()))
     return texto[:mt.start()] + nuevo + texto[mt.end():]
 
 
@@ -72,26 +92,48 @@ def _transforma_mapa(texto, refs, root, fft, suites, cambios):
                       nuevo, "references/mapa.md", cambios)
 
 
+def _diff_de_suites(antes, nuevo):
+    """Que cambia entre las dos listas de suites, por NOMBRE.
+
+    La lista entera son 30 lineas de paths: lo que se necesita saber es que
+    suite falta o sobra. dos listas que se comparan nombre a nombre.
+    """
+    a = set(re.findall(r"`([^`]+)`", antes))
+    n = set(re.findall(r"`([^`]+)`", nuevo))
+    faltan = sorted(n - a)
+    sobran = sorted(a - n)
+    partes = []
+    if faltan:
+        partes.append("faltan " + ", ".join(faltan))
+    if sobran:
+        partes.append("sobran " + ", ".join(sobran))
+    return "; ".join(partes) if partes else "la lista de suites cambia"
+
+
 def _transforma_lista_de_suites(texto, suites, cambios):
     mt = re.search(r"(unit tests in )(.+?)( pass via)", texto)
     if not mt:
         return texto
-    nuevo = mt.group(1) + _lista_de_suites(suites) + mt.group(3)
-    if mt.group(2) == nuevo[len(mt.group(1)):len(nuevo) - len(mt.group(3))]:
+    antes = mt.group(2)
+    lista = _lista_de_suites(suites)
+    if antes == lista:
         return texto
-    cambios.append("SKILL.md")
-    return texto[:mt.start()] + nuevo + texto[mt.end():]
+    # el informe desempaqueta (archivo, lo que decia, lo que dira): anadir
+    # solo el nombre del archivo hacia que el informe reventara justo
+    # cuando se anade una suite, que es cuando mas se usa esta herramienta
+    cambios.append(("SKILL.md", _diff_de_suites(antes, lista), f"{len(suites)} suites"))
+    return texto[:mt.start()] + mt.group(1) + lista + mt.group(3)
 
 
-def _transforma_readme(texto, refs, root, fft, suites, etiqueta, cambios):
-    total = root + fft + suites
+def _transforma_readme(texto, refs, root, fft, suites, archivos, etiqueta, cambios):
+    total = root + fft + archivos
     texto = _sustituye(
         texto, r"# \d+ motores raíz \+ \d+ en ffmpeg_tools/ \+ \d+ en _tests/ = \d+ scripts",
-        f"# {root} motores raíz + {fft} en ffmpeg_tools/ + {suites} en _tests/ = {total} scripts",
+        f"# {root} motores raíz + {fft} en ffmpeg_tools/ + {archivos} en _tests/ = {total} scripts",
         etiqueta, cambios)
     texto = _sustituye(
         texto, r"# \d+ root \+ \d+ in ffmpeg_tools/ \+ \d+ in _tests/ = \d+ scripts",
-        f"# {root} root + {fft} in ffmpeg_tools/ + {suites} in _tests/ = {total} scripts",
+        f"# {root} root + {fft} in ffmpeg_tools/ + {archivos} in _tests/ = {total} scripts",
         etiqueta, cambios)
     texto = _sustituye(texto, r"\d+ referencias en kebab-case\.md",
                        f"{refs} referencias en kebab-case.md", etiqueta, cambios)
@@ -111,13 +153,25 @@ def main():
                     help="solo informa de lo que esta desfasado (no escribe)")
     args = ap.parse_args()
 
-    refs, root, fft, suites = cuentas()
-    total = root + fft + suites
+    refs, root, fft, suites, archivos = cuentas()
+    total = root + fft + archivos
     print(f"referencias {refs} · scripts raiz {root} · ffmpeg_tools {fft} · "
-          f"suites {suites} · scripts en total {total}")
+          f"suites {suites} · archivos en _tests/ {archivos} · scripts en total {total}")
 
     raiz_repo = _raiz_del_repo()
     cambios = []
+
+    def _informe(cambios):
+        if not cambios:
+            print("desfasado en: nada")
+            return
+        print("desfasado en:")
+        for etiqueta, antes, despues in cambios:
+            print(f"  {etiqueta}")
+            print(f"      dice:  {antes}")
+            print(f"      dira:  {despues}")
+        print("  (corre `python scripts/actualizar_conteos.py` para reescribirlo)")
+
     if args.check:
         # se trabaja sobre una COPIA: el modo "solo informar" no puede
         # escribir en el arbol real (un --check que escribe es peor que
@@ -125,7 +179,7 @@ def main():
         with tempfile.TemporaryDirectory() as tmp:
             copia = os.path.join(tmp, "editoria")
             shutil.copytree(BASE, copia, ignore=shutil.ignore_patterns("__pycache__"))
-            _aplica(copia, None, refs, root, fft, suites, cambios)
+            _aplica(copia, None, refs, root, fft, suites, archivos, cambios)
             if raiz_repo:
                 for nombre in ("README.md", "README.en.md"):
                     origen = os.path.join(raiz_repo, nombre)
@@ -134,16 +188,17 @@ def main():
                         # un modo de solo informar que escribe es peor que
                         # no tenerlo (y el test lo vigila)
                         texto = open(origen, encoding="utf-8").read()
-                        _transforma_readme(texto, refs, root, fft, suites, nombre, cambios)
-        print("desfasado en:", ", ".join(cambios) if cambios else "nada")
+                        _transforma_readme(texto, refs, root, fft, suites, archivos,
+                                            nombre, cambios)
+        _informe(cambios)
         return 0
 
-    _aplica(BASE, raiz_repo, refs, root, fft, suites, cambios)
-    print("actualizado en:", ", ".join(cambios) if cambios else "nada")
+    _aplica(BASE, raiz_repo, refs, root, fft, suites, archivos, cambios)
+    _informe(cambios)
     return 0
 
 
-def _aplica(dest_skill, dest_repo, refs, root, fft, suites, cambios):
+def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
     """Aplica los cambios a la copia de la skill indicada."""
     nombres = AM._suites_publicadas()
     ruta = os.path.join(dest_skill, "references", "mapa.md")
@@ -162,12 +217,13 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, cambios):
         for nombre in ("README.md", "README.en.md"):
             origen = os.path.join(dest_repo, nombre)
             if os.path.exists(origen):
-                _aplica_readme(origen, refs, root, fft, suites, cambios)
+                _aplica_readme(origen, refs, root, fft, suites, archivos, cambios)
 
 
-def _aplica_readme(ruta, refs, root, fft, suites, cambios):
+def _aplica_readme(ruta, refs, root, fft, suites, archivos, cambios):
     texto = open(ruta, encoding="utf-8").read()
-    nuevo = _transforma_readme(texto, refs, root, fft, suites, os.path.basename(ruta), cambios)
+    nuevo = _transforma_readme(texto, refs, root, fft, suites, archivos,
+                                os.path.basename(ruta), cambios)
     if nuevo != texto:
         open(ruta, "w", encoding="utf-8").write(nuevo)
 

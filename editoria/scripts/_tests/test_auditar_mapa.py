@@ -506,6 +506,39 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertNotIn("autribucion ambigua", out,
                          "el sufijo en el mensaje ya dice quien escribio cada commit")
 
+    def test_el_guard_dice_como_arreglar_el_conteo(self):
+        # el guard no dice solo QUE esta mal: dice QUE HACER. Un fallo sin
+        # remedy es un fallo que el agente no sabe resolver.
+        #
+        # la copia COMPLETA es obligatoria aqui: el conteo del encabezado se
+        # verifica contra el codigo (scripts/ffmpeg_tools, scripts/_tests) y
+        # sobre un arbol parcial el chequeo sale temprano sin decir nada
+        raiz = _copia_completa(os.path.join(self.dir, "skill_conteo"))
+        mapa = os.path.join(raiz, "references", "mapa.md")
+        with open(mapa, encoding="utf-8") as f:
+            txt = f.read()
+        with open(mapa, "w", encoding="utf-8") as f:
+            f.write(re.sub(r"\d+ referencias, \d+ scripts", "99 referencias, 99 scripts", txt))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el conteo obsoleto deberia fallar:\n{out}")
+        self.assertIn("conteo obsoleto", out)
+        self.assertIn("actualizar_conteos.py", out,
+                      "el fallo tiene que decir como se arregla")
+
+    def test_un_modulo_de_apoyo_en_tests_no_es_una_suite(self):
+        # un .py que NO es test_*.py dentro de _tests/ es un modulo de apoyo:
+        # es un archivo mas, pero no una suite. el encabezado del mapa dice
+        # "N suites de tests": si el guard exigiera el numero de ARCHIVOS,
+        # pediria una suite que no existe y la herramienta —que escribe el
+        # numero de suites— no podria satisfacerlo: el bucle "corrige y
+        # vuelve a fallar" no tendria salida.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_apoyo"))
+        with open(os.path.join(raiz, "scripts", "_tests", "apoyo.py"), "w",
+                  encoding="utf-8") as f:
+            f.write("# modulo de apoyo: no es una suite\n")
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 0, f"un modulo de apoyo no es una suite:\n{out}")
+
     def test_detecta_una_clave_del_plan_sin_documentar(self):
         # el plan es el contrato: si el motor lee una clave que ningun
         # documento menciona, el que escribe el plan no la conoce

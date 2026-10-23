@@ -250,16 +250,27 @@ def _chequear_conteos(problemas):
     n_scripts = _n_publicados("scripts", lambda p: p.endswith(".py")
                                and p.count("/") == 1)
     n_fft = _n_publicados("scripts/ffmpeg_tools", lambda p: p.endswith(".py"))
-    n_tests = _n_publicados("scripts/_tests", lambda p: p.endswith(".py")
-                             and p != "__init__.py")
+    # DOS cifras que no se pueden confonder:
+    # - SUITES: los modulos que son de verdad una suite (test_*.py). es lo que
+    #   dice el encabezado del mapa y lo que enumera el SKILL.md.
+    # - ARCHIVOS: todo .py que vive en _tests/. es lo que dice el desglose del
+    #   README ("N en _tests/") y lo que suma el total de scripts.
+    # un modulo de apoyo (apoyo.py) NO es una suite: si se contara como tal,
+    # el guard exigiria una suite que no existe y la herramienta —que escribe
+    # el numero de suites— no podria satisfacerlo: el bucle "corre la
+    # herramienta y vuelve a fallar" no tendria salida.
+    n_suites = len(_suites_publicadas())
+    n_archivos = _n_publicados("scripts/_tests", lambda p: p.endswith(".py")
+                                and p != "__init__.py")
     for declarado, real, que in ((int(m.group(1)), n_refs, "referencias"),
                                  (int(m.group(2)), n_scripts, "scripts"),
                                  (int(m.group(3)), n_fft, "herramientas de ffmpeg"),
-                                 (int(m.group(4)), n_tests, "suites de tests")):
+                                 (int(m.group(4)), n_suites, "suites de tests")):
         if declarado != real:
             problemas.append({"tipo": "conteo obsoleto", "archivo": "references/mapa.md",
-                              "msg": f"dice {declarado} {que} y hay {real}"})
-    _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests)
+                              "msg": f"dice {declarado} {que} y hay {real}"
+                                     " -> corre `python scripts/actualizar_conteos.py` para reescribirlo"})
+    _chequear_conteos_readme(problemas, n_refs, n_fft, n_archivos)
 
 
 #: rutas de lectura que terminan en un entregable: tienen que acabar en la puerta
@@ -489,7 +500,7 @@ def _chequear_promesas(problemas):
                     "msg": f"'{tok}': ningun script imprime {', '.join(faltan)}"})
 
 
-def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
+def _chequear_conteos_readme(problemas, n_refs, n_fft, n_archivos_tests):
     """Que las cifras no envejezcan: READMEs, SKILL.md y referencias.
 
     Los README del repo son la puerta de entrada del proyecto: si dicen "45
@@ -607,11 +618,12 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_tests):
                                    and p.count("/") == 1)
 
             for declarado, real, que in ((r_, n_root, "scripts root"), (f_, n_fft, "ffmpeg_tools"),
-                                         (t_, n_tests, "suites de tests"),
-                                         (s_, n_root + n_fft + n_tests, "scripts en total")):
+                                         (t_, n_archivos_tests, "archivos en _tests/"),
+                                         (s_, n_root + n_fft + n_archivos_tests, "scripts en total")):
                 if declarado != real:
                     problemas.append({"tipo": "conteo obsoleto", "archivo": etiqueta,
-                                      "msg": f"dice {declarado} {que} y hay {real}"})
+                                      "msg": f"dice {declarado} {que} y hay {real}"
+                                             " -> corre `python scripts/actualizar_conteos.py` para reescribirlo"})
 
 
 def _n_primitivas_dry(scripts_dir):

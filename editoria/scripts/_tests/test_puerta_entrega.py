@@ -88,7 +88,7 @@ class TestPuertaEntrega(unittest.TestCase):
 class TestConteoDelEncabezado(unittest.TestCase):
     """El encabezado de mapa.md no puede quedarse viejo."""
 
-    def _arbol(self, raiz, declarados, reales):
+    def _arbol(self, raiz, declarados):
         refs = os.path.join(raiz, "references")
         scripts = os.path.join(raiz, "scripts")
         os.makedirs(os.path.join(scripts, "ffmpeg_tools"), exist_ok=True)
@@ -106,7 +106,13 @@ class TestConteoDelEncabezado(unittest.TestCase):
         for i in range(declarados[2]):
             open(os.path.join(scripts, "ffmpeg_tools", f"f{i}.py"), "w").close()
         for i in range(declarados[3]):
-            open(os.path.join(scripts, "_tests", f"t{i}.py"), "w").close()
+            # el encabezado dice "suites de tests" y una suite es un modulo
+            # test_*.py: si el fixture metiera cualquier .py, contaria como
+            # suite sin serlo y el fixture probaria otra cosa.
+            open(os.path.join(scripts, "_tests", f"test_t{i}.py"), "w").close()
+        # un modulo de apoyo: es un archivo mas en _tests/, pero NO es una
+        # suite. el encabezado no tiene que cambiar por su culpa.
+        open(os.path.join(scripts, "_tests", "apoyo.py"), "w").close()
         return mapa
 
     def test_detecta_un_conteo_que_no_cuadra(self):
@@ -117,7 +123,7 @@ class TestConteoDelEncabezado(unittest.TestCase):
             mod.REFS = os.path.join(raiz, "references")
             # declara 9 referencias, 3 scripts, 2 herramientas y 4 suites
             # (hay 1 referencia real extra + los .md declarados)
-            self._arbol(raiz, (9, 3, 2, 4), (9, 3, 2, 4))
+            self._arbol(raiz, (9, 3, 2, 4))
             with open(os.path.join(raiz, "references", "mapa.md"), "w", encoding="utf-8") as f:
                 f.write("# Mapa de prueba\n\n"
                         "99 referencias, 3 scripts, 2 herramientas de ffmpeg y 4 suites de tests.\n")
@@ -135,7 +141,7 @@ class TestConteoDelEncabezado(unittest.TestCase):
         try:
             mod.BASE = raiz
             mod.REFS = os.path.join(raiz, "references")
-            self._arbol(raiz, (9, 3, 2, 4), (9, 3, 2, 4))
+            self._arbol(raiz, (9, 3, 2, 4))
             problemas = []
             mod._chequear_conteos(problemas)
             self.assertEqual(problemas, [], "conteos correctos no generan problemas")
