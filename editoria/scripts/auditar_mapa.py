@@ -986,6 +986,82 @@ COLOR_DE_TEXTO_FIJO = re.compile(r"fontcolor=(#[0-9A-Fa-f]{6}|white|black)\b")
 CAJA_DE_COLOR = re.compile(r"boxcolor=\{?[A-Za-z_][A-Za-z0-9_.]*")
 
 
+def _chequear_tests_que_no_se_ejecutan(problemas):
+    """Que todo metodo que se llama test_ se ejecute de verdad.
+
+    unittest solo recoge los metodos `test_*` de una clase que herede de
+    TestCase, en el NIVEL SUPERIOR del modulo. Un metodo de test metido
+    dentro de una funcion es codigo muerto: no corre, no falla, y no cambia
+    ninguna cifra publicada (el numero de suites no cambia), asi que nadie
+    se entera nunca.
+
+    Se mira el AST y NO se importan los modulos: importar 30 suites de test
+    arrastra numpy, PIL y el motor, y un guard tiene que ser barato y sin
+    efectos.
+    """
+    import ast
+    d = os.path.join(BASE, "scripts", "_tests")
+    if not os.path.isdir(d):
+        return
+
+    def _hijos(nodo, padre):
+        for hijo in ast.iter_child_nodes(nodo):
+            yield hijo, nodo
+            yield from _hijos(hijo, nodo)
+
+    for f in sorted(os.listdir(d)):
+        if not (f.startswith("test_") and f.endswith(".py")):
+            continue
+        ruta = os.path.join(d, f)
+        try:
+            with open(ruta, encoding="utf-8") as fh:
+                arbol = ast.parse(fh.read())
+        except (OSError, SyntaxError, ValueError) as e:
+            # un fichero de test que no se puede leer no es un test que no
+            # corre: es un test ROTO. saltarselo en silencio deja el hueco
+            # sin vigilar (y el guard pareceria que todo esta bien)
+            problemas.append({
+                "tipo": "test que no se ejecuta",
+                "archivo": f"scripts/_tests/{f}",
+                "msg": f"el fichero no se puede leer ({type(e).__name__}): "
+                       f"un test roto no vigila nada"})
+            continue
+        # que clases heredan (directa o indirectamente) de TestCase
+        clases_test = set()
+        for _ in range(len(arbol.body) + 1):
+            for c in arbol.body:
+                if not isinstance(c, ast.ClassDef) or c.name in clases_test:
+                    continue
+                for b in c.bases:
+                    nb = ast.unparse(b)
+                    if "TestCase" in nb or nb in clases_test:
+                        clases_test.add(c.name)
+                        break
+        # los metodos que unittest recoge: en una clase de primer nivel
+        ids_recogidos = set()
+        for c in arbol.body:
+            if isinstance(c, ast.ClassDef) and c.name in clases_test:
+                for m in c.body:
+                    if isinstance(m, ast.FunctionDef) and m.name.startswith("test"):
+                        ids_recogidos.add(id(m))
+        for nodo, padre in _hijos(arbol, None):
+            if not (isinstance(nodo, ast.FunctionDef) and nodo.name.startswith("test")):
+                continue
+            if id(nodo) in ids_recogidos:
+                continue
+            if isinstance(padre, ast.FunctionDef):
+                caso = "esta dentro de una funcion: unittest no la recoge"
+            elif isinstance(padre, ast.ClassDef):
+                caso = (f"la clase '{padre.name}' no hereda de TestCase: "
+                        f"unittest no la recoge")
+            else:
+                caso = "no esta en una clase de TestCase: unittest no la recoge"
+            problemas.append({
+                "tipo": "test que no se ejecuta",
+                "archivo": f"scripts/_tests/{f}",
+                "msg": f"'{nodo.name}' {caso}. Un test que no corre es codigo muerto."})
+
+
 def _chequear_texto_fijo_sobre_acento(problemas):
     """Que ningun texto con color fijo se pinte sobre una caja de acento.
 
@@ -1308,6 +1384,9 @@ def _todos_los_checks(problemas, mds):
 
     # ---- 15b. ningun texto fijo sobre una caja de acento -------------
     _chequear_texto_fijo_sobre_acento(problemas)
+
+    # ---- 15c. todo test declarado se ejecuta --------------------------
+    _chequear_tests_que_no_se_ejecutan(problemas)
 
     # ---- 16. el commit no arrastro trabajo en vuelo --------------------
     _chequear_commit_que_arrastra_trabajo(problemas)

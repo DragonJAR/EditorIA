@@ -575,6 +575,42 @@ class TestAuditarMapa(unittest.TestCase):
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 0, f"un modulo de apoyo no es una suite:\n{out}")
 
+    def test_detecta_un_test_anidado_que_no_se_ejecuta(self):
+        # un metodo de test dentro de una funcion es codigo muerto: unittest
+        # no lo recoge, no corre, y no cambia ninguna cifra publicada (el
+        # numero de suites no cambia), asi que nadie se entera nunca.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_test_muerto"))
+        p = os.path.join(raiz, "scripts", "_tests", "test_paleta.py")
+        with open(p, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("class TestPaletas(unittest.TestCase):", txt,
+                      "el fixture tiene que traer la clase")
+        inyeccion = (
+            "\n    def helper_que_oculta_un_test(self):\n"
+            "        def test_este_no_se_ejecuta(self):\n"
+            "            self.fail('este test nunca corre')\n"
+            "        return test_este_no_se_ejecuta\n"
+        )
+        with open(p, "w", encoding="utf-8") as f:
+            f.write(txt.replace("class TestPaletas(unittest.TestCase):",
+                                "class TestPaletas(unittest.TestCase):" + inyeccion, 1))
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el test muerto no se detecto:\n{out}")
+        self.assertIn("test que no se ejecuta", out)
+        self.assertIn("test_este_no_se_ejecuta", out)
+
+    def test_detecta_un_fichero_de_test_roto(self):
+        # un fichero de test que no se puede leer no es un test que no corre:
+        # es un test ROTO. saltarselo en silencio deja el hueco sin vigilar.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_test_roto"))
+        p = os.path.join(raiz, "scripts", "_tests", "test_paleta.py")
+        with open(p, "a", encoding="utf-8") as f:
+            f.write("\nclass Roto(:\n")
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el test roto no se detecto:\n{out}")
+        self.assertIn("test que no se ejecuta", out)
+        self.assertIn("no se puede leer", out)
+
     def test_detecta_un_texto_fijo_sobre_una_caja_de_acento(self):
         # el hook de un short ponia el titular con color fijo sobre un box del
         # acento de la marca: con menta el titular quedaba a 2:1. el acento lo
