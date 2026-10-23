@@ -2,7 +2,7 @@
 """Voz en off con ElevenLabs para un plan.json.
 Uso: source ~/.secrets.env && python voz_off.py plan.json -o voz.mp3 [--voz ID] [--model ID]
 El plan debe tener "voz" en cada escena. Genera un segmento por escena y los
-mezcla en sus tiempos (inicio de escena + 0.4s).
+mezcla en sus tiempos (inicio de escena + el aire de voz).
 Cache por hash del contenido (texto+voz+modelo) en ~/.cache/editoria/voz:
 no re-sintetiza (ni re-paga) segmentos idénticos entre proyectos.
 Dirección: el texto admite audio tags de eleven_v3 ([excited], [whisper],
@@ -14,6 +14,10 @@ siguiente (antes de mezclar). Pre-TTS, auditar_plan.py estima lo mismo.
 La API key sale de $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
 import os, sys, argparse, subprocess, hashlib, re
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from speech_estimate import AIRE_VOZ  # el aire de voz: la MISMA constante que
+                                     # usa la prosa (auditar_mapa.py). Aqui no puede
+                                     # haber un 0,4 escrito a mano.
 try:
     import requests
 except ImportError:
@@ -89,9 +93,9 @@ def verificar_reloj(segs, duracion_video=None, tolerancia_fin=0.20):
     un defecto, no un aviso. Sin ese dato la comprobación no se hace (no
     todas las llamadas saben la duración).
 
-    Ojo al leer el reloj a mano: la voz entra en `from + 0.4` (el aire), así
-    que el fin de la voz es la duración CRUDA del wav MÁS 0,40. Tomar la
-    duración del wav como "cuándo acaba la voz" hace ver desbordes que no
+    Ojo al leer el reloj a mano: la voz entra en `from + el aire` (AIRE_VOZ),
+    así que el fin de la voz es la duración CRUDA del wav MÁS el aire. Tomar
+    la duración del wav como "cuándo acaba la voz" hace ver desbordes que no
     hay (o al revés)."""
     errores = []
     ultimo = len(segs) - 1
@@ -163,7 +167,7 @@ def main():
         if not vox: continue
         f=cache_path(vox, voz_id, a.model)
         pending.append((i,e,vox,f))
-        delay_ms=int((e["from"]+0.4)*1000)
+        delay_ms=int((e["from"]+AIRE_VOZ)*1000)
         segs.append((f,delay_ms,e))
         guion.append(texto_hablado(vox))
     if not segs: sys.exit("El plan no tiene campos 'voz'")

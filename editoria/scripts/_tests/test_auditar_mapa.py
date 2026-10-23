@@ -326,6 +326,28 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertTrue(any("aire de voz" in p["msg"] for p in sin_objeto),
                         "el aviso tiene que nombrar la regla que se apago")
 
+    def test_el_aire_que_coloca_la_voz_es_la_constante(self):
+        # El aire (0,40 s) estaba declarado como AIRE_VOZ en speech_estimate
+        # y VIGILADO en la prosa, pero el codigo que coloca la voz usaba un
+        # literal 0.4 (voz_off.py, voz_local.py) y mezclar_audio.py tenia su
+        # propia constante OFFSET_VOZ = 0.4. O sea: la constante vigilada no
+        # era la que colocaba la voz. Si alguien cambiaba AIRE_VOZ, la prosa
+        # avisaba y el motor seguia colocando en 0,4.
+        import re as _re
+        with open(os.path.join(SCRIPTS, "speech_estimate.py"), encoding="utf-8") as f:
+            fuente = f.read()
+        aire = _re.search(r"AIRE_VOZ\s*=\s*([\d.]+)", fuente)
+        self.assertIsNotNone(aire, "AIRE_VOZ tiene que estar en speech_estimate.py")
+        for nombre in ("voz_off.py", "voz_local.py", "mezclar_audio.py"):
+            with open(os.path.join(SCRIPTS, nombre), encoding="utf-8") as f:
+                codigo = f.read()
+            self.assertIn("AIRE_VOZ", codigo,
+                          f"{nombre} tiene que usar la constante AIRE_VOZ, no un 0,4 a mano")
+            # ningun "+0.4" escrito a mano en la colocacion
+            colocacion = _re.findall(r"from[^\n]*\+\s*([\d.]+)\s*\)?\s*\*\s*1000", codigo)
+            self.assertEqual([c for c in colocacion if c != aire.group(1)], [],
+                             f"{nombre} coloca la voz con un numero que no es el aire")
+
     def test_el_umbral_de_densidad_no_se_inventa(self):
         # la cifra que la skill enuncia para la densidad tiene que ser la que el
         # motor PENALIZA: menos de 0.5 (aburre) y mas de 2.0 (abrumba)

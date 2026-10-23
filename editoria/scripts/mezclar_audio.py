@@ -36,10 +36,14 @@ SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPTS)
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
+from speech_estimate import AIRE_VOZ  # el aire de voz: la MISMA constante que
+                                       # coloca la voz (voz_off.py / voz_local.py)
+                                       # y que vigila la prosa (auditar_mapa.py)
+
 SONIDOS = ("click", "pop", "drop", "whoosh", "ding", "thud", "tick", "swell")
 CUES_MIN_MIN = 8      # la doctrina: max 8-12 cues por minuto
 CUES_MIN_MAX = 12
-OFFSET_VOZ = 0.4      # la voz de cada escena entra en from + 0.4 s (voz_off.py)
+OFFSET_VOZ = AIRE_VOZ  # la voz de cada escena entra en from + el aire (0.4 s)
 
 
 def _escenas(plan):
@@ -67,7 +71,7 @@ def _instante_palabra(plan, palabras_json, num_escena, m):
     """Onset de la palabra m (1-based) de la voz de la escena num_escena.
 
     `num_escena` es 1-based, como en el plan; el indice de palabras por escena
-    es 0-based. La voz de cada escena entra en `from + 0.4 s` (voz_off.py), y
+    es 0-based. La voz de cada escena entra en `from + el aire` (voz_off.py), y
     las palabras de todas las escenas van en el mismo orden en el archivo de
     tiempos.
     """

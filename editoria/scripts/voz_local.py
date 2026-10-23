@@ -4,7 +4,7 @@
 Camino hermano de `voz_off.py` (ElevenLabs) con el MISMO contrato:
     python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt
 Del plan salen las escenas con campo 'voz'; cada frase se sintetiza, se
-coloca en su instante (inicio de escena + 0.4s) y se arma una pista
+coloca en su instante (inicio de escena + el aire de voz) y se arma una pista
 continua. Del resto del camino no hay que cambiar nada: `alinear.py`,
 `mezclar_audio.py --voz` y `medir_mezcla.py` reciben el mismo archivo que
 reciben de voz_off.py. Lo que cambia es la CALIDAD de la voz, no el proceso.
@@ -42,6 +42,7 @@ _AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_AQUI, "ffmpeg_tools"))
 from _comun import audio_codec_for, ayudar, die, ffmpeg_base, leer_json  # noqa: E402
 from _plataforma import dir_temp  # noqa: E402
+from speech_estimate import AIRE_VOZ  # noqa: E402  el aire de voz (la misma
 from speech_estimate import RITMOS as RITMOS_ESTIMADOR  # noqa: E402
 from speech_estimate import detectar_idioma, silabas  # noqa: E402
 from voz_off import texto_hablado, verificar_reloj  # noqa: E402
@@ -357,7 +358,7 @@ def main():
         vox = e.get("voz")
         if not vox:
             continue
-        segs.append((vox, int((e["from"] + 0.4) * 1000), e))
+        segs.append((vox, int((e["from"] + AIRE_VOZ) * 1000), e))
         guion.append(texto_hablado(vox))
     if not segs:
         die("el plan no tiene campos 'voz'")
