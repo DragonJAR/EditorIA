@@ -31,8 +31,15 @@ CMDS = "scripts/contact_sheet.py --video fuente.mp4 -o hoja.png"
 
 class TestComandosDoc(unittest.TestCase):
     def setUp(self):
-        self.dir = tempfile.mkdtemp(prefix="editoria_comandos_")
-        self.addCleanup(shutil.rmtree, self.dir, True)
+        # el arbol de prueba es un REPO FALSO: los README viven un nivel por
+        # encima de la skill, asi que la copia tiene esa forma. Meter el
+        # comando roto en el README REAL del repo lo dejaba sucio si el test
+        # se mataba a mitad (el `finally` no corre con SIGTERM) y el arbol
+        # commiteado quedaba con un comando que no existe.
+        self.raiz = tempfile.mkdtemp(prefix="editoria_comandos_")
+        self.addCleanup(shutil.rmtree, self.raiz, True)
+        self.dir = os.path.join(self.raiz, "editoria")
+        os.makedirs(self.dir, exist_ok=True)
         shutil.copytree(os.path.join(BASE, "references"),
                         os.path.join(self.dir, "references"))
         shutil.copytree(os.path.join(BASE, "scripts"),
@@ -41,6 +48,12 @@ class TestComandosDoc(unittest.TestCase):
         with open(os.path.join(BASE, "SKILL.md"), encoding="utf-8") as f:
             self.skill = f.read()
         self.ruta = os.path.join(self.dir, "SKILL.md")
+        # los README del repo, si existen (en la copia instalada no)
+        repo = os.path.dirname(BASE)
+        for nombre in ("README.md", "README.en.md"):
+            origen = os.path.join(repo, nombre)
+            if os.path.isfile(origen):
+                shutil.copy2(origen, os.path.join(self.raiz, nombre))
 
     def _escribir(self, txt):
         with open(self.ruta, "w", encoding="utf-8") as f:
@@ -96,28 +109,50 @@ class TestComandosDoc(unittest.TestCase):
     def _hay_readme_del_repo(self):
         """Los README viven un nivel arriba de la skill: en el repo estan, en
         la copia instalada no. Ahi no hay nada que verificar."""
-        return os.path.isfile(os.path.join(os.path.dirname(BASE), "README.md"))
+        return os.path.isfile(os.path.join(self.raiz, "README.md"))
 
     def test_un_comando_roto_en_el_readme_se_detecta(self):
-        # se mete un comando roto en una copia del README y se comprueba
+        # se mete un comando roto en una COPIA del README y se comprueba
         if not self._hay_readme_del_repo():
             self.skipTest("este arbol no tiene los README del repo (copia instalada)")
-        raiz = os.path.dirname(BASE)
-        ruta = os.path.join(raiz, "README.md")
+        ruta = os.path.join(self.raiz, "README.md")
         with open(ruta, encoding="utf-8") as f:
             original = f.read()
         try:
             with open(ruta, "w", encoding="utf-8") as f:
                 f.write(original + "\n```bash\npython scripts/auto_qa.py final.mp4 "
                                    "--flag-que-no-existe\n```\n")
-            cmds = CD.comandos_de_readme(BASE)
+            cmds = CD.comandos_de_readme(self.dir)
             roto = [c for c in cmds if "--flag-que-no-existe" in c]
             self.assertTrue(roto, "el comando roto deberia detectarse en la lista")
-            problemas = CD.verificar_comando(BASE, roto[0])
+            problemas = CD.verificar_comando(self.dir, roto[0])
             self.assertTrue(problemas)
         finally:
             with open(ruta, "w", encoding="utf-8") as f:
                 f.write(original)
+
+    def test_el_test_no_deja_el_readme_del_repo_sucio(self):
+        """El test mete un comando roto en un README: tiene que ser en una
+        COPIA, nunca en el README real del repo (si el proceso muere a mitad,
+        el arbol commiteado se queda con un comando que no existe)."""
+        if not self._hay_readme_del_repo():
+            self.skipTest("este arbol no tiene los README del repo (copia instalada)")
+        real = os.path.join(os.path.dirname(BASE), "README.md")
+        if not os.path.isfile(real):
+            self.skipTest("no hay README del repo")
+        with open(real, encoding="utf-8") as f:
+            antes = f.read()
+        # el comando de prueba, tal cual lo escribe el test de arriba
+        with open(os.path.join(self.raiz, "README.md"), encoding="utf-8") as f:
+            original = f.read()
+        with open(os.path.join(self.raiz, "README.md"), "w", encoding="utf-8") as f:
+            f.write(original + "\n```bash\npython scripts/auto_qa.py final.mp4 "
+                               "--flag-que-no-existe\n```\n")
+        with open(real, encoding="utf-8") as f:
+            despues = f.read()
+        self.assertEqual(antes, despues,
+                         "el test toco el README REAL del repo: si el proceso muere "
+                         "a mitad, el arbol queda con un comando que no existe")
 
 
 if __name__ == "__main__":
