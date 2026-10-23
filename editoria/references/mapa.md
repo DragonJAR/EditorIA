@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-55 referencias, 40 scripts, 19 herramientas de ffmpeg y 31 suites de tests. Este
+55 referencias, 41 scripts, 19 herramientas de ffmpeg y 32 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -237,6 +237,7 @@ contradigan.
 | `scripts/lint_copy.py` | que el copy entre, no se lea como generado y no contradiga al modelo |
 | `scripts/render_plan.py` | componer el video desde el plan |
 | `scripts/voz_off.py` | la voz en off |
+| `scripts/voz_local.py` | la voz en off con la voz del sistema (sin API: maqueta) |
 | `scripts/musica.py` | musica y mezcla con ducking |
 | `scripts/auto_qa.py` | los defectos de maquina del render |
 | `scripts/medir_animacion.py` | los pops, los tirones y la coherencia de movimiento |

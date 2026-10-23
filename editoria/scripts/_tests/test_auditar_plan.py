@@ -20,6 +20,7 @@ SCRIPTS = os.path.dirname(HERE)
 sys.path.insert(0, SCRIPTS)
 
 import auditar_plan as AP  # noqa: E402
+from speech_estimate import estimar_duracion  # noqa: E402
 
 
 def _plan(**extra):
@@ -85,6 +86,55 @@ class TestCredenciales(unittest.TestCase):
                                capture_output=True, text=True, timeout=300)
             self.assertEqual(r.returncode, 1, r.stdout)
             self.assertIn("credencial", r.stdout)
+
+
+class TestRelojDeLaNarracion(unittest.TestCase):
+    """La tolerancia del audit va con el hueco disponible, no es un numero
+    plano.
+
+    La estimacion silabica NO es exacta: medida contra audio real (50 frases
+    de la voz del sistema, Paulina es-MX a 178 ppm) overestimate el tiempo
+    real entre un 9% y un 24% (mediana 12%). Con un margen FIJO de 0.3s
+    (menor que ese error) el audit rechazaba planes cuya narracion cabia de
+    verdad: un falso positivo que hacia recortar copy que no sobraba. Ahora
+    solo es ERROR cuando el exceso sale de la banda de error de la
+    estimacion; por debajo es AVISO, y quien falla si las voces se pisan es
+    el TTS real (voz_off.py / voz_local.py), que mide el audio sintetizado.
+    """
+
+    TEXTO = "Cada hallazgo llega con su severidad CVSS, para corregir lo que más duele."
+
+    def _plan(self, hueco):
+        return {"duracion": hueco * 3,
+                "escenas": [
+                    {"tipo": "apertura", "from": 0.0, "to": hueco, "voz": self.TEXTO},
+                    {"tipo": "bento", "from": hueco, "to": hueco * 2, "voz": "Segunda frase."},
+                    {"tipo": "final", "from": hueco * 2, "to": hueco * 3},
+                ]}
+
+    def _niveles(self, plan):
+        return [h["nivel"] for h in AP.auditar_estructura(plan)]
+
+    def test_un_exceso_dentro_de_la_banda_es_aviso_y_no_error(self):
+        est = estimar_duracion(self.TEXTO)
+        # la estimacion excede el hueco un 10%: dentro de la banda
+        niveles = self._niveles(self._plan(est * 0.9))
+        self.assertNotIn("ERROR", niveles)
+        self.assertIn("AVISO", niveles)
+
+    def test_un_exceso_fuera_de_la_banda_es_error(self):
+        est = estimar_duracion(self.TEXTO)
+        # la estimacion excede el hueco un 100%: fuera de toda banda
+        self.assertIn("ERROR", self._niveles(self._plan(est * 0.5)))
+
+    def test_el_margen_crece_con_el_hueco(self):
+        """Un hueco mas grande tolera un exceso mayor: el margen es
+        proporcional, no fijo."""
+        est = estimar_duracion(self.TEXTO)
+        # con el hueco justo: la estimacion excede un 2% -> aviso
+        self.assertNotIn("ERROR", self._niveles(self._plan(est * 0.98)))
+        # con el hueco muy justo: la estimacion excede un 40% -> error
+        self.assertIn("ERROR", self._niveles(self._plan(est * 0.6)))
 
 
 if __name__ == "__main__":

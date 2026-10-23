@@ -7,6 +7,10 @@ desorden temporal (from > to, escenas fuera de orden), escena final muy
 corta (< 2s), coherencia con plan["duracion"] y que cada voz quepa en su
 escena sin pisar la siguiente (sílabas habladas con cifras expandidas al
 ritmo del idioma: speech_estimate.py, la fuente única de la estimación).
+La tolerancia del reloj de la voz es PROPORCIONAL al hueco disponible, no
+un número plano: la estimación silábica se desvía entre un 9% y un 24% del
+tiempo real (medido con audio real), y un margen fijo menor que ese error
+rechazaba planes cuya narración cabía de verdad.
 Además detecta «tells» de pieza generada (jerga de marketing, emoji como
 icono, placeholders, prueba social sin fuente, titulares largos, la misma
 escena tres veces, cadencia de metrónomo...): siempre AVISO, nunca ERROR,
@@ -16,7 +20,8 @@ Reporta cada hallazgo con su timestamp. Solo stdlib.
 """
 import argparse, json, os, re, statistics, sys
 
-from speech_estimate import AIRE_VOZ, RITMOS, detectar_idioma, estimar_duracion, silabas
+from speech_estimate import (AIRE_VOZ, BANDA_ESTIMACION, RITMOS, detectar_idioma,
+                             estimar_duracion, silabas)
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _comun import CV_MIN_CADENCIA  # noqa: E402
@@ -166,14 +171,26 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
         n, dur = silabas(e["voz"], idioma), estimar_duracion(e["voz"], idioma, ritmo)
         fin = fr_v + AIRE_VOZ + dur
         sig = (_t_num(con_voz[k + 1][1]["from"]) + AIRE_VOZ) if k + 1 < len(con_voz) else None
-        # la estimación tiene ±0.3s de error: por debajo es aviso, no error
-        if sig is not None and fin > sig + 0.3:
+        # La tolerancia NO puede ser un numero plano: la estimacion silabica
+        # NO es exacta. Medida contra audio real (50 frases de la voz del
+        # sistema, Paulina es-MX a 178 ppm), overestimate el tiempo real
+        # entre un 9% y un 24% (mediana 12%). Un margen fijo de 0.3s es
+        # MENOR que ese error: el plan cuya narracion cabe de verdad se
+        # rechaza (falso positivo) y el agente recorta copy que no sobra.
+        # El margen va con el hueco disponible; por debajo de la banda de
+        # error es AVISO, y quien decide es el TTS real (voz_off.py /
+        # voz_local.py), que mide el audio sintetizado y FALLA si las voces
+        # se pisan.
+        hueco = (sig - (fr_v + AIRE_VOZ)) if sig is not None else None
+        umbral = sig + max(0.3, BANDA_ESTIMACION * hueco) if hueco is not None else None
+        if umbral is not None and fin > umbral:
             add("ERROR", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
                 f"{dur:.1f}s) pisaría la voz siguiente en {fin - sig:.1f}s — "
                 f"alargar la escena o recortar el texto")
         elif sig is not None and fin > sig:
             add("AVISO", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
-                f"{dur:.1f}s) roza la voz siguiente — verificar con voz_off.py")
+                f"{dur:.1f}s) roza la voz siguiente — verificar con "
+                f"voz_off.py / voz_local.py (miden el audio real)")
         elif to_v is not None and fin > to_v:
             add("AVISO", fr_v, f"escena {idx}: la voz ({n} sílabas ≈ "
                 f"{dur:.1f}s) se sale de la escena en {fin - to_v:.1f}s")

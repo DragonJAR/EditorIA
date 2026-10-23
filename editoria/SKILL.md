@@ -143,11 +143,16 @@ python scripts/beat_grid.py mus.mp3 --json grid.json          # para anclar por 
 python scripts/beat_file.py --bpm 120 --duracion 30 -o beat.json  # el beat se autorea primero
 python scripts/mezclar_audio.py plan.json --video out.mp4 \
     --voz voz.mp3 --voz-palabras voz.palabras.json \
-    --grid grid.json --pack assets/sfx --musica mus.mp3 -o final.mp4
+    --grid grid.json --pack assets/sfx --musica mus.mp3 -o mezclado.mp4
+python scripts/ffmpeg_tools/loudness.py mezclado.mp4 -o final.mp4 -I -14 --tp -1.5
 python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3
 ```
 
-Expected output: `final.mp4` with voice on top, music ducked ~15 dB under active speech, and every SFX cue placed at its anchor. A piece with music but no SFX reads as a video with a background, not as a designed piece.
+Expected output: `final.mp4` with voice on top, music ducked ~15 dB under active speech, every SFX cue placed at its anchor, and the mix at the delivery loudness (-14 LUFS, true peak -1.5 dBTP). A piece with music but no SFX reads as a video with a background, not as a designed piece.
+
+**The loudness step is part of the mix, not an extra**: the mixer only sums voices, music and cues — it does not normalize. A mix left at the mixer's own level lands around -18 LUFS and the delivery gate rejects it (`delivery:reels`), so `loudness.py` closes the pipeline. Run it before the gate, not after.
+
+**Without an API key**: `python scripts/voz_off.py` stops and says so; there is no silent fallback to a robotic voice. If the user asks for the system voice, `scripts/voz_local.py` does the same job with the same contract (plan in, one audio track out, `--guion` written, the voice placed at `from + 0.4 s`, and a hard failure if two voices overlap): `python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt`. It is a **draft** voice — no emotional direction, since the system voice cannot read `[slowly]` — and that is said to the user. See `references/sonido.md`.
 
 ### Step 5: Run Quality Assurance and Verify Delivery
 
@@ -218,14 +223,14 @@ This is the other half of the editing path: the user brings a video (file or lin
 
 - **Resolution and codec**: 1080x1920 @30fps for vertical; 1920x1080 @30fps for horizontal (24fps for cinema pieces). H.264, `yuv420p`, CRF 18-22.
 - **Three visual pillars**: Every piece obeys `references/principios.md` (visual coherence, spatial harmony, special effects), `references/tecnicas-video.md`, and `references/tecnicas-reutilizables.md`.
-- **Audio and SFX**: Procedural SFX via `scripts/sfx.py` (`click`, `pop`, `drop`, `whoosh`, `ding`, `thud`, `tick`, `swell`), waveform visualization via `scripts/audio_viz.py`, loudness via `scripts/ffmpeg_tools/loudness.py`, pre-TTS duration estimation via `scripts/speech_estimate.py`.
+- **Audio and SFX**: Procedural SFX via `scripts/sfx.py` (`click`, `pop`, `drop`, `whoosh`, `ding`, `thud`, `tick`, `swell`), waveform visualization via `scripts/audio_viz.py`, loudness via `scripts/ffmpeg_tools/loudness.py`, pre-TTS duration estimation via `scripts/speech_estimate.py`, voice-over via `scripts/voz_off.py` (ElevenLabs) or `scripts/voz_local.py` (the system voice, no API, a draft).
 - **Post-production & Viral Cloning kit**: `scripts/clonar_video.py`, `scripts/referencia.py`, `scripts/ffmpeg_tools/verticalizar.py`, `scripts/ffmpeg_tools/grade.py`, `scripts/ffmpeg_tools/variantes.py`, `scripts/ffmpeg_tools/artesanal.py`, `scripts/ffmpeg_tools/scenes.py`, `scripts/ffmpeg_tools/look.py`, `scripts/ffmpeg_tools/speedramp.py`, `scripts/ffmpeg_tools/_comun.py`, `scripts/ffmpeg_tools/_plataforma.py`.
 - **Captions and conversation formats**: `scripts/ffmpeg_tools/caption.py --hablantes "ANA=FFD400,LUIS=4FC3F7"` colors each speaker (prefix `ANA:` in cues or `speaker` from WhisperX) and never mixes speakers in a cue; `scripts/ffmpeg_tools/montaje.py dividir` builds split screens (`references/formatos.md`).
 - **Clean workspace**: Save final deliverables in the user-requested output folder, never inside the skill folder.
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_actualizar_conteos.py`, `scripts/_tests/test_auditar_mapa.py`, `scripts/_tests/test_auditar_plan.py`, `scripts/_tests/test_beat_secciones.py`, `scripts/_tests/test_cache_fantasma.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_chapters.py`, `scripts/_tests/test_comandos_doc.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_datos_y_critico.py`, `scripts/_tests/test_direccion_arte.py`, `scripts/_tests/test_escala_tipografica.py`, `scripts/_tests/test_escenas_ronda6.py`, `scripts/_tests/test_letra_y_composicion.py`, `scripts/_tests/test_libass.py`, `scripts/_tests/test_lint_copy.py`, `scripts/_tests/test_marca_fondo.py`, `scripts/_tests/test_medir_contraste.py`, `scripts/_tests/test_mezclar_audio.py`, `scripts/_tests/test_movimiento.py`, `scripts/_tests/test_paleta.py`, `scripts/_tests/test_piso_legible.py`, `scripts/_tests/test_puerta_entrega.py`, `scripts/_tests/test_puntuar.py`, `scripts/_tests/test_recorte_de_copy.py`, `scripts/_tests/test_referencia.py`, `scripts/_tests/test_reglas_del_pack.py`, `scripts/_tests/test_sincronizar_instalada.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_tmp_unico.py` and `scripts/_tests/test_track_y_picos.py` pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_actualizar_conteos.py`, `scripts/_tests/test_auditar_mapa.py`, `scripts/_tests/test_auditar_plan.py`, `scripts/_tests/test_beat_secciones.py`, `scripts/_tests/test_cache_fantasma.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_chapters.py`, `scripts/_tests/test_comandos_doc.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_datos_y_critico.py`, `scripts/_tests/test_direccion_arte.py`, `scripts/_tests/test_escala_tipografica.py`, `scripts/_tests/test_escenas_ronda6.py`, `scripts/_tests/test_letra_y_composicion.py`, `scripts/_tests/test_libass.py`, `scripts/_tests/test_lint_copy.py`, `scripts/_tests/test_marca_fondo.py`, `scripts/_tests/test_medir_contraste.py`, `scripts/_tests/test_mezclar_audio.py`, `scripts/_tests/test_movimiento.py`, `scripts/_tests/test_paleta.py`, `scripts/_tests/test_piso_legible.py`, `scripts/_tests/test_puerta_entrega.py`, `scripts/_tests/test_puntuar.py`, `scripts/_tests/test_recorte_de_copy.py`, `scripts/_tests/test_referencia.py`, `scripts/_tests/test_reglas_del_pack.py`, `scripts/_tests/test_sincronizar_instalada.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_tmp_unico.py`, `scripts/_tests/test_track_y_picos.py` and `scripts/_tests/test_voz_local.py` pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

@@ -149,6 +149,24 @@ compases en vez de regenerar:
   huecos sin tapar la entrada de la voz. Target de plataforma: −14 LUFS
   (enérgico) / −16 LUFS (calmo), TP −1.5, LRA 11 (ver `checklist-qa.md`).
 
+### De la mezcla a la entrega: el paso que no se puede saltar
+
+`mezclar_audio.py` **suma** voz, música y SFX; no normaliza. Una mezcla que
+sale tal cual del mezclador se queda alrededor de **−18 LUFS** (medido) y la
+puerta la rechaza en `delivery:reels`, que pide −14 LUFS y TP ≤ −1 dBTP. Por
+eso el paso de sonoridad es parte de la mezcla y va ANTES de la puerta:
+
+```bash
+python scripts/mezclar_audio.py plan.json --video out.mp4 \
+    --voz voz.mp3 --pack assets/sfx --musica mus.mp3 -o mezclado.mp4
+python scripts/ffmpeg_tools/loudness.py mezclado.mp4 -o final.mp4 -I -14 --tp -1.5
+```
+
+`loudness.py` mide en dos pasadas y copia el video intacto. Si se normaliza
+después de la puerta, la pieza que se entrega es otra distinta de la que se
+midió: el video no cambia, pero el audio sí, y el veredicto ya no describe
+lo que sale.
+
 ### Beat-sync: music mapping y visual matching
 
 Para edición sincronizada al beat (trailers, montajes):

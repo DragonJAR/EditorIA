@@ -12,6 +12,49 @@ le hable el usuario**, salvo que pida otro idioma explícitamente para la voz.
 | **Speech Estimate** (pre-TTS) | Estimación silábica y duración de locución | `scripts/speech_estimate.py`; audita planes antes de llamar a ElevenLabs |
 | Sin TTS | Si ElevenLabs no está disponible | `voz_off.py` lo dice claro y se sale; no hay fallback automático. Se avisa al usuario: trabajar sin voz o reprogramar. |
 
+### Si se sigue sin key: la voz del sistema, a sabiendas
+
+No hay fallback automatico **a proposito**: degradar en silencio a una voz
+robotica es peor que preguntar. Pero si el usuario dice "adelante con la voz
+del sistema", existe y es gratis: `scripts/voz_local.py`, con el MISMO
+contrato que `scripts/voz_off.py` (mismo plan, mismo `--guion`, misma salida
+de audio), para que el resto del camino no cambie.
+
+```bash
+python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt
+python scripts/voz_local.py --listar        # las voces instaladas de esta maquina
+```
+
+Que hace, por dentro:
+
+- **Coloca cada frase en su instante** (inicio de escena + 0.4 s) y **falla
+  si una voz pisa a la siguiente**, con los segundos exactos ("la voz dura
+  hasta 10.40s y pisa la siguiente (9.40s) — alargar la escena 1.20s o
+  recortar el texto"). Es la misma comprobacion que `voz_off.py` (una sola
+  regla para los dos caminos) y por eso el guion del plan tiene que caber:
+  el plan declara `voz` por escena y el reloj manda.
+- **No degrada en silencio**: si no hay voz del idioma que pide el plan, el
+  script falla y lista las que hay. Una voz inglesa leyendo un guion en
+  espanol no es una voz en off. Con `--permitir-otro-idioma` se acepta a
+  proposito.
+- **Quita los tags de direccion** (`[slowly]`, `[calm]`): son de ElevenLabs y
+  la voz del sistema no los entiende.
+- **Dice su ritmo real** al terminar ("ritmo real de Paulina: 5.44
+  silabas/s"): el estimador de `scripts/speech_estimate.py` usa 5.90 y se
+  equivoca por un 8-24% segun la voz, asi que el numero real sirve para
+  juzgar si un texto cabe.
+
+Backends: macOS `say` (probado con audio real), Linux `espeak-ng` (escrito,
+**sin probar aqui**: no hay maquina Linux en este repo) y Windows PowerShell
+con `System.Speech` (escrito, **sin probar aqui**). En macOS las voces de
+espanol se descargan en Ajustes → Accesibilidad → Contenido hablado → Voces
+del sistema; las que ya estan se ven con `--listar`.
+
+Lo que cambia es la voz, no el proceso: es una entrega de **maqueta**, no una
+entrega final (sin direccion emocional). Se dice al usuario, y la pieza
+sigue por el camino normal (`alinear.py`, `mezclar_audio.py --voz`,
+`medir_mezcla.py`).
+
 ## Dirección de voz (cuándo hablar cómo)
 
 La voz se dirige como a un actor: el texto del plan lleva las marcas.

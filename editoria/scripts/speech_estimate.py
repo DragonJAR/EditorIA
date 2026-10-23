@@ -219,6 +219,19 @@ estimar_duracion_habla = estimar_duracion
 
 AIRE_VOZ = 0.40  # Segundos que voz_off.py deja al inicio de cada escena
 
+# Banda de error de la estimacion silabica, MEDIDA (no supuesta): 50 frases
+# de la voz del sistema (Paulina es-MX a 178 ppm) sintetizadas con `say` y
+# cronometradas con ffprobe contra su estimacion. La estimacion overestimate
+# el tiempo real entre un 9% y un 24% (mediana 12%).
+#
+# Por que importa: la auditoria de planes (auditar_plan.py) no puede usar un
+# margen FIJO mas pequeno que esa banda, porque entonces rechaza planes cuya
+# narracion cabe de verdad (falso positivo) y hace recortar copy que no
+# sobra. El margen va con el hueco disponible; por debajo de la banda es
+# AVISO, y el que falla si las voces se pisan es el TTS real (voz_off.py /
+# voz_local.py), que mide el audio sintetizado.
+BANDA_ESTIMACION = 0.25
+
 
 def auditar_plan_voces(plan_or_path, idioma: str = "es", aire_inicial: float = AIRE_VOZ,
                        ritmo: str = "normal") -> dict:
