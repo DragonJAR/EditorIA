@@ -471,6 +471,41 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertNotIn("autribucion ambigua", out,
                          "con dos identidades el historial si distingue")
 
+    def test_el_sufijo_de_sesion_resuelve_la_atribucion(self):
+        # con la MISMA identidad de git pero con sufijo en el mensaje, la
+        # atribucion se puede leer ahi: el aviso no puede quejarse de algo
+        # que ya esta arreglado
+        repo = os.path.join(self.dir, "repo_sufijo")
+        skill = _copia_completa(os.path.join(repo, "skill"))
+
+        def _git(*args, autor=None):
+            cmd = ["git", "-C", repo, *args]
+            env = None
+            if autor:
+                import os as _os
+                env = dict(_os.environ)
+                env["GIT_AUTHOR_NAME"] = autor
+                env["GIT_COMMITTER_NAME"] = autor
+            subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+        _git("init", "-q")
+        _git("config", "user.email", "test@local")
+        _git("config", "user.name", "test")
+        for i in range(4):
+            with open(os.path.join(skill, "references", "mapa.md"), "a", encoding="utf-8") as f:
+                f.write(f"\n<!-- {i} -->\n")
+            _git("add", "-A")
+            _git("commit", "-q", "-m", f"uno [mia]", autor="Misma Identidad")
+        for i in range(4):
+            with open(os.path.join(skill, "references", "mapa.md"), "a", encoding="utf-8") as f:
+                f.write(f"\n<!-- b{i} -->\n")
+            _git("add", "-A")
+            _git("commit", "-q", "-m", f"otro [tuyo]", autor="Misma Identidad")
+        rc, out = _auditar(skill)
+        self.assertEqual(rc, 0, f"el aviso no deberia saltar:\n{out}")
+        self.assertNotIn("autribucion ambigua", out,
+                         "el sufijo en el mensaje ya dice quien escribio cada commit")
+
     def test_detecta_una_clave_del_plan_sin_documentar(self):
         # el plan es el contrato: si el motor lee una clave que ningun
         # documento menciona, el que escribe el plan no la conoce

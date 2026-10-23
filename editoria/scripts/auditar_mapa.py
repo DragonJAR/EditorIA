@@ -1276,6 +1276,10 @@ def _chequear_atribucion(problemas):
     es un aviso, para que quede dicho en el propio repo y no en un chat que
     se pierde.
 
+    Pero el aviso mira tambien la SOLUCION: si los mensajes llevan un
+    sufijo de sesion ("[mia]", "[tuyo]"), la atribucion se puede leer ahi y
+    no hay nada que avisar.
+
     Arreglo: una identidad de git por sesion (`git config user.name`), o
     un sufijo en el mensaje del commit.
     """
@@ -1283,19 +1287,31 @@ def _chequear_atribucion(problemas):
     if not raiz:
         return
     try:
-        r = subprocess.run(["git", "-C", raiz, "log", "--format=%an"],
+        r = subprocess.run(["git", "-C", raiz, "log", "--format=%an%x09%s"],
                            capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
         return
     if r.returncode != 0 or not r.stdout.strip():
         return
-    autores = [a for a in r.stdout.splitlines() if a.strip()]
+    autores, sufijos = [], set()
+    for linea in r.stdout.splitlines():
+        if "\t" not in linea:
+            continue
+        autor, mensaje = linea.split("\t", 1)
+        autores.append(autor)
+        mt = re.search(r"\[([A-Za-z0-9_.-]{1,24})\]\s*$", mensaje)
+        if mt:
+            sufijos.add(mt.group(1))
     if len(autores) > 5 and len(set(autores)) == 1:
+        if len(sufijos) > 1:
+            # el sufijo en el mensaje YA distingue las sesiones: no hay nada
+            # que avisar (y el aviso no puede quejarse de algo ya arreglado)
+            return
         problemas.append({
             "tipo": "autribucion ambigua", "archivo": "historial",
             "msg": f"{len(autores)} commits y un solo autor ({autores[0]}): el campo "
                    f"'autor' no dice quien escribio cada uno. Una identidad de git por "
-                   f"sesion, o un sufijo en el mensaje del commit",
+                   f"sesion, o un sufijo en el mensaje del commit (p.ej. [mia])",
             "severidad": "aviso"})
 
 
