@@ -68,6 +68,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Complex programmatic animation | **Remotion**: `references/remotion.md` (if it is missing, say so with its install command — never deliver less in silence) |
 | Deterministic HTML piece or data re-render | **HyperFrames**: `references/hyperframes.md` (if it is missing, say so with its install command) |
 | 3D object, product or scene as material | **3D**: `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change; if it is missing, say so with its install command) |
+| Painted material: watercolor, brush strokes, generative doodle, lyric video | **Canvas**: `references/canvas.md` (p5.js + Chrome headless; if it is missing, say so with its install command — never deliver less in silence) |
 | Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` and `references/recetas-ai-video.md` |
 
@@ -80,7 +81,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 57 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 60 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
@@ -93,7 +94,7 @@ Both paths end at the **gate**: nothing ships without `scripts/qa_entrega.py` an
 
 ### Step 1: Validate Environment and Capabilities
 
-Check available binaries, fonts, and Python libraries before planning or rendering (`references/capacidades.md`).
+Check available binaries, fonts, and Python libraries before planning or rendering (`references/capacidades.md`). The tools the AGENT itself has connected are capabilities too — and the inventory is the agent's, not the skill's: `references/herramientas-agente.md` says how to identify what you actually have, what each one is for, what it delivers, and what to do when the agent does not have it (say so, never degrade in silence).
 
 ```bash
 python scripts/check_env.py
@@ -119,6 +120,8 @@ Before writing the scenes, write the argument: one claim per scene with the proo
 
 Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?*
 
+If you delegate a part (a scene, a block, a batch of scenes to a subagent or to a later pass), the order is written first: `references/brief.md` is the contract of that part — what, where, with what, with what budget, how it is reviewed before it counts as done, and what comes back. Its ownership rule is the one that keeps the parts talking: a missing helper is written private, a bug in a shared file is reported, not silently patched.
+
 ```bash
 python scripts/auditar_plan.py plan.json
 python scripts/speech_estimate.py plan.json
@@ -131,6 +134,12 @@ Expected output: `PLAN VALIDO` with zero overlapping voice segments or missing r
 ### Step 3: Render Video with Fluidity Motor
 
 Render the plan with spring physics, live backgrounds, and 180-degree shutter motion blur (`references/animacion.md`, `references/fluidez.md`). Use `--blur 1` for fast drafts and `--blur 5` for final delivery. Re-running without `--force` resumes interrupted renders incrementally.
+
+Look before you pay: the final frame is a pure function of time, so `--preview 0,2.5,5` composes just those instants and writes a contact sheet of the PLAN (one frame per instant, not the 600 of the video). It is the cheap way to check the first frame, a key scene and the last one.
+
+```bash
+python scripts/render_plan.py plan.json --preview 0,2.5,5
+```
 
 ```bash
 python scripts/render_plan.py plan.json -o out.mp4 --blur 5

@@ -88,8 +88,14 @@ def _sustituye(texto, patron, nuevo, etiqueta, cambios):
 def _transforma_mapa(texto, refs, root, fft, suites, cambios):
     nuevo = (f"{refs} referencias, {root} scripts, {fft} herramientas de ffmpeg "
              f"y {suites} suites de tests")
-    return _sustituye(texto, r"\d+ referencias, \d+ scripts, \d+ herramientas de ffmpeg y \d+ suites de tests",
-                      nuevo, "references/mapa.md", cambios)
+    texto = _sustituye(texto, r"\d+ referencias, \d+ scripts, \d+ herramientas de ffmpeg y \d+ suites de tests",
+                       nuevo, "references/mapa.md", cambios)
+    # el mapa tambien se cuenta a si mismo en su prosa ("las N referencias").
+    # Si la herramienta no reescribe esa mencion, el numero se queda viejo en
+    # silencio y el guard lo ve, pero el que tiene que arreglarlo es esto.
+    texto = _sustituye(texto, r"las \d+ referencias", f"las {refs} referencias",
+                       "references/mapa.md", cambios)
+    return texto
 
 
 def _diff_de_suites(antes, nuevo):
@@ -144,6 +150,17 @@ def _transforma_readme(texto, refs, root, fft, suites, archivos, etiqueta, cambi
                        f"{refs} referencias en kebab-case.md", etiqueta, cambios)
     texto = _sustituye(texto, r"\d+ references in kebab-case\.md",
                        f"{refs} references in kebab-case.md", etiqueta, cambios)
+    return texto
+
+
+def _transforma_skill(texto, refs, nombres, cambios):
+    """El SKILL.md tambien enuncia el numero de referencias (lo que hace de
+    indice). Si la herramienta no lo reescribe, el numero se queda viejo en
+    silencio: el guard lo ve, pero el que tiene que arreglarlo es esto."""
+    texto = _transforma_lista_de_suites(texto, nombres, cambios)
+    texto = _sustituye(texto, r"\d+ references with one canonical source",
+                       f"{refs} references with one canonical source",
+                       "SKILL.md", cambios)
     return texto
 
 
@@ -215,7 +232,7 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
     ruta = os.path.join(dest_skill, "SKILL.md")
     if os.path.exists(ruta):
         texto = open(ruta, encoding="utf-8").read()
-        nuevo = _transforma_lista_de_suites(texto, nombres, cambios)
+        nuevo = _transforma_skill(texto, refs, nombres, cambios)
         if nuevo != texto:
             open(ruta, "w", encoding="utf-8").write(nuevo)
     if dest_repo:

@@ -188,6 +188,22 @@ rep("hyperframes", ok_hf,
     "instalado en este proyecto" if ok_hf else
     "HTML->video determinista (HeyGen, Apache 2.0) — si la pieza lo necesita, se "
     "instala con 'npx hyperframes skills update' (Node 22+): ver references/hyperframes.md")
+# Chrome: el motor pictorico (p5.js). Sin Chrome no hay lienzo en el navegador.
+ok_chrome, det_chrome = cmd_ver("google-chrome", ["--version"])
+if not ok_chrome:
+    for _c in ("chrome", "chromium", "chromium-browser"):
+        ok_chrome, det_chrome = cmd_ver(_c, ["--version"])
+        if ok_chrome:
+            break
+if not ok_chrome:
+    _app = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if os.path.exists(_app):
+        ok_chrome, det_chrome = True, _app
+rep("chrome", ok_chrome,
+    f"{det_chrome}" if ok_chrome else
+    "falta Chrome — si la pieza necesita el motor pictorico (p5.js: acuarela, "
+    "pincel, doodle generativo), se instala con 'npm i p5 p5.brush puppeteer-core' "
+    "y Chrome: ver references/canvas.md")
 
 # Blender: el 3D. Sin el, no hay modelado ni encuadre 3D (references/3d.md)
 ok_blender, det_blender = cmd_ver("blender", ["--version"])
