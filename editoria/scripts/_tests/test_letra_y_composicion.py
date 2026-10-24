@@ -39,6 +39,27 @@ class TestLetraEnReposo(unittest.TestCase):
         cnt = Counter({30: 50})
         self.assertEqual(MA._letra_en_reposo({"pie": cnt}), 30)
 
+    def test_una_animacion_que_cabe_en_la_ventana_no_confunde_la_letra(self):
+        """La ventana de reposo (la segunda mitad de la escena) puede caer
+        ENTERA dentro de la animacion de entrada de un texto que entra tarde
+        (un boton al final de una escena corta).
+
+        La mediana daba entonces un tamano de paso (24 px) en vez del estado
+        en que el texto se queda (36 px): la pieza se rechazaba por su
+        animacion, no por su tipografia. El ULTIMO dibujo es el estado en el
+        que el texto se queda, que es lo que la funcion dice medir."""
+        cnt = Counter({8: 1, 10: 1, 17: 1, 24: 1, 29: 1, 33: 1, 36: 2})
+        ultimos = {"dragonjar.org": 36}
+        self.assertEqual(MA._letra_en_reposo({"dragonjar.org": cnt}, ultimos), 36)
+        # sin el dato del ultimo dibujo, la mediana de siempre (compatibilidad)
+        self.assertEqual(MA._letra_en_reposo({"dragonjar.org": cnt}), 24)
+
+    def test_un_texto_que_se_queda_pequeno_sigue_siendo_pequeno(self):
+        """La regla nueva no perdona a un texto que de verdad se queda
+        pequeno: solo cambia QUE frame se mira (el ultimo, no la mediana)."""
+        cnt = Counter({36: 2, 12: 3})
+        self.assertEqual(MA._letra_en_reposo({"x": cnt}, {"x": 12}), 12)
+
     def test_el_menor_entre_textos_manda(self):
         tamanos = {"titular": Counter({110: 50}), "pie": Counter({28: 50})}
         self.assertEqual(MA._letra_en_reposo(tamanos), 28)

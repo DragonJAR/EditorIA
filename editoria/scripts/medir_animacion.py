@@ -112,7 +112,7 @@ def _es_pop(prev, cur, bloques):
     return len(_sin_origen(prev, cur, bloques)) >= POP_PROPORCION * len(bloques)
 
 
-def _letra_en_reposo(tamanos):
+def _letra_en_reposo(tamanos, ultimos=None):
     """El tamaño de cada texto EN REPOSO, no el más pequeño que pasó por la pantalla.
 
     Un elemento que entra con resorte pasa por muchos tamaños (un boton que
@@ -120,7 +120,15 @@ def _letra_en_reposo(tamanos):
     "el más chico que se vio" castigaba la ANIMACION, no la tipografia: 10 de
     10 piezas de la demo caian por debajo del piso de letra con un texto que
     en reposo va a 40 px. Lo que vale es el tamaño con el que el texto SE
-    QUEDA: la mediana ponderada por frames de cada texto.
+    QUEDA.
+
+    Y "se queda" se mide por su ULTIMO dibujo, no por la mediana de la
+    ventana: la mediana era una aproximacion que fallaba cuando la ventana
+    de reposo (la segunda mitad de la escena) cae ENTERA dentro de la
+    animacion de entrada de un texto que entra tarde (un boton al final de
+    una escena corta). Ahi la mediana cae en mitad de camino y el texto se
+    juzga por un tamaño que no es el suyo. El ultimo dibujo es el estado en
+    el que el texto se queda.
 
     Un texto visto menos de 3 frames se ignora: entra justo al final de la
     ventana y nunca llegó a asentar.
@@ -133,13 +141,16 @@ def _letra_en_reposo(tamanos):
         total = sum(cnt.values())
         if total < 3:
             continue
-        acum = 0
-        elegido = max(cnt)
-        for tam, n in sorted(cnt.items()):
-            acum += n
-            if acum * 2 >= total:
-                elegido = tam
-                break
+        if ultimos and texto in ultimos:
+            elegido = ultimos[texto]
+        else:
+            acum = 0
+            elegido = max(cnt)
+            for tam, n in sorted(cnt.items()):
+                acum += n
+                if acum * 2 >= total:
+                    elegido = tam
+                    break
         fuera.append(elegido)
     return min(fuera) if fuera else 0
 
@@ -164,6 +175,7 @@ def medir(job):
     from PIL import ImageDraw
     from collections import Counter
     tamanos = {}        # texto -> Counter{tamaño: frames en que se dibuja así}
+    ultimos = {}        # texto -> el tamaño de su ULTIMO dibujo (el que se queda)
     original = ImageDraw.ImageDraw.text
 
     def espia(self, xy, text, fill=None, font=None, *a, **k):
@@ -174,7 +186,9 @@ def medir(job):
                 # 14 px no es "texto ilegible", es un check. Los numeros si
                 # cuentan (son datos), los signos sueltos no.
                 if any(ch.isalnum() for ch in t):
-                    tamanos.setdefault(t, Counter())[int(getattr(font, "size", 0))] += 1
+                    _tam = int(getattr(font, "size", 0))
+                    tamanos.setdefault(t, Counter())[_tam] += 1
+                    ultimos[t] = _tam    # el estado en el que el texto se queda
         return original(self, xy, text, fill, font, *a, **k)
     ImageDraw.ImageDraw.text = espia
     en_hold = [False]   # la letra se juzga ASENTADA: en una entrada todo pasa por tamaños chicos
@@ -210,7 +224,7 @@ def medir(job):
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
     m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_)
-    letra = int(_letra_en_reposo(tamanos) * 1080 / min(w, h)) if tamanos else 0
+    letra = int(_letra_en_reposo(tamanos, ultimos) * 1080 / min(w, h)) if tamanos else 0
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
         m["muerto"] = 0.0
