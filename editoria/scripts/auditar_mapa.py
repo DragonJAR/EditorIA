@@ -202,6 +202,12 @@ REGLAS_UNICAS = [
      "patron": r"(\d{1,2})\s*%\s*del hueco"},
     {"nombre": "margen mínimo de la estimación", "tipo": "exacto", "valor": 0.30,
      "patron": r"m[ií]nimo de (\d+[.,]\d+)\s*s"},
+    # el numero de referencias: lo cuenta el arbol. Las dos menciones sueltas
+    # en prosa (la del indice y la del SKILL.md) tienen que decir el mismo
+    # numero, o quien las lee cuenta mal. Mismo motivo que las demas reglas:
+    # si el numero cambia, la prosa se queda con el viejo y nadie lo dice.
+    {"nombre": "numero de referencias", "tipo": "exacto", "valor": 57,
+     "patron": r"index of this skill: (\d+) references|contra las (\d+) referencias"},
 ]
 
 

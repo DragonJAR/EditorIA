@@ -123,6 +123,24 @@ manda el pack (`references/direccion-de-arte.md`).
 - `film_marca_v2.py --brand pack.json` (o `--logo`, `--nombre`, `--lema`):
   film de marca de 15 s sobre el logo del pack; sin logo no hay film.
 
+## De dónde sale el pack
+
+Hoy, de un JSON escrito a mano (`brand/<marca>.json`). **También de un
+fichero de diseño**: Figma o su alternativa open source **Penpot**
+(MPL-2.0, con servidor MCP para que el agente lea los ficheros de diseño),
+y el skill `/figma` de HyperFrames para lo mismo.
+
+Por qué importa: el pack es la **fuente de verdad de la marca** y de ahí
+salen los tokens de todo lo que acompaña a la pieza —el diagrama
+(`references/diagramas.md`), los subtítulos, el thumbnail, el HTML que se
+entrega. Si el proyecto tiene un fichero de diseño, el JSON tiene que **derivar
+de él** y no ser un segundo sitio donde vive la marca.
+
+La regla: **un pack, una fuente**. Si hay fichero de diseño, se deriva el
+JSON de ahí y se declara cuál manda; si no, se escribe el JSON a mano y se
+declara que es la fuente. Lo que no puede pasar es tener las dos cosas y que
+se contradigan.
+
 ---
 
 → Canónico: `references/brand-packs.md` · Dominio: marca · Vecinos: `references/principios.md`, `references/copy.md`, `references/mapa.md`

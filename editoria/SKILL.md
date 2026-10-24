@@ -60,6 +60,8 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
 | Complex programmatic animation | **Remotion** (optional): `references/remotion.md` |
 | Deterministic HTML piece or data re-render | **HyperFrames** (optional): `references/hyperframes.md` |
+| 3D object, product or scene as material | **3D** (optional): `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change) |
+| Diagram of a system (architecture, flow, data, sequence) | **Diagram** (optional): `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` and `references/recetas-ai-video.md` |
 
 Complete skill architecture map: `references/arquitectura.md`.
@@ -71,7 +73,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 55 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 57 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 

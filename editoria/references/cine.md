@@ -92,6 +92,28 @@ no resume — provoca.
 con silent stops entre ellas, el momento más grande al ~80%, y salir en el
 pico — nunca en la resolución.
 
+## Estilos de cine hechos en código (catálogo externo)
+
+`lemomo-ai/lemo-opuscar` (MIT) es una biblioteca de **59 estilos de cine
+renderizados en código** (óleo al thick, acuarela, ukiyo-e, briefing de
+satélite, desmontaje de producto, documental de archivo…), con Node y
+Three.js, y su propio flujo de dirección.
+
+Lo que aporta aquí es un **vocabulario de LOOKS**: el motor tiene 39 tipos de
+escena, que no son estilos de película. Sirve para tres cosas, y ninguna es
+duplicar el motor:
+
+1. **Referencia de intención**: elegir el aire de la pieza ("quiero que parezca
+   un briefing de satélite") antes de escribir el plan.
+2. **Material**: un render de ese estilo entra como overlay con alfa (ver
+   `references/3d.md`).
+3. **Cocina de técnicas**: su `TECHNIQUE.md` y sus estilos son material de
+   estudio para el camino de cine.
+
+**La frontera**: es otro motor (Node + Three.js) con su propio director. No
+se integra en el motor de esta skill ni se copia su código; se declara la
+fuente y se usa como referencia y como material.
+
 ---
 
 → Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/brand-packs.md`, `references/tonos.md`

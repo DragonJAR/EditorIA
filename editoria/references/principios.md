@@ -142,6 +142,30 @@ imagen, la escena no está lista.
 
 Atención en orden: frase → objeto → detalle. Nunca al revés.
 
+## 4. Reglas que no se ven hasta que se incumplen
+
+Estas no se ven en el render: se ven en que la pieza **parece**看懂. Vienen de
+la regla de calidad de `pbakaus/impeccable` (Apache-2.0,
+`reference/craft-floor.md`), que está escrita para interfaces; aquí solo las
+que también son de un video.
+
+- **La profundidad es una sombra con dirección**: lleva offset y desenfoque.
+  Un halo de color sin offset no es profundidad: es decoración. Y una sombra
+  dura sin desenfoque es un traje, no un sistema de profundidad.
+- **La medida del texto**: el texto de apoyo se mide en **65–75 caracteres**
+  por línea, y el tracking tiene un suelo de **−0,04em**. Un titular que
+  necesita tracking extremo para caber es un titular que se ha roto.
+- **La tipografía de display se elige**: la cara del sistema (Impact, Arial
+  Black, la sans de la plataforma) como voz de display es un **fallo**, no un
+  sustituto. Se usa la fuente del pack —buscándola, incrustándola o
+  sustituyéndola por otra del pack con su motivo escrito—.
+- **Claro u oscuro se elige por la escena de uso** (quién la ve, dónde, con
+  qué luz), no por la categoría del tema. Un oscuro porque "es tech" es una
+  decisión que no se decidió.
+- **Los iconos se dibujan**: de una biblioteca real o SVG propio, con **un
+  trazo y un grosor** en toda la pieza. El emoji no es un icono (ya está en
+  las reglas de copy) y un SVG con tres grosores tampoco.
+
 ---
 
 → Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/dramaturgia.md`, `references/copy.md`, `references/brand-packs.md`

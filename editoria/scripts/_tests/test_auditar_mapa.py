@@ -277,6 +277,29 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")
 
+    def test_el_numero_de_referencias_no_se_inventa(self):
+        # el numero de referencias lo cuenta el ARBOL (los .md de
+        # references/): si anade una referencia, el valor esperado del guard
+        # cambia con ella, y la prosa avisara del numero viejo
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"numero de referencias".*?"valor":\s*(\d+)', txt, re.S)
+        self.assertIsNotNone(m, "la regla del numero de referencias debe estar "
+                               "en auditar_mapa.py")
+        refs = os.path.join(BASE, "references")
+        reales = len([f for f in os.listdir(refs) if f.endswith(".md")])
+        self.assertEqual(int(m.group(1)), reales,
+                         f"el guard espera {m.group(1)} referencias y el arbol "
+                         f"tiene {reales}: el valor esperado tiene que ser el "
+                         f"numero real, no una copia")
+        # y la prosa tiene que decir ESE numero, en los dos sitios
+        mapa = open(os.path.join(refs, "mapa.md"), encoding="utf-8").read()
+        skill = open(os.path.join(BASE, "SKILL.md"), encoding="utf-8").read()
+        self.assertIn(f"contra las {reales} referencias", mapa,
+                      "el mapa tiene que decir el numero real de referencias")
+        self.assertIn(f"this skill: {reales} references", skill,
+                      "el SKILL.md tiene que decir el numero real de referencias")
+
     def test_el_aire_de_voz_no_se_inventa(self):
         # el aire de voz lo decide el codigo (AIRE_VOZ): si cambia, el valor
         # esperado del guard cambia con el, y el guard avisara de que la prosa

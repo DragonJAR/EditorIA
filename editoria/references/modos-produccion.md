@@ -171,6 +171,27 @@ rehechas las sombras del sujeto en el fondo — nunca flotando.
 
 Ante la duda: híbrido. La persona da confianza, la animación da claridad.
 
+## Promo de producto desde páginas reales
+
+Cuando el producto **es** una web o una app y hay que enseñarlo: capturar
+las páginas de verdad y montar la promo sobre ellas.
+
+`Vincentwei1021/video-shotcraft` (Apache-2.0) hace exactamente ese camino:
+captura tus páginas, elige de **124 recetas de plano** (movimiento 2.5D, cortes
+al beat, diseño de sonido) y renderiza la promo en Remotion.
+
+- **Las recetas de plano son un vocabulario de movimiento**: 2.5D (la
+  página en perspectiva, con cámara), entradas por elemento, cortes al
+  compás. Alimenta `references/animacion.md` y `references/fluidez.md`.
+- **El render** es Remotion, que ya está integrado (`references/remotion.md`).
+- **La plantilla validada** ("Ink Press") y su flujo son **de ese repo**: si se
+  usa, se usa su camino (su SKILL.md) y no se copia aquí. La frontera es la
+  misma que con las recetas: fuente, no copia.
+
+El resto (la promo montada con el motor y con el overlay del website) sigue
+siendo el camino de esta skill: el website se renderiza con alfa y se compone
+como cualquier otra capa (`references/3d.md`).
+
 ---
 
 → Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-rapidos.md`, `references/media-hard-rules.md`, `references/prompt-motion-graphics.md`

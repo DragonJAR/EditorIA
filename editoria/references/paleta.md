@@ -127,6 +127,24 @@ paleta completa), que gana sobre el respaldo.
 - La puerta de entrega (`scripts/qa_entrega.py`) no juzga el color: la
   coherencia cromática se juzga mirando la pieza (`references/auto-qa.md`).
 
+## Tipografía e iconos: catálogos de referencia
+
+El color es una decisión y esta skill trae su catálogo (`references/paleta.md`
+y el brand pack). La **tipografía** y los **iconos** tienen catálogos externos
+que no hay que copiar aquí: se nombran, se eligen y se declaran.
+
+- **Pares tipográficos**: `nextlevelbuilder/ui-ux-pro-max-skill` (MIT) trae 74
+  pares con su razonamiento. Sirven para **elegir con nombre** la familia de
+  display y la de texto, no para mezclarlas: la doctrina sigue siendo *un
+  solo sistema tipográfico* (ver `references/principios.md`).
+- **Iconos**: el mismo repo trae 105 iconos SVG curados. El motor dibuja
+  iconos como SVG con alfa, nunca como emoji ni como Unicode (regla de copy);
+  un catálogo evita dibujarlos a mano y mantiene **un trazo y un grosor**
+  (ver la regla de los iconos en `references/principios.md`).
+
+Los catálogos externos son **fuente, no copia**: si el proyecto necesita un
+icono que no está, se dibuja; no se importa el catálogo entero.
+
 ---
 
 → Canónico: `references/paleta.md` · Dominio: color · Vecinos: `references/principios.md`, `references/brand-packs.md`, `references/plan-video.md`, `references/coherencia-espacial.md`
