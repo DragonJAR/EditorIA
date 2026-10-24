@@ -1362,6 +1362,26 @@ for _p in _probs:
 check(not _probs, f"los comandos documentados (SKILL.md, referencias y README) se pueden ejecutar "
                    f"({len(_probs)} rotos)")
 
+# 10b. los comandos documentados, COPIADOS Y PEGADOS: el argumento del tipo
+#      equivocado. `argparse` no lo ve (un plan donde va el video es una
+#      cadena valida), y el agente que copia el comando se queda parado con
+#      un error que no esta en la doc. Este guard copia cada comando, lo
+#      corre con assets reales y separa el veredicto de la herramienta del
+#      comando roto.
+try:
+    import _comandos_copiables
+    _probs2, _inf2 = _comandos_copiables.verificar(BASE)
+except Exception as _e:                      # noqa: BLE001
+    _probs2 = [f"el guard de comandos copiables fallo: {_e}"]
+    _inf2 = {}
+for _p in _probs2:
+    print("   comando copiado roto: " + _p)
+if _inf2:
+    print(f"   comandos copiados: {_inf2.get('copiados', 0)} "
+          f"(saltados: {_inf2.get('saltados', 0)})")
+check(not _probs2, f"los comandos documentados, copiados y pegados, funcionan "
+                   f"({len(_probs2)} rotos)")
+
 # 11. la skill declara Windows 10/11, macOS y Linux: el codigo no puede
 #     depender de POSIX (senal POSIX, /tmp, shell de unix, rutas a mano)
 _POSIX = (

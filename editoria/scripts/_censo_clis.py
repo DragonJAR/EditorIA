@@ -23,6 +23,7 @@ Uso:
     python3 scripts/_censo_clis.py --salida mapa.json   # corre la suite y mide
     python3 scripts/_censo_clis.py --escribir             # regenera el mapa
     python3 scripts/_censo_clis.py --comparar             # contrasta con el mapa
+    python3 scripts/_censo_clis.py --test-dir carpeta      # mide solo esa carpeta
 """
 import json
 import os
@@ -57,6 +58,28 @@ def _normaliza(ruta, scripts):
         if r.endswith(s):
             return s
     return None
+
+
+def _fichero_del_test(test):
+    """El FICHERO real del test, no su nombre de modulo.
+
+    El mapa dice que test ejecuto cada CLI, y ese dato tiene que servir para
+    algo: localizar el fichero. Un nombre inventado (un fichero de test que no
+    existe en ningun sitio) es un puntero a nada, que es justo lo que este
+    modulo existe para evitar. Si el test vive fuera de la skill, se devuelve
+    None y se cae al nombre por defecto.
+
+    Y un detalle que parece de estilo y no lo es: aqui no se escribe
+    NINGUNA ruta de ejemplo que no exista de verdad. El guard de enlaces
+    rotos lee tambien los .py, y una ruta inventada en un comentario es un
+    enlace roto: el que la lea buscara un fichero que no esta.
+    """
+    mod = sys.modules.get(test.__class__.__module__)
+    fichero = getattr(mod, "__file__", None)
+    if not fichero:
+        return None
+    rel = os.path.relpath(os.path.abspath(fichero), BASE).replace("\\", "/")
+    return None if rel.startswith("..") else rel
 
 
 def medir_suite(test_dir=None, verbosity=0):
@@ -99,8 +122,8 @@ def medir_suite(test_dir=None, verbosity=0):
 
     class _Espia(unittest.TextTestResult):
         def startTest(self, test):
-            mod = test.id().split(".")[0]
-            _actual[0] = f"scripts/_tests/{mod}.py"
+            _actual[0] = _fichero_del_test(test) or (
+                "scripts/_tests/" + test.id().split(".")[0] + ".py")
             return super().startTest(test)
 
     try:
@@ -150,9 +173,17 @@ def main():
     ap.add_argument("--comparar", action="store_true",
                     help="contrasta el mapa declarado con el medido")
     ap.add_argument("--verbosidad", type=int, default=0)
+    ap.add_argument("--test-dir", default=None,
+                    help="mide solo los tests de esta carpeta (por defecto, "
+                         "scripts/_tests). Sirve para que un test pueda ejecutar "
+                         "este modulo de verdad, sin correr la suite entera: la "
+                         "mecanica es la misma, en pequena.")
     a = ap.parse_args()
 
-    codigo, medido = medir_suite(verbosity=a.verbosidad)
+    test_dir = a.test_dir
+    if test_dir and not os.path.isabs(test_dir):
+        test_dir = os.path.join(BASE, test_dir)
+    codigo, medido = medir_suite(test_dir=test_dir, verbosity=a.verbosidad)
 
     if a.salida:
         with open(a.salida, "w", encoding="utf-8") as fh:

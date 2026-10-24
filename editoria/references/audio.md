@@ -13,7 +13,7 @@ así sobreviven si el plan cambia de duración. En `sonido.md` está el flujo de
 voz + música; aquí, el sync rítmico.
 
 Herramientas: `scripts/beat_grid.py musica.mp3 --json grid.json` estima la
-grilla; `scripts/beat_sync.py grid.json --cortes ...` (o `--edl`) ajusta
+grilla; `scripts/beat_sync.py grid.json --cortes 2.5 7.1 12.0` (o `--edl`) ajusta
 tiempos de corte a los beats cercanos.
 
 - Mapear la música del video a su grilla: BPM, beat 0, y dónde están las

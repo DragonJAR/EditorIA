@@ -1,7 +1,14 @@
 {
- "_que_es": "Que CLI se EJECUTA de verdad, y en que test. Se midio instrumentando subprocess durante la suite real (no leyendo los tests: un nombre en un comentario no ejecuta nada). El guard (auditar_mapa.py) exige que toda CLI documentada este aqui o tenga un motivo declarado en MOTIVOS_SIN_EJECUCION.",
+ "_que_es": "Que CLI se EJECUTA de verdad, y en que test. Se mide instrumentando subprocess durante la suite real (leer los tests no vale: un nombre en un comentario no ejecuta nada). El guard (auditar_mapa.py) exige que toda CLI documentada este aqui o tenga un motivo declarado en MOTIVOS_SIN_EJECUCION.",
  "_el_test_debe_existir": "Si el test nombrado desaparece, la CLI se queda sin verificar y el guard lo dice: es el 'guard sin objeto' aplicado a las CLIs.",
+ "_como_se_regenera": "python3 scripts/_censo_clis.py --escribir",
  "verificadas": {
+  "scripts/_censo_clis.py": [
+   "scripts/_tests/test_censo_clis.py"
+  ],
+  "scripts/_comandos_copiables.py": [
+   "scripts/_tests/test_comandos_copiables.py"
+  ],
   "scripts/actualizar_conteos.py": [
    "scripts/_tests/test_actualizar_conteos.py"
   ],
@@ -17,6 +24,7 @@
   ],
   "scripts/auditar_plan.py": [
    "scripts/_tests/test_auditar_plan.py",
+   "scripts/_tests/test_comandos_copiables.py",
    "scripts/_tests/test_core_and_scenes.py",
    "scripts/_tests/test_direccion_arte.py",
    "scripts/_tests/test_speech_estimate_cifras.py"
@@ -140,6 +148,7 @@
    "scripts/_tests/test_cli_de_las_cuatro.py"
   ],
   "scripts/verificar_ritmo.py": [
+   "scripts/_tests/test_comandos_copiables.py",
    "scripts/_tests/test_verificar_ritmo.py"
   ],
   "scripts/voz_local.py": [

@@ -124,7 +124,16 @@ def main():
         if plan.get("sobre_footage_vivo"):
             footage_vivo = True
     if a.cortes:
-        cortes = [float(x) for x in a.cortes.split(",")]
+        # Un --cortes mal escrito (un placeholder como "0,1.6,3.0,...") no
+        # puede reventar con un traceback: el que lo escribe es un agente
+        # copiando el comando de la prosa, y un traceback no le dice nada.
+        # El error dice que se espera y como se escribe.
+        try:
+            cortes = [float(x) for x in a.cortes.split(",")]
+        except ValueError:
+            sys.exit('ERROR: --cortes debe ser una lista de segundos separados '
+                     'por comas (ej. 0,1.6,3.0,4.8). Valor recibido: '
+                     f'"{a.cortes}"')
     elif plan and plan.get("escenas"):
         escenas = sorted(plan["escenas"], key=lambda x: x.get("from", 0))
         cortes = [s["from"] for s in escenas] + [max(s.get("to", 0) for s in escenas)]

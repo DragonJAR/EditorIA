@@ -179,11 +179,10 @@ The delivery gate and the awards gate measure the composition with the **same** 
 The individual checks, when a step fails and you need to look closer:
 
 fix each finding with a scoped pass (`references/pasadas.md`) rather than touching the render with a vague note.
-.
 
 ```bash
 python scripts/auto_qa.py final.mp4
-python scripts/verificar_ritmo.py plan.json
+python scripts/verificar_ritmo.py final.mp4 --plan plan.json
 python scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels
 python scripts/medir_animacion.py --video final.mp4
 python scripts/medir_animacion.py --plan plan.json
@@ -230,7 +229,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_actualizar_conteos.py`, `scripts/_tests/test_auditar_mapa.py`, `scripts/_tests/test_auditar_plan.py`, `scripts/_tests/test_beat_secciones.py`, `scripts/_tests/test_cache_fantasma.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_chapters.py`, `scripts/_tests/test_cli_de_herramientas.py`, `scripts/_tests/test_cli_de_las_cuatro.py`, `scripts/_tests/test_clonar_video.py`, `scripts/_tests/test_comandos_doc.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_datos_y_critico.py`, `scripts/_tests/test_direccion_arte.py`, `scripts/_tests/test_escala_tipografica.py`, `scripts/_tests/test_escenas_ronda6.py`, `scripts/_tests/test_ffmpeg_tools.py`, `scripts/_tests/test_letra_y_composicion.py`, `scripts/_tests/test_libass.py`, `scripts/_tests/test_lint_copy.py`, `scripts/_tests/test_marca_fondo.py`, `scripts/_tests/test_medir_contraste.py`, `scripts/_tests/test_mezclar_audio.py`, `scripts/_tests/test_movimiento.py`, `scripts/_tests/test_paleta.py`, `scripts/_tests/test_piso_legible.py`, `scripts/_tests/test_puerta_entrega.py`, `scripts/_tests/test_puntuar.py`, `scripts/_tests/test_recorte_de_copy.py`, `scripts/_tests/test_referencia.py`, `scripts/_tests/test_reglas_del_pack.py`, `scripts/_tests/test_sincronizar_instalada.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_tmp_unico.py`, `scripts/_tests/test_track_y_picos.py`, `scripts/_tests/test_verificar_ritmo.py` and `scripts/_tests/test_voz_local.py` pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/test_actualizar_conteos.py`, `scripts/_tests/test_auditar_mapa.py`, `scripts/_tests/test_auditar_plan.py`, `scripts/_tests/test_beat_secciones.py`, `scripts/_tests/test_cache_fantasma.py`, `scripts/_tests/test_caption_hablantes.py`, `scripts/_tests/test_censo_clis.py`, `scripts/_tests/test_chapters.py`, `scripts/_tests/test_cli_de_herramientas.py`, `scripts/_tests/test_cli_de_las_cuatro.py`, `scripts/_tests/test_clonar_video.py`, `scripts/_tests/test_comandos_copiables.py`, `scripts/_tests/test_comandos_doc.py`, `scripts/_tests/test_core_and_scenes.py`, `scripts/_tests/test_datos_y_critico.py`, `scripts/_tests/test_direccion_arte.py`, `scripts/_tests/test_escala_tipografica.py`, `scripts/_tests/test_escenas_ronda6.py`, `scripts/_tests/test_ffmpeg_tools.py`, `scripts/_tests/test_letra_y_composicion.py`, `scripts/_tests/test_libass.py`, `scripts/_tests/test_lint_copy.py`, `scripts/_tests/test_marca_fondo.py`, `scripts/_tests/test_medir_contraste.py`, `scripts/_tests/test_mezclar_audio.py`, `scripts/_tests/test_movimiento.py`, `scripts/_tests/test_paleta.py`, `scripts/_tests/test_piso_legible.py`, `scripts/_tests/test_puerta_entrega.py`, `scripts/_tests/test_puntuar.py`, `scripts/_tests/test_recorte_de_copy.py`, `scripts/_tests/test_referencia.py`, `scripts/_tests/test_reglas_del_pack.py`, `scripts/_tests/test_sincronizar_instalada.py`, `scripts/_tests/test_speech_estimate_cifras.py`, `scripts/_tests/test_tmp_unico.py`, `scripts/_tests/test_track_y_picos.py`, `scripts/_tests/test_verificar_ritmo.py` and `scripts/_tests/test_voz_local.py` pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

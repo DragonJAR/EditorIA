@@ -27,7 +27,7 @@ es la variación medible. Jerarquía canónica de cadencia (tres relojes):
 
 - **Coeficiente de variación de duraciones de toma ≥ 0.25.** Si las tomas
   duran todas ~1.5s, es un metrónomo. Medido con
-  `scripts/verificar_ritmo.py --cortes t0,t1,...`.
+  `scripts/verificar_ritmo.py video.mp4 --cortes 0,1.6,3.0,4.8`.
 
   **Cómo se reparten los segundos** (esto es lo que cuesta dos re-renderizados
   cuando no está escrito): cada escena dura al menos lo que dura su voz —si
@@ -153,7 +153,7 @@ Reglas de cordura:
 
 ## Verificación
 
-`python scripts/verificar_ritmo.py video.mp4 --cortes 0,1.6,3.0,...`:
+`python scripts/verificar_ritmo.py video.mp4 --cortes 0,1.6,3.0,4.8`:
 falla la pieza si la cadencia es uniforme o si no hay pausas. La prueba de
 encadenamiento es de diseño (revisar el plan: ¿cada beat nace del anterior?),
 no de píxeles.

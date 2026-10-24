@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-55 referencias, 42 scripts, 19 herramientas de ffmpeg y 37 suites de tests. Este
+55 referencias, 43 scripts, 19 herramientas de ffmpeg y 39 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -189,6 +189,16 @@ contradigan.
      `python3 scripts/_censo_clis.py --escribir` y se contrasta con
      `--comparar`. Asi el mapa es un HECHO y no una declaracion que
      envejece en silencio.
+   - Y que la EJECUTEN no basta: el agente copia el comando de la prosa, y
+     lo que copia tiene que funcionar. `argparse` no puede ver ese defecto
+     (un `plan.json` donde va el video es una cadena valida: el comando
+     revienta mas tarde, cuando ya no hay nadie mirando). Por eso hay un
+     guard que COPIA cada comando documentado, lo CORRE con assets reales
+     (el plan de muestra de la skill, un video y un audio minimos) y
+     separa lo que es un veredicto de la herramienta de lo que es el
+     comando roto: `scripts/_comandos_copiables.py`. Y su lista tiene que
+     ser COMPLETA — toda CLI documentada o se copia, o tiene el motivo de
+     por que no — porque un puntero a nada tambien es un puntero a nada.
    Pasar la primera capa no dice nada de las otras tres, y cada una
    encuentra cosas que la anterior daba por buenas.
    Y la ENTRADA tiene que llevar al camino vigente, no solo a una pagina que
@@ -262,11 +272,13 @@ contradigan.
 | `scripts/mezclar_audio.py` | el ensamblado del audio: voz + música (duckeada) + SFX en su instante |
 | `scripts/puntuar.py` | la rúbrica de premios como puerta: ocho ejes, cuatro medidos |
 | `scripts/ffmpeg_tools/delivery_check.py` | el spec de la plataforma |
-| `scripts/ffmpeg_tools/loudness.py` | la sonoridad de entrega || `scripts/contact_sheet.py` | la hoja de contactos (el ojo) |
+| `scripts/ffmpeg_tools/loudness.py` | la sonoridad de entrega |
+| `scripts/contact_sheet.py` | la hoja de contactos (el ojo) |
 | `scripts/galeria.py` | el render de todo el catalogo, con QA |
 | `scripts/auditar_mapa.py` | que la skill siga siendo un sistema y no islas |
 | `scripts/validate_skill.py` | que la skill entera siga valida |
 | `scripts/_comandos_doc.py` | que los comandos que dice el SKILL.md se puedan correr |
+| `scripts/_comandos_copiables.py` | que el comando que dice la prosa, COPIADO Y PEGADO con assets reales, funcione (el argumento del tipo equivocado no lo ve argparse) |
 
 ---
 
