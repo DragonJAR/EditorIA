@@ -1276,10 +1276,47 @@ except (Exception, SystemExit) as ex:
 
 # 8. tests unitarios (scripts/_tests): estimación de voz, subtítulos por
 #    hablante, lectura de referencias, capítulos — los contratos de los módulos
-_ut = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", os.path.join(BASE, "scripts", "_tests")],
-                     capture_output=True, text=True, timeout=300)
+# 8. tests unitarios (scripts/_tests): estimación de voz, subtítulos por
+#    hablante, lectura de referencias, capítulos — los contratos de los módulos.
+#    La corrida va INSTRUMENTADA (scripts/_censo_clis.py): ademas de correr
+#    los tests, deja registrado que scripts se ejecutaron de verdad, que es
+#    lo que permite contrastar el mapa de CLIs verificadas con un HECHO y no
+#    con una declaracion. Mismo coste: una sola corrida de la suite.
+_mapa_medido = os.path.join(tempfile.gettempdir(), f"editoria_censo_{os.getpid()}.json")
+_ut = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "_censo_clis.py"),
+                      "--salida", _mapa_medido],
+                     capture_output=True, text=True, timeout=900)
 _ut_res = (_ut.stderr.strip().splitlines() or ["?"])[-1]
 check(_ut.returncode == 0, f"tests unitarios de scripts/_tests ({_ut_res})")
+# 8b. el mapa de CLIs verificadas tiene que COINCIDIR con lo que la suite
+# ejecuta de verdad. El mapa es una declaracion (la hizo alguien); si un
+# test existe pero ha dejado de ejecutar la CLI, el mapa miente y el guard
+# de cobertura no lo ve. Aqui se mide: la MISMA corrida lo deja
+# registrado, y se contrasta con el mapa.
+_medido = {}
+try:
+    with open(_mapa_medido, encoding="utf-8") as _fh:
+        _medido = json.load(_fh)
+except (OSError, ValueError):
+    pass
+try:
+    os.remove(_mapa_medido)
+except OSError:
+    pass
+_declarado = {}
+try:
+    with open(os.path.join(BASE, "scripts", "data", "cli_verificadas.json"), encoding="utf-8") as _fh:
+        _declarado = (json.load(_fh) or {}).get("verificadas") or {}
+except (OSError, ValueError):
+    pass
+_sin_ejecutar = sorted(k for k in _declarado if k not in _medido)
+_sin_declarar = sorted(k for k in _medido if k not in _declarado)
+_detalle = ""
+if _sin_ejecutar or _sin_declarar:
+    _detalle = (f" (declaradas y no ejecutadas: {', '.join(_sin_ejecutar) or 'ninguna'}; "
+                f"ejecutadas y no declaradas: {', '.join(_sin_declarar) or 'ninguna'})")
+check(not _sin_ejecutar and not _sin_declarar,
+      f"el mapa de CLIs verificadas coincide con lo que la suite ejecuta de verdad{_detalle}")
 
 # 9. la skill es un sistema y no un archon: todo alcanzable desde SKILL.md,
 #    cada referencia con su canonico y sus vecinos, y el mapa sin contradicciones
