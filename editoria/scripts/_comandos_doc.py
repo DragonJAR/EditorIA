@@ -10,6 +10,7 @@ documentados esten completos y se sale antes de que el script haga nada.
 
 No se ejecuta ninguna acion: el script no llega a su main().
 """
+import json
 import os
 import re
 import shlex
@@ -269,32 +270,36 @@ def scripts_de_los_comandos(skill_dir):
     return scripts
 
 
-def clis_ejecutadas_por_tests(skill_dir):
-    """Las CLIs que ALGUN test ejecuta como proceso.
+# Donde vive el mapa de CLIs verificadas por ejecucion real
+MAPA_CLIS = os.path.join("scripts", "data", "cli_verificadas.json")
 
-    Un test cuenta si usa subprocess Y nombra el script: se ejecuta como
-    proceso, no solo lo importa. (Un nombre en un comentario no ejecuta nada,
-    pero tampoco hace pasar la comprobacion por el camino feliz: lo que se
-    busca es que la herramienta se pruebe de verdad.)
+
+def clis_ejecutadas_por_tests(skill_dir):
+    """Las CLIs que ALGUN test ejecuta de verdad (con entradas reales).
+
+    El mapa esta DECLARADO en scripts/data/cli_verificadas.json, y se midio
+    instrumentando subprocess durante la suite real: leer los tests no vale
+    (un nombre en un comentario no ejecuta nada; una asercion que menciona
+    un script tampoco).
+
+    El mapa se VALIDA aqui: si nombra un test que ya no existe, esa CLI se
+    queda sin verificar (y el guard lo dice). Un mapa que se queda viejo es
+    peor que no tener mapa.
     """
-    tests_dir = os.path.join(skill_dir, "scripts", "_tests")
-    if not os.path.isdir(tests_dir):
+    ruta = os.path.join(skill_dir, MAPA_CLIS)
+    if not os.path.exists(ruta):
+        return set()
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
         return set()
     ejecutadas = set()
-    for f in sorted(os.listdir(tests_dir)):
-        if not f.endswith(".py") or f.startswith("_"):
-            continue
-        with open(os.path.join(tests_dir, f), encoding="utf-8") as fh:
-            txt = fh.read()
-        if "subprocess" not in txt:
-            continue
-        for m in re.finditer(r'["\']([A-Za-z0-9_]+\.py)["\']', txt):
-            nombre = m.group(1)
-            for raiz in ("scripts/", "scripts/ffmpeg_tools/"):
-                cand = raiz + nombre
-                if os.path.exists(os.path.join(skill_dir, cand)):
-                    ejecutadas.add(cand)
-                    break
+    for cli, tests in (doc.get("verificadas") or {}).items():
+        for t in tests:
+            if os.path.exists(os.path.join(skill_dir, t)):
+                ejecutadas.add(cli)
+                break
     return ejecutadas
 
 

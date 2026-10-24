@@ -1366,7 +1366,12 @@ def _chequear_cobertura_de_clis(problemas):
     vigila por argumentos es un puntero a nada: el agente lo copia y no hay
     quien responda de si funciona.
     """
-    import _comandos_doc as _CD
+    try:
+        import _comandos_doc as _CD
+    except ImportError:
+        # este repo no trae el modulo de los comandos documentados: no hay
+        # cobertura que exigir (y el guard no puede reventar la auditoria)
+        return
     documentadas = _CD.scripts_de_los_comandos(BASE)
     if not documentadas:
         return

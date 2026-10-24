@@ -73,6 +73,20 @@ class TestAuditarMapa(unittest.TestCase):
         rc, out = _auditar(BASE)
         self.assertEqual(rc, 0, f"la skill real tiene islas:\n{out}")
 
+    def test_detecta_una_cli_documentada_sin_verificar(self):
+        """Una CLI documentada que nadie ejecuta ni vigila por argumentos es un
+        puntero a nada: el guard tiene que decirlo (es el "guard sin objeto"
+        aplicado a las CLIs)."""
+        with tempfile.TemporaryDirectory() as d:
+            raiz = _copia_completa(d)
+            # se borra el test que ejecuta esas CLIs: nadie las ejecuta ya
+            os.remove(os.path.join(raiz, "scripts", "_tests",
+                                   "test_cli_de_herramientas.py"))
+            rc, out = _auditar(raiz)
+            self.assertEqual(rc, 1)
+            self.assertIn("cli sin verificar", out)
+            self.assertIn("delivery_check.py", out)
+
     def test_detecta_pie_ausente(self):
         ruta, txt = self._pie_de("copy.md")
         self._escribir("copy.md", re.sub(r"\n\n---\n\n→ Canónico:.*$", "", txt, flags=re.S))
