@@ -32,6 +32,7 @@ que levantan el listón del resultado. Por eso la regla de esta tabla no es
 | 3D desde imagen de referencia | Node + `img2threejs` | **Declarar**: Node 18+ y el repo (Apache-2.0). Ver `references/3d.md` |
 | Película dibujada a mano (personaje animado, rotoscopio, arena, papel desplegable) | Node 22.12+ + Chrome + el kit `hand-drawn-canvas-animation` (MIT) | **Declarar**: se clona el repo (`https://github.com/alesha-pro/tools`, carpeta `skills/hand-drawn-canvas-animation`) y se instala con `npm i --no-audit --no-fund`; mientras tanto, la pieza se entrega en el motor plano, que no tiene ese material. Ver `references/dibujado.md` |
 | Diagramas como HTML+SVG | ninguno (es metodo, no binario) | No falta nada: la guia de estilo es el brand pack (ver `references/diagramas.md`) |
+| Trazos a mano / pizarra (overlay) | `scripts/hand_draw.py` (Pillow) | Offline: suavizar y pintar PNG con alfa. Captura en vivo por cámara: declarar Node + MediaPipe (ver `references/hand-draw.md`); no entregar el overlay vacío en silencio |
 
 **Que "declarar" quiere decir exactamente:** cuando una pieza necesita una
 capacidad que no esta, **se le dice al usuario en la primera respuesta** que
@@ -94,4 +95,4 @@ que era provisional.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`, `references/hand-draw.md`

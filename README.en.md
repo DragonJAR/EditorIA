@@ -244,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 44 root + 19 in ffmpeg_tools/ + 41 in _tests/ = 104 scripts
+│   ├── scripts/                       # 45 root + 19 in ffmpeg_tools/ + 42 in _tests/ = 106 scripts
 │   │   ├── render_plan.py             # Main plan renderer (39 scenes)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
@@ -306,7 +306,7 @@ EditorIA/
 │   │       ├── transcribir.py         # Local ASR → SRT + JSON
 │   │       ├── _comun.py              # Shared DRY helpers
 │   │       └── _plataforma.py         # OS abstractions
-│   ├── references/                    # 61 references in kebab-case.md
+│   ├── references/                    # 62 references in kebab-case.md
 │   │   ├── instalacion.md             # Per OS (Win/macOS/Linux)
 │   │   ├── escenas.md                 # Catalog of 39 scenes
 │   │   ├── escenas-extendidas.md      # Portable concepts
