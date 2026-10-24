@@ -71,6 +71,17 @@ contradigan.
 - **"se me descuadra el tiempo"** → `ritmo.md` → `sonido.md` (el timing de la voz) →
   `audio.md` (el beat grid).
 
+**Las cuatro verticales, como dato y no como prosa.** La skill sirve para
+cuatro cosas, y estan declaradas en `scripts/data/verticales.json` para que
+no se puedan quedar viejas en silencio (en la prosa, una lista se queda
+vieja y nadie dice "falta la del sonido"): **crear y animar**, **editar**,
+**clonar y resumir**, y **el sonido** (voz, música, efectos). El guard
+(`scripts/auditar_mapa.py`) comprueba en cada corrida que cada vertical
+tiene su ruta de lectura (la de arriba), acaba en la puerta, llega a
+herramientas que **alguien ejecuta de verdad** (según el censo), y que lo
+que no se puede medir lo lleva con su motivo **al lado** (un motivo sin
+escribir es un tapón).
+
 ## 3. El mapa completo
 
 | archivo | qué resuelve | dominio |
