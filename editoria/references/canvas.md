@@ -102,7 +102,10 @@ junta `out/frames` con el audio y produce el MP4 con libx264.
 Si se escribe el `studio.html` propio, `render.mjs` sólo exige tres cosas de la página:
 cargar p5 y p5.brush, poner `window.ready = true` cuando todo esté listo (el render espera
 ese flag con 60 s de margen) y exponer `window.renderAt(t, tipo, calidad)` que devuelva un
-data URL del frame.
+data URL del frame. Si además hay animaciones CSS o WAAPI, el capturador debe
+**pausarlas y seekearlas a `t * 1000` ms** antes (o dentro) de `renderAt(t)`; si no,
+el frame queda en el tiempo de pared y deja de ser determinista. Misma disciplina
+para films MG one-shot (`estilos-motion.md`) en HyperFrames/HTML.
 
 ## Las trampas medidas
 

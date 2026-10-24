@@ -120,7 +120,17 @@ empaquetadas, personalidad de movimiento, escenas afines, qué evitar) y
 `estilo.json` (un pack usable con `--brand`). Es estilo, no marca: con brand
 pack manda el pack. Proceso y registro de tells: `references/direccion-de-arte.md`.
 
-## 7. Mapeo de sistemas de diseño reales (`styles.refero.design` / `DESIGN.md`) a EditorIA
+## 7. Catálogo MG de firma reconocible
+
+Cuando el brief pide un lenguaje de motion canónico (flat vector, line
+art, isométrico, soft 3D, cel boil, collage, liquid, morph, Bauhaus,
+synthwave/VHS, aurora+glass, hanazi/variety captions, sticker explainer, pixel, HUD
+cyberpunk), la tabla de firmas y técnicas con números está en
+`references/estilos-motion.md`. Aquí viven los lenguajes ya rodados en
+producción; allí, las quince firmas para one-shots y dirección de arte.
+El prompt se arma con la Familia 7 de `prompt-motion-graphics.md`.
+
+## 8. Mapeo de sistemas de diseño reales (`styles.refero.design` / `DESIGN.md`) a EditorIA
 
 Cuando el usuario pida el look de un producto real o entregue un archivo
 `DESIGN.md` extraído de [styles.refero.design](https://styles.refero.design)
@@ -151,4 +161,4 @@ Cuando el usuario pida el look de un producto real o entregue un archivo
 
 ---
 
-→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/brand-packs.md`, `references/scene-patterns-from-internet.md`
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/estilos-motion.md`, `references/brand-packs.md`, `references/scene-patterns-from-internet.md`

@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-60 referencias, 44 scripts, 19 herramientas de ffmpeg y 41 suites de tests. Este
+61 referencias, 44 scripts, 19 herramientas de ffmpeg y 41 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -68,6 +68,9 @@ contradigan.
 - **"sin marca"** → `paleta.md` (se elige una paleta según el brief) → `principios.md`.
 - **"un video hecho con IA"** → `recetas-ai-video.md` → `prompt-motion-graphics.md` →
   `modos-produccion.md` → `qa-entrega.md`.
+- **"hazlo en estilo X" / film MG de una toma** → `estilos-motion.md` (la firma) →
+  `prompt-motion-graphics.md` Familia 7 → `recetas-ai-video.md` §7 (jurado de
+  estilo) → `qa-entrega.md`.
 - **"se me descuadra el tiempo"** → `ritmo.md` → `sonido.md` (el timing de la voz) →
   `audio.md` (el beat grid).
 
@@ -94,6 +97,7 @@ escribir es un tapón).
 | `direccion-de-arte.md` | la dirección de arte: la idea del sujeto, las direcciones repartidas, el registro de tells | estructura |
 | `tonos.md` | la energía creativa de la pieza | estructura |
 | `estilos.md` | los lenguajes visuales aprendidos | estructura |
+| `estilos-motion.md` | quince firmas MG canónicas (técnicas con números) | estructura |
 | `scene-patterns-from-internet.md` | patrones de escena validados | estructura |
 | `plan-video.md` | el schema de `plan.json` y el bloque `datos` | plan |
 | `arquitectura.md` | cómo encaja la skill por dentro | plan |
@@ -285,7 +289,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 60 referencias, no se estiman.
+    guard nuevo se cuentan contra las 61 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que

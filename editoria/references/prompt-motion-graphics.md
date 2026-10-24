@@ -255,6 +255,49 @@ Build a 20-second product launch video for {{PRODUCT}} using tokens from
    invented metrics.
 ```
 
+## Familia 7 — Film one-shot anclado a un estilo MG (plantilla de cuatro bloques)
+
+Cuando el brief nombra un lenguaje canónico («flat vector», «Bauhaus»,
+«pixel», «HUD cyberpunk», «aurora glass»…), no improvisar la firma. Elegir
+la fila en `references/estilos-motion.md` y montar el prompt con estos
+cuatro bloques (el resto del scaffolding —How to work, Rules, Craft
+checklist— ya está cubierto por las Familias 2–3 y por el loop de QA):
+
+```
+You are the director, motion designer, engineer and sound designer of ONE
+{{DURATION}}-second motion-design film. Award-shortlist bar; a clean
+template-looking result is a fail.
+
+# Style
+{{STYLE_NAME from estilos-motion.md}}
+
+# Output (fixed)
+- {{W}}×{{H}}, {{FPS}} fps, exactly {{DURATION}}.000 s, H.264 + AAC stereo
+  48 kHz, mastered to −14 LUFS, true peak ≤ −1.5 dBTP (EditorIA delivery).
+  Final file: video.mp4.
+
+# Suggested technical route
+{{MOTOR from estilos-motion.md column — HyperFrames / Remotion / Canvas /
+ plan Python / Blender overlay}}. Prefer deterministic renderAt(t).
+
+# Creative seed
+{{ONE_LINER + beat sheet 0→hook→escalation→hero@60–75%→end hold 0.8–1.2s}}.
+Colors/fonts from brand pack or paleta.md — never invent a brand identity.
+Sound: genre that matches the style row; one cue sheet shared by picture and audio.
+
+# Signature features and key techniques
+{{PASTE the Firma + Técnicas clave cells for that row — do not dilute}}.
+Every signature must map to a moment on the beat sheet.
+```
+
+Sustituir solo Creative seed y Output (formato vertical, duración). Las
+signature features no se editan: son el criterio con el que un jurado
+independiente puntúa fidelidad de estilo (`recetas-ai-video.md` §7).
+
+Cuándo: showreel de estilo, explainer «en el look de X», prueba de
+dirección de arte antes del plan largo. Cuándo no: piezas con 39 escenas
+del motor Python ya tipadas — ahí manda `escenas.md` + `estilos.md`.
+
 ## Lo que NO se trae
 
 - Voces/SFX generados sin provenance cuando el proyecto exige derechos
@@ -265,7 +308,10 @@ Build a 20-second product launch video for {{PRODUCT}} using tokens from
   convierte en entregable.
 - Promesas de tiempo/costo de la tabla de arriba como garantía: son datos
   de terceros, no un SLA.
+- El catálogo externo de demos/MP4/samples ni una dependencia npm/Python
+  nueva: las firmas viven en `estilos-motion.md`; el audio sigue en
+  `musica.py` / `sfx.py`.
 
 ---
 
-→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/recetas-ai-video.md`, `references/scene-patterns-from-internet.md`, `references/copy.md`
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/recetas-ai-video.md`, `references/estilos-motion.md`, `references/scene-patterns-from-internet.md`, `references/copy.md`
