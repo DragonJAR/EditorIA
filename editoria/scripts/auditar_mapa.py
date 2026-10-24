@@ -1349,6 +1349,43 @@ def _chequear_commit_que_arrastra_trabajo(problemas):
             "msg": f"este commit lista {s} y no la trae: enlace roto en lo publicado"})
 
 
+def _chequear_cobertura_de_clis(problemas):
+    """Que toda CLI documentada este VERIFICADA: ejecutada de verdad por un
+    test, o con un motivo declarado de por que no se puede ejecutar.
+
+    Los dos mecanismos de la skill vigilan fallos DISTINTOS y no se delegan:
+    la intercepcion de parse_args prueba que los ARGUMENTOS del comando son
+    validos para esa herramienta; la ejecucion real prueba el EFECTO (que la
+    herramienta no revienta al usarla). El ImportError de look.py estaba
+    DENTRO de default_font_file(): la intercepcion llego a parse_args sin
+    despeinarse, porque el fallo no estaba en los argumentos sino en el
+    efecto. Los dos hacen falta.
+
+    Y hace falta un TERCERO: que diga cuando una herramienta se ha quedado
+    sin ninguno de los dos. Un comando documentado que nadie ejecuta ni
+    vigila por argumentos es un puntero a nada: el agente lo copia y no hay
+    quien responda de si funciona.
+    """
+    import _comandos_doc as _CD
+    documentadas = _CD.scripts_de_los_comandos(BASE)
+    if not documentadas:
+        return
+    ejecutadas = _CD.clis_ejecutadas_por_tests(BASE)
+    motivos = _CD.MOTIVOS_SIN_EJECUCION
+    sin_verificar = sorted(documentadas - ejecutadas - set(motivos))
+    for s in sin_verificar:
+        problemas.append({
+            "tipo": "cli sin verificar", "archivo": s,
+            "msg": f"la CLI documentada {s} no la ejecuta ningun test y no tiene "
+                   f"motivo declarado en MOTIVOS_SIN_EJECUCION: nadie sabe si funciona"})
+    # al reves: un motivo declarado para una CLI que SI se ejecuta es ruido
+    for s in sorted(set(motivos) & ejecutadas):
+        problemas.append({
+            "tipo": "motivo obsoleto", "archivo": s,
+            "msg": f"{s} tiene un motivo declarado para no ejecutarse, pero un test "
+                   f"la ejecuta de verdad: el motivo sobra"})
+
+
 def _chequear_contrato_cli(problemas):
     """Que el contrato de CLI diga cuantos scripts lo cumplen, y sean esos.
 
@@ -1637,6 +1674,7 @@ def _todos_los_checks(problemas, mds):
 
     # ---- 17. el contrato de CLI dice los que lo cumplen ----------------
     _chequear_contrato_cli(problemas)
+    _chequear_cobertura_de_clis(problemas)
 
     return dominios, canonicos
 

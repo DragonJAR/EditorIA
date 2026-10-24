@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.dirname(HERE)
 ROOT = SCRIPTS
 TOOLS = os.path.join(SCRIPTS, "ffmpeg_tools")
+BASE = os.path.dirname(SCRIPTS)
 
 
 def _video(destino, segundos=2, con_audio=True, color="blue"):
@@ -141,6 +142,43 @@ class TestCLIReal(unittest.TestCase):
     def test_medir_contraste(self):
         r = self._correr(os.path.join(ROOT, "medir_contraste.py"))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_delivery_check_cumple_el_spec(self):
+        """La comprobacion de entrega, con un video real: si el archivo no
+        cumple el spec de la plataforma, tiene que decirlo (y si lo cumple,
+        pasar)."""
+        out = os.path.join(self.dir, "entrega.mp4")
+        # el spec incluye la sonoridad: el video se normaliza a -14 LUFS
+        # vertical (9:16) a 1080 de alto y normalizado a -14 LUFS: lo que pide reels
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", self.video,
+                        "-vf", "scale=1080:1920", "-af", "loudnorm=I=-14:TP=-1.5",
+                        "-c:v", "libx264", "-crf", "20", "-pix_fmt", "yuv420p",
+                        "-c:a", "aac", "-b:a", "192k", out],
+                       check=True, capture_output=True, timeout=180)
+        r = self._correr(os.path.join(TOOLS, "delivery_check.py"), out, "--platform", "reels")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("OK", r.stdout)
+
+    def test_delivery_check_rechaza_lo_que_no_cumple(self):
+        """Un video sin el tamano de la plataforma no puede pasar."""
+        out = os.path.join(self.dir, "chico.mp4")
+        subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", self.video,
+                        "-vf", "scale=160:90", "-c:v", "libx264", "-crf", "20",
+                        "-pix_fmt", "yuv420p", out],
+                       check=True, capture_output=True, timeout=180)
+        r = self._correr(os.path.join(TOOLS, "delivery_check.py"), out, "--platform", "reels")
+        self.assertNotEqual(r.returncode, 0, "un video de 160x90 no cumple el spec de reels")
+
+    def test_film_marca_v2_renderiza(self):
+        """El film de marca v2 (el que la skill recomienda) renderiza de verdad:
+        15 s de coreografia del isotipo."""
+        out = os.path.join(self.dir, "film.mp4")
+        r = self._correr(os.path.join(SCRIPTS, "film_marca_v2.py"), "-o", out,
+                         "--brand", os.path.join(BASE, "brand", "dragonjar.json"),
+                         "--formato", "16:9", timeout=600)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(os.path.exists(out))
+        self.assertGreater(os.path.getsize(out), 10000)
 
     def test_sfx_genera_el_pack(self):
         out = os.path.join(self.dir, "sfx")

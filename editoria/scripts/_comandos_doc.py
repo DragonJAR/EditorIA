@@ -233,6 +233,71 @@ def verificar_todo(skill_dir):
     return problemas
 
 
+# Las CLIs documentadas que la suite NO puede ejecutar de verdad, con el
+# motivo. Una CLI documentada tiene que estar EJECUTADA por un test (que usa
+# subprocess) o tener un motivo aqui: un comando documentado que nadie ejecuta
+# ni vigila por argumentos es un puntero a nada.
+#
+# Los dos mecanismos de la skill vigilan fallos DISTINTOS y no se delegan:
+# la intercepcion de parse_args prueba que los ARGUMENTOS del comando son
+# validos para esa herramienta; la ejecucion real prueba el EFECTO (que la
+# herramienta no reviente al usarla). El ImportError de look.py estaba DENTRO
+# de default_font_file(): la intercepcion llego a parse_args sin despeinarse,
+# porque el fallo no estaba en los argumentos sino en el efecto.
+MOTIVOS_SIN_EJECUCION = {
+    "scripts/validate_skill.py": "es la validacion misma: se ejecuta con esta opcion",
+}
+
+
+def scripts_de_los_comandos(skill_dir):
+    """Los scripts que invocan los comandos documentados.
+
+    El prefijo de la carpeta del repo se normaliza igual que en el
+    verificador (que busca el script dentro de la skill instalada)."""
+    cmds = (comandos_documentados(skill_dir) + comandos_de_referencias(skill_dir)
+            + comandos_de_readme(skill_dir))
+    scripts = set()
+    for cmd in cmds:
+        partes = _partir(cmd)
+        if not partes:
+            continue
+        s = partes[0]
+        if "/scripts/" in s:
+            s = "scripts/" + s.split("/scripts/", 1)[1]
+        if s.startswith("scripts/") and s.endswith(".py"):
+            scripts.add(s)
+    return scripts
+
+
+def clis_ejecutadas_por_tests(skill_dir):
+    """Las CLIs que ALGUN test ejecuta como proceso.
+
+    Un test cuenta si usa subprocess Y nombra el script: se ejecuta como
+    proceso, no solo lo importa. (Un nombre en un comentario no ejecuta nada,
+    pero tampoco hace pasar la comprobacion por el camino feliz: lo que se
+    busca es que la herramienta se pruebe de verdad.)
+    """
+    tests_dir = os.path.join(skill_dir, "scripts", "_tests")
+    if not os.path.isdir(tests_dir):
+        return set()
+    ejecutadas = set()
+    for f in sorted(os.listdir(tests_dir)):
+        if not f.endswith(".py") or f.startswith("_"):
+            continue
+        with open(os.path.join(tests_dir, f), encoding="utf-8") as fh:
+            txt = fh.read()
+        if "subprocess" not in txt:
+            continue
+        for m in re.finditer(r'["\']([A-Za-z0-9_]+\.py)["\']', txt):
+            nombre = m.group(1)
+            for raiz in ("scripts/", "scripts/ffmpeg_tools/"):
+                cand = raiz + nombre
+                if os.path.exists(os.path.join(skill_dir, cand)):
+                    ejecutadas.add(cand)
+                    break
+    return ejecutadas
+
+
 def verificar_comando(skill_dir, cmd):
     """Verifica UN comando. El test usa esto: el barrido completo es lento
     (un subproceso por comando) y vive en `validate_skill.py`."""
