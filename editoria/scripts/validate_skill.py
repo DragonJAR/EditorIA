@@ -201,6 +201,35 @@ for dp, _dn, fn in os.walk(os.path.join(BASE, "scripts")):
                 quemadas.append(f)
 check(not quemadas, f"sin marcas quemadas en scripts/ ({', '.join(quemadas) or 'ninguna'})")
 
+# prosa limpia: la skill esta en espanol/ingles. Un ideograma, un kana o un
+# hangul dentro son BASURA de una generacion (no una palabra), y publicar
+# eso es publicar un texto roto que nadie caza: se lee como un fallo de
+# tipografia y se asume que es una decision. (Se ha colado uno en
+# `principios.md`: "la pieza **parece**<CJK>".)
+_basura = []
+# los rangos van en ESCAPES, no literales: si el fuente de este fichero
+# contuviera los caracteres, el guard se marcaria a si mismo
+_rangos = [(0x3000, 0x303F), (0x3040, 0x30FF), (0x3400, 0x4DBF),
+            (0x4E00, 0x9FFF), (0xF900, 0xFAFF), (0xAC00, 0xD7AF)]
+_re_otro_idioma = re.compile(
+    "[" + "".join(chr(a) + "-" + chr(b) for a, b in _rangos) + "]")
+for _dp, _dn, _fn in os.walk(BASE):
+    if "__pycache__" in _dp:
+        continue
+    for _f in _fn:
+        if not _f.endswith((".md", ".py", ".json")):
+            continue
+        _ruta = os.path.join(_dp, _f)
+        try:
+            _texto = open(_ruta, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        _m = _re_otro_idioma.search(_texto)
+        if _m:
+            _basura.append(f"{os.path.relpath(_ruta, BASE)}: '{_m.group(0)}'")
+check(not _basura,
+      f"sin texto de otro idioma en la skill ({', '.join(_basura[:3]) or 'ninguno'})")
+
 # código limpio: sin imports ni variables muertas, sin nombres indefinidos
 # (el lint encontró aquí un ease aplicado dos veces y lógica a medio hacer)
 try:

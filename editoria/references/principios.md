@@ -144,7 +144,7 @@ Atención en orden: frase → objeto → detalle. Nunca al revés.
 
 ## 4. Reglas que no se ven hasta que se incumplen
 
-Estas no se ven en el render: se ven en que la pieza **parece**看懂. Vienen de
+Estas no se ven en el render: se ven en que la pieza **parece** acabada. Vienen de
 la regla de calidad de `pbakaus/impeccable` (Apache-2.0,
 `reference/craft-floor.md`), que está escrita para interfaces; aquí solo las
 que también son de un video.
