@@ -158,9 +158,9 @@ contradigan.
    `qa-entrega.md`, y el paso de edicion del `SKILL.md` tiene que nombrarla.
 8. **La prosa es para el juicio, el codigo para el hecho.** Un numero que se
    puede calcular no se escribe a mano en la referencia: se calcula.
-9. **"Que se encuentre" tiene tres capas, y cada una necesita su guard.** Que
+9. **"Que se encuentre" tiene cuatro capas, y cada una necesita su guard.** Que
    una herramienta este enlazada en algun sitio no basta: puede existir, estar
-   enlazada y seguir siendo invisible. Por eso hay tres preguntas y tres
+   enlazada y seguir siendo invisible. Por eso hay cuatro preguntas y cuatro
    guards:
    - *¿Existe y esta enlazada de ALGO?* -> el check de huerfanos
      (`scripts/validate_skill.py`): un archivo que ninguna referencia
@@ -174,8 +174,16 @@ contradigan.
    - *¿La doc que la describe dice la verdad?* -> los guards de cifras y de
      reglas: un numero que no coincide con el motor es una promesa rota, por
      muy bien enlazada que este la pagina.
-   Pasar la primera capa no dice nada de las otras dos, y la segunda encuentra
-   cosas que la primera daba por buenas.
+   - *¿Alguien la EJECUTA?* -> el guard de cobertura de CLIs
+     (`scripts/auditar_mapa.py`, con el mapa en
+     `scripts/data/cli_verificadas.json`): una CLI documentada que nadie
+     ejecuta ni vigila por argumentos es un puntero a nada. El mapa se midio
+     instrumentando `subprocess` durante la suite real (leer los tests no
+     vale: un nombre en un comentario no ejecuta nada) y se valida: si el
+     test nombrado desaparece, la CLI se queda sin verificar y el guard lo
+     dice.
+   Pasar la primera capa no dice nada de las otras tres, y cada una
+   encuentra cosas que la anterior daba por buenas.
    Y la ENTRADA tiene que llevar al camino vigente, no solo a una pagina que
    existe: una entrada correcta que apunta a un documento que se declara
    LEGACY es PEOR que una entrada ausente, porque parece funcionar. El
