@@ -27,6 +27,7 @@ Uso:
     python3 scripts/_comandos_copiables.py            # informa
     python3 scripts/_comandos_copiables.py --json     # en JSON
 """
+import glob
 import json
 import os
 import re
@@ -151,9 +152,13 @@ def _assets(tmp, skill_dir):
     with open(srt, "w", encoding="utf-8") as fh:
         fh.write("1\n00:00:00,000 --> 00:00:01,000\nHola\n\n")
     a["srt"] = srt
-    brand = os.path.join(skill_dir, "brand", "dragonjar.json")
-    if os.path.exists(brand):
-        a["brand"] = brand
+    # el pack de marca se busca por el NOMBRE DE FICHERO, no por el nombre de
+    # la marca: en el codigo no vive ninguna marca concreta (la regla es
+    # white-label, y el guard de marcas quemadas lo vigila). El que haya en
+    # brand/ sirve igual.
+    packs = sorted(glob.glob(os.path.join(skill_dir, "brand", "*.json")))
+    if packs:
+        a["brand"] = packs[0]
     return a
 
 
