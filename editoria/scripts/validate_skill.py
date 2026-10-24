@@ -1282,7 +1282,11 @@ except (Exception, SystemExit) as ex:
 #    los tests, deja registrado que scripts se ejecutaron de verdad, que es
 #    lo que permite contrastar el mapa de CLIs verificadas con un HECHO y no
 #    con una declaracion. Mismo coste: una sola corrida de la suite.
-_mapa_medido = os.path.join(tempfile.gettempdir(), f"editoria_censo_{os.getpid()}.json")
+# El mapa medido vive en el temporal PROPIO de esta corrida, no en el temp
+# del sistema: dos validaciones a la vez no se pisan (que fue justo el
+# motivo de que esta corrida tenga el suyo). Y el nombre es del proceso,
+# no fijo: el guard de temporales unicos lo vigila.
+_mapa_medido = os.path.join(_TMP_RUN, "censo_clis.json")
 _ut = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "_censo_clis.py"),
                       "--salida", _mapa_medido],
                      capture_output=True, text=True, timeout=900)
