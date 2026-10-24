@@ -1,5 +1,5 @@
 {
- "_que_es": "Las CUATRO verticales de la skill, declaradas como DATOS para que no se pudran. Cada vertical es una tarea que el agente puede recibir, y las cuatro tienen que estar: (1) cableadas a una ruta de lectura del mapa, (2) terminar en la puerta, (3) llegar a comandos que alguien EJECUTA de verdad, y (4) no tener comandos que nadie copia ni justifica. El guard (scripts/auditar_mapa.py) lo comprueba en cada corrida: una vertical sin ruta es una isla, y la skill entera es una navaja suiza o no es nada.",
+ "_que_es": "Las CINCO verticales de la skill, declaradas como DATOS para que no se pudran. Cada vertical es una tarea que el agente puede recibir, y las cinco tienen que estar: (1) cableadas a una ruta de lectura del mapa, (2) terminar en la puerta, (3) llegar a comandos que alguien EJECUTA de verdad, y (4) no tener comandos que nadie copia ni justifica. El guard (scripts/auditar_mapa.py) lo comprueba en cada corrida: una vertical sin ruta es una isla, y la skill entera es una navaja suiza o no es nada.",
  "_por_que_datos": "En la prosa, una lista de verticales se queda vieja en silencio: nadie dice 'falta la del sonido'. Como dato, el guard la recorre y lo dice. Una ruta de lectura sin herramientas verificadas es documentacion; una ruta con herramientas que el censo ha ejecutado de verdad es un camino de trabajo.",
  "_que_es_una_clave": "Cada clave es un trozo del nombre del script (scripts/<clave>.py o scripts/ffmpeg_tools/<clave>.py). El guard lo compara contra los scripts de la vertical.",
  "verticales": [
@@ -104,6 +104,25 @@
     "mezclar_audio",
     "sfx",
     "step 4"
+   ]
+  },
+  {
+   "nombre": "publicar/viralizar",
+   "ruta": "quiero VIRALIZAR o publicar un video",
+   "pide": "preparar una pieza para que se descubra y se comparta: gancho, subtítulos, formato de plataforma, variantes y texto de publicación",
+   "claves": [
+    "shorts_plan",
+    "caption",
+    "variantes",
+    "thumbnail",
+    "poster_frame",
+    "delivery_check",
+    "loudness"
+   ],
+   "entrada": [
+    "viralizar",
+    "share-copy",
+    "variantes"
    ]
   }
  ],

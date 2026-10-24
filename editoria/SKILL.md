@@ -73,6 +73,9 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Hand-drawn strokes / whiteboard overlay (smooth paths, PNG with alpha) | **Hand draw**: `references/hand-draw.md` + `scripts/hand_draw.py` (offline Pillow path; live camera capture needs MediaPipe — declare it, never ship an empty overlay in silence) |
 | Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` and `references/recetas-ai-video.md` |
+| Animate a scene, a logo, a title, or one element (which technique, how to ask for it) | **Animation selector**: `references/animacion.md` §0 (plan engine, canvas, Remotion, HyperFrames, 3D, hybrid, diagrams — what fits when, and how each one is requested), then the chosen technique's reference |
+| Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (the pack spec plus the operational checklist: assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
+| Viralizar: prepare a piece to be discovered and shared (hook, captions, platform format, A/B variants, publish copy) | **Publish flow**: `references/share-copy.md` (the whole chain: moment, triple hook, burned captions, platform spec, hook×body variantes, poster, share copy), ending at the same gate |
 
 Complete skill architecture map: `references/arquitectura.md`.
 
@@ -320,6 +323,9 @@ Should trigger:
 - "check this video before I send it to the client"
 - "this video looks generic, make it feel designed"
 - "make this scene bolder but keep everything else"
+- "animate this logo and this title"
+- "make it viral / prepáralo para TikTok y Reels"
+- "put our brand on it (here is the logo)"
 
 Should NOT trigger:
 

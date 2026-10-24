@@ -64,18 +64,30 @@ contradigan.
 - **"el video no se siente bien"** → `qa-entrega.md` (que falla) → `auto-qa.md` (la causa) →
   `fluidez.md` (el motor) → `ritmo.md` (el encadenamiento) → `copy.md` (el texto).
 - **"quiero un thumbnail"** → `thumbnails.md` → `checklist-qa.md`.
-- **"mi marca"** → `brand-packs.md` → `principios.md` → `copy.md`.
+- **"quiero ANIMAR una escena o un elemento"** → `animacion.md` (§0: qué
+  técnica cuándo y cómo se pide) → la referencia de la técnica elegida
+  (`canvas.md`, `hand-draw.md`, `remotion.md`, `hyperframes.md`, `3d.md`,
+  `modos-produccion.md`) → `qa-entrega.md`.
+- **"quiero VIRALIZAR o publicar un video"** → `share-copy.md` (el flujo
+  entero: momento, gancho, subtítulos, plataforma, variantes, poster y
+  texto) → `scoring-shorts.md` (el momento) → `tecnicas-video.md` (hooks
+  y retención) → `qa-entrega.md`.
+- **"mi marca"** → `brand-packs.md` (la spec y el checklist operativo:
+  activos, placement, no deformar) → `principios.md` → `copy.md` →
+  `qa-entrega.md`.
 - **"sin marca"** → `paleta.md` (se elige una paleta según el brief) → `principios.md`.
 - **"un video hecho con IA"** → `recetas-ai-video.md` → `prompt-motion-graphics.md` →
   `modos-produccion.md` → `qa-entrega.md`.
 - **"se me descuadra el tiempo"** → `ritmo.md` → `sonido.md` (el timing de la voz) →
   `audio.md` (el beat grid).
 
-**Las cuatro verticales, como dato y no como prosa.** La skill sirve para
-cuatro cosas, y estan declaradas en `scripts/data/verticales.json` para que
+**Las cinco verticales, como dato y no como prosa.** La skill sirve para
+cinco cosas, y estan declaradas en `scripts/data/verticales.json` para que
 no se puedan quedar viejas en silencio (en la prosa, una lista se queda
 vieja y nadie dice "falta la del sonido"): **crear y animar**, **editar**,
-**clonar y resumir**, y **el sonido** (voz, música, efectos). El guard
+**clonar y resumir**, **el sonido** (voz, música, efectos) y **publicar y
+viralizar**. La marca no es una sexta vertical: es transversal — el pack
+manda sobre el motor que toque (`brand-packs.md`) — y tiene su ruta arriba. El guard
 (`scripts/auditar_mapa.py`) comprueba en cada corrida que cada vertical
 tiene su ruta de lectura (la de arriba), acaba en la puerta, llega a
 herramientas que **alguien ejecuta de verdad** (según el censo), y que lo

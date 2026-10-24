@@ -304,6 +304,12 @@ def main():
                 "--permitir-otro-idioma": "permite una voz de otro idioma"})
     a = ap.parse_args()
 
+    if not a.listar:
+        if not a.plan:
+            die("falta el plan.json (o usa --listar para ver las voces)")
+        if not a.out:
+            die("falta el archivo de salida (-o)")
+
     backend = detectar_backend()
     if not backend:
         sin_backend()
@@ -316,11 +322,6 @@ def main():
         for v in voces:
             print(f"{v['nombre']}  [{v['locale']}]")
         return 0
-
-    if not a.plan:
-        die("falta el plan.json (o usa --listar para ver las voces)")
-    if not a.out:
-        die("falta el archivo de salida (-o)")
 
     voz = elegir_voz(voces, backend, a.idioma, a.voz)
     if voz is None:

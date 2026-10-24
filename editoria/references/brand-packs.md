@@ -114,6 +114,47 @@ Sin marca, `scripts/direccion_arte.py elegir` genera un **style pack** (estilo,
 no marca) con el mismo formato, listo para `--brand`; con un pack del usuario
 manda el pack (`references/direccion-de-arte.md`).
 
+## Checklist operativo de marca
+
+La spec dice cómo se declara la identidad; esta lista dice cómo se aplica
+sin romperla. Se recorre dos veces: antes de renderizar (activos) y antes
+de entregar (resultado, junto a la capa de marca de
+`references/checklist-qa.md`).
+
+**Antes de renderizar — los activos:**
+
+- [ ] El pack existe y es la fuente declarada (JSON a mano o derivado del
+  fichero de diseño: uno solo manda, ver «De dónde sale el pack»).
+- [ ] Cada ruta del pack (`logos.*`, `tipografias.*.archivo`) existe en
+  disco. Una ruta rota no se sustituye por un parecido: se pide el activo
+  o se declara la falta en el brief.
+- [ ] El logo es el fichero oficial con alfa. Nunca se redibuja, se
+  re-tipa ni se aproxima con una fuente parecida.
+- [ ] La tipografía de marca está instalada o empaquetada; si el render
+  cae a la fuente de respaldo, la pieza no lleva la marca aunque lleve
+  sus colores.
+- [ ] El contraste del pack pasa la verificación:
+  `python scripts/direccion_arte.py verificar brand/nuevo.json`.
+
+**Al componer — el uso:**
+
+- [ ] El logo no se deforma: escala uniforme, sin estirar, sin rotar fuera
+  de lo que el pack permita, sin efectos que el pack no admita
+  (`reglas.efectos_glitch` y compañía mandan).
+- [ ] El logo no compite: o no aparece, o tiene un rol claro y recurrente
+  (`reglas.isotipo_con_protagonista`). Nada de firma decorativa pegada
+  en una esquina por costumbre.
+- [ ] El acento se muestrea del pack, no de memoria: el color entregado
+  es exactamente el declarado.
+- [ ] Sin pack, modo libre: la paleta se elige del catálogo
+  (`references/paleta.md`) y se declara en el plan. Una pieza sin marca
+  no hereda los colores del pack de ejemplo ni parece de otra marca.
+
+**Pack incompleto:** lo que falte (logo, una tipografía, las voces) se
+pide al usuario o se declara en el brief con la decisión tomada. Lo que
+nunca se hace es inventar el hueco: ni un logo aproximado, ni un color
+"de la familia", ni un lema improvisado en nombre de la marca.
+
 ## En los scripts
 
 - `render_plan.py --brand` (o `"brand"` en el plan): colores, tipografías,

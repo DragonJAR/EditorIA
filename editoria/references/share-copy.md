@@ -64,6 +64,46 @@ JEP para decisiones en tiempo real, orquestación de agentes en 3D y ORCA.
 ¡Y vamos por más!
 ```
 
+## Publicar y viralizar — el paquete completo
+
+El share copy es el último paso, no el único: una pieza se descubre por el
+gancho, se entiende sin sonido, encaja en la plataforma y se puede testear.
+Este es el flujo entero; cada paso vive en su canónico y aquí solo se
+encadena.
+
+1. **El momento**: de un video largo se eligen los momentos que se
+   sostienen solos (`references/scoring-shorts.md`); de una pieza nueva,
+   el gancho se planea primero (`references/principios.md`).
+2. **El gancho (0–3 s)**: triple — visual, verbal y texto a la vez, la
+   misma promesa, sin fade-in (`references/tecnicas-video.md`, «Hooks y
+   retención»). El arco que sigue: setup → cuerpo por beats → payoff →
+   CTA que cumple exactamente lo que el gancho prometió (message-match,
+   `references/modos-rapidos.md`).
+3. **Subtítulos quemados**: la mayoría del feed se ve en silencio.
+   `scripts/ffmpeg_tools/caption.py` (con `--brand` si hay pack, con
+   `--hablantes` si hablan varios) y la zona segura de la plataforma,
+   no la del lienzo (`references/checklist-qa.md`).
+4. **El formato de la plataforma**: aspecto, duración y loudness salen de
+   una sola tabla (`scripts/ffmpeg_tools/_delivery.py`) y se comprueban,
+   no se recuerdan: `scripts/ffmpeg_tools/delivery_check.py final.mp4
+   --platform reels`. Reencuadrar a vertical es oficio propio
+   (`scripts/ffmpeg_tools/verticalizar.py`), no un crop centrado.
+5. **Variantes para testear**: un cuerpo × N ganchos
+   (`scripts/ffmpeg_tools/variantes.py`, receta hook×body de
+   `references/modos-rapidos.md`). Se testea una variable: el gancho.
+6. **La cara de la pieza**: poster y thumbnail con su propio oficio
+   (`scripts/poster_frame.py`, `scripts/ffmpeg_tools/thumbnail.py`,
+   `references/thumbnails.md`).
+7. **El texto que acompaña**: este documento — `share-copy.txt` junto al
+   video, variantes por plataforma en fichero aparte.
+
+Y como todo entregable, cierra en la puerta
+(`references/qa-entrega.md`): publicar no es un camino que se la salte.
+
+Lo que este flujo no promete: ningún paso garantiza que una pieza se haga
+viral. Lo que garantiza es que nada de lo que depende de la pieza —gancho,
+legibilidad, formato, variantes— quede librado a la suerte.
+
 ## Dónde va
 
 ```

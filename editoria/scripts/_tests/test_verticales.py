@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Tests de las verticales de la skill — las cuatro, y que de verdad funcionen.
+"""Tests de las verticales de la skill — las cinco, y que de verdad funcionen.
 
-La skill declara cuatro verticales (scripts/data/verticales.json): crear y
-animar, editar, clonar y resumir, y el sonido (voz, musica, efectos). Y el
+La skill declara cinco verticales (scripts/data/verticales.json): crear y
+animar, editar, clonar y resumir, el sonido (voz, musica, efectos) y
+publicar/viralizar. Y el
 guard (scripts/auditar_mapa.py) comprueba que cada una tiene ruta, puerta y
 herramientas que alguien EJECUTA.
 
@@ -109,7 +110,7 @@ class TestHerramientasDeLasVerticales(unittest.TestCase):
 
 
 class TestGuardDeVerticales(unittest.TestCase):
-    """El guard de las cuatro verticales tiene que tener poder."""
+    """El guard de las verticales tiene que tener poder."""
 
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="editoria_vertguard_")

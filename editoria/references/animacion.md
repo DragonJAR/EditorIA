@@ -6,6 +6,31 @@ estudio. Se aplica a todos los motores (plan, composición libre, Remotion,
 HyperFrames). Ante conflicto: el brand pack fija identidad, `fluidez.md` fija
 el motor, y este documento fija el oficio.
 
+## 0. Qué técnica cuándo — el selector de animación
+
+Antes del oficio, la elección: cada técnica entra por un sitio distinto y
+pide una cosa distinta. Si la que la pieza necesita no está instalada, se
+dice en la primera respuesta con su comando (`references/capacidades.md`);
+nunca se sustituye en silencio por otra que "se parece".
+
+| La pieza pide | Técnica | Cómo se pide | Dónde vive |
+|---|---|---|---|
+| Escenas con texto, datos, cifras, tarjetas | Motor de planes: escena del catálogo elegida por intención | Un `plan.json`: escena + `at` por elemento + gesto con nombre (§3b) | `references/intencion-escena.md` → `references/escenas.md` → `references/plan-video.md` |
+| Animar un elemento suelto (logo, titular, cifra) dentro de una pieza de planes | El mismo motor: una escena o una pasada acotada sobre la pieza | La pasada nombra solo lo que cambia; el resto no se toca | `references/pasadas.md` |
+| Movimiento pictórico: acuarela, pincel, doodle, lyric video | Canvas (p5.js): cada frame es función pura de `t` | Un sketch con `renderAt(t)` determinista; el trazo se autora como dato, no como grabación | `references/canvas.md` |
+| Trazo a mano: pizarra, anotación dibujada, doodle cinético | Trazo suavizado horneado a overlay con alfa | Un JSON de puntos/trazos; el suavizado va antes de pintar, el PNG entra por montaje | `references/hand-draw.md` |
+| Animación programática compleja: estado, datos que cambian, componentes reutilizables | Remotion | Componentes React con la misma disciplina de resortes y blur de este documento | `references/remotion.md` |
+| Pieza HTML determinista que se re-renderiza con datos nuevos | HyperFrames | HTML+CSS con seek determinista; mismo HTML, datos nuevos | `references/hyperframes.md` |
+| Un objeto, producto o escena 3D como material | 3D como capa con alfa sobre el motor que componga la pieza | El objeto entra renderizado con alfa; el motor de la pieza no cambia | `references/3d.md` |
+| Animar sobre video real (rótulos, gráficas, PiP que siguen a la acción) | Híbrido: el footage manda y la animación complementa | La capa animada se ancla a palabras o instantes del footage, no a segundos sueltos | `references/modos-produccion.md` |
+| Un diagrama que se dibuja a sí mismo | HTML+SVG con la marca de la pieza | Un solo fichero autocontenido; el trazo se anima por longitud de path | `references/diagramas.md` |
+
+Regla de cierre de la elección: la técnica se verifica como el resto de la
+pieza — preview de instantes antes de pagar el render, y la puerta al final
+(`references/qa-entrega.md`). Lo que se mueve se mide
+(`scripts/medir_animacion.py`): un movimiento que no se puede medir es un
+movimiento que no se puede corregir.
+
 ## 1. Los 12 principios, traducidos a motion graphics
 
 Cada principio con su regla aplicable y su valor por defecto. Un render que
