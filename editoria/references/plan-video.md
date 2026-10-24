@@ -167,7 +167,8 @@ los frames que ya existen.
 
 `--preview 0,2.5,5`: compone SOLO esos instantes (el frame final es una
 funcion pura del tiempo, asi que un instante se compone solo) y escribe una
-hoja de contactos del plan en `--hoja RUTA` (default: junto al plan, `<plan>.preview.jpg`). Es
+hoja de contactos del plan en `--hoja RUTA` (default: junto al plan, con su
+nombre y el sufijo `.preview.jpg`). Es
 para mirar el primer cuadro, un plano clave y el ultimo SIN pagar el render
 completo: un frame por instante, no los 600 del video. Sin `-o` no hace
 falta.
