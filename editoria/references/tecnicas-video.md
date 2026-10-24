@@ -887,6 +887,9 @@ gráficas y logos (ver Patrones de escena): aquí la "mano" dibuja.
 - Un solo wipe consistente entre secciones, siempre el mismo gesto.
 - **Boil** (línea dibujada a mano que "hierve"): re-sembrar el temblor cada 4
   frames (~7.5 cambios/s), no en cada frame — cada frame se lee como ruido.
+- Si los puntos vienen de una captura (mano/ratón) y tiemblan, suavizar la
+  polilínea **antes** del reveal con `scripts/hand_draw.py suavizar` (EMA +
+  snap); el easing del dash sigue lineal. Canon: `references/hand-draw.md`.
 
 ### Isométrico 2.5D
 
@@ -1054,4 +1057,4 @@ video; dos carruseles distintos compiten entre sí.
 
 ---
 
-→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/reglas-tecnicas.md`, `references/fluidez.md`, `references/scene-patterns-from-internet.md`
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/reglas-tecnicas.md`, `references/fluidez.md`, `references/scene-patterns-from-internet.md`, `references/hand-draw.md`

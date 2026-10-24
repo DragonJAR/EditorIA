@@ -21,7 +21,8 @@
     "check_env",
     "beat_file",
     "beat_grid",
-    "auto_qa"
+    "auto_qa",
+    "hand_draw"
    ],
    "sin_test": {
     "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 39 escenas del catalogo), no un test",

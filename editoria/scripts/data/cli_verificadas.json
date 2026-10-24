@@ -109,6 +109,9 @@
   "scripts/film_marca_v2.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
   ],
+  "scripts/hand_draw.py": [
+   "scripts/_tests/test_hand_draw.py"
+  ],
   "scripts/lint_copy.py": [
    "scripts/_tests/test_datos_y_critico.py",
    "scripts/_tests/test_lint_copy.py"

@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-60 referencias, 44 scripts, 19 herramientas de ffmpeg y 41 suites de tests. Este
+61 referencias, 45 scripts, 19 herramientas de ffmpeg y 42 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -32,7 +32,7 @@ contradigan.
 | **color** | `paleta.md` | el catálogo de paletas del modo libre y cómo elegir una según el brief | antes de renderizar, si no hay marca |
 | **produccion** | `formatos.md` | qué sostiene cada tipo de pieza y los workflows para hacerlas | al elegir el formato |
 | **operacion** | `instalacion.md` | instalar, el contrato de las CLIs, los idiomas, el protocolo de mejora | al arrancar o al mantener |
-| **herramienta** | `capacidades.md` | con qué cuenta la skill, qué capacidades externas puede necesitar la pieza (3D, Remotion, HyperFrames) y qué hay que instalar si faltan | al arrancar, y en cuanto una pieza las pida |
+| **herramienta** | `capacidades.md` | con qué cuenta la skill, qué capacidades externas puede necesitar la pieza (3D, Remotion, HyperFrames, trazos a mano) y qué hay que instalar si faltan | al arrancar, y en cuanto una pieza las pida |
 | **indice** | `mapa.md` | este índice: dónde está cada cosa y por dónde se entra | cuando no sepas dónde está algo |
 | **vocabulario** | `glosario.md` | qué significa cada palabra propia de la skill | cuando una instrucción usa jerga |
 
@@ -144,6 +144,7 @@ escribir es un tapón).
 | `3d.md` | el 3D como material: Blender por MCP y objeto de referencia a Three.js | herramienta |
 | `diagramas.md` | diagramas como HTML+SVG con la marca de la pieza | herramienta |
 | `canvas.md` | el motor pictórico (p5.js): acuarela, pincel y doodle generativo | herramienta |
+| `hand-draw.md` | trazos a mano: suavizado, overlay con alfa y gestos (sin MediaPipe en la skill) | herramienta |
 | `herramientas-agente.md` | las herramientas conectadas del agente y su handoff | herramienta |
 | `brief.md` | el contrato de trabajo cuando se delega una parte | plan |
 
@@ -285,7 +286,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 60 referencias, no se estiman.
+    guard nuevo se cuentan contra las 61 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que

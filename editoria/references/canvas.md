@@ -153,4 +153,4 @@ lo que no es de la skill se declara y se clona, no se promete.
 
 ---
 
-→ Canónico: `references/canvas.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/hyperframes.md`, `references/3d.md`
+→ Canónico: `references/canvas.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/hyperframes.md`, `references/3d.md`, `references/hand-draw.md`

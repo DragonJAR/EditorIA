@@ -64,6 +64,7 @@ EJECUTABLES = {
     "scripts/ffmpeg_tools/scenes.py",
     "scripts/ffmpeg_tools/speedramp.py",
     "scripts/ffmpeg_tools/verticalizar.py",
+    "scripts/hand_draw.py",
     "scripts/retakes.py",
     "scripts/lint_copy.py",
     "scripts/medir_contraste.py",
@@ -263,6 +264,17 @@ def _assets(tmp, skill_dir):
         fh.write("1\n00:00:00,000 --> 00:00:01,000\nHola\n\n")
     a["srt"] = srt
     a["plantilla"] = _plantilla(os.path.join(tmp, "plantilla.json"))
+    # trazos a mano: JSON mínimo para hand_draw.py suavizar/pintar
+    trazos = os.path.join(tmp, "trazos.json")
+    with open(trazos, "w", encoding="utf-8") as fh:
+        json.dump({
+            "strokes": [{
+                "color": "#101827",
+                "width": 6,
+                "points": [[40, 40], [80, 60], [120, 50], [200, 180]],
+            }],
+        }, fh)
+    a["trazos"] = trazos
     # una carpeta de stills: `contact_sheet --dir` no necesita palabras
     # alineadas (eso es lo que exige Whisper), solo imagenes
     stills = os.path.join(tmp, "stills")
@@ -380,6 +392,11 @@ def _sustituir(partes, assets, scratch=None, plan_key="plan"):
                 if "brand" not in assets:
                     return None, False
                 salida.append(assets["brand"])
+                continue
+            if "trazo" in bajo or "punto" in bajo or "stroke" in bajo:
+                if "trazos" not in assets:
+                    return None, False
+                salida.append(assets["trazos"])
                 continue
             return None, False          # shorts-plan, datos: sin schema
         if base.rstrip("/") == "sfx":

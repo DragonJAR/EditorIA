@@ -174,6 +174,10 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
 - **references/capacidades.md** — inventario de capacidades: qué valida
   `scripts/check_env.py` (herramientas locales, APIs, assets), capacidades
   multimodales del modelo, MCP y tabla de degradación declarada.
+- **scripts/hand_draw.py** + **references/hand-draw.md** — trazos a mano:
+  suavizado EMA+snap, segmentos de brocha, viewport e histéresis de gestos;
+  CLI `suavizar` / `pintar` → PNG con alfa para montaje. Sin MediaPipe en la
+  skill (captura en vivo se declara).
 - **references/tecnicas-video.md** — LA BIBLIOTECA: catálogo maestro de técnicas
   2025–2026 (investigación web, 16 secciones): transiciones, tipografía cinética,
   ritmo, cámara, efectos, dataviz animada (sección profunda), fotos→dinámicas

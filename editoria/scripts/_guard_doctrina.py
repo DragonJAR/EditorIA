@@ -50,7 +50,7 @@ _VETADA = re.compile(r"^" + _VETA + r"(?:es)?$", re.I)
 #: para estos nombres la palabra vetada esta prohibida.
 NOMBRES = re.compile(
     r"\b(remotion|hyperframes|blender|whisper|yt-dlp|elevenlabs|3d|"
-    r"diagramas?|node|voz|m[uú]sica)\b", re.I)
+    r"diagramas?|node|voz|m[uú]sica|hand[- ]?draw|mediapipe)\b", re.I)
 
 #: Los sustantivos que nombran una capacidad sin repetir su nombre propio:
 #: "los motores ..." es la forma que adopta la falta cuando no dice Remotion.
