@@ -630,5 +630,25 @@ class TestViralFeaturesAndPrimitives(unittest.TestCase):
         self.assertAlmostEqual(segs[-1]["to"], 30.0)
 
 
+class TestCorrelacionEstereo(unittest.TestCase):
+    """La compatibilidad con mono se mide, no se supone: una cama con los
+    canales en contrafase desaparece en un telefono (que reproduce en mono
+    sumando canales), y eso tiene que salir en la medicion."""
+
+    def test_una_cama_normal_da_correlacion_alta(self):
+        L = [0.5, 0.25, -0.25, 0.5]
+        R = [0.5, 0.25, -0.25, 0.5]
+        self.assertAlmostEqual(MM.correlacion(L, R), 1.0, places=3)
+
+    def test_una_cama_en_contrafase_da_correlacion_negativa(self):
+        L = [0.5, 0.25, -0.25, 0.5]
+        R = [-v for v in L]
+        self.assertLess(MM.correlacion(L, R), 0)
+
+    def test_sin_audio_no_hay_correlacion(self):
+        self.assertIsNone(MM.correlacion(None, None))
+        self.assertIsNone(MM.correlacion([], []))
+
+
 if __name__ == "__main__":
     unittest.main()
