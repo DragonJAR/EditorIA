@@ -96,6 +96,22 @@ REF = re.compile(r"(?:references|scripts|film|metricas|assets|brand)/[A-Za-z0-9_
 MEDIA = (".mp3", ".mp4", ".png", ".ttf")
 SCRIPT_REF = re.compile(r"scripts/[A-Za-z0-9_./-]+\.py")
 
+# La prosa de la skill esta en español/ingles: un ideograma, un kana o un
+# hangul son BASURA de una generacion, y publicar eso es publicar un texto
+# roto que nadie caza: se lee como un fallo de tipografia y se asume que es
+# una decision.
+#
+# UNA sola definicion para los dos sitios donde puede colarse: el ARBOL (lo
+# lee validate_skill.py) y el HISTORIAL (lo lee este fichero). Dos
+# definiciones serian dos reglas que se pueden divergir.
+#
+# Los rangos van en ESCAPES, no literales: si el fuente de este fichero
+# contuviera los caracteres, el guard se marcaria a si mismo.
+RANGOS_BASURA = [(0x3000, 0x303F), (0x3040, 0x30FF), (0x3400, 0x4DBF),
+                 (0x4E00, 0x9FFF), (0xF900, 0xFAFF), (0xAC00, 0xD7AF)]
+RE_BASURA = re.compile(
+    "[" + "".join(chr(a) + "-" + chr(b) for a, b in RANGOS_BASURA) + "]")
+
 # Rutas que NO son archivos de la skill: se declaran con su motivo para que
 # la auditoria no marque ruido real.
 EXCEPCIONES = {
@@ -1882,6 +1898,7 @@ def _dos_pasadas():
     raiz = _raiz_git()
     # esto no va por las dos pasadas: es del historial, no del arbol
     _chequear_atribucion(problemas)
+    _chequear_mensajes_de_commit(problemas)
     if raiz:
         with tempfile.TemporaryDirectory() as tmp:
             base_head = _exportar_head(tmp, raiz)
@@ -1908,6 +1925,43 @@ def _dos_pasadas():
                         avisos.append(pr)
                 problemas = publicados
     return problemas, avisos, mds, dominios, canonicos
+
+
+def _chequear_mensajes_de_commit(problemas):
+    """Que los mensajes de commit no traigan basura de otro idioma.
+
+    El mensaje de un commit es parte del artefacto publicado: se lee, se
+    busca, se cita. Un ideograma, un kana o un hangul dentro es un fallo de
+    tipografia que se asume decision. El guard del ARBOL (validate_skill.py)
+    lo ve en los .md/.py/.json, pero el MENSAJE no vive en el arbol: nadie lo
+    miraba. Por esa puerta se colaron dos ideogramas en un mensaje, y si ese
+    commit hubiera sido el de la rama, el texto roto habria salido publicado.
+
+    Se mira el HISTORIAL ALCANZABLE desde HEAD (lo que se publica): lo que
+    queda huerfano (un commit amended) no sale, asi que no se juzga.
+    """
+    raiz = _raiz_git()
+    if not raiz:
+        return
+    try:
+        r = subprocess.run(["git", "-C", raiz, "log", "--format=%h%x09%B%x1e"],
+                           capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return
+    if r.returncode != 0:
+        return
+    for bloque in r.stdout.split("\x1e"):
+        bloque = bloque.strip()
+        if not bloque:
+            continue
+        h, _, cuerpo = bloque.partition("\t")
+        mt = RE_BASURA.search(cuerpo)
+        if mt:
+            problemas.append({
+                "tipo": "basura en el historial", "archivo": h.strip(),
+                "msg": f"el mensaje del commit {h.strip()} trae '{mt.group(0)}': el "
+                       f"historial es texto publicado y se lee. Si es el ultimo commit, "
+                       f"se corrige con 'git commit --amend'"})
 
 
 def _chequear_atribucion(problemas):

@@ -206,13 +206,15 @@ check(not quemadas, f"sin marcas quemadas en scripts/ ({', '.join(quemadas) or '
 # eso es publicar un texto roto que nadie caza: se lee como un fallo de
 # tipografia y se asume que es una decision. (Se ha colado uno en
 # `principios.md`: "la pieza **parece**<CJK>".)
+#
+# La DEFINICION de "basura de otra generacion" vive en `auditar_mapa.py`
+# (RANGOS_BASURA / RE_BASURA) y la comparten los dos sitios donde puede
+# colarse: el ARBOL (aqui) y el HISTORIAL (los mensajes de commit, que lo
+# comprueba el propio auditor). Dos definiciones serian dos reglas que se
+# pueden divergir.
+sys.path.insert(0, os.path.join(BASE, "scripts"))
+from auditar_mapa import RE_BASURA as _re_otro_idioma  # noqa: E402
 _basura = []
-# los rangos van en ESCAPES, no literales: si el fuente de este fichero
-# contuviera los caracteres, el guard se marcaria a si mismo
-_rangos = [(0x3000, 0x303F), (0x3040, 0x30FF), (0x3400, 0x4DBF),
-            (0x4E00, 0x9FFF), (0xF900, 0xFAFF), (0xAC00, 0xD7AF)]
-_re_otro_idioma = re.compile(
-    "[" + "".join(chr(a) + "-" + chr(b) for a, b in _rangos) + "]")
 for _dp, _dn, _fn in os.walk(BASE):
     if "__pycache__" in _dp:
         continue

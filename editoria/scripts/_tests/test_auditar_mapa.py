@@ -1099,5 +1099,47 @@ class TestCifrasDelCodigo(unittest.TestCase):
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")
 
 
+class TestBasuraEnElHistorial(unittest.TestCase):
+    """El historial es texto publicado: un ideograma en un mensaje sale publicado.
+
+    El guard del ARBOL caza la basura de otra generacion en los .md/.py/.json,
+    pero el MENSAJE de un commit no vive en el arbol: nadie lo miraba. Por esa
+    puerta se colaron dos ideogramas en un mensaje de commit, y si ese commit
+    hubiera sido el de la rama, el texto roto habria salido publicado.
+
+    La MUTACION: con el mensaje limpio el guard no dice nada; con un ideograma
+    dentro, tiene que decirlo. (El ideograma del fixture va en escapes: si
+    estuviera escrito en este fuente, el guard del arbol lo marcaria a el.)
+    """
+
+    _BASURA = chr(0x7406) + chr(0x7531)
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="editoria_historial_")
+        self.raiz = _copia_minima(os.path.join(self.dir, "skill"))
+        self.addCleanup(shutil.rmtree, self.dir, True)
+
+    def _commit(self, mensaje):
+        for c in (["init", "-q"], ["config", "user.email", "t@local"],
+                  ["config", "user.name", "t"], ["add", "-A"]):
+            subprocess.run(["git", "-C", self.raiz] + c, capture_output=True, timeout=30)
+        r = subprocess.run(["git", "-C", self.raiz, "commit", "-q", "-m", mensaje],
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_un_mensaje_con_basura_se_caza(self):
+        self._commit("fix: la razon pegada a la forma " + self._BASURA)
+        rc, out = _auditar(self.raiz)
+        self.assertIn("basura en el historial", out,
+                      "un mensaje de commit con basura tiene que salir en el informe")
+        self.assertIn("historial", out)
+
+    def test_un_mensaje_limpio_no_se_marca(self):
+        self._commit("fix: la razon pegada a la forma")
+        rc, out = _auditar(self.raiz)
+        self.assertNotIn("basura en el historial", out,
+                         "un mensaje limpio no puede marcarse")
+
+
 if __name__ == "__main__":
     unittest.main()
