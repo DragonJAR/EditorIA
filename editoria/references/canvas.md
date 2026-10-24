@@ -34,6 +34,43 @@ La comprueba `check_env.py`: esta capacidad vive en el bloque "Motores externos
 si está y, si no, el comando de instalación y esta referencia. La línea `node/npx` cubre el
 otro requisito duro de esta vía (Node 18+).
 
+## Los 15 estilos canónicos (vocabulario de LOOKS)
+
+`Vincentwei1021/mg-styles-15` (MIT) publica **15 películas de motion design**
+de 10 s, una por estilo, y con cada una publica **la receta**: sus rasgos
+característicos, las técnicas con números, el prompt entero y el código.
+
+Aquí aporta el **vocabulario de LOOKS** —el mismo papel que el catálogo de
+estilos de cine en `references/cine.md`—, no un motor: son recetas del camino
+pictórico (o material de overlay), no cosas que el motor Python sepa hacer.
+
+| estilo | su firma |
+|---|---|
+| **Flat / Vector 2D** | bloques de color plano, personajes geométricos, sin degradados (o muy pocos), aire limpio, paleta de marca saturada, entradas y salidas elásticas |
+| **Line Art** | línea fina de un solo trazo, uno o dos colores, mucho espacio negativo, la línea crece de forma continua, el instante línea→plano |
+| **Isometric 2.5D** | proyección isométrica de 30°, sin punto de fuga, escena en miniatura, edificios que crecen, cámara en raíl paralelo |
+| **3D Render (C4D/Blender)** | materiales PBR reales, poca profundidad de campo, luz suave de estudio, arrays de clonadores, colisión de Blandings, aspecto de goma blanda |
+| **Cel Animation / Line Boil** | la línea hierve de continuo, a dos o tres imágenes por segundo, smear en los arranques, fumo y agua dibujados a mano, textura de papel |
+| **Collage / Cutout** | fotos recortadas con contorno blanco, semitono de trama, textura de diario, collage surrealista a escalas dispares, movimiento a fotogramas fijos |
+| **Liquid Motion** | bordes ondulados en las transiciones, hilos y gotas, fusión metaball, gotas secundarias que siguen, curvas orgánicas (nunca rectas) |
+| **Morphing** | el contorno pasa de una forma a otra sin salto, formas intermedias que hacen de puente, el morphing con desplazamiento y rotación, y el aplastamiento del instante |
+| **Geometric Bauhaus** | formas geométricas básicas, paleta limitada (rojo, amarillo, azul, negro), rejilla estricta, rotaciones sobre el centro geométrico, movimiento modular al beat |
+| **Synthwave / Y2K** | brillo neón, rejilla en perspectiva hasta el horizonte, scanlines y separación RGB, letras cromadas, colores ácidos, UI skeuomórfica |
+| **Aurora & Glassmorphism** | manchas de color grandes desenfocadas y a la deriva, tarjetas de cristal esmerilado, borde de luz de 1 px, paleta de tonos cercanos de bajo contraste, ritmo de respiración lento |
+| **Variety Show (hanazi)** | tipografía redonda o gruesa con contorno múltiple, color saturado con borde blanco y sombra, entrada pop elástica, despliegue con el efecto sonoro, adornos dibujados a mano |
+| **Sticker Explainer** | fotos convertidas en stickers de contorno blanco grueso, fondo frío, iconos planos y datos exactos, travelling de cámara en lienzo grande, densidad alta con beats |
+| **Pixel Art / 8-bit** | grano grande de píxel y bordes duros, paleta limitada (8–32 colores), sprites a 8–12 fps, dithering, filtro CRT de scanlines |
+| **Cyberpunk HUD / FUI** | líneas de neón cian y naranja, cajas de bloqueo de objetivo y retícula, radar o barrido circular en bucle, flujo de datos en monoespaciada y efecto máquina de escribir, rejilla hexagonal con resplandor |
+
+**La frontera**: como el catálogo de cine, es material de estudio, no un motor
+que se integre. Sus recetas son para el camino pictórico; el motor Python sigue
+siendo el camino por defecto. Y las piezas de ese repo son de otra escala (10 s
+exactos, una marca inventada): el valor está en **los rasgos y las técnicas**,
+que es lo que se copia aquí.
+
+**Cómo se pide un estilo** (firma verificable + beats por segundo, no
+adjetivos): `references/prompt-motion-graphics.md`.
+
 ## Licencias y atribución
 
 | Pieza | Licencia | Fuente |

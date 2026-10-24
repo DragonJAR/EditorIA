@@ -209,6 +209,31 @@ línea funciona igual leída en silencio, no necesita voz.
 La música sigue el arco visual: hook con pulso, build en el desarrollo,
 resolución en el cierre. Ver `references/reglas-tecnicas.md` (lecciones ffmpeg).
 
+### La segunda vía: música por receta, sin API
+
+`musica.py` es el camino con ElevenLabs: bueno, pero cuesta y necesita
+`$ELEVENLABS_API_KEY`. **Cuando no hay key no se entrega la pieza sin
+música**: hay otra vía, local y determinista.
+
+`Vincentwei1021/mg-styles-15` (MIT) trae `lib/audio/mgaudio`: música por
+**receta**, no por prompt. Se elige una receta del estilo —bpm, tonalidad,
+build, drop, outro— y sale un arreglo con forma (`intro → build → drop →
+outro`), con la rejilla de tempo anclada al **drop**, que es el momento firma
+de la pieza: el compás 0 empieza exactamente en él, no en el segundo 0.
+
+- **Determinista**: la semilla es fija; la misma receta da el mismo audio.
+- **Ya en spec**: una mezcla de 10 s sale en 3–8 s, a −14 LUFS integrado y
+  true peak ≤ −1,1 dBTP, sin normalizar a mano.
+- Los SFX se anclan a los cues con la misma regla de este documento (el
+  evento visual manda; el sonido se pone en su punto de sincronía).
+
+**La frontera**: no es un script de la skill, es una herramienta externa con su
+propio toolchain (Python + numpy/scipy/numba/pedalboard y muestras CC0). Se
+declara como las demás capacidades externas: se clona, no se promete. Y si la
+máquina no lo tiene, se dice en la primera respuesta, con su requisito, y se
+ofrece la vía que sí hay (la voz del sistema y el SFX sintetizado, que ya son
+de la skill).
+
 ### Sound brief (escribir ANTES de generar)
 
 Antes de tocar `musica.py gen`, escribir el brief en el README del proyecto.
@@ -344,6 +369,19 @@ El orden de operaciones importa — cada número asume la VO ya normalizada.
 - **Whooshes solo en cortes de sección** — un whoosh por tarjeta se lee cursi.
 - **Un solo swell grande por video** (el sub-drop del opener o el reveal final).
   Si todo es grande, nada lo es.
+
+### La mezcla tiene que sonar en un teléfono (mono)
+
+El destino de una pieza es un **teléfono**, y un teléfono reproduce en **mono**:
+suma los dos canales. Lo que va en contrafase se anula al sumar, así que una
+mezcla que suena ancha en un portátil puede **desaparecer** en el móvil.
+
+- **Ensanchar con M/S** (`L = y + s`, `R = y − s`), nunca con una copia
+  retardada en un canal: el retardo de Haas (L sin delay, R con delay) es
+  mono-incompatible por construcción.
+- **Medido**: `scripts/medir_mezcla.py` imprime la correlación estéreo de la
+  música. Por encima de **0,3** se sigue oyendo en mono; por debajo de 0 hay
+  contrafase y la pieza se anula en el móvil.
 
 ### Paleta de materiales y una sola sala
 

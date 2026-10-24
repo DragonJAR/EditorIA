@@ -58,6 +58,52 @@ def decodificar(ruta):
     return struct.unpack(f"<{n}f", crudo[:n * 4])
 
 
+def decodificar_estereo(ruta):
+    """(L, R) en f32le a SR Hz.
+
+    Para la compatibilidad con mono: el destino de una pieza es un telefono, y
+    un telefono reproduce en mono (suma los dos canales). Lo que va en
+    contrafase se anula al sumar.
+    """
+    try:
+        r = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", str(ruta), "-ac", "2",
+             "-ar", str(SR), "-f", "f32le", "-"],
+            capture_output=True,
+        )
+    except FileNotFoundError:
+        return None, None
+    if r.returncode != 0:
+        return None, None
+    crudo = r.stdout
+    if np is not None:
+        a = np.frombuffer(crudo, dtype=np.float32)
+        if a.size < 2:
+            return None, None
+        return a[0::2], a[1::2]
+    n = len(crudo) // 4
+    vals = struct.unpack(f"<{n}f", crudo[:n * 4])
+    return vals[0::2], vals[1::2]
+
+
+def correlacion(L, R):
+    """Correlacion entre los dos canales (-1..1).
+
+    >0.3 se sigue oyendo en un telefono (mono). <0 significa contrafase: lo
+    que suena en un altavoz desaparece en el telefono.
+    """
+    if L is None or R is None or len(L) == 0:
+        return None
+    if np is not None and isinstance(L, np.ndarray) and isinstance(R, np.ndarray):
+        den = float(np.sqrt(float(np.sum(L ** 2)) * float(np.sum(R ** 2))))
+        if den <= 0:
+            return None
+        return float(np.sum(L * R) / den)
+    num = sum(l * r for l, r in zip(L, R))
+    den = math.sqrt(sum(l * l for l in L) * sum(r * r for r in R))
+    return num / den if den > 0 else None
+
+
 def rms_db(x, mascara):
     # Rama rápida NumPy solo si numpy está disponible Y ambas entradas son ndarrays
     # (los callers internos ya pasan ndarrays en presencia de numpy; los callers
@@ -160,6 +206,20 @@ def main():
               f"{diferencia - a.target_db:.1f} dB) para que acompañe.")
     else:
         print("→ Balance OK: la música acompaña sin tapar la voz.")
+
+    # Compatibilidad con mono: el destino es un teléfono, que reproduce en
+    # mono sumando los canales. Lo que va en contrafase se anula al sumar.
+    L, R = decodificar_estereo(a.musica)
+    corr = correlacion(L, R)
+    if corr is None:
+        print(" mono: no se pudo medir la correlación de la música")
+    else:
+        print(f" mono: correlación estéreo {corr:+.2f} "
+              f"(>0.3 se sigue oyendo en mono)")
+        if corr < 0:
+            print("→ AVISO: la música tiene canales en contrafase: en un "
+                  "teléfono desaparece. Ensancha con M/S (L=y+s, R=y-s), "
+                  "nunca con una copia retardada en un canal (Haas).")
 
 
 if __name__ == "__main__":

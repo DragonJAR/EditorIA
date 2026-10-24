@@ -255,6 +255,41 @@ Build a 20-second product launch video for {{PRODUCT}} using tokens from
    invented metrics.
 ```
 
+## Cómo se pide un estilo canónico (no con adjetivos)
+
+Un estilo no se pide describiéndolo: se pide con su **firma** (los rasgos que lo
+hacen reconocible de un vistazo) y con sus **beats por segundo**. Es la regla
+que sale de los 15 estilos de `Vincentwei1021/mg-styles-15` (MIT), donde cada
+estilo viene con su receta; el catálogo está en `references/canvas.md`.
+
+**1. La firma se escribe verificable, con números.** No "que tenga movimiento
+elástico", sino "overshoot con `cubic-bezier(0.34,1.56,0.64,1)` y entrada
+escalonada de 2–4 frames". Un rasgo que no se puede comprobar es un rasgo que
+nadie va a mirar: si al final no se cumple, no se sabe si es que la técnica
+falló o es que el estilo no era ese.
+
+**2. El seed creativo lleva beats, en segundos.** Hook → escalada → momento
+firma → cierre, con las marcas de tiempo: "0,0–1,2 s hook: campo de color
+limpio y un círculo que entra con anticipación → estiramiento → aplastamiento →
+rebaso → asentamiento; 1,2–3,0 s la ciudad crece edificio a edificio; 3,0–5,5 s
+la cámara entra por una ventana; 5,5–8,0 s el relleno tapa el plano; 8,0–10,0 s
+todo colapsa en el logotipo". Sin beats, un modelo hace una pieza plana: todo
+entra igual y nada ancla.
+
+**3. Un solo cue sheet** para imagen y sonido: el mismo mapa de tiempos que
+lee el plan (`references/plan-video.md`) es el que leen los golpes. La pieza y
+el audio no se cuentan por separado.
+
+**4. Lo canónico manda sobre lo bueno.** Se puede cambiar el concepto, el copy
+y los nombres de marca si hay una idea más fuerte, pero el resultado tiene que
+seguir siendo **la forma canónica** de ese estilo y cumplir sus rasgos
+característicos: si no, no es ese estilo, es otro con nombre de ese.
+
+**Y después, el jurado**: otra sesión (o el mismo agente con la rúbrica encima)
+juzga la pieza y da una lista de arreglos por impacto —con timecode y un cómo
+concreto— y al menos uno tiene que subir la pieza, no solo pulirla. Ver
+`references/rubrica-premios.md` y `references/auto-qa.md`.
+
 ## Lo que NO se trae
 
 - Voces/SFX generados sin provenance cuando el proyecto exige derechos
