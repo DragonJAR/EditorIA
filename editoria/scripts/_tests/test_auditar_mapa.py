@@ -290,6 +290,19 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn(f"AIRE_VOZ = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el AIRE_VOZ real del codigo")
 
+    def test_la_cadencia_minima_no_se_inventa(self):
+        # el umbral del metronomo lo decide el codigo (CV_MIN_CADENCIA): si
+        # cambia, el valor esperado del guard cambia con el, y la prosa avisa
+        # del numero viejo
+        with open(AUDITAR, encoding="utf-8") as f:
+            txt = f.read()
+        m = re.search(r'"nombre":\s*"cadencia minima[^"]*".*?"valor":\s*([\d.]+)', txt, re.S)
+        self.assertIsNotNone(m, "la regla de la cadencia debe estar en auditar_mapa.py")
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
+            motor = f.read()
+        self.assertIn(f"CV_MIN_CADENCIA = {m.group(1)}", motor,
+                      "el valor esperado tiene que ser el CV_MIN_CADENCIA real del codigo")
+
     def test_la_banda_de_la_estimacion_no_se_inventa(self):
         # la banda (el % del hueco que se tolera) la decide el codigo
         # (BANDA_ESTIMACION): si cambia, el valor esperado del guard cambia

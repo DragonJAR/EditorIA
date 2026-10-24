@@ -188,6 +188,11 @@ REGLAS_UNICAS = [
     # codigo un test, como el piso de letra con LETRA_MIN.
     {"nombre": "aire de voz", "tipo": "exacto", "valor": 0.40,
      "patron": r"duración CRUDA del wav[^.\n]{0,80}?\+\s*(\d+[.,]\d+)"},
+    # el coeficiente de variacion minimo de las duraciones de toma: el
+    # metronomo. Mismo motivo que el aire: si el codigo cambia el umbral, la
+    # prosa se queda con el numero viejo y nadie lo dice.
+    {"nombre": "cadencia minima (CV de duraciones)", "tipo": "exacto", "valor": 0.25,
+     "patron": r"variaci[oó]n de duraciones de toma[^.\n]{0,20}?(\d+[.,]\d+)"},
     # la banda de error de la estimacion silabica: el margen del reloj de la
     # voz es proporcional al hueco (un 25 % del hueco, con un minimo de 0,3 s).
     # Mismo motivo que el aire: si el codigo cambia la banda, la prosa se

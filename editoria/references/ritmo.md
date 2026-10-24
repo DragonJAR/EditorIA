@@ -28,6 +28,18 @@ es la variación medible. Jerarquía canónica de cadencia (tres relojes):
 - **Coeficiente de variación de duraciones de toma ≥ 0.25.** Si las tomas
   duran todas ~1.5s, es un metrónomo. Medido con
   `scripts/verificar_ritmo.py --cortes t0,t1,...`.
+
+  **Cómo se reparten los segundos** (esto es lo que cuesta dos re-renderizados
+  cuando no está escrito): cada escena dura al menos lo que dura su voz —si
+  no, la voz pisa a la siguiente— y al menos lo que ocupa su contenido. El
+  resto es aire, y **el aire es lo que se reparte** para que las duraciones
+  varíen. En una pieza de 20 s con voz en las cinco escenas, la cadencia y la
+  narración se pelean por los mismos segundos: si la narración ocupa casi toda
+  la pieza no queda aire que repartir, y la cadencia no se puede cumplir sin
+  adelgazar el guion. Se adelgaza el **texto** —la voz se hace más corta
+  donde la escena es más larga, no al revés— y se reparte el aire que queda.
+  El plan se escribe con esa cuenta ya hecha: `auditar_plan.py` avisa de la
+  voz que se sale de su escena y de las escenas que duran casi lo mismo.
 - **Al menos 25% de cuadros casi quietos** (diferencia media por cuadro
   mínima) y **al menos una pausa ≥ 1s** bajo el umbral. El silencio visual
   le da peso a lo que se mueve.
