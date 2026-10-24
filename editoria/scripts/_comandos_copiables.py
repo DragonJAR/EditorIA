@@ -73,6 +73,7 @@ EJECUTABLES = {
     "scripts/puntuar.py",
     "scripts/qa_entrega.py",
     "scripts/referencia.py",
+    "scripts/render_plan.py",
     "scripts/sfx.py",
     "scripts/speech_estimate.py",
     "scripts/verificar_ritmo.py",
@@ -119,7 +120,13 @@ FUERA = {
     "scripts/registrar_aprendizaje.py": ("escribe DENTRO de la skill "
                                           "(references/reglas-tecnicas.md): un guard no "
                                           "puede modificar lo que vigila", []),
-    "scripts/render_plan.py": ("renderiza la pieza entera (30 s): la galeria ya lo hace", []),
+    # `--preview` NO renderiza la pieza entera: compone tres frames del plan
+    # (un instante cada uno). El motivo de al lado era cierto para el render
+    # y falso para el preview, asi que la excepcion lo deja pasar y el resto
+    # sigue saltando con su motivo. Es el mismo patron que con
+    # `clonar_video.py` y `referencia.py`.
+    "scripts/render_plan.py": ("renderiza la pieza entera (30 s): la galeria ya lo hace",
+                               ["--preview"]),
     "scripts/sincronizar_instalada.py": ("reescribe la copia instalada", []),
     "scripts/validate_skill.py": ("es la validacion misma: se ejecuta con esta opcion", []),
     "scripts/voz_local.py": ("usa la voz del sistema: depende de la maquina, no del comando",
