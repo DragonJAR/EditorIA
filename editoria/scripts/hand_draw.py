@@ -45,6 +45,17 @@ PUNO_INICIO, PUNO_FIN = 1.18, 1.38
 
 ZOOM_MIN, ZOOM_MAX = 0.25, 6.0
 
+# El texto de las opciones se dice UNA vez: "suavizar" y "pintar" comparten
+# --alpha y --snap, y la puerta exige que toda opción se explique en --help.
+# No se reutiliza el texto del kit (--ancho alli significa "el alto sigue la
+# proporción"): aqui el lienzo se declara entero, alto incluido.
+AYUDA_ALPHA = ("peso del punto nuevo en la EMA: 0 deja el trazo quieto, "
+               "1 lo deja sin suavizar")
+AYUDA_SNAP = ("si el salto supera estos px se toma el punto crudo (un trazo "
+              "brusco no se promedia)")
+AYUDA_ANCHO = "ancho del lienzo de salida en px"
+AYUDA_ALTO = "alto del lienzo de salida en px"
+
 
 # ---------------------------------------------------------------------------
 # Suavizado de puntero / polilínea
@@ -409,18 +420,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p_suave = sub.add_parser("suavizar", help="EMA + snap sobre puntos o trazos JSON")
     p_suave.add_argument("entrada", help="JSON de puntos o trazos")
     p_suave.add_argument("-o", "--out", default=None, help="salida JSON")
-    p_suave.add_argument("--alpha", type=float, default=SUAVIZADO_DEFECTO["alpha"])
-    p_suave.add_argument("--snap", type=float, default=SUAVIZADO_DEFECTO["snap"])
+    p_suave.add_argument("--alpha", type=float, default=SUAVIZADO_DEFECTO["alpha"],
+                         help=AYUDA_ALPHA)
+    p_suave.add_argument("--snap", type=float, default=SUAVIZADO_DEFECTO["snap"],
+                         help=AYUDA_SNAP)
     p_suave.set_defaults(func=cmd_suavizar)
 
     p_pintar = sub.add_parser("pintar", help="pinta trazos JSON a PNG con alfa")
     p_pintar.add_argument("entrada", help="JSON de trazos")
     p_pintar.add_argument("-o", "--out", default=None, help="PNG de salida")
-    p_pintar.add_argument("--ancho", type=int, default=1080)
-    p_pintar.add_argument("--alto", type=int, default=1920)
+    p_pintar.add_argument("--ancho", type=int, default=1080, help=AYUDA_ANCHO)
+    p_pintar.add_argument("--alto", type=int, default=1920, help=AYUDA_ALTO)
     p_pintar.add_argument("--suavizar", action="store_true", help="suaviza cada trazo antes de pintar")
-    p_pintar.add_argument("--alpha", type=float, default=SUAVIZADO_DIBUJO["alpha"])
-    p_pintar.add_argument("--snap", type=float, default=SUAVIZADO_DIBUJO["snap"])
+    p_pintar.add_argument("--alpha", type=float, default=SUAVIZADO_DIBUJO["alpha"],
+                          help=AYUDA_ALPHA)
+    p_pintar.add_argument("--snap", type=float, default=SUAVIZADO_DIBUJO["snap"],
+                          help=AYUDA_SNAP)
     p_pintar.set_defaults(func=cmd_pintar)
 
     args = ap.parse_args(argv)
