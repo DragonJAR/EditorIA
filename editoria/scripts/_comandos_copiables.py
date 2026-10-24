@@ -62,10 +62,16 @@ EJECUTABLES = {
     "scripts/ffmpeg_tools/loudness.py",
     "scripts/ffmpeg_tools/montaje.py",
     "scripts/ffmpeg_tools/scenes.py",
+    "scripts/ffmpeg_tools/speedramp.py",
+    "scripts/ffmpeg_tools/verticalizar.py",
+    "scripts/retakes.py",
     "scripts/lint_copy.py",
     "scripts/medir_contraste.py",
     "scripts/medir_mezcla.py",
+    "scripts/mezclar_audio.py",
     "scripts/proyecto.py",
+    "scripts/puntuar.py",
+    "scripts/qa_entrega.py",
     "scripts/referencia.py",
     "scripts/sfx.py",
     "scripts/speech_estimate.py",
@@ -97,10 +103,18 @@ FUERA = {
                                   ["--dir", "-n"]),
     "scripts/film_marca_v2.py": ("renderiza la pieza entera: la galeria ya lo hace", []),
     "scripts/medir_animacion.py": ("renderiza la pieza entera para medirla: mas lento que el guard completo", []),
-    "scripts/mezclar_audio.py": ("necesita voz, musica y SFX ya renderizados", []),
+    # `mezclar_audio.py` ya NO se excluye: la voz, la musica y el pack de SFX
+    # se sintetizan en local (un wav, un wav y sfx.py), asi que el comando se
+    # copia y se ejecuta de verdad. Antes era el unico comando de la vertical de
+    # sonido con CERO cobertura de la puerta fuerte, y su motivo ("necesita
+    # voz, musica y SFX ya renderizados") era cierto en general pero no en la
+    # forma que el agente copia.
     "scripts/musica.py": ("paga una API de musica", []),
-    "scripts/puntuar.py": ("juzga la pieza: su veredicto depende de la pieza, no del comando", []),
-    "scripts/qa_entrega.py": ("es la puerta: idem, juzga la pieza", []),
+    # `puntuar.py` y `qa_entrega.py` ya NO se excluyen: juzgan una pieza, pero
+    # la pieza puede ser la de prueba (un video y un plan de fixture), y su
+    # veredicto - "NO APROBADA", "GATE: NO PASA" - NO es un comando roto: es
+    # una puerta que ha hecho su trabajo. Por eso el comando copiado que
+    # imprime ERROR se corta, y el que imprime un veredicto no.
     "scripts/referencia.py": ("descarga de la red", ["--video"]),
     "scripts/registrar_aprendizaje.py": ("escribe DENTRO de la skill "
                                           "(references/reglas-tecnicas.md): un guard no "
@@ -215,6 +229,29 @@ def _assets(tmp, skill_dir):
         if "imagen" in a:
             shutil.copy(a["imagen"], os.path.join(stills, f"still_{i}.png"))
     a["stills"] = stills
+    # la voz CON palabras: lo que resuelve el ancla "palabra" del plan. Se
+    # escribe a mano (son palabras de prueba) porque `alinear.py` necesita
+    # Whisper, que no esta instalado en todas las maquinas.
+    palabras = os.path.join(tmp, "palabras.json")
+    with open(palabras, "w", encoding="utf-8") as fh:
+        json.dump({"palabras": [{"inicio": round(0.1 * i, 3)} for i in range(60)]}, fh)
+    a["palabras"] = palabras
+    # la rejilla musical: la genera la herramienta DE VERDAD (beat_grid.py)
+    # sobre la cama de prueba, para que el ancla "beat" tenga algo que resolver
+    if "audio" in a:
+        grid = os.path.join(tmp, "grid.json")
+        p = subprocess.run([sys.executable, os.path.join(skill_dir, "scripts", "beat_grid.py"),
+                            a["audio"], "--json", grid],
+                           capture_output=True, text=True, timeout=120)
+        if p.returncode == 0 and os.path.exists(grid):
+            a["grid"] = grid
+    # el pack de efectos: lo sintetiza sfx.py (procedural, sin assets
+    # externos). Con el, `mezclar_audio.py` deja de necesitar nada de fuera.
+    pack = os.path.join(tmp, "sfx")
+    subprocess.run([sys.executable, os.path.join(skill_dir, "scripts", "sfx.py"),
+                    "-o", pack], capture_output=True, text=True, timeout=120)
+    if os.path.isdir(pack):
+        a["pack"] = pack
     # el pack de marca se busca por el NOMBRE DE FICHERO, no por el nombre de
     # la marca: en el codigo no vive ninguna marca concreta (la regla es
     # white-label, y el guard de marcas quemadas lo vigila). El que haya en
@@ -265,6 +302,16 @@ def _sustituir(partes, assets, scratch=None):
             continue
         if ext == ".json":
             bajo = base.lower()
+            if "palabras" in bajo:
+                if "palabras" not in assets:
+                    return None, False
+                salida.append(assets["palabras"])
+                continue
+            if "grid" in bajo:
+                if "grid" not in assets:
+                    return None, False
+                salida.append(assets["grid"])
+                continue
             if "plantilla" in bajo:
                 if "plantilla" not in assets:
                     return None, False
@@ -286,6 +333,13 @@ def _sustituir(partes, assets, scratch=None):
             if "stills" not in assets:
                 return None, False
             salida.append(assets["stills"])
+            continue
+        if base == "sfx":
+            # el pack de efectos (el valor de --pack): lo sintetiza sfx.py,
+            # asi que no hay nada externo que traer
+            if "pack" not in assets:
+                return None, False
+            salida.append(assets["pack"])
             continue
         if ext in _SUFIJOS:
             clave = _SUFIJOS[ext]

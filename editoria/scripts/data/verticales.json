@@ -1,0 +1,91 @@
+{
+ "_que_es": "Las CUATRO verticales de la skill, declaradas como DATOS para que no se pudran. Cada vertical es una tarea que el agente puede recibir, y las cuatro tienen que estar: (1) cableadas a una ruta de lectura del mapa, (2) terminar en la puerta, (3) llegar a comandos que alguien EJECUTA de verdad, y (4) no tener comandos que nadie copia ni justifica. El guard (scripts/auditar_mapa.py) lo comprueba en cada corrida: una vertical sin ruta es una isla, y la skill entera es una navaja suiza o no es nada.",
+ "_por_que_datos": "En la prosa, una lista de verticales se queda vieja en silencio: nadie dice 'falta la del sonido'. Como dato, el guard la recorre y lo dice. Una ruta de lectura sin herramientas verificadas es documentacion; una ruta con herramientas que el censo ha ejecutado de verdad es un camino de trabajo.",
+ "_que_es_una_clave": "Cada clave es un trozo del nombre del script (scripts/<clave>.py o scripts/ffmpeg_tools/<clave>.py). El guard lo compara contra los scripts de la vertical.",
+ "verticales": [
+  {
+   "nombre": "crear/animar",
+   "ruta": "quiero CREAR un video",
+   "pide": "una pieza nueva animada o dirigida",
+   "claves": [
+    "render_plan",
+    "auditar_plan",
+    "lint_copy",
+    "speech_estimate",
+    "medir_animacion",
+    "medir_contraste",
+    "direccion_arte",
+    "proyecto",
+    "galeria",
+    "film_marca",
+    "check_env",
+    "beat_file",
+    "beat_grid",
+    "auto_qa"
+   ],
+   "sin_test": {
+    "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 39 escenas del catalogo), no un test",
+    "scripts/film_marca.py": "renderiza una pieza entera de cine: la validacion ya lo hace con la v2"
+   }
+  },
+  {
+   "nombre": "editar",
+   "ruta": "quiero EDITAR un video que ya tengo",
+   "pide": "montar, recortar oipolar un video que ya existe",
+   "claves": [
+    "montaje",
+    "caption",
+    "silence",
+    "retakes",
+    "aplicar_edl",
+    "beat_sync",
+    "chapters",
+    "thumbnail",
+    "poster_frame",
+    "verticalizar",
+    "grade",
+    "variantes",
+    "speedramp",
+    "scenes",
+    "look",
+    "shorts_plan",
+    "transcribir",
+    "delivery_check",
+    "loudness",
+    "contact_sheet"
+   ],
+   "sin_test": {
+    "scripts/ffmpeg_tools/transcribir.py": "necesita el modelo de voz (Whisper) instalado"
+   }
+  },
+  {
+   "nombre": "clonar/resumir",
+   "ruta": "quiero clonar este video",
+   "pide": "hacer uno como una referencia, o resumir una reunion",
+   "claves": [
+    "clonar_video",
+    "referencia",
+    "alinear",
+    "contact_sheet"
+   ]
+  },
+  {
+   "nombre": "sonido/musica/voz",
+   "ruta": "quiero VOZ en off, música o sonido",
+   "pide": "la voz, la musica, los efectos y la mezcla de una pieza",
+   "claves": [
+    "voz_off",
+    "voz_local",
+    "mezclar_audio",
+    "musica",
+    "sfx",
+    "medir_mezcla",
+    "audio_viz",
+    "beat_grid",
+    "beat_file",
+    "loudness"
+   ]
+  }
+ ],
+ "_sin_test": "Lo que NO se puede medir con un test, y por que. Un script de una vertical que no ejecuta ningun test y no tiene motivo aqui es un puntero a nada, y el guard lo dice. El motivo va aqui al lado: un motivo sin escribir es un tapon."
+}

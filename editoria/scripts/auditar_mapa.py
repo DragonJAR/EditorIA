@@ -391,6 +391,134 @@ RUTAS_CON_ENTREGABLE = ("CREAR", "EDITAR", "clonar", "resumen",
                         "video grabado", "hecho con IA")
 
 
+def _chequear_verticales(problemas):
+    """Las CUATRO verticales de la skill tienen que estar de verdad.
+
+    Las verticales estan declaradas como DATOS (scripts/data/verticales.json),
+    no como prosa: en la prosa una lista se queda vieja en silencio (nadie
+    dice "falta la del sonido"), y como dato el guard la recorre.
+
+    Y cada vertical tiene que estar completa de verdad:
+      · con su RUTA de lectura en el mapa (si no, el agente recibe "quiero
+        poner voz en off" y el mapa no le dice donde mirar: es una isla);
+      · acabando en la PUERTA (si no, entrega sin medir);
+      · llegando a comandos que alguien EJECUTA de verdad, segun el censo
+        (si no, es documentacion, no un camino de trabajo);
+      · sin comandos que nadie copia ni justifica (el guard de comandos
+        copiados lo mide por comando; aqui se ve por vertical).
+    """
+    import json
+    ruta = os.path.join(BASE, "scripts", "data", "verticales.json")
+    if not os.path.exists(ruta):
+        problemas.append({"tipo": "verticales sin declarar",
+                          "archivo": "scripts/data/verticales.json",
+                          "msg": "no existe el ficheiro de verticales: la skill no puede "
+                                 "comprobar que es una navaja suiza"})
+        return
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError) as _e:
+        problemas.append({"tipo": "verticales ilegibles",
+                          "archivo": "scripts/data/verticales.json",
+                          "msg": f"no se pudieron leer las verticales: {_e}"})
+        return
+    verticales = doc.get("verticales") or []
+    if not verticales:
+        problemas.append({"tipo": "verticales vacias",
+                          "archivo": "scripts/data/verticales.json",
+                          "msg": "no hay verticales declaradas"})
+        return
+
+    # las rutas de lectura del mapa
+    mapa_p = os.path.join(REFS, "mapa.md")
+    rutas = {}
+    if os.path.exists(mapa_p):
+        with open(mapa_p, encoding="utf-8") as fh:
+            mapa_txt = fh.read()
+        sec = re.search(r"##\s*2\.\s*Rutas de lectura.*?(?=\n##\s|\Z)", mapa_txt, re.S)
+        if sec:
+            for bloque in re.split(r"\n(?=- \*\*)", sec.group(0)):
+                m = re.match(r"- \*\*\"?(.+?)\"?\*\*", bloque.strip())
+                if m:
+                    rutas[m.group(1)] = bloque
+
+    # los comandos MEDIDOS por el censo (alguien los ejecuta de verdad)
+    medidos = set()
+    mapa_clis = os.path.join(BASE, "scripts", "data", "cli_verificadas.json")
+    if os.path.exists(mapa_clis):
+        try:
+            with open(mapa_clis, encoding="utf-8") as fh:
+                medidos = set((json.load(fh) or {}).get("verificadas") or {})
+        except (OSError, ValueError):
+            medidos = set()
+
+    # la clasificacion del guard de comandos copiados (copiado / con motivo)
+    copiados, con_motivo = set(), set()
+    try:
+        import _comandos_copiables as _CC
+        copiados = set(_CC.EJECUTABLES)
+        for _prefijo, (_m, _exc) in _CC.FUERA.items():
+            con_motivo.add(_prefijo)
+    except Exception:                       # noqa: BLE001
+        pass
+
+    # los scripts de la skill
+    scripts = set()
+    for dp, _dn, fn in os.walk(os.path.join(BASE, "scripts")):
+        if "__pycache__" in dp:
+            continue
+        for f in fn:
+            if not f.endswith(".py"):
+                continue
+            rel = os.path.relpath(os.path.join(dp, f), BASE).replace("\\", "/")
+            if rel.startswith("scripts/_tests/"):
+                continue          # los tests no son CLIs: son quien las ejecuta
+            scripts.add(rel)
+
+    for v in verticales:
+        nombre = v.get("nombre", "?")
+        clave = v.get("ruta", "")
+        bloque = rutas.get(clave)
+        if bloque is None:
+            problemas.append({"tipo": "vertical sin ruta", "archivo": "references/mapa.md",
+                              "msg": f'la vertical "{nombre}" no tiene ruta de lectura en el '
+                                     f'mapa (se busca "{clave}")'})
+            continue
+        if "qa-entrega" not in bloque:
+            problemas.append({"tipo": "vertical sin puerta", "archivo": "references/mapa.md",
+                              "msg": f'la ruta de la vertical "{nombre}" no acaba en qa-entrega.md'})
+        claves = v.get("claves") or []
+        de_vertical = [sc for sc in scripts
+                       if any(k in os.path.basename(sc) for k in claves)]
+        if not de_vertical:
+            problemas.append({"tipo": "vertical sin herramientas", "archivo": "scripts/data/verticales.json",
+                              "msg": f'la vertical "{nombre}" no llega a ningun script'})
+            continue
+        ejecutados = [sc for sc in de_vertical if sc in medidos]
+        if not ejecutados:
+            problemas.append({"tipo": "vertical sin herramientas verificadas",
+                              "archivo": "scripts/data/verticales.json",
+                              "msg": f'ningun script de la vertical "{nombre}" lo ejecuta un test '
+                                     f'(el censo no los mide): es documentacion, no un camino de trabajo'})
+        # lo que no ejecuta ningun test tiene que llevar su motivo AL LADO
+        motivos = v.get("sin_test") or {}
+        sin_verificar = [sc for sc in de_vertical
+                         if sc not in medidos and sc not in motivos]
+        for sc in sin_verificar:
+            problemas.append({"tipo": "vertical con herramientas sin verificar",
+                              "archivo": "scripts/data/verticales.json",
+                              "msg": f'el script {sc} de la vertical "{nombre}" no lo ejecuta '
+                                     f'ningun test y no tiene motivo declarado: es un puntero a nada'})
+        # y un motivo que ya no aplica (el script se ha medido) es ruido
+        for sc, motivo in motivos.items():
+            if sc in medidos:
+                problemas.append({"tipo": "motivo obsoleto en vertical",
+                                  "archivo": "scripts/data/verticales.json",
+                                  "msg": f'la vertical "{nombre}" declara un motivo para {sc}, pero '
+                                         f'ya hay un test que lo ejecuta: el motivo sobra'})
+
+
 def _chequear_puerta(problemas):
     """Todo camino que produce un entregable tiene que acabar en la puerta.
 
@@ -1642,6 +1770,7 @@ def _todos_los_checks(problemas, mds):
 
     # ---- 7. todo camino que produce un entregable acaba en la puerta ----
     _chequear_puerta(problemas)
+    _chequear_verticales(problemas)
 
     # ---- 8. lo que el SKILL.md promete es lo que el codigo imprime ------
     _chequear_promesas(problemas)

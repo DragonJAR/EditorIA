@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-55 referencias, 43 scripts, 19 herramientas de ffmpeg y 39 suites de tests. Este
+55 referencias, 43 scripts, 19 herramientas de ffmpeg y 40 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -56,6 +56,11 @@ contradigan.
 - **"necesito un resumen de una reunion"** → `scoring-shorts.md` (elegir los momentos) →
   `estilos.md` (el lenguaje visual) → `qa-entrega.md`. El pipeline v2 con scripts
   propios (`pipeline-resumen.md`) es legacy: para piezas nuevas va el motor.
+- **"quiero VOZ en off, música o sonido"** → `sonido.md` (la voz, la música y los
+  efectos) → `audio.md` (el ensamblado y la mezcla, con el ducking) →
+  `plan-video.md` (el campo `voz` de cada escena) → `qa-entrega.md` (la puerta).
+  Es el camino del Step 4 cuando la pieza se está haciendo, y el de los
+  pasos 3 y 6 cuando el sonido se le añade a una que ya existe.
 - **"el video no se siente bien"** → `qa-entrega.md` (que falla) → `auto-qa.md` (la causa) →
   `fluidez.md` (el motor) → `ritmo.md` (el encadenamiento) → `copy.md` (el texto).
 - **"quiero un thumbnail"** → `thumbnails.md` → `checklist-qa.md`.
