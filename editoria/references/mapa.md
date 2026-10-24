@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-60 referencias, 44 scripts, 19 herramientas de ffmpeg y 41 suites de tests. Este
+61 referencias, 44 scripts, 19 herramientas de ffmpeg y 41 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -144,6 +144,7 @@ escribir es un tapón).
 | `3d.md` | el 3D como material: Blender por MCP y objeto de referencia a Three.js | herramienta |
 | `diagramas.md` | diagramas como HTML+SVG con la marca de la pieza | herramienta |
 | `canvas.md` | el motor pictórico (p5.js): acuarela, pincel y doodle generativo | herramienta |
+| `dibujado.md` | la vía dibujada a mano: el método de las poses redibujadas, los cinco looks y el kit | herramienta |
 | `herramientas-agente.md` | las herramientas conectadas del agente y su handoff | herramienta |
 | `brief.md` | el contrato de trabajo cuando se delega una parte | plan |
 
@@ -285,7 +286,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 60 referencias, no se estiman.
+    guard nuevo se cuentan contra las 61 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que

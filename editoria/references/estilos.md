@@ -1,6 +1,7 @@
 # Lenguajes visuales aprendidos
 
-Tres direcciones probadas en producción. Elegir según el brief; se pueden hibridar.
+Tres direcciones probadas en producción, más la vía dibujada a mano. Elegir
+según el brief; se pueden hibridar.
 
 ## 1. Cinético (Demo)
 - Referencia: video demo de tipografía cinética (7 s).
@@ -148,6 +149,19 @@ Cuando el usuario pida el look de un producto real o entregue un archivo
      **píldora de anuncio/tab activa** (`badge`), el **botón CTA con halo**
      (`boton_halo`) y la **firma tipográfica al pie** (`pie`), descartando
      menús complejos o pies de página llenos de enlaces SEO.
+
+## 8. Dibujado a mano (vía dibujada)
+
+- Referencia: la vía de las poses redibujadas, en `references/dibujado.md`.
+- Qué es: la pieza se pinta plano a plano —tinta, lápiz, riso, serigrafía o
+  doodle sobre foto— con un personaje redibujado en cada exposición, en vez de
+  elementos que entran y se asientan.
+- No es un look más: es otro oficio. `references/animacion.md` sigue
+  rigiendo el motion graphics, y aquí solo cambia la regla de los intermedios.
+- Motores: el pictórico (`references/canvas.md`) y el kit dibujado. Los dos son
+  externos: se declaran y se clonan.
+- Ideal: personaje que se mueve, rotoscopio, animación de arena, papel
+  desplegable. No ideal para rótulos, cifras ni demos de producto.
 
 ---
 

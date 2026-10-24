@@ -30,6 +30,7 @@ que levantan el listón del resultado. Por eso la regla de esta tabla no es
 | Video determinista desde HTML | HyperFrames (`npx hyperframes`, Node 22+) | **Declarar**: `npx hyperframes skills update`. Es la via cuando la composicion es HTML (ver `references/hyperframes.md`) |
 | 3D modelado y encuadre | Blender + servidor MCP (`uvx mcp-for-blender`) | **Declarar**: se instala Blender (https://www.blender.org). Ver `references/3d.md` |
 | 3D desde imagen de referencia | Node + `img2threejs` | **Declarar**: Node 18+ y el repo (Apache-2.0). Ver `references/3d.md` |
+| Película dibujada a mano (personaje animado, rotoscopio, arena, papel desplegable) | Node 22.12+ + Chrome + el kit `hand-drawn-canvas-animation` (MIT) | **Declarar**: se clona el repo (`https://github.com/alesha-pro/tools`, carpeta `skills/hand-drawn-canvas-animation`) y se instala con `npm i --no-audit --no-fund`; mientras tanto, la pieza se entrega en el motor plano, que no tiene ese material. Ver `references/dibujado.md` |
 | Diagramas como HTML+SVG | ninguno (es metodo, no binario) | No falta nada: la guia de estilo es el brand pack (ver `references/diagramas.md`) |
 
 **Que "declarar" quiere decir exactamente:** cuando una pieza necesita una

@@ -69,6 +69,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Deterministic HTML piece or data re-render | **HyperFrames**: `references/hyperframes.md` (if it is missing, say so with its install command) |
 | 3D object, product or scene as material | **3D**: `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change; if it is missing, say so with its install command) |
 | Painted material: watercolor, brush strokes, generative doodle, lyric video | **Canvas**: `references/canvas.md` (p5.js + Chrome headless; if it is missing, say so with its install command — never deliver less in silence) |
+| Hand-drawn character animation, rotoscope, sand animation, pop-up paper | **Drawn**: `references/dibujado.md` (whole redrawn poses, exposure sheets, the five looks; the kit is cloned and declared, never vendored — if it is missing, say so with its install command) |
 | Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` and `references/recetas-ai-video.md` |
 
@@ -81,7 +82,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 60 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 61 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 

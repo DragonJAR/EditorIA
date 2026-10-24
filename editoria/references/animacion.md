@@ -187,6 +187,19 @@ El acabado digital perfectamente limpio no es lo que se premia
 4. Puntuar con `rubrica-premios.md`. Si algún eje queda por debajo de 4, se
    corrige y se vuelve a renderizar antes de entregar.
 
+## 10. La excepción: cuando el personaje está dibujado
+
+Todo este documento gobierna el **motion graphics**: elementos que entran, se
+asientan y salen. Un **personaje dibujado** es otro oficio: ahí los
+intermedios no los genera el resorte sino otro dibujo, y el error típico es
+justo el del resorte: extremidades que interpolan y leen como marioneta.
+
+Cuando la pieza esté dibujada a mano, el método (poses enteras, hoja de
+exposición, contactos, marcas) y los motores van en `references/dibujado.md`.
+La regla que cambia aquí es una sola: **no se aplica el mismo resorte a todo**
+—un motor gira a velocidad constante y una taza rígida no squash en cada
+frenada— y **el contacto se conserva hasta su liberación planesada**.
+
 ---
 
 → Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/fluidez.md`, `references/reglas-tecnicas.md`, `references/intencion-escena.md`
