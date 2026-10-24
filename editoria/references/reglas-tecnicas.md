@@ -231,7 +231,9 @@
   8s 1080x1920@30: Remotion 371.9 kB/54s, HyperFrames 525 kB/64s; ambos QA
   limpio salvo flags de auto_qa en tramos casi estaticos (umbral, no defecto).
   Selector: HTML/GSAP -> HyperFrames; React/data-driven -> Remotion;
-  montaje/post/QA -> FFmpeg. Los tres son opcionales y complementarios.
+  montaje/post/QA -> FFmpeg. Los tres son complementarios: ninguno es un
+  requisito del motor, son capacidades que la pieza declara cuando las
+  necesita (ver `capacidades.md`).
 - 2026-10-04 · **HyperFrames exige Node 22+** (no 18+): requisito oficial
   del README de heygen-com/hyperframes, verificado en la fuente. El check
   de entorno refleja "Remotion 18+ / HyperFrames 22+". Via oficial
@@ -295,6 +297,8 @@
 - 2026-10-18 · **Guards de importacion van tras parse_args y bajo __main__**: Llamar sys.exit en el tope del modulo al faltar PIL o numpy rompia --help (rc=1 sin usage) en 4 CLIs (alinear, beat_grid, medir_mezcla, thumbnail) e impedia importar render_plan como libreria. Regla: diferir el chequeo de dependencias opcionales hasta despues de ap.parse_args() o restringir sys.exit a __name__ == '__main__'; para audio f32le de ffmpeg, struct.unpack y math dan un fallback determinista en stdlib (100.0 BPM exactos en 0.96s).
 
 - 2026-10-22 · **Un comando de otra herramienta no lo verifica la puerta**: los flags de la cadena externa (Node, Remotion, HyperFrames: `npx tsc --noEmit`, `--browser-executable`, `npx skills add ...`) no son CLIs de la skill, asi que el verificador de comandos documentados no los ejecuta ni los comprueba. Documentarlos como externos es la honestidad minima: quien los lea sabe que estan SIN vigilar. (Y el verificador SI ve los flags de un subcomando nuestro: intercepta `argparse.parse_args` con los argumentos reales, asi que `--variantes` y su alias `-n` se miran los dos.)
+
+- 2026-10-24 · **Las capacidades no son "opcionales": se DECLARAN**: la palabra "opcional" servia para dos cosas distintas —"el motor no lo necesita" (ciertas) y "la pieza no lo necesita" (falso: nadie sabe si la pieza lo necesita hasta hacerla)— y confundirlas permitia entregar menos en silencio. Regla: el liston es la calidad del resultado, no la comodidad del entorno; si una capacidad falta, se dice en la PRIMERA respuesta, con su comando de instalacion, y se entrega la mejor version que se pueda mientras tanto. Fuente unica: `references/capacidades.md`. El detector (`scripts/check_env.py`) dice que falta y como se instala; el guard de prosa (`scripts/_guard_doctrina.py`) caza que la palabra vuelva a colarse. Medido: 6 frases rotas corregidas (`instalacion.md`, `scene-patterns-from-internet.md`, `check_env.py`) y la constante `LIBS_OPCIONALES` de `check_env.py` renombrada a `LIBS_DECLARABLES` para que el codigo no diga lo contrario que la prosa.
 
 ---
 

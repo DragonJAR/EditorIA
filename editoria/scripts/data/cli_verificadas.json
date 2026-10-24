@@ -9,6 +9,9 @@
   "scripts/_comandos_copiables.py": [
    "scripts/_tests/test_comandos_copiables.py"
   ],
+  "scripts/_guard_doctrina.py": [
+   "scripts/_tests/test_guard_doctrina.py"
+  ],
   "scripts/actualizar_conteos.py": [
    "scripts/_tests/test_actualizar_conteos.py"
   ],
@@ -120,6 +123,7 @@
    "scripts/_tests/test_core_and_scenes.py"
   ],
   "scripts/mezclar_audio.py": [
+   "scripts/_tests/test_comandos_copiables.py",
    "scripts/_tests/test_mezclar_audio.py"
   ],
   "scripts/musica.py": [

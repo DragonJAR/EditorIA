@@ -106,10 +106,14 @@ rep("python", ok_py,
     critico=True)
 
 # Exactamente las librerías de terceros que importan los scripts (validate_skill
-# compara ambas listas: ni dependencias fantasma ni dependencias sin declarar)
+# compara ambas listas: ni dependencias fantasma ni dependencias sin declarar).
+# Las DECLARABLES no hacen falta para arrancar: si la pieza necesita la
+# capacidad que dan, se declara al usuario con su comando (ver
+# `references/capacidades.md`). No son "opcionales": son capacidades que la
+# pieza puede necesitar.
 LIBS_CRITICAS = {"PIL": "pillow", "numpy": "numpy"}
-LIBS_OPCIONALES = {"requests": ("requests", "voz y música IA (voz_off.py, musica.py gen)"),
-                   "faster_whisper": ("faster-whisper", "transcripción local en Python (alinear.py, transcribir.py)")}
+LIBS_DECLARABLES = {"requests": ("requests", "voz y música IA (voz_off.py, musica.py gen)"),
+                    "faster_whisper": ("faster-whisper", "transcripción local en Python (alinear.py, transcribir.py)")}
 print("== Librerías Python ==")
 for lib, pip in LIBS_CRITICAS.items():
     try:
@@ -117,7 +121,7 @@ for lib, pip in LIBS_CRITICAS.items():
         rep(lib, True, "importable", critico=True)
     except ImportError:
         rep(lib, False, f"pip install {pip}", critico=True)
-for lib, (pip, para) in LIBS_OPCIONALES.items():
+for lib, (pip, para) in LIBS_DECLARABLES.items():
     try:
         __import__(lib)
         rep(lib, True, f"importable — {para}")
@@ -172,13 +176,13 @@ rep("node/npx", ok_node and ok_npx,
     f"{det_node}" if (ok_node and ok_npx) else
     "falta Node 18+ (lo necesitan Remotion, HyperFrames y el 3D en codigo): "
     "instalar con 'brew install node' o https://nodejs.org")
-# Remotion: opcional, se inicializa por proyecto con npx create-video@latest
+# Remotion: capacidad (se inicializa por proyecto con npx create-video@latest)
 ok_rem = os.path.exists("node_modules/@remotion/cli")
 rep("remotion", ok_rem,
     "instalado en este proyecto" if ok_rem else
     "animacion programatica en React — si la pieza lo necesita, se instala con "
     "'npx create-video@latest' (Node 18+): ver references/remotion.md")
-# HyperFrames: opcional, CLI de HeyGen (npx hyperframes)
+# HyperFrames: capacidad (CLI de HeyGen, npx hyperframes)
 ok_hf = os.path.exists("node_modules/hyperframes") or os.path.exists("node_modules/@heygen/hyperframes")
 rep("hyperframes", ok_hf,
     "instalado en este proyecto" if ok_hf else

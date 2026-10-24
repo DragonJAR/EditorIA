@@ -57,7 +57,7 @@ winget install Gyan.FFmpeg
 
 # Librerías:
 py -m pip install pillow numpy
-# Opcional (voz/música IA): py -m pip install requests
+# Voz/música IA (se declara si la pieza la necesita): py -m pip install requests
 ```
 
 Notas Windows:
@@ -77,7 +77,7 @@ brew install python
 
 # Librerías:
 pip3 install pillow numpy
-# Opcional (voz/música IA): pip3 install requests
+# Voz/música IA (se declara si la pieza la necesita): pip3 install requests
 ```
 
 Notas macOS:
@@ -95,7 +95,7 @@ Notas macOS:
 ```bash
 sudo apt install ffmpeg python3 python3-pip
 pip3 install pillow numpy
-# Opcional (voz/música IA): pip3 install requests
+# Voz/música IA (se declara si la pieza la necesita): pip3 install requests
 ```
 
 Fedora: `sudo dnf install ffmpeg python3-pip`.

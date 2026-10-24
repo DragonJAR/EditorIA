@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-57 referencias, 43 scripts, 19 herramientas de ffmpeg y 40 suites de tests. Este
+57 referencias, 44 scripts, 19 herramientas de ffmpeg y 41 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -227,6 +227,13 @@ escribir es un tapón).
      que si funcionan, y la cobertura de una vertical se cae sin que nadie
      lo note. Y los saltos se NOMBRAN: un numero de saltados sin motivo
      es un tapon.
+     Y hay una capa que lee la PROSA, porque una doctrina se puede deshacer
+     por escritura: basta con que alguien llame "opcional" a una capacidad
+     en una referencia y la skill vuelve a entregar menos en silencio,
+     mientras el mapa, los conteos y los enlaces siguen en verde.
+     `scripts/_guard_doctrina.py` lee las frases y falla si la palabra
+     prohibida aparece pegada a una capacidad; la negacion que la gobierna
+     (la doctrina dicha en voz alta) no es una falta.
    Pasar la primera capa no dice nada de las otras tres, y cada una
    encuentra cosas que la anterior daba por buenas.
    Y la ENTRADA tiene que llevar al camino vigente, no solo a una pagina que
@@ -307,6 +314,7 @@ escribir es un tapón).
 | `scripts/validate_skill.py` | que la skill entera siga valida |
 | `scripts/_comandos_doc.py` | que los comandos que dice el SKILL.md se puedan correr |
 | `scripts/_comandos_copiables.py` | que el comando que dice la prosa, COPIADO Y PEGADO con assets reales, funcione (el argumento del tipo equivocado no lo ve argparse) |
+| `scripts/_guard_doctrina.py` | que la prosa no vuelva a llamar "opcional" a una capacidad que la pieza puede necesitar (se DECLARA al usuario, no se degrada en silencio) |
 
 ---
 

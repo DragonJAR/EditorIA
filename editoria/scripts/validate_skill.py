@@ -230,6 +230,21 @@ for _dp, _dn, _fn in os.walk(BASE):
 check(not _basura,
       f"sin texto de otro idioma en la skill ({', '.join(_basura[:3]) or 'ninguno'})")
 
+# prosa coherente con la doctrina: una capacidad que la pieza puede necesitar
+# no se declara de otro modo. La palabra "opcional" era un motivo para
+# entregar menos en silencio; la doctrina es DECLARAR (references/capacidades.md).
+# El mapa, los conteos y los enlaces siguen en verde cuando la palabra vuelve a
+# colarse: lo unico que baja es el liston. Por eso el guard lee la PROSA.
+try:
+    sys.path.insert(0, os.path.join(BASE, "scripts"))
+    import _guard_doctrina as _GD
+    _faltas_doctrina = _GD.violaciones(BASE)
+    check(not _faltas_doctrina,
+          f"la prosa no declara de otro modo una capacidad que la pieza puede "
+          f"necesitar ({', '.join(f'{f}: {t[:44]}' for f, _m, t in _faltas_doctrina[:3]) or 'ninguna'})")
+except Exception as _e_doctrina:      # noqa: BLE001
+    check(False, f"el guard de doctrina se pudo cargar y correr ({_e_doctrina})")
+
 # código limpio: sin imports ni variables muertas, sin nombres indefinidos
 # (el lint encontró aquí un ease aplicado dos veces y lógica a medio hacer)
 try:
@@ -353,7 +368,7 @@ for d_ in ("", "ffmpeg_tools"):
             _terceros9 |= {m_.split(".")[0] for m_ in mods_} - _stdlib9 - _locales9
 _declaradas9 = set()
 for n_ in ast.parse(open(os.path.join(BASE, "scripts", "check_env.py"), encoding="utf-8").read()).body:
-    if isinstance(n_, ast.Assign) and getattr(n_.targets[0], "id", "") in ("LIBS_CRITICAS", "LIBS_OPCIONALES"):
+    if isinstance(n_, ast.Assign) and getattr(n_.targets[0], "id", "") in ("LIBS_CRITICAS", "LIBS_DECLARABLES"):
         _declaradas9 |= set(ast.literal_eval(n_.value))
 check(_terceros9 == _declaradas9,
       f"check_env declara exactamente las librerías que se importan (fantasma: "

@@ -60,9 +60,10 @@ línea, skill por skill (2026-10-05). Casi toda la doctrina ya estaba en
 
 Lo que NO se portó (y por qué): reduced-motion, GSAP, Lottie y transiciones
 de página puramente DOM; Three.js/GLSL/Manim (otro stack; `remotion.md` y
-`hyperframes.md` cubren los motores opcionales); precios de freelance (cotizar
-no es editar); `layout-check` por `claim()` (exigiría instrumentar cada dibujo
-del renderer). El efecto óptico Liquid Glass sí se portó en Ronda 4 como
+`hyperframes.md` cubren los motores externos, que son capacidades de la pieza
+y no requisitos del motor); precios de freelance (cotizar no es editar);
+`layout-check` por `claim()` (exigiría instrumentar cada dibujo del renderer).
+El efecto óptico Liquid Glass sí se portó en Ronda 4 como
 primitiva `tarjeta_cristal` en PIL y como receta `@samasante/liquid-glass`
 para HyperFrames/Remotion.
 
