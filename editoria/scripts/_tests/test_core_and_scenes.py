@@ -255,6 +255,50 @@ class TestAuditarPlanAndCliInputGuards(unittest.TestCase):
                 self.assertNotIn("Traceback", r.stderr, f"Traceback en {cmd[0]}: {r.stderr}")
 
 
+class TestPreviewDelPlan(unittest.TestCase):
+    """Mirar el plan SIN pagar el render.
+
+    El frame final es una funcion pura del tiempo, asi que un instante se
+    compone solo: la hoja del plan cuesta un frame por instante, no los 600
+    del video. La MUTACION: si el --preview se comiera el render entero, este
+    test cae (comprueba que la hoja sale y que no sale ningun video).
+    """
+
+    def _plan(self, tmp):
+        plan = {"duracion": 4.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 4.0,
+                             "texto1": ["HOJA"], "texto2": ["DEL", "PLAN"]}]}
+        ruta = os.path.join(tmp, "plan.json")
+        with open(ruta, "w", encoding="utf-8") as fh:
+            json.dump(plan, fh)
+        return ruta
+
+    def test_la_hoja_sale_sin_renderizar_el_video(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self._plan(tmp)
+            hoja = os.path.join(tmp, "hoja.jpg")
+            r = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, "render_plan.py"), plan,
+                 "--preview", "0,2", "--hoja", hoja],
+                capture_output=True, text=True, timeout=600)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertTrue(os.path.isfile(hoja), "la hoja tiene que salir")
+            self.assertGreater(os.path.getsize(hoja), 1000, "la hoja no puede estar vacia")
+            self.assertIn("ms/frame", r.stdout, "el preview tiene que decir el coste")
+            self.assertFalse(os.path.exists(os.path.join(tmp, "plan.mp4")),
+                             "el preview no puede renderizar el video")
+
+    def test_un_instante_fuera_del_plan_no_pasa(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self._plan(tmp)
+            r = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, "render_plan.py"), plan,
+                 "--preview", "99"],
+                capture_output=True, text=True, timeout=600)
+            self.assertNotEqual(r.returncode, 0, "un instante fuera del plan es un error")
+            self.assertNotIn("Traceback", r.stderr, f"Traceback: {r.stderr}")
+
+
 class TestStdlibAudioFallbacks(unittest.TestCase):
     def test_beat_grid_stdlib_helpers_and_demo_bpm(self):
         # list(...) inmuniza la comparación contra ndarray (numpy presente) o list

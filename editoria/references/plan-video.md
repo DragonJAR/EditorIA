@@ -158,11 +158,19 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
 ```
 python scripts/render_plan.py plan.json -o borrador.mp4              # rápido
 python scripts/render_plan.py plan.json -o final.mp4 --blur 5 --force  # entrega
+python scripts/render_plan.py plan.json --preview 0,2.5,5  # mirar sin renderizar
 ```
 
 `--blur N`: motion blur por N sub-frames (obturador `--obturador 0.5` = 180°).
 `--jobs N`: procesos en paralelo (default núcleos−1). Sin `--force` retoma
 los frames que ya existen.
+
+`--preview 0,2.5,5`: compone SOLO esos instantes (el frame final es una
+funcion pura del tiempo, asi que un instante se compone solo) y escribe una
+hoja de contactos del plan en `--hoja RUTA` (default: junto al plan, `<plan>.preview.jpg`). Es
+para mirar el primer cuadro, un plano clave y el ultimo SIN pagar el render
+completo: un frame por instante, no los 600 del video. Sin `-o` no hace
+falta.
 
 **Tamaño**: `"tamano": "1920x1080"` en el plan (o `--tamano`) para 16:9; la
 zona segura pasa a la de YouTube. Default 1080×1920. Las 39 escenas se

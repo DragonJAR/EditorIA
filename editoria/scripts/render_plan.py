@@ -3957,6 +3957,10 @@ def formato(ancho,alto,plataforma=None):
 def render(plan_path,plan,out,a):
     """Renderiza un plan ya cargado a `out` (.mp4; .webm/.mov = con alfa)."""
     global ACENTO, ACENTO_OSC, ALFA, W, H
+    if out is None:
+        # solo --preview: no se renderiza nada, pero las rutas de trabajo
+        # (cache de frames) necesitan un nombre.
+        out=os.path.splitext(os.path.basename(plan_path))[0]+".preview.mp4"
     ALFA=os.path.splitext(out)[1].lower() in (".webm",".mov")
     try:
         W,H=(int(v) for v in str(a.tamano or plan.get("tamano","1080x1920")).lower().split("x"))
@@ -3981,6 +3985,8 @@ def render(plan_path,plan,out,a):
     escenas=preparar_escenas(ctx,plan)
     maximo=plan.get("mancha_max", 1 if TRANSICIONES=="corte_seco" else 2)
     manchas_ok=presupuesto_manchas(escenas,maximo)
+    if a.preview:
+        return _preview(ctx,escenas,dur,fps,a,manchas_ok)
     tmpd=f"{out}.frames"; os.makedirs(tmpd,exist_ok=True)
     print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}"+(" · overlay con alfa" if ALFA else ""),flush=True)
     pend=[fi for fi in range(n) if a.force or not os.path.exists(f"{tmpd}/f_{fi:04d}.png")]
@@ -4253,10 +4259,66 @@ def leer_tabla(ruta):
         except csv.Error: dialecto=csv.excel   # una sola columna: no hay separador que adivinar
         return [dict(r) for r in csv.DictReader(f,dialect=dialecto)]
 
+def _preview(ctx, escenas, dur, fps, a, manchas_ok):
+    """MIRA el plan sin pagar el render: compone los instantes pedidos y los
+    pone en una hoja.
+
+    El frame final es una funcion pura del tiempo (se compone en `t`, sin
+    depender de los frames anteriores), asi que un instante se compone solo:
+    no hace falta renderizar lo de antes para ver lo de ahora. Por eso esto
+    es una hoja de contactos DEL PLAN, no un video recortado.
+    """
+    import time as _time, tempfile as _tf, shutil as _sh
+    from contact_sheet import mosaico
+    instantes = []
+    for x in str(a.preview).replace(";", ",").split(","):
+        x = x.strip()
+        if not x:
+            continue
+        try:
+            instantes.append(float(x))
+        except ValueError:
+            sys.exit(f"ERROR: --preview pide instantes en segundos, no '{x}'")
+    if not instantes:
+        sys.exit("ERROR: --preview necesita al menos un instante (ej. --preview 0,2.5,5)")
+    d = _tf.mkdtemp(prefix="editoria_preview_")
+    tiles = []
+    vistos = []
+    for t in instantes:
+        if t < 0 or t > dur:
+            print(f"AVISO: {t}s esta fuera del plan (dura {dur}s): se omite", flush=True)
+            continue
+        t0 = _time.time()
+        img = frame_con_blur(ctx, escenas, dur, t, fps, a.blur, a.obturador, manchas_ok)
+        ms = (_time.time() - t0) * 1000
+        ruta = os.path.join(d, f"t_{t:07.2f}.png")
+        img.save(ruta, **PNG_CUADRO)
+        tiles.append((ruta, f"{t:.2f}s", ""))
+        vistos.append(t)
+        print(f"  {t:.2f}s  {ms:.0f} ms/frame", flush=True)
+    if not tiles:
+        sys.exit("ERROR: ningun instante del --preview cae dentro del plan")
+    if a.hoja:
+        salida = a.hoja
+    elif a.out:
+        salida = os.path.splitext(a.out)[0] + ".preview.jpg"
+    else:
+        salida = os.path.splitext(a.plan)[0] + ".preview.jpg"
+    mosaico(tiles, cols=min(3, len(tiles)), ancho_tile=640, salida=salida)
+    _sh.rmtree(d, ignore_errors=True)   # el mosaico ya tiene los pixeles en memoria
+    print(f"hoja de contactos del plan: {salida}")
+    print(f"instantes: {', '.join(f'{t:.2f}s' for t in vistos)} · duracion del plan: {dur}s")
+    return salida
+
+
 def main():
     ap=argparse.ArgumentParser()
-    ap.add_argument("plan"); ap.add_argument("-o","--out",required=True,
-                    help="salida .mp4 (o .webm/.mov = overlay con alfa); con --datos admite {campo}")
+    ap.add_argument("plan"); ap.add_argument("-o","--out",required=False,
+                    help="salida .mp4 (o .webm/.mov = overlay con alfa); con --datos admite {campo}. Con --preview no hace falta")
+    ap.add_argument("--preview",default=None,
+                    help="instantes a mirar separados por comas (ej. 0,2.5,5): compone solo esos frames y escribe una hoja de contactos, SIN renderizar el video entero")
+    ap.add_argument("--hoja",default=None,
+                    help="donde se escribe la hoja del --preview (default: <salida>.preview.jpg)")
     ap.add_argument("--fps",type=int,default=30)
     ap.add_argument("--brand", default=None,
                     help="brand pack (brand/*.json); el plan también acepta campo \"brand\"")
@@ -4286,6 +4348,11 @@ def main():
     from _comun import ayudar
     ayudar(ap, {'--fps': 'cuadros por segundo (30 default; 24 para look de cine)'})
     a=ap.parse_args()
+    if not a.out and not a.preview:
+        ap.error("falta -o/--out (usa --preview si lo que quieres es mirar el plan sin renderizarlo)")
+    if a.preview and not a.hoja:
+        _base=os.path.splitext(a.out or os.path.basename(a.plan))[0]
+        a.hoja=_base+".preview.jpg"
     plan=leer_json(a.plan,"el plan")
     base=os.path.dirname(os.path.abspath(a.plan))
     if not a.datos:

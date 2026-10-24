@@ -107,6 +107,36 @@ beat es su propia escena que reemplaza a la anterior. La regla:
   (ver `reglas-tecnicas.md`: el ambiente va en los bordes, el contenido
   necesita calma).
 
+## Un plano, una lectura (el tiempo lo dicta el espectador)
+
+El fallo tipico no es mover rapido: es mover TODO a la misma velocidad. El
+tiempo de un plano lo pide **su lectura**, no el codigo: la ACCION es rapida
+y el SIGNIFICADO es lento. Un dato entra de golpe, pero la idea que sostiene
+el dato necesita su hold.
+
+- Cada plano tiene **una** lectura: lo que el espectador tiene que sacar de
+  el. Si tiene dos, son dos planos (o una division dentro del plano).
+- La duracion de un plano = su lectura x el hold del piso de lectura + la
+  entrada. Si no cabe, se recorta el copy o se divide el plano: no se acelera.
+- Un plano sin lectura se lee como relleno aunque este lleno de movimiento.
+  "Dinamismo" no es un proposito: el proposito es que el espectador avance.
+- El remate sostiene lo que el plano abre: si el ultimo plano no cierra el
+  loop que el primero prometo, la pieza pierde confianza (ver
+  `tecnicas-video.md`, hooks y retencion).
+
+**Y mirarlo antes de pagar el render**: el frame final es una funcion pura
+del tiempo, asi que se puede componer un instante suelto sin renderizar lo
+que viene antes. Eso da una hoja de contactos DEL PLAN, no un video
+recortado:
+
+```
+python scripts/render_plan.py plan.json --preview 0,2.5,5
+```
+
+Cuesta un frame por instante (no los 600 del video) y sirve para mirar lo
+que de verdad importa en una pieza corta: el **primer cuadro** (el hook se
+lee sin sonido), un plano clave y el **ultimo cuadro** (el loop empalma).
+
 ## Piso de lectura (ley dura)
 
 El ritmo alto viene del movimiento rápido, las transiciones ágiles y los
