@@ -125,7 +125,7 @@ manda el pack (`references/direccion-de-arte.md`).
 
 ## De dónde sale el pack
 
-Hoy, de un JSON escrito a mano (`brand/<marca>.json`). **También de un
+Hoy, de un JSON escrito a mano (`brand/mi_marca.json`). **También de un
 fichero de diseño**: Figma o su alternativa open source **Penpot**
 (MPL-2.0, con servidor MCP para que el agente lea los ficheros de diseño),
 y el skill `/figma` de HyperFrames para lo mismo.

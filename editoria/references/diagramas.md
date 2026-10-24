@@ -40,8 +40,8 @@ equivalencia es directa:
 
 | la herramienta pide | esta skill lo tiene en |
 |---|---|
-| paleta de marca | `brand/<marca>.json` → `colores.acento`, `colores.neutro` |
-| tipografías | `brand/<marca>.json` → `tipografias` |
+| paleta de marca | `brand/mi_marca.json` → `colores.acento`, `colores.neutro` |
+| tipografías | `brand/mi_marca.json` → `tipografias` |
 | radios, pesos, espaciado | los del pack, y `references/reglas-tecnicas.md` |
 | la forma de "no enviar esto sin personalizar" | el brand pack es la **fuente**; sin pack, `references/paleta.md` elige una paleta y el diagrama declara que usa modo libre |
 
