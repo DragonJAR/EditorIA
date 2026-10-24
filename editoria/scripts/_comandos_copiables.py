@@ -14,23 +14,26 @@ documentado en ninguna parte. Por eso hay que COPIARLO Y CORRERLO.
 
 Aqui se copia cada comando documentado, se sustituyen sus placeholders por
 assets REALES (el plan de muestra de la skill, un video y un audio minimos
-generados con ffmpeg) y se corre de verdad. El fallo que se busca no es el
-veredicto de la herramienta —una puerta que rechaza una pieza mala ha hecho
-su trabajo— sino el comando ROTO: el que no puede ni leer lo que la prosa le
-manda.
+generados con ffmpeg, una plantilla de clonado) y se corre de verdad. El
+fallo que se busca no es el veredicto de la herramienta —una puerta que
+rechaza una pieza mala ha hecho su trabajo— sino el comando ROTO: el que no
+puede ni leer lo que la prosa le manda.
 
-Y la lista tiene que ser COMPLETA: toda CLI documentada o se copia y se corre,
-o tiene el motivo de por que no. Una CLI que no se ejecuta y no tiene motivo
-es un puntero a nada, y el guard lo dice.
+Y la lista tiene que ser COMPLETA, y completa POR COMANDO, no por script:
+un script puede tener un camino que se copia (offline) y otro que no (el
+mismo `clonar_video.py` tiene `variar`, que es local, y `analizar`, que
+baja el video). La unidad es el comando que el agente COPIA, no el fichero.
+Por eso los motivos viven aqui como prefijos de comando, y por eso el
+informe NOMBRA cada salto: un numero de saltados sin nombres es un tapon.
 
 Uso:
     python3 scripts/_comandos_copiables.py            # informa
     python3 scripts/_comandos_copiables.py --json     # en JSON
+    python3 scripts/_comandos_copiables.py --solo txt # solo los que contienen "txt"
 """
 import glob
 import json
 import os
-import re
 import shutil
 import signal
 import subprocess
@@ -41,9 +44,9 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(BASE, "scripts")
 
 # ---------------------------------------------------------------------------
-# Las CLIs que este guard COPIA Y CORRE. Criterio: no pagan APIs, no salen a
-# la red, no renderizan una pieza entera y terminan en segundos. Cada una
-# esta porque hay un comando documentado que la usa con estos argumentos.
+# Las CLIs cuyo comando documentado se COPIA Y SE CORRE. Criterio: no pagan
+# APIs, no salen a la red, no renderizan una pieza entera y terminan en
+# segundos.
 # ---------------------------------------------------------------------------
 EJECUTABLES = {
     "scripts/auditar_plan.py",
@@ -51,6 +54,8 @@ EJECUTABLES = {
     "scripts/beat_file.py",
     "scripts/beat_grid.py",
     "scripts/check_env.py",
+    "scripts/clonar_video.py",
+    "scripts/contact_sheet.py",
     "scripts/direccion_arte.py",
     "scripts/ffmpeg_tools/caption.py",
     "scripts/ffmpeg_tools/delivery_check.py",
@@ -61,37 +66,51 @@ EJECUTABLES = {
     "scripts/medir_contraste.py",
     "scripts/medir_mezcla.py",
     "scripts/proyecto.py",
+    "scripts/referencia.py",
     "scripts/sfx.py",
     "scripts/speech_estimate.py",
     "scripts/verificar_ritmo.py",
+    "scripts/voz_local.py",
 }
 
-# Las CLIs documentadas que este guard NO copia, con el motivo. Sin motivo no
-# hay exclusion: una exclusion sin razon es una puerta que nadie mira.
+# Los comandos documentados que este guard NO copia, con el motivo. La clave
+# es un PREFIJO del comando (o el script entero), no el script: por eso
+# `clonar_video.py` esta en EJECUTABLES (su camino `variar` es local) y solo
+# su `analizar` queda fuera (baja el video de la red).
+#
+# Sin motivo no hay exclusion: una exclusion sin razon es una puerta que
+# nadie mira.
+# (motivo, [formas del comando que NO necesitan lo que el motivo dice])
+#
+# El segundo elemento es lo que hace que la exclusion sea precisa: un script
+# puede necesitar la red o una voz, y aun asi tener una forma que solo
+# necesita un fichero local. Sin esto, excluir el script entero se lleva por
+# delante comandos que si se pueden ejecutar, y la cobertura de una vertical
+# se cae sin que nadie lo note. Las formas se comparan por TOKEN.
 FUERA = {
-    "scripts/_censo_clis.py": "corre la suite entera: este guard esta dentro de ella",
-    "scripts/_comandos_copiables.py": "es este guard: un guard no se copia a si "
-                                  "mismo (se mediria en un bucle). Lo ejecuta un "
-                                  "test y lo corre la validacion",
-    "scripts/alinear.py": "necesita un modelo de voz (Whisper) instalado",
-    "scripts/clonar_video.py": "descarga de la red",
-    "scripts/contact_sheet.py": "necesita palabras alineadas (Whisper)",
-    "scripts/film_marca_v2.py": "renderiza la pieza entera: la galeria ya lo hace",
-    "scripts/medir_animacion.py": "renderiza la pieza entera para medirla: "
-                                "mas lento que el guard completo",
-    "scripts/mezclar_audio.py": "necesita voz, musica y SFX ya renderizados",
-    "scripts/musica.py": "paga una API de musica",
-    "scripts/puntuar.py": "juzga la pieza: su veredicto depende de la pieza, no del comando",
-    "scripts/qa_entrega.py": "es la puerta: idem, juzga la pieza",
-    "scripts/referencia.py": "descarga de la red",
-    "scripts/registrar_aprendizaje.py": "escribe DENTRO de la skill "
-                                     "(references/reglas-tecnicas.md): un "
-                                     "guard no puede modificar lo que vigila",
-    "scripts/render_plan.py": "renderiza la pieza entera (30 s): la galeria ya lo hace",
-    "scripts/sincronizar_instalada.py": "reescribe la copia instalada",
-    "scripts/validate_skill.py": "es la validacion misma: se ejecuta con esta opcion",
-    "scripts/voz_local.py": "usa la voz del sistema: depende de la maquina, no del comando",
-    "scripts/voz_off.py": "paga una API de TTS",
+    "scripts/_censo_clis.py": ("corre la suite entera: este guard esta dentro de ella", []),
+    "scripts/_comandos_copiables.py": ("es este guard: un guard no se copia a si mismo", []),
+    "scripts/alinear.py": ("necesita un modelo de voz (Whisper) instalado", []),
+    "scripts/clonar_video.py analizar": ("descarga de la red: baja el video de referencia",
+                                         ["--video"]),
+    "scripts/contact_sheet.py": ("necesita palabras alineadas (Whisper)",
+                                  ["--dir", "-n"]),
+    "scripts/film_marca_v2.py": ("renderiza la pieza entera: la galeria ya lo hace", []),
+    "scripts/medir_animacion.py": ("renderiza la pieza entera para medirla: mas lento que el guard completo", []),
+    "scripts/mezclar_audio.py": ("necesita voz, musica y SFX ya renderizados", []),
+    "scripts/musica.py": ("paga una API de musica", []),
+    "scripts/puntuar.py": ("juzga la pieza: su veredicto depende de la pieza, no del comando", []),
+    "scripts/qa_entrega.py": ("es la puerta: idem, juzga la pieza", []),
+    "scripts/referencia.py": ("descarga de la red", ["--video"]),
+    "scripts/registrar_aprendizaje.py": ("escribe DENTRO de la skill "
+                                          "(references/reglas-tecnicas.md): un guard no "
+                                          "puede modificar lo que vigila", []),
+    "scripts/render_plan.py": ("renderiza la pieza entera (30 s): la galeria ya lo hace", []),
+    "scripts/sincronizar_instalada.py": ("reescribe la copia instalada", []),
+    "scripts/validate_skill.py": ("es la validacion misma: se ejecuta con esta opcion", []),
+    "scripts/voz_local.py": ("usa la voz del sistema: depende de la maquina, no del comando",
+                              ["--listar"]),
+    "scripts/voz_off.py": ("paga una API de TTS", []),
 }
 
 # Las firmas de un comando ROTO: no es un veredicto de la herramienta, es la
@@ -107,6 +126,11 @@ ROTO = (
     "unrecognized arguments",
     "invalid choice",
     "Traceback (most recent call last)",
+    # un comando copiado que imprime ERROR no hizo su trabajo. OJO: esto NO
+    # es lo mismo que un veredicto: una puerta que rechaza una pieza mala
+    # imprime FAIL, y eso es haber hecho su trabajo. Va al final porque es la
+    # firma mas generica: si pilla otra mas especifica, esa dice mas.
+    "ERROR:",
 )
 
 
@@ -122,14 +146,44 @@ def _ffmpeg(destino, args_extra, duracion=1):
     return p.returncode == 0 and os.path.exists(destino)
 
 
+def _plantilla(destino):
+    """Una plantilla de clonado minima pero REAL.
+
+    `clonar_video.py variar` no necesita la red: necesita la estructura que
+    produce `analizar` (los segmentos de la referencia). Con una plantilla
+    minima se puede correr el camino de clonar de verdad, y asi el comando
+    que el agente copia en esa vertical queda EJECUTADO, no solo vigilado por
+    sus argumentos.
+    """
+    plantilla = {
+        "origen": "referencia de prueba (guard)",
+        "duracion_referencia": 12.0,
+        "aspecto": "9:16",
+        "fps": 30,
+        "segmentos": [
+            {"indice": 1, "from": 0.0, "to": 4.0, "duracion": 4.0,
+             "rol": "hook", "tipo_sugerido": "apertura"},
+            {"indice": 2, "from": 4.0, "to": 8.0, "duracion": 4.0,
+             "rol": "dato", "tipo_sugerido": "stats"},
+            {"indice": 3, "from": 8.0, "to": 12.0, "duracion": 4.0,
+             "rol": "cierre", "tipo_sugerido": "final"},
+        ],
+    }
+    with open(destino, "w", encoding="utf-8") as fh:
+        json.dump(plantilla, fh, indent=1, ensure_ascii=False)
+    return destino
+
+
 def _assets(tmp, skill_dir):
     """Los assets con los que se sustituye lo que la prosa nombra."""
     a = {}
     plan = os.path.join(skill_dir, "scripts", "demo_plan.json")
     if os.path.exists(plan):
         a["plan"] = plan
+    # el video lleva AUDIO: loudness y montaje mapean 0:a, y un video mudo
+    # no les da nada que hacer (el comando "funciona" y no hace su trabajo)
     vid = os.path.join(tmp, "video.mp4")
-    if _ffmpeg(vid, []):
+    if _ffmpeg(vid, ["-f", "lavfi", "-i", "sine=frequency=440:duration=1"]):
         a["video"] = vid
     aud = os.path.join(tmp, "audio.wav")
     if _ffmpeg(aud, ["-f", "lavfi", "-i", "sine=frequency=440:duration=1"], duracion=1):
@@ -152,6 +206,15 @@ def _assets(tmp, skill_dir):
     with open(srt, "w", encoding="utf-8") as fh:
         fh.write("1\n00:00:00,000 --> 00:00:01,000\nHola\n\n")
     a["srt"] = srt
+    a["plantilla"] = _plantilla(os.path.join(tmp, "plantilla.json"))
+    # una carpeta de stills: `contact_sheet --dir` no necesita palabras
+    # alineadas (eso es lo que exige Whisper), solo imagenes
+    stills = os.path.join(tmp, "stills")
+    os.makedirs(stills, exist_ok=True)
+    for i in range(2):
+        if "imagen" in a:
+            shutil.copy(a["imagen"], os.path.join(stills, f"still_{i}.png"))
+    a["stills"] = stills
     # el pack de marca se busca por el NOMBRE DE FICHERO, no por el nombre de
     # la marca: en el codigo no vive ninguna marca concreta (la regla es
     # white-label, y el guard de marcas quemadas lo vigila). El que haya en
@@ -172,15 +235,42 @@ _SUFIJOS = {
 }
 
 
-def _sustituir(partes, assets):
+# Las banderas cuyo valor es un FICHERO DE SALIDA. La salida no se sustituye
+# por el asset: se escribe en un sitio de raspado. Si no, el comando
+# escribiria encima de su propia entrada (ffmpeg: "el output es el input").
+SALIDAS = ("-o", "--out", "--output", "--salida", "--sheet")
+
+
+def _sustituir(partes, assets, scratch=None):
     """(partes, resuelto). Resuelto=False si algo no se puede sustituir."""
     salida = []
+    anterior = None
     for p in partes:
         base = os.path.basename(p)
         ext = os.path.splitext(base)[1].lower()
+        # la salida se reconoce POR la bandera que la precede, y se comprueba
+        # ANTES que la extension: si no, "final.mp4" se sustituiria por el
+        # asset de video y el comando escribiria encima de su entrada
+        previo = anterior
+        anterior = p
+        es_salida = previo in SALIDAS and scratch is not None
+        if es_salida:
+            salida.append(os.path.join(scratch, f"salida{ext or '.out'}"))
+            continue
+        if previo == "--referencia" and "video" in assets:
+            # la referencia es un video (o un enlace): el fichero tiene que
+            # EXISTIR, o el comando dice "la referencia no existe" y no hace
+            # su trabajo
+            salida.append(assets["video"])
+            continue
         if ext == ".json":
-            if "plan" in base.lower() and "shorts" not in base.lower() \
-                    and "plantilla" not in base.lower():
+            bajo = base.lower()
+            if "plantilla" in bajo:
+                if "plantilla" not in assets:
+                    return None, False
+                salida.append(assets["plantilla"])
+                continue
+            if "plan" in bajo and "shorts" not in bajo:
                 if "plan" not in assets:
                     return None, False
                 salida.append(assets["plan"])
@@ -190,7 +280,13 @@ def _sustituir(partes, assets):
                     return None, False
                 salida.append(assets["brand"])
                 continue
-            return None, False          # shorts-plan, plantilla, datos: sin schema
+            return None, False          # shorts-plan, datos: sin schema
+        if p.endswith("/") or p.endswith(os.sep):
+            # una carpeta: la de stills del fixture
+            if "stills" not in assets:
+                return None, False
+            salida.append(assets["stills"])
+            continue
         if ext in _SUFIJOS:
             clave = _SUFIJOS[ext]
             if clave not in assets:
@@ -225,7 +321,7 @@ def _correr_comando(skill_dir, cmd, tmp, assets, timeout=120):
     ruta = os.path.join(skill_dir, script)
     if not os.path.exists(ruta):
         return True, "", ""            # lo ve otro guard
-    nuevas, resuelto = _sustituir(partes[1:], assets)
+    nuevas, resuelto = _sustituir(partes[1:], assets, scratch=os.path.join(tmp, "cwd"))
     if not resuelto:
         return True, "", ""            # se salta: no se puede sustituir
     cmd_real = [sys.executable, ruta] + nuevas
@@ -262,14 +358,60 @@ def _correr_comando(skill_dir, cmd, tmp, assets, timeout=120):
     return True, "", ""
 
 
+def _normaliza_cmd(cmd):
+    """El comando con la ruta del script normalizada ('editoria/scripts/...'
+    -> 'scripts/...'), para poder casar prefijos de comando."""
+    sys.path.insert(0, os.path.join(BASE, "scripts"))
+    try:
+        import _comandos_doc as cd
+    finally:
+        sys.path.pop(0)
+    partes = cd._partir(cmd)
+    if not partes:
+        return cmd.strip()
+    s = partes[0]
+    if "/scripts/" in s:
+        s = "scripts/" + s.split("/scripts/", 1)[1]
+    return " ".join([s] + partes[1:])
+
+
+def _decide(cmd, script):
+    """(copia, motivo). Un comando se COPIA si su script esta entre las
+    ejecutables (y ningun motivo lo excluye) o si es una EXCEPCION. Si no,
+    lleva su motivo; y si no tiene motivo, es un problema: un comando
+    documentado que ni se copia ni dice por que no, es un puntero a nada.
+    """
+    motivo = _motivo_de(cmd)
+    if motivo:
+        return False, motivo
+    if script in EJECUTABLES:
+        return True, None
+    return False, None
+
+
+def _motivo_de(cmd):
+    """El motivo por el que un comando NO se copia, o None."""
+    norm = _normaliza_cmd(cmd)
+    mejor = None
+    tokens = norm.split()
+    for prefijo, (motivo, excepto) in FUERA.items():
+        if not norm.startswith(prefijo):
+            continue
+        if any(t in tokens for t in excepto):
+            continue        # esta forma del comando no necesita lo del motivo
+        if mejor is None or len(prefijo) > len(mejor[0]):
+            mejor = (prefijo, motivo)
+    return mejor[1] if mejor else None
+
+
 def verificar(skill_dir=None, comandos=None, timeout=120, solo=None):
     """(problemas, informe).
 
     problemas: [texto] — un comando documentado que, copiado y pegado con
-    assets reales, esta roto.
-    informe: dict con cuantos comandos se miraron, cuantos se saltaron y
-    porque. Los saltos se CUENTAN: un guard que se salta la mitad sin decirlo
-    es un guard que no mira.
+    assets reales, esta roto; o un comando que ni se copia ni tiene motivo.
+    informe: dict con cuantos comandos se miraron, cuantos se copiaron y
+    ejecutaron, y -por motivo- cuales se saltaron. Los saltos se NOMBRAN: un
+    guard que se salta la mitad sin decirlo es un guard que no mira.
     """
     skill_dir = skill_dir or BASE
     sys.path.insert(0, os.path.join(skill_dir, "scripts"))
@@ -282,20 +424,31 @@ def verificar(skill_dir=None, comandos=None, timeout=120, solo=None):
                     + cd.comandos_de_referencias(skill_dir))
     if solo:
         comandos = [c for c in comandos if solo in c]
-    scripts = cd.scripts_de_los_comandos(skill_dir)
 
-    # 1. la lista tiene que ser COMPLETA: toda CLI documentada o se copia, o
-    #    tiene el motivo de por que no.
+    # 1. la lista tiene que ser COMPLETA POR COMANDO: cada comando documentado
+    #    o se copia, o tiene el motivo de por que no.
     problemas = []
-    sin_motivo = sorted(s for s in scripts
-                         if s not in EJECUTABLES and s not in FUERA)
-    for s in sin_motivo:
-        problemas.append(f"CLI documentada sin motivo y sin copia: {s}")
+    sin_motivo = []
+    for cmd in comandos:
+        partes = cd._partir(cmd)
+        if not partes:
+            continue
+        s = partes[0]
+        if "/scripts/" in s:
+            s = "scripts/" + s.split("/scripts/", 1)[1]
+        copia, motivo = _decide(cmd, s)
+        if copia or motivo:
+            continue            # se copia, o no se copia CON MOTIVO
+        sin_motivo.append(cmd)
+    for c in sin_motivo:
+        problemas.append(f"comando documentado sin motivo y sin copia: {c}")
 
     tmp = tempfile.mkdtemp(prefix="editoria_copiables_")
     try:
         assets = _assets(tmp, skill_dir)
-        copiados = saltados = 0
+        copiados = 0
+        saltados = 0
+        por_motivo = {}
         for cmd in comandos:
             partes = cd._partir(cmd)
             if not partes:
@@ -303,16 +456,21 @@ def verificar(skill_dir=None, comandos=None, timeout=120, solo=None):
             s = partes[0]
             if "/scripts/" in s:
                 s = "scripts/" + s.split("/scripts/", 1)[1]
-            if s not in EJECUTABLES:
-                saltados += 1
+            copia, motivo = _decide(cmd, s)
+            if not copia:
+                if motivo:
+                    saltados += 1
+                    por_motivo.setdefault(motivo, []).append(cmd)
                 continue
-            ok, motivo, salida = _correr_comando(skill_dir, cmd, tmp, assets,
-                                                 timeout=timeout)
+            ok, motivo_rot, salida = _correr_comando(skill_dir, cmd, tmp,
+                                                       assets, timeout=timeout)
             copiados += 1
             if not ok:
-                problemas.append(f"{cmd}  ->  {motivo}")
+                problemas.append(f"{cmd}  ->  {motivo_rot}")
         informe = {"comandos": len(comandos), "copiados": copiados,
-                   "saltados": saltados, "clis_documentadas": len(scripts)}
+                   "saltados": saltados,
+                   "saltados_por_motivo": {k: len(v) for k, v in por_motivo.items()},
+                   "clis_documentadas": len(cd.scripts_de_los_comandos(skill_dir))}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return problemas, informe
@@ -335,6 +493,9 @@ def main():
         print("FALLO", p)
     print(f"comandos: {informe['comandos']} · copiados: {informe['copiados']}"
           f" · saltados: {informe['saltados']}")
+    for motivo, n in sorted(informe["saltados_por_motivo"].items(),
+                            key=lambda kv: -kv[1]):
+        print(f"   saltado ({n}): {motivo}")
     print(f"{len(problemas)} problemas")
     return 1 if problemas else 0
 

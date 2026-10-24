@@ -18,6 +18,7 @@ Y la regla que las dos mitades comparten: una guarda que nunca ha fallado es
 una hipotesis. El arnes de mutaciones es lo que la convierte en hecho.
 """
 
+import glob
 import json
 import os
 import shutil
@@ -43,36 +44,19 @@ class TestComandosCopiables(unittest.TestCase):
             sys.path.pop(0)
         return cc
 
-    def _tiny_video(self, tmp):
-        """Un video minimo de verdad (1 s), para los comandos que lo necesitan."""
-        destino = os.path.join(tmp, "tiny.mp4")
-        p = subprocess.run(
-            ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
-             "testsrc=duration=1:size=320x180:rate=10",
-             "-pix_fmt", "yuv420p", destino],
-            capture_output=True, text=True, timeout=120)
-        self.assertEqual(p.returncode, 0, f"no se pudo crear el video: {p.stderr}")
-        return destino
-
     def test_corta_un_comando_roto(self):
         """MUTACION: un comando documentado con el argumento equivocado tiene
         que salir como problema. Este es el defecto real que motivo el guard:
         `verificar_ritmo.py plan.json` (el plan donde va el video) revienta
         con "ffmpeg no pudo leer"."""
         cc = self._guard()
-        tmp = tempfile.mkdtemp(prefix="editoria_copiable_")
-        try:
-            assets = cc._assets(tmp, BASE)
-            # el comando roto, tal cual lo escribia la prosa
-            problemas, _ = cc.verificar(
-                BASE, comandos=["scripts/verificar_ritmo.py plan.json"])
-            self.assertTrue(problemas,
-                            "el guard no vio un comando roto: "
-                            "la prosa podia mandar un plan donde va el video")
-            self.assertTrue(any("no pudo leer" in p for p in problemas),
-                            f"el motivo no es el del defecto: {problemas}")
-        finally:
-            shutil.rmtree(tmp, ignore_errors=True)
+        problemas, _ = cc.verificar(
+            BASE, comandos=["scripts/verificar_ritmo.py plan.json"])
+        self.assertTrue(problemas,
+                        "el guard no vio un comando roto: "
+                        "la prosa podia mandar un plan donde va el video")
+        self.assertTrue(any("no pudo leer" in p for p in problemas),
+                        f"el motivo no es el del defecto: {problemas}")
 
     def test_no_corta_un_comando_bueno(self):
         """El guard no puede acusar de roto lo que funciona: un falso positivo
@@ -87,34 +71,143 @@ class TestComandosCopiables(unittest.TestCase):
                          "el comando no se copio: el guard no miró lo que dice")
 
     def test_lo_que_no_se_puede_juzgar_se_salta_y_se_cuenta(self):
-        """Un comando con un placeholder que no se puede sustituir se SALTA, y
-        el salto se CUENTA. Un guard que se salta la mitad sin decirlo es un
-        guard que no mira."""
+        """Un comando que no se puede juzgar se SALTA, y el salto se CUENTA y
+        se NOMBRA. Un guard que se salta la mitad sin decirlo es un guard que
+        no mira."""
         cc = self._guard()
         problemas, informe = cc.verificar(
-            BASE, comandos=["scripts/clonar_video.py variar --plantilla plantilla.json"])
+            BASE, comandos=["scripts/clonar_video.py analizar --url \"https://x\" -o r"])
         self.assertEqual(problemas, [])
         self.assertEqual(informe["saltados"], 1,
                          f"el salto no se conto: {informe}")
+        self.assertTrue(informe["saltados_por_motivo"],
+                        "el salto no tiene motivo nombrado: un numero sin "
+                        "motivo es un tapon")
 
-    def test_la_lista_de_clis_tiene_que_ser_completa(self):
-        """Toda CLI documentada o se copia, o tiene el motivo de por que no.
-        Una CLI que no se ejecuta y no tiene motivo es un puntero a nada."""
+    def test_un_script_puede_copiarse_y_aun_asu_tener_un_comando_fuera(self):
+        """La unidad es el COMANDO que el agente copia, no el script: el
+        mismo `clonar_video.py` tiene `variar` (local, se copia y se ejecuta)
+        y `analizar` (baja el video, no se copia)."""
+        cc = self._guard()
+        self.assertIn("scripts/clonar_video.py", cc.EJECUTABLES,
+                      "el camino local de clonar_video tiene que copiarse")
+        self.assertIsNone(
+            cc._motivo_de('scripts/clonar_video.py variar --plantilla '
+                           'plantilla.json --variantes 3 --tema "x"'),
+            "el camino local no puede tener motivo de exclusion")
+        self.assertIsNotNone(
+            cc._motivo_de('scripts/clonar_video.py analizar --url "u" -o d'),
+            "el camino que baja el video de la red no puede copiarse")
+
+    def test_la_lista_de_comandos_tiene_que_ser_completa(self):
+        """COMPLETA POR COMANDO: cada comando documentado o se copia, o tiene
+        el motivo de por que no. Un comando que no se copia y no tiene motivo
+        es un puntero a nada."""
         cc = self._guard()
         sys.path.insert(0, SCRIPTS)
         try:
             import _comandos_doc as cd
         finally:
             sys.path.pop(0)
-        scripts = cd.scripts_de_los_comandos(BASE)
-        huerfanos = [s for s in scripts
-                     if s not in cc.EJECUTABLES and s not in cc.FUERA]
-        self.assertEqual(huerfanos, [],
-                         f"CLI documentada sin motivo y sin copia: {huerfanos}")
+        cmds = cd.comandos_documentados(BASE) + cd.comandos_de_referencias(BASE)
+        sin_motivo = []
+        for cmd in cmds:
+            partes = cd._partir(cmd)
+            if not partes:
+                continue
+            s = partes[0]
+            if "/scripts/" in s:
+                s = "scripts/" + s.split("/scripts/", 1)[1]
+            if s in cc.EJECUTABLES or cc._motivo_de(cmd):
+                continue
+            sin_motivo.append(cmd)
+        self.assertEqual(sin_motivo, [],
+                         f"comando documentado sin motivo y sin copia: {sin_motivo}")
         # y ninguna exclusion sin motivo escrito
-        for cli, motivo in cc.FUERA.items():
+        for prefijo, (motivo, _) in cc.FUERA.items():
             self.assertTrue(motivo.strip(),
-                            f"exclusion sin motivo: {cli}")
+                            f"exclusion sin motivo: {prefijo}")
+
+    def test_el_motivo_es_por_forma_del_comando(self):
+        """Un script puede necesitar la red y aun asi tener una forma que solo
+        necesita un fichero local. Sin esto, excluir el script entero se lleva
+        por delante comandos que si se ejecutan, y la cobertura de una vertical
+        se cae sin que nadie lo note."""
+        cc = self._guard()
+        # la forma local se copia...
+        self.assertIsNone(cc._motivo_de('scripts/referencia.py --video clip.mp4'))
+        self.assertIsNone(cc._motivo_de('scripts/clonar_video.py analizar --video ref.mp4'))
+        self.assertIsNone(cc._motivo_de('scripts/voz_local.py --listar'))
+        # ...y la que baja el video de la red, no
+        self.assertIsNotNone(cc._motivo_de('scripts/referencia.py --url "u"'))
+        self.assertIsNotNone(cc._motivo_de('scripts/clonar_video.py analizar --url "u"'))
+        self.assertIsNotNone(cc._motivo_de('scripts/voz_local.py plan.json -o voz.wav'))
+
+    def test_un_comando_que_no_hace_su_trabajo_se_corta(self):
+        """Un comando copiado que imprime ERROR no hizo su trabajo: eso se
+        corta. Y OJO: esto NO es lo mismo que un veredicto: una puerta que
+        rechaza una pieza mala imprime FAIL, y ahi ha hecho su trabajo."""
+        cc = self._guard()
+        # un ERROR en la salida de un comando copiado: no hizo su trabajo
+        self.assertEqual(cc._juzgar("ERROR: el input no tiene stream de audio"),
+                         "ERROR:")
+        # un veredicto NO es un fallo del comando: una puerta que rechaza una
+        # pieza mala ha hecho su trabajo, y ahi el comando funciona
+        self.assertIsNone(cc._juzgar("FAIL quietud 0% cuadros quietos (min 25%)"))
+        self.assertIsNone(cc._juzgar("WARN rafaga 0 ventana(s)"))
+        # y un crash, si
+
+    def test_la_salida_no_se_escribe_sobre_la_entrada(self):
+        """El valor de -o (y de las otras banderas de salida) va a un sitio de
+        raspado. Si se sustituyera por el asset de entrada, el comando
+        escribiria encima de lo que lee."""
+        cc = self._guard()
+        tmp = tempfile.mkdtemp(prefix="editoria_salida_")
+        try:
+            assets = cc._assets(tmp, BASE)
+            sys.path.insert(0, SCRIPTS)
+            try:
+                import _comandos_doc as cd
+            finally:
+                sys.path.pop(0)
+            partes = cd._partir("scripts/ffmpeg_tools/loudness.py in.mp4 "
+                                "-o out.mp4 -I -14 --tp -1.5")
+            nuevas, ok = cc._sustituir(partes[1:], assets,
+                                        scratch=os.path.join(tmp, "cwd"))
+            self.assertTrue(ok)
+            self.assertNotEqual(nuevas[0], nuevas[2],
+                                 "la salida es el mismo fichero que la entrada")
+            self.assertIn("-I", nuevas, f"se perdio una bandera: {nuevas}")
+            self.assertIn("-14", nuevas, f"se perdio un valor: {nuevas}")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_la_plantilla_de_ejemplo_produce_un_plan_real(self):
+        """La plantilla que el guard usa no es un cascaron: `variar` tiene que
+        salir con planes de verdad, con escenas del catalogo y la voz dentro.
+        Es la cobertura de la vertical de clonar: un comando que el agente
+        copia, EJECUTADO de verdad."""
+        cc = self._guard()
+        tmp = tempfile.mkdtemp(prefix="editoria_plantilla_")
+        try:
+            assets = cc._assets(tmp, BASE)
+            p = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, "clonar_video.py"),
+                 "variar", "--plantilla", assets["plantilla"],
+                 "--variantes", "2", "--tema", "Prueba"],
+                capture_output=True, text=True, timeout=300, cwd=tmp)
+            self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+            planes = sorted(glob.glob(os.path.join(tmp, "variantes", "*", "plan.json")))
+            self.assertEqual(len(planes), 2,
+                             f"no salieron los 2 planes: {p.stdout}{p.stderr}")
+            with open(planes[0], encoding="utf-8") as fh:
+                plan = json.load(fh)
+            self.assertTrue(plan.get("escenas"), "el plan salio vacio")
+            for e in plan["escenas"]:
+                self.assertIn("voz", e, "una escena sin voz: el plan no se audito")
+                self.assertIn("tipo", e, "una escena sin tipo del catalogo")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
     def test_la_cli_del_guard_se_puede_correr(self):
         """El guard tiene que ser una CLI de verdad, no un modulo: se ejecuta

@@ -194,11 +194,21 @@ contradigan.
      (un `plan.json` donde va el video es una cadena valida: el comando
      revienta mas tarde, cuando ya no hay nadie mirando). Por eso hay un
      guard que COPIA cada comando documentado, lo CORRE con assets reales
-     (el plan de muestra de la skill, un video y un audio minimos) y
-     separa lo que es un veredicto de la herramienta de lo que es el
-     comando roto: `scripts/_comandos_copiables.py`. Y su lista tiene que
-     ser COMPLETA — toda CLI documentada o se copia, o tiene el motivo de
-     por que no — porque un puntero a nada tambien es un puntero a nada.
+     (el plan de muestra de la skill, un video y un audio minimos, una
+     plantilla de clonado) y separa lo que es un veredicto de la
+     herramienta de lo que es el comando roto: `scripts/_comandos_copiables.py`.
+     Y su lista tiene que ser COMPLETA — todo comando documentado o se
+     copia, o tiene el motivo de por que no — porque un puntero a nada
+     tambien es un puntero a nada.
+     **La unidad es el COMANDO, no el script.** Un script puede necesitar
+     la red y aun asi tener una forma que solo necesita un fichero local
+     (`clonar_video.py`: `variar` es local, `analizar --url` baja el video).
+     Por eso el motivo se declara POR FORMA: si la forma no necesita lo
+     que el motivo dice, el comando se copia y se ejecuta. Sin esa
+     precision, excluir un script entero se lleva por delante comandos
+     que si funcionan, y la cobertura de una vertical se cae sin que nadie
+     lo note. Y los saltos se NOMBRAN: un numero de saltados sin motivo
+     es un tapon.
    Pasar la primera capa no dice nada de las otras tres, y cada una
    encuentra cosas que la anterior daba por buenas.
    Y la ENTRADA tiene que llevar al camino vigente, no solo a una pagina que
