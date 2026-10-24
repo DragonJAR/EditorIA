@@ -34,10 +34,27 @@ es la variación medible. Jerarquía canónica de cadencia (tres relojes):
   **Salvedad por concepto**: una pieza sobre planos reales que siempre se
   mueven (footage vivo) no tiene ese silencio: no es un defecto de la pieza,
   es que el mínimo no le aplica. Mismo caso que la ráfaga, que tampoco es un
-  defecto si el concepto no la pide. Se declara con
-  `verificar_ritmo.py --sobre-footage-vivo`, que pone esos dos mínimos en
-  «no aplica» (con el motivo) y **sigue midiendo igual la cadencia y la
-  ráfaga**: el silencio visual no es la excusa para no tener ritmo.
+  defecto si el concepto no la pide.
+  Se declara en el **plan** de la pieza, con el HECHO y no con la exención:
+
+  ```json
+  {"sobre_footage_vivo": true}
+  ```
+
+  El plan es el documento de la pieza: ahí queda **registrado** por qué el
+  mínimo no aplica, y dentro de un año quien la mida lo ve. Un flag de CLI
+  no deja constancia de nada: el siguiente que lo corra lee «plana» sin
+  contexto. Y el campo declara un hecho comprobable («esta pieza se compone
+  sobre planos que siempre se mueven»), no una exención que el verificador
+  no puede comprobar: si el día de mañana cambia el criterio, el campo sigue
+  diciendo la verdad y el verificador deduce de ahí.
+  Con el plan delante, `verificar_ritmo.py` toma además los **cortes** de los
+  tiempos de las escenas (los beats que percibe el espectador; los fundidos
+  del footage no son cortes que `scene-select` vea) y **sigue midiendo igual
+  la cadencia y la ráfaga**: el silencio visual no es la excusa para no
+  tener ritmo.
+  Para medir un video suelto, sin plan, está el equivalente
+  `--sobre-footage-vivo` en la CLI.
 - **Al menos una ráfaga** si el concepto tiene impactos: ≥3 cambios grandes
   dentro de 1.5s. Un concepto sin impactos (un elemento que se transforma,
   una cámara continua) no necesita ráfaga — no es un defecto.

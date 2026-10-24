@@ -61,6 +61,46 @@ class TestSalvedadPorConcepto(unittest.TestCase):
         self.assertIn("PASS", r.stdout)      # el resultado overall es PASS
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_el_plan_declara_el_hecho_y_manda_en_los_cortes(self):
+        """El plan es el documento de la pieza: ahi quedan registrados los
+        cortes (los beats que percibe el espectador) y el HECHO de que se
+        compone sobre footage vivo. Un flag de CLI no deja constancia."""
+        import json
+        plan = {
+            "duracion": 20.0,
+            "sobre_footage_vivo": True,
+            "escenas": [
+                {"tipo": "apertura", "from": 0.0, "to": 3.0},
+                {"tipo": "bento", "from": 3.0, "to": 9.0},
+                {"tipo": "final", "from": 9.0, "to": 14.0},
+            ],
+        }
+        ruta = os.path.join(self.dir, "plan.json")
+        with open(ruta, "w", encoding="utf-8") as fh:
+            json.dump(plan, fh)
+        r = subprocess.run([sys.executable, VERIFICAR, self.video, "--plan", ruta],
+                           capture_output=True, text=True, timeout=300)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("no aplica sobre footage vivo", r.stdout)
+        # la cadencia se mide con los TIEMPOS DE LAS ESCENAS del plan:
+        # duraciones 3, 6 y 5 -> CV 0.26 (no se detectan cortes en el video)
+        self.assertRegex(r.stdout, r"PASS\s+cadencia\s+CV=0\.\d+")
+        self.assertIn("3 tomas", r.stdout)   # 3 escenas -> 3 duraciones
+
+    def test_un_plan_sin_el_hecho_no_exime_nada(self):
+        """El campo declara el HECHO: si no esta, los minimos se miden."""
+        import json
+        plan = {"duracion": 20.0, "escenas": [
+            {"tipo": "apertura", "from": 0.0, "to": 3.0},
+            {"tipo": "final", "from": 3.0, "to": 9.0}]}
+        ruta = os.path.join(self.dir, "plan_sin.json")
+        with open(ruta, "w", encoding="utf-8") as fh:
+            json.dump(plan, fh)
+        r = subprocess.run([sys.executable, VERIFICAR, self.video, "--plan", ruta],
+                           capture_output=True, text=True, timeout=300)
+        self.assertIn("quietud", r.stdout)
+        self.assertNotIn("no aplica sobre footage vivo", r.stdout)
+
     def test_el_flag_no_toca_la_cadencia_ni_la_rafaga(self):
         """El flag es una salvedad de CONCEPTO para el silencio visual: los
         otros minimos se siguen midiendo."""

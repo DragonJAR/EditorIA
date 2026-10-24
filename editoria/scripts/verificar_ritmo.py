@@ -84,12 +84,20 @@ def main():
     ap.add_argument("video")
     ap.add_argument("--cortes", default=None,
                     help="tiempos de corte en segundos, ej. 0,1.6,3.0,4.8")
+    ap.add_argument("--plan", default=None,
+                    help="el plan.json de la pieza: de ahi salen los cortes (los "
+                         "tiempos de las escenas, que son los beats que percibe "
+                         "el espectador) y el HECHO de si la pieza se compone "
+                         "sobre footage vivo")
     ap.add_argument("--sobre-footage-vivo", action="store_true",
                     help="la pieza va sobre planos reales que siempre se mueven: el "
                          "silencio visual no aplica (el minimo de cuadros quietos y "
                          "la pausa son de una pieza de motion graphics, donde el "
                          "silencio lo compone el piece, no el footage). Los otros "
-                         "minimos (cadencia, rafaga) se siguen midiendo igual.")
+                         "minimos (cadencia, rafaga) se siguen midiendo igual. "
+                         "El plan lo declara SOLO con \"sobre_footage_vivo\": true, "
+                         "que es un HECHO comprobable; aqui queda el equivalente "
+                         "para medir un video suelto, sin plan.")
     import os as _os, sys as _sys
     _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
     from _comun import ayudar
@@ -99,8 +107,29 @@ def main():
     fps, diffs = frame_diffs(a.video)
     ok = True
 
-    cortes = ([float(x) for x in a.cortes.split(",")] if a.cortes
-              else auto_cortes(a.video))
+    # El plan es el documento de la pieza: ahi viven los cortes (los tiempos
+    # de las escenas = los beats que percibe el espectador) y el HECHO de si
+    # la pieza se compone sobre footage vivo. Un flag de CLI no deja
+    # constancia de nada: dentro de un ano, quien mida la pieza no ve por que
+    # el silencio visual no le aplica.
+    plan = None
+    footage_vivo = a.sobre_footage_vivo
+    if a.plan:
+        import json as _json
+        try:
+            with open(a.plan, encoding="utf-8") as fh:
+                plan = _json.load(fh)
+        except (OSError, ValueError) as _e:
+            sys.exit(f"ERROR: no se pudo leer el plan {a.plan}: {_e}")
+        if plan.get("sobre_footage_vivo"):
+            footage_vivo = True
+    if a.cortes:
+        cortes = [float(x) for x in a.cortes.split(",")]
+    elif plan and plan.get("escenas"):
+        escenas = sorted(plan["escenas"], key=lambda x: x.get("from", 0))
+        cortes = [s["from"] for s in escenas] + [max(s.get("to", 0) for s in escenas)]
+    else:
+        cortes = auto_cortes(a.video)
     if len(cortes) < 2:
         ok &= leg("cadencia", "WARN",
                   "sin cortes detectados — pasar --cortes para medir cadencia")
@@ -112,7 +141,7 @@ def main():
 
     quiet = diffs < STILL_THRESH
     still_frac = float(quiet.mean())
-    if a.sobre_footage_vivo:
+    if footage_vivo:
         # Una pieza sobre planos reales que siempre se mueven no tiene el
         # silencio visual que compone una pieza de motion graphics: no es un
         # defecto de la pieza, es que el minimo no aplica a este concepto
@@ -130,7 +159,7 @@ def main():
         cur = cur + 1 if q else 0
         best = max(best, cur)
     stretch = best / fps
-    if a.sobre_footage_vivo:
+    if footage_vivo:
         leg("pausa", "N/A", f"pausa más larga {stretch:.1f}s — no aplica sobre "
                             "footage vivo (el silencio visual lo compone el piece)")
     else:
