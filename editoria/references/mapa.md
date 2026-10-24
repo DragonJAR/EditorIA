@@ -182,6 +182,13 @@ contradigan.
      vale: un nombre en un comentario no ejecuta nada) y se valida: si el
      test nombrado desaparece, la CLI se queda sin verificar y el guard lo
      dice.
+   - Y el mapa no lo escribe nadie a mano: lo MIDE la misma corrida de la
+     suite que la validacion ya hacia (`scripts/_censo_clis.py`, que
+     instrumenta `subprocess` y deja registrado que scripts se ejecutaron
+     de verdad). El fichero es solo su foto: se regenera con
+     `python3 scripts/_censo_clis.py --escribir` y se contrasta con
+     `--comparar`. Asi el mapa es un HECHO y no una declaracion que
+     envejece en silencio.
    Pasar la primera capa no dice nada de las otras tres, y cada una
    encuentra cosas que la anterior daba por buenas.
    Y la ENTRADA tiene que llevar al camino vigente, no solo a una pagina que
