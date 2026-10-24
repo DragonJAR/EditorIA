@@ -19,7 +19,7 @@ apply (because EditorIA is animation-first, not camera-first).
 | 7 | Pad cut edges 30-200 ms (working window) | **OK** | `scripts/ffmpeg_tools/aplicar_edl.py` (working window configurable) |
 | 8 | Word-level verbatim ASR only (never SRT phrase-mode) | **OK** | `scripts/alinear.py` returns `[{texto, inicio, fin, confianza}]`; never Whisper SRT round-trip |
 | 9 | Cache transcripts (never re-transcribe unchanged sources) | **OK** | `scripts/voz_off.py` content-addressed cache (md5 of text+voice+model) |
-| 10 | Workers/subagents with disjoint scope for animation slots | **Partial** | EditorIA is single-threaded by design; long renders run as independent background processes instead of workers |
+| 10 | Workers/subagents with disjoint scope for animation slots | **Partial** | EditorIA is single-threaded by design; long renders run as independent background processes instead of workers. Cuando se delega una parte, el encargo se escribe con el brief (`references/brief.md`) |
 | 11 | **Confirm strategy with the user before executing** | **OK** | `SKILL.md` workflow A and B: the agent proposes and confirms before rendering |
 | 12 | Outputs in the project directory, never clobber source | **OK** | `render_plan.py` uses output.frames (regenerable temp dir) and output.mp4 (never touches inputs) |
 
@@ -28,7 +28,7 @@ apply (because EditorIA is animation-first, not camera-first).
 | # | Anti-pattern | Status in EditorIA | Where / Fix |
 |---|--------------|--------------------|-------------|
 | 1 | Hierarchical pre-computed codec formats (ProRes, etc.) | **OK** | `render_plan.py` uses H.264 directly |
-| 2 | Hand-tuned moment-scoring functions | N/A | EditorIA does not use automatic moment scoring |
+| 2 | Hand-tuned moment-scoring functions | **OK** | El scoring no se escribe a mano: `scripts/ffmpeg_tools/scenes.py` mide los cortes, la envolvente RMS y los picos, y el clon (`clonar_video.py analizar`) usa esa medicion en vez de suponer por posicion |
 | 3 | Whisper SRT output (loses sub-second gap data) | **OK** | `alinear.py` consumes word_timestamps; never uses SRT from Whisper as input |
 | 4 | Running Whisper locally on CPU | **OK** | `check_env.py` reports Whisper as optional; default is to use the cloud via voz_off (ElevenLabs) |
 | 5 | Burning subtitles before compositing overlays | **OK** | reglas-tecnicas.md: "first the frame, then the text" |

@@ -107,6 +107,99 @@ def rebase_at(obj, offset, factor=1.0):
         return obj
 
 
+def _momentos_medidos(video_path):
+    """Los momentos del video, MEDIDOS.
+
+    Una sola fuente para la medicion: este modulo NO reimplementa el corte de
+    plano ni la envolvente de audio, se los pide a la herramienta que ya lo
+    hace (`scripts/ffmpeg_tools/scenes.py`: scdet para los cortes, envolvente
+    RMS cada 0.5 s, picos de audio y highlights ordenados por valor).
+
+    Devuelve None si la herramienta no esta o falla: el llamador cae a la
+    deteccion por silencio (mas pobre, pero nunca inventada).
+    """
+    script = os.path.join(BASE, "scripts", "ffmpeg_tools", "scenes.py")
+    if not os.path.isfile(script):
+        return None
+    try:
+        r = subprocess.run([sys.executable, script, video_path, "--json",
+                            "--highlights", "8"],
+                           capture_output=True, text=True, timeout=900)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        return None
+    if not isinstance(d, dict) or not d.get("scenes"):
+        return None
+    return d
+
+
+def _segmentos_medidos(mid):
+    """Los segmentos del video con el VALOR medido al lado.
+
+    El rol NO lo pone la medicion: lo pone la estructura que se esta clonando
+    (primero el gancho, ultimo el cierre, el cuerpo alternando social/dato),
+    porque clonar es reproducir el patron del original. Lo que si pone la
+    medicion es el VALOR de cada tramo y donde esta el pico: sin eso, el rol
+    era una suposicion sobre una posicion.
+    """
+    escenas = mid.get("scenes") or []
+    picos = mid.get("audio_peaks") or []
+
+    # el pico de audio MAS fuerte dentro de cada escena
+    pico_de = {}
+    for p in picos:
+        t = p.get("time")
+        if t is None:
+            continue
+        for i, sc in enumerate(escenas):
+            if sc["start"] <= t < sc["end"]:
+                if i not in pico_de or (p.get("rms") or 0) > (pico_de[i].get("rms") or 0):
+                    pico_de[i] = p
+
+    n = len(escenas)
+    max_rms = max((sc.get("audio_rms") or 0) for sc in escenas) if escenas else 0
+    # que tramo es el mas fuerte (ranking por valor; el ORDEN no cambia)
+    orden = sorted(range(n), key=lambda i: -(escenas[i].get("audio_rms") or 0))
+    fuerza = {i: r + 1 for r, i in enumerate(orden)}
+
+    segmentos = []
+    for i, sc in enumerate(escenas):
+        if i == 0:
+            rol = "hook"
+        elif i == n - 1:
+            rol = "cierre"
+        else:
+            rol = "social" if (i - 1) % 2 else "dato"
+        pico = pico_de.get(i)
+        rms = round(sc.get("audio_rms") or 0, 4)
+        if pico:
+            nota = (f"pico de audio en {round(pico['time'], 2)}s "
+                    f"({round(pico.get('rms') or 0, 4)} RMS)")
+            if rms >= max_rms and max_rms > 0:
+                nota += ": el tramo mas fuerte del video"
+        else:
+            nota = "sin pico de audio: tramo tranquilo (no sostiene el climax)"
+        segmentos.append({
+            "indice": i + 1,
+            "from": round(sc["start"], 2),
+            "to": round(sc["end"], 2),
+            "duracion": round(sc["end"] - sc["start"], 2),
+            "rol": rol,
+            "tipo_sugerido": FAMILIAS_ESCENAS[rol][0],
+            "audio_rms": rms,
+            "audio_peak": round(sc.get("audio_peak") or 0, 4),
+            "pico": round(pico["time"], 2) if pico else None,
+            "fuerza": fuerza.get(i),
+            "nota": nota,
+        })
+    return segmentos
+
+
 def detectar_cortes(video_path, duracion_total):
     """Detecta cortes aproximados por silencio o cambios de plano."""
     script_silence = os.path.join(BASE, "scripts", "ffmpeg_tools", "silence.py")
@@ -163,7 +256,14 @@ def cmd_analizar(origen, es_url, out_dir):
 
     dur = ref_data["metadatos"]["duracion"]
     print(f"\n=== PASO 2: Detección de estructura viral y ritmo ({dur}s) ===")
-    segmentos = detectar_cortes(ref_data["video"], dur)
+    mid = _momentos_medidos(ref_data["video"])
+    if mid:
+        segmentos = _segmentos_medidos(mid)
+        print(f"   {len(segmentos)} momentos MEDIDOS (scenes.py), con su valor al lado")
+    else:
+        segmentos = detectar_cortes(ref_data["video"], dur)
+        print("   el medidor no respondió: cortes por silencio y cadencia estándar "
+              "(menos preciso y SIN valor medido)")
 
     # Generar plantilla estructural
     plantilla = {
@@ -171,8 +271,16 @@ def cmd_analizar(origen, es_url, out_dir):
         "duracion_referencia": dur,
         "aspecto": ref_data["metadatos"]["aspecto"],
         "fps": ref_data["metadatos"]["fps"],
-        "segmentos": segmentos
+        "segmentos": segmentos,
+        "medicion": {
+            "fuente": ("scripts/ffmpeg_tools/scenes.py (scdet + envolvente RMS + picos)"
+                       if mid else "silencio + cadencia estándar (sin valor medido)"),
+            "orden": "audio" if mid else None,
+        },
     }
+    if mid and mid.get("highlights"):
+        # la lista corta: donde esta el valor, para construir el corte AHI
+        plantilla["destacados"] = mid["highlights"]
 
     plantilla_json = os.path.join(out_dir, "plantilla.json")
     with open(plantilla_json, "w", encoding="utf-8") as fh:
@@ -185,16 +293,34 @@ def cmd_analizar(origen, es_url, out_dir):
         fh.write(f"- **Origen**: `{origen}`\n")
         fh.write(f"- **Duración**: {dur}s · **Aspecto**: {ref_data['metadatos']['aspecto']} · **FPS**: {ref_data['metadatos']['fps']}\n")
         fh.write("- **Pistas extraídas**: Audio 48kHz (`audio_48k.wav`), Audio 16kHz (`audio_16k.wav`)\n")
-        fh.write("- **Storyboard**: Contact Sheet con frames clave (`contact_sheet.png`)\n\n")
+        fh.write("- **Storyboard**: Contact Sheet con frames clave (`contact_sheet.png`)\n")
+        fh.write(f"- **Medición del valor**: {plantilla['medicion']['fuente']}\n\n")
         fh.write("## Estructura Viral Descompuesta\n\n")
-        fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida | Notas de Retención |\n")
-        fh.write("|---|---|---|---|---|---|\n")
-        for s in segmentos:
-            nota = "Impacto en primeros 2s" if s['rol'] == 'hook' else ("Llamado a la acción claro" if s['rol'] == 'cierre' else "Dinamismo y prueba social/datos")
-            fh.write(f"| {s['indice']} | **{s['rol'].upper()}** | {s['from']}s - {s['to']}s | {s['duracion']}s | `{s['tipo_sugerido']}` | {nota} |\n")
+        if mid:
+            fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida | Valor medido |\n")
+            fh.write("|---|---|---|---|---|---|\n")
+            for s in segmentos:
+                fh.write(f"| {s['indice']} | **{s['rol'].upper()}** | {s['from']}s - {s['to']}s "
+                         f"| {s['duracion']}s | `{s['tipo_sugerido']}` | {s['nota']} |\n")
+        else:
+            fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida |\n")
+            fh.write("|---|---|---|---|---|\n")
+            for s in segmentos:
+                fh.write(f"| {s['indice']} | **{s['rol'].upper()}** | {s['from']}s - {s['to']}s "
+                         f"| {s['duracion']}s | `{s['tipo_sugerido']}` |\n")
+            fh.write("\n> Sin valor medido: los roles salen de la posición, no de la "
+                     "medición. Míralo con la hoja de contactos antes de comprometerte.\n")
+        if plantilla.get("destacados"):
+            fh.write("\n## Dónde está el valor (medido)\n\n")
+            fh.write("| # | De | A | Duración |\n|---|---|---|---|\n")
+            for i, h in enumerate(plantilla["destacados"], 1):
+                fh.write(f"| {i} | {h['start']}s | {h['end']}s | {h['duration']}s |\n")
         fh.write("\n## Recomendaciones de Clonación y Variación\n")
         fh.write(f"1. Ejecutar `python scripts/clonar_video.py variar --plantilla {plantilla_json} --variantes 3 --tema '<Nuevo Tema>'`\n")
         fh.write("2. El motor reemplazará los textos manteniendo las cuotas de duración auditadas por `speech_estimate.py`.\n")
+        if mid:
+            fh.write("3. El corte se construye alrededor de los momentos de valor: "
+                     "el remate sale del pico medido, no del último plano por defecto.\n")
 
     print("\nOK Estructura analizada:")
     print(f"   Plantilla: {plantilla_json}")
