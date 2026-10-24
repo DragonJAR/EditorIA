@@ -20,7 +20,8 @@
   ],
   "scripts/auditar_mapa.py": [
    "scripts/_tests/test_actualizar_conteos.py",
-   "scripts/_tests/test_auditar_mapa.py"
+   "scripts/_tests/test_auditar_mapa.py",
+   "scripts/_tests/test_verticales.py"
   ],
   "scripts/auditar_plan.py": [
    "scripts/_tests/test_auditar_plan.py",
@@ -37,6 +38,7 @@
   ],
   "scripts/beat_grid.py": [
    "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_comandos_copiables.py",
    "scripts/_tests/test_core_and_scenes.py"
   ],
   "scripts/beat_sync.py": [
@@ -49,7 +51,8 @@
    "scripts/_tests/test_cache_fantasma.py"
   ],
   "scripts/clonar_video.py": [
-   "scripts/_tests/test_clonar_video.py"
+   "scripts/_tests/test_clonar_video.py",
+   "scripts/_tests/test_comandos_copiables.py"
   ],
   "scripts/contact_sheet.py": [
    "scripts/_tests/test_core_and_scenes.py",
@@ -88,11 +91,17 @@
   "scripts/ffmpeg_tools/silence.py": [
    "scripts/_tests/test_core_and_scenes.py"
   ],
+  "scripts/ffmpeg_tools/speedramp.py": [
+   "scripts/_tests/test_verticales.py"
+  ],
   "scripts/ffmpeg_tools/thumbnail.py": [
    "scripts/_tests/test_core_and_scenes.py"
   ],
   "scripts/ffmpeg_tools/variantes.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/ffmpeg_tools/verticalizar.py": [
+   "scripts/_tests/test_verticales.py"
   ],
   "scripts/film_marca_v2.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
@@ -138,8 +147,12 @@
   "scripts/render_plan.py": [
    "scripts/_tests/test_core_and_scenes.py"
   ],
+  "scripts/retakes.py": [
+   "scripts/_tests/test_verticales.py"
+  ],
   "scripts/sfx.py": [
-   "scripts/_tests/test_cli_de_herramientas.py"
+   "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_comandos_copiables.py"
   ],
   "scripts/sincronizar_instalada.py": [
    "scripts/_tests/test_sincronizar_instalada.py"

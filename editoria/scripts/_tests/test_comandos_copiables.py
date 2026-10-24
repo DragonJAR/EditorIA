@@ -157,6 +157,65 @@ class TestComandosCopiables(unittest.TestCase):
         self.assertIsNone(cc._juzgar("WARN rafaga 0 ventana(s)"))
         # y un crash, si
 
+    def test_las_verticales_locales_llegan_a_la_puerta_fuerte(self):
+        """La puerta fuerte tiene que LLEGAR a las verticales, no solo a la
+        primera. Medido: la vertical de sonido (mezclar_audio) y las dos
+        puertas de veredicto (qa_entrega, puntuar) eran los ultimos huecos
+        REALES; todo lo demas se salta por la red, una API, Whisper, o porque
+        renderiza la pieza entera."""
+        cc = self._guard()
+        for cli in ("scripts/mezclar_audio.py", "scripts/qa_entrega.py",
+                    "scripts/puntuar.py"):
+            self.assertIn(cli, cc.EJECUTABLES,
+                          f"{cli} no llega a la puerta fuerte: el comando que "
+                          f"el agente copia se queda sin ejecutar")
+            self.assertNotIn(cli, cc.FUERA,
+                             f"{cli} sigue con su motivo de exclusion: el "
+                             f"motivo gana sobre la lista de ejecutables")
+
+    def test_el_comando_de_mezclar_se_copia_y_se_ejecuta_de_verdad(self):
+        """El comando de la mezcla de sonido, tal cual lo escribe la prosa, se
+        COPIA y se EJECUTA: la voz, la musica y el pack de SFX se sintetizan en
+        local, asi que el motivo antiguo ("necesita voz, musica y SFX ya
+        renderizados") ya no aplica a esta forma."""
+        cc = self._guard()
+        cmd = ('scripts/mezclar_audio.py plan.json --video out.mp4 --voz voz.mp3 '
+               '--voz-palabras voz.palabras.json --grid grid.json '
+               '--pack assets/sfx --musica mus.mp3 -o mezclado.mp4')
+        problemas, informe = cc.verificar(BASE, comandos=[cmd])
+        self.assertEqual(problemas, [],
+                         f"el comando de mezclar salio como roto: {problemas}")
+        self.assertEqual(informe["copiados"], 1,
+                         "el comando de mezclar no se copio")
+
+    def test_la_mutacion_de_la_cobertura_la_caza(self):
+        """MUTACION: si la vertical de sonido vuelve a quedar fuera de la puerta
+        fuerte, este guard tiene que notarlo. Se muta una COPIA del modulo (el
+        original no se toca) quitando el script de la lista de ejecutables, y
+        se comprueba que la copia ya NO lo tiene: si la mutacion no se aplica,
+        no prueba nada."""
+        cc = self._guard()
+        self.assertIn("scripts/mezclar_audio.py", cc.EJECUTABLES,
+                      "el original ya no llega: la mutacion no mide nada")
+        with open(GUARD, encoding="utf-8") as fh:
+            fuente = fh.read()
+        linea = '    "scripts/mezclar_audio.py",\n'
+        self.assertIn(linea, fuente,
+                      "el modulo ya no tiene la linea que se va a mutar")
+        tmp = tempfile.mkdtemp(prefix="editoria_mut_")
+        try:
+            ruta = os.path.join(tmp, "mutado.py")
+            with open(ruta, "w", encoding="utf-8") as fh:
+                fh.write(fuente.replace(linea, "", 1))
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("mutado_guard", ruta)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            self.assertNotIn("scripts/mezclar_audio.py", mod.EJECUTABLES,
+                             "la mutacion no se aplico: no prueba nada")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_la_salida_no_se_escribe_sobre_la_entrada(self):
         """El valor de -o (y de las otras banderas de salida) va a un sitio de
         raspado. Si se sustituyera por el asset de entrada, el comando

@@ -160,8 +160,19 @@ class TestGuardDeVerticales(unittest.TestCase):
         mapa = os.path.join(raiz, "references", "mapa.md")
         with open(mapa, encoding="utf-8") as fh:
             texto = fh.read()
+        # se le quita la puerta SOLO a la ruta del sonido (el bloque entero,
+        # no la primera mencion del mapa: el texto va con acentos graves)
+        bloques = re.split(r"\n(?=- \*\*)", texto)
+        fuera = []
+        for b in bloques:
+            if "quiero VOZ en off" in b:
+                b = b.replace("qa-entrega.md", "otra-cosa.md")
+            fuera.append(b)
+        quitar = "\n".join(fuera)
+        self.assertNotIn("otra-cosa.md", texto, "el texto de la ruta no es el esperado")
+        self.assertIn("otra-cosa.md", quitar, "no se quito la puerta")
         with open(mapa, "w", encoding="utf-8") as fh:
-            fh.write(texto.replace("qa-entrega.md (la puerta)", "otra-cosa.md"))
+            fh.write(quitar)
         p = self._auditar(raiz)
         salida = p.stdout + p.stderr
         self.assertIn("vertical sin puerta", salida,
