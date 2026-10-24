@@ -100,11 +100,20 @@ pip3 install pillow numpy
 
 Fedora: `sudo dnf install ffmpeg python3-pip`.
 
-## Opcionales (los tres SO)
+## Capacidades que la pieza puede necesitar (los tres SO)
+
+El motor no las necesita. **Una pieza concreta puede sí**, y por eso su
+instalación se declara al usuario en vez de omitirse en silencio (ver
+`references/capacidades.md`).
 
 - **Voz y música IA**: variable de entorno `ELEVENLABS_API_KEY` (`voz_off.py`, `musica.py`).
 - **Transcripción local**: `whisper-cli` en el PATH (o segmentos de cualquier fuente para `retakes.py`).
-- **Remotion / HyperFrames**: Remotion requiere Node.js 18+ y HyperFrames Node.js 22+ (`references/remotion.md`, `references/hyperframes.md`); `check_env.py` los detecta y sugiere instalación sin fallar si faltan.
+- **Remotion**: Node.js 18+ (`npx create-video@latest`) — `references/remotion.md`.
+- **HyperFrames**: Node.js 22+ (`npx hyperframes skills update`) — `references/hyperframes.md`.
+- **3D**: Blender (`uvx mcp-for-blender`, blender.org) — `references/3d.md`.
+
+`check_env.py` detecta las que se pueden detectar, dice si faltan y **con
+qué comando se instalan**.
 
 ## Si un check falla en un sitio y no en el otro
 

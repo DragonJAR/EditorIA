@@ -1,13 +1,18 @@
-# Remotion (integración opcional)
+# Remotion (capacidad)
 
 Remotion (remotion.dev) es el framework de video programático en React:
 las composiciones son componentes, el video se renderiza con
-`npx remotion render`. EditorIA **no depende** de Remotion — el motor
-Python (`render_plan.py` + ffmpeg) cubre la mayoría de piezas y es más
-rápido de iterar. Esta referencia existe para saber cuándo Remotion
-es la mejor herramienta y cómo usarlo bien.
+`npx remotion render`.
 
-## Cuándo sugerir su instalación
+El motor Python (`render_plan.py` + ffmpeg) cubre la mayoría de piezas y
+es más rápido de iterar. **Pero "más rápido" no es "mejor"**: cuando la
+pieza es data-driven o de escenas reutilizables, Remotion da un resultado
+que el motor no da. Así que Remotion no es una opción de menú: es **la
+herramienta cuando la pieza la pide**, y si falta (Node 18+), se le dice al
+usuario con su comando de instalación (`npx create-video@latest`) en vez de
+entregar menos en silencio (ver `references/capacidades.md`).
+
+## Cuándo usarla (y declararla si falta)
 
 - Animaciones complejas data-driven (gráficos que dependen de datos
   externos, timelines con lógica condicional).
@@ -79,4 +84,4 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: opcional · Vecinos: `references/hyperframes.md`, `references/instalacion.md`, `references/prompt-motion-graphics.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/hyperframes.md`, `references/instalacion.md`, `references/prompt-motion-graphics.md`

@@ -126,7 +126,8 @@ Si buscas la fuente de una idea, no la repitas: esta tabla esta en
 | marca | `references/brand-packs.md` |
 | produccion | `references/formatos.md` |
 | operacion | `references/instalacion.md` |
-| opcional | `references/capacidades.md` |
+| herramienta | `references/capacidades.md` |
+| declarar | `references/capacidades.md` |
 | indice | `references/mapa.md` |
 
 ---

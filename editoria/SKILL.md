@@ -26,6 +26,13 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
   - Every scene `from`/`to` window and `voz` duration passes `python scripts/auditar_plan.py plan.json`.
   - The copy passes `python scripts/lint_copy.py plan.json`: text that the engine cannot place is a render defect, and copy that reads as generated is a quality defect (`references/copy.md`).
   - No credentials or API keys appear in `plan.json` or `brand/*.json` (`$ELEVENLABS_API_KEY` is read from `~/.secrets.env`): `auditar_plan.py` fails with an ERROR if it finds one — the plan ships with the piece.
+- **Best-result rule**: the bar is the quality of the result, not the comfort
+  of the environment. When a piece needs a capability that is not there (3D,
+  Remotion, HyperFrames, local transcription), **say so in the first answer**,
+  with the command that installs it, and deliver the best version possible
+  meanwhile. Never deliver less in silence: a piece delivered without its 3D
+  or without its audio, and nobody told, is an incomplete piece
+  (`references/capacidades.md`).
 - **Paid work rule**: Agree TTS or AI-music work and its expected cost with the user before calling a paid API, record it in the project's `BRIEF.md` (`scripts/proyecto.py`), and treat anything beyond that agreement as the user's decision. After an interruption, resume from the project files and produced material; never pay twice for the same voice or music.
 
 ## Motor Selector
@@ -58,10 +65,10 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | New piece with no brand pack, or a piece that looks generic / "AI-made" | **Art direction**: Step 2 + `references/direccion-de-arte.md` (idea from the subject, dealt directions, tells registry) |
 | "Make it bolder / calmer / simpler", polish, animate, retype, recolor, adapt | **Passes**: `references/pasadas.md` (scoped refinements that change only what was named) |
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
-| Complex programmatic animation | **Remotion** (optional): `references/remotion.md` |
-| Deterministic HTML piece or data re-render | **HyperFrames** (optional): `references/hyperframes.md` |
-| 3D object, product or scene as material | **3D** (optional): `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change) |
-| Diagram of a system (architecture, flow, data, sequence) | **Diagram** (optional): `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
+| Complex programmatic animation | **Remotion**: `references/remotion.md` (if it is missing, say so with its install command — never deliver less in silence) |
+| Deterministic HTML piece or data re-render | **HyperFrames**: `references/hyperframes.md` (if it is missing, say so with its install command) |
+| 3D object, product or scene as material | **3D**: `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change; if it is missing, say so with its install command) |
+| Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` and `references/recetas-ai-video.md` |
 
 Complete skill architecture map: `references/arquitectura.md`.

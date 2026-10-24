@@ -1,4 +1,4 @@
-# Diagramas (integración opcional)
+# Diagramas (capacidad)
 
 Un diagrama es un entregable: explica una estructura (arquitectura, flujo,
 estados, datos, secuencia, despliegue) mejor que un párrafo. Se entrega como
@@ -71,4 +71,4 @@ capacidad**; el flujo, en su sitio.
 
 ---
 
-→ Canónico: `references/modos-produccion.md` · Dominio: opcional · Vecinos: `references/brand-packs.md`, `references/paleta.md`, `references/principios.md`, `references/copy.md`
+→ Canónico: `references/modos-produccion.md` · Dominio: herramienta · Vecinos: `references/brand-packs.md`, `references/paleta.md`, `references/principios.md`, `references/copy.md`

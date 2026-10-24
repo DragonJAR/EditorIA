@@ -1,14 +1,20 @@
-# HyperFrames (integración opcional)
+# HyperFrames (capacidad)
 
 HyperFrames (hyperframes.heygen.com) es el framework open-source de HeyGen
 (Apache 2.0, sin fees por render) que convierte **HTML en video de forma
 determinista**: la misma entrada produce el mismo MP4 siempre. Un agente
 escribe la composición; HyperFrames la renderiza frame por frame con
-headless Chrome + FFmpeg. EditorIA **no depende** de HyperFrames — el
-motor Python cubre la mayoría de piezas. Esta referencia existe para saber
-cuándo es la mejor herramienta y cómo usarla bien.
+headless Chrome + FFmpeg.
 
-## Cuándo sugerir su instalación
+El motor Python cubre la mayoría de piezas. **Pero cuando la composición
+es HTML** (tipografía cinética, data-viz, tours de producto), HyperFrames
+da un resultado que el motor no da: el HTML se escribe una vez y se
+renderiza igual siempre. Así que no es una opción de menú: es **la
+herramienta cuando la pieza la pide**, y si falta (Node 22+), se declara al
+usuario con su comando (`npx hyperframes skills update`) en vez de entregar
+menos en silencio (ver `references/capacidades.md`).
+
+## Cuándo usarla (y declararla si falta)
 
 - El brief pide motion graphics "estilo web" (tipografía cinética,
   diagramas, data-viz, product tours): el agente escribe HTML con
@@ -98,4 +104,4 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: opcional · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/recetas-ai-video.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/recetas-ai-video.md`

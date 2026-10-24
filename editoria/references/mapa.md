@@ -32,7 +32,7 @@ contradigan.
 | **color** | `paleta.md` | el catálogo de paletas del modo libre y cómo elegir una según el brief | antes de renderizar, si no hay marca |
 | **produccion** | `formatos.md` | qué sostiene cada tipo de pieza y los workflows para hacerlas | al elegir el formato |
 | **operacion** | `instalacion.md` | instalar, el contrato de las CLIs, los idiomas, el protocolo de mejora | al arrancar o al mantener |
-| **opcional** | `capacidades.md` | los motores externos (Remotion, HyperFrames) y lo que falta instalar | solo si los necesitas |
+| **herramienta** | `capacidades.md` | con qué cuenta la skill, qué capacidades externas puede necesitar la pieza (3D, Remotion, HyperFrames) y qué hay que instalar si faltan | al arrancar, y en cuanto una pieza las pida |
 | **indice** | `mapa.md` | este índice: dónde está cada cosa y por dónde se entra | cuando no sepas dónde está algo |
 | **vocabulario** | `glosario.md` | qué significa cada palabra propia de la skill | cuando una instrucción usa jerga |
 
@@ -138,11 +138,11 @@ escribir es un tapón).
 | `auto-mejora.md` | el protocolo de mejora de la propia skill | operacion |
 | `lecciones-produccion.md` | las lecciones aprendidas en producción | operacion |
 | `paleta.md` | el color en modo libre: catálogo y regla de elección | color |
-| `capacidades.md` | con qué cuenta la skill y qué falta | opcional |
-| `remotion.md` | la integración con Remotion | opcional |
-| `hyperframes.md` | la integración con HyperFrames | opcional |
-| `3d.md` | el 3D como material: Blender por MCP y objeto de referencia a Three.js | opcional |
-| `diagramas.md` | diagramas como HTML+SVG con la marca de la pieza | opcional |
+| `capacidades.md` | con qué cuenta la skill y qué falta | herramienta |
+| `remotion.md` | la integración con Remotion | herramienta |
+| `hyperframes.md` | la integración con HyperFrames | herramienta |
+| `3d.md` | el 3D como material: Blender por MCP y objeto de referencia a Three.js | herramienta |
+| `diagramas.md` | diagramas como HTML+SVG con la marca de la pieza | herramienta |
 
 ## 4. Las reglas que sostienen el sistema
 

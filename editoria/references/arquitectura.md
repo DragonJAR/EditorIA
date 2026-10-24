@@ -238,7 +238,7 @@ Lo que se conserva: el formato del plan, el catálogo de escenas, las reglas
 técnicas probadas. Lo que se recupera en v1.0.0: la arquitectura marca-blanca
 del sistema original, ahora como brand packs (`brand/*.json`, ver
 `references/brand-packs.md`). Lo que se descarta: Remotion como dependencia
-(ver `references/remotion.md` para uso opcional) y dependencias de red.
+(ver `references/remotion.md` para su uso) y dependencias de red.
 - 2026-10-04 · **Empaquetar el skill excluyendo *.mp4 de film/ y demo/**: El ZIP portable del skill debe excluir los renders (*.mp4 en film/ y demo/): incluirlos llevo el ZIP de 1.2 MB a 271 MB. Comando canonico: zip -qr editoria-v1.0.0.zip . -x '__pycache__/*' '*.pyc' '.frames/*' '*/.frames/*' '*.mp4'. Los renders viven en las carpetas de proyecto, no en el paquete.
 
 ---

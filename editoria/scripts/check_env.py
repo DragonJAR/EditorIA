@@ -153,7 +153,7 @@ if not key:
 rep("ELEVENLABS_API_KEY", bool(key),
     "disponible (voz en off + música IA)" if key else "sin voz/música IA (degradar a entrega silenciosa)")
 
-print("== Dependencias opcionales ==")
+print("== Dependencias externas (capacidades, no requisitos del motor) ==")
 ok_w, det_w = cmd_ver("whisper-cli", ["--help"])
 if not ok_w:
     ok_w, det_w = cmd_ver("whisper", ["--help"])
@@ -165,21 +165,37 @@ rep("yt-dlp", ok_y,
     f"disponible ({det_y}) — referencias desde un enlace (referencia.py --url)" if ok_y else
     "sin descarga por enlace (referencia.py --url): pip install -U yt-dlp, o usar el archivo local")
 
-print("== Motores opcionales (no requeridos) ==")
+print("== Motores externos (capacidades de la pieza, no requisitos del motor) ==")
 ok_node, det_node = cmd_ver("node", ["--version"])
 ok_npx, _ = cmd_ver("npx", ["--version"])
 rep("node/npx", ok_node and ok_npx,
-    f"{det_node}" if (ok_node and ok_npx) else "necesario solo para Remotion o HyperFrames")
+    f"{det_node}" if (ok_node and ok_npx) else
+    "falta Node 18+ (lo necesitan Remotion, HyperFrames y el 3D en codigo): "
+    "instalar con 'brew install node' o https://nodejs.org")
 # Remotion: opcional, se inicializa por proyecto con npx create-video@latest
 ok_rem = os.path.exists("node_modules/@remotion/cli")
 rep("remotion", ok_rem,
     "instalado en este proyecto" if ok_rem else
-    "animación programática en React — ver references/remotion.md")
+    "animacion programatica en React — si la pieza lo necesita, se instala con "
+    "'npx create-video@latest' (Node 18+): ver references/remotion.md")
 # HyperFrames: opcional, CLI de HeyGen (npx hyperframes)
 ok_hf = os.path.exists("node_modules/hyperframes") or os.path.exists("node_modules/@heygen/hyperframes")
 rep("hyperframes", ok_hf,
     "instalado en este proyecto" if ok_hf else
-    "HTML→video determinista (HeyGen, Apache 2.0) — ver references/hyperframes.md")
+    "HTML->video determinista (HeyGen, Apache 2.0) — si la pieza lo necesita, se "
+    "instala con 'npx hyperframes skills update' (Node 22+): ver references/hyperframes.md")
+
+# Blender: el 3D. Sin el, no hay modelado ni encuadre 3D (references/3d.md)
+ok_blender, det_blender = cmd_ver("blender", ["--version"])
+if not ok_blender:
+    _app = "/Applications/Blender.app/Contents/MacOS/Blender"
+    if os.path.exists(_app):
+        ok_blender, det_blender = True, _app
+rep("blender", ok_blender,
+    f"{det_blender}" if ok_blender else
+    "3D modelado y encuadre — si la pieza lo necesita, se instala Blender "
+    "(https://www.blender.org) y el servidor MCP ('uvx mcp-for-blender'): "
+    "ver references/3d.md")
 
 print("== Cache de bytecode ==")
 # Una copia instalada puede quedar con un .pyc MAS NUEVO que su .py: python usa
