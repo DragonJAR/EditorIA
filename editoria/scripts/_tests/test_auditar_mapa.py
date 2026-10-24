@@ -9,6 +9,7 @@ Run with: python3 -m unittest discover -s SKILL/scripts/_tests
 """
 
 import ast
+import json
 import os
 import re
 import shutil
@@ -1127,18 +1128,56 @@ class TestBasuraEnElHistorial(unittest.TestCase):
                            capture_output=True, text=True, timeout=30)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def _informe(self):
+        """El informe JSON del auditor: lo que importa es en que CUBO cae la
+        entrada (fallos o avisos), no el texto que imprime."""
+        destino = os.path.join(self.dir, "informe.json")
+        subprocess.run([sys.executable, os.path.join(self.raiz, "scripts", "auditar_mapa.py"),
+                        "--json", destino], capture_output=True, text=True, timeout=300)
+        with open(destino, encoding="utf-8") as f:
+            return json.load(f)
+
     def test_un_mensaje_con_basura_se_caza(self):
         self._commit("fix: la razon pegada a la forma " + self._BASURA)
         rc, out = _auditar(self.raiz)
         self.assertIn("basura en el historial", out,
                       "un mensaje de commit con basura tiene que salir en el informe")
-        self.assertIn("historial", out)
+        # y tiene que FRENAR la puerta, no solo decirla: un aviso que no
+        # cambia el codigo de salida es una nota, y el texto roto sale
+        # publicado igual.
+        self.assertEqual(rc, 1,
+                         f"la basura en el historial tiene que ser un FALLO (salio {rc}):\n{out}")
+        informe = self._informe()
+        self.assertTrue(any(p["tipo"] == "basura en el historial"
+                            for p in informe["problemas"]),
+                        "la entrada tiene que estar en los FALLOS, no en los avisos")
 
     def test_un_mensaje_limpio_no_se_marca(self):
         self._commit("fix: la razon pegada a la forma")
         rc, out = _auditar(self.raiz)
         self.assertNotIn("basura en el historial", out,
                          "un mensaje limpio no puede marcarse")
+
+    def test_lo_que_ya_salio_avisa_pero_no_frena(self):
+        """Lo publicado es HISTORIA: se dice, pero no deja el repo en rojo.
+
+        Un fallo que no se puede arreglar (reescribir el historial) dejaria
+        la puerta en rojo para siempre, y una puerta que nadie puede pasar
+        no es una puerta: es un adorno."""
+        self._commit("fix: la razon pegada a la forma " + self._BASURA)
+        subprocess.run(["git", "-C", self.raiz, "update-ref",
+                        "refs/remotes/origin/main", "HEAD"],
+                       capture_output=True, timeout=30)
+        rc, out = _auditar(self.raiz)
+        self.assertIn("basura en el historial", out,
+                      "lo que ya salio publicado se dice igualmente")
+        informe = self._informe()
+        self.assertFalse(any(p["tipo"] == "basura en el historial"
+                             for p in informe["problemas"]),
+                         "lo ya publicado no puede ser un fallo: no se puede arreglar")
+        self.assertTrue(any(p["tipo"] == "basura en el historial"
+                            for p in informe["avisos"]),
+                        "lo ya publicado se dice, en el cubo de los avisos")
 
 
 if __name__ == "__main__":

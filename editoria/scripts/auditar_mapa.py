@@ -1854,7 +1854,7 @@ def _todos_los_checks(problemas, mds):
     _chequear_contrato_cli(problemas)
     _chequear_cobertura_de_clis(problemas)
 
-    return dominios, canonicos
+    return dominios, canonicos, alcance
 
 
 def _exportar_head(destino, raiz):
@@ -1892,13 +1892,12 @@ def _dos_pasadas():
     import tempfile
     mds = sorted(f for f in os.listdir(REFS) if f.endswith(".md"))
     problemas = []
-    dominios, canonicos = _todos_los_checks(problemas, mds)
+    dominios, canonicos, alcance = _todos_los_checks(problemas, mds)
 
     avisos = []
     raiz = _raiz_git()
     # esto no va por las dos pasadas: es del historial, no del arbol
     _chequear_atribucion(problemas)
-    _chequear_mensajes_de_commit(problemas)
     if raiz:
         with tempfile.TemporaryDirectory() as tmp:
             base_head = _exportar_head(tmp, raiz)
@@ -1924,10 +1923,17 @@ def _dos_pasadas():
                     elif (pr["tipo"], pr["archivo"]) not in claves_pub:
                         avisos.append(pr)
                 problemas = publicados
-    return problemas, avisos, mds, dominios, canonicos
+                # el HISTORIAL es de lo PUBLICADO: su basura es un FALLO, no un
+                # aviso. Va aqui, despues de `problemas = publicados`, porque
+                # antes caia en el cubo de los avisos (lo que solo se ha
+                # desviado en el arbol) y la puerta decia "todo bien" con el
+                # texto roto dentro. Un aviso que no frena nada no es un aviso:
+                # es una nota.
+                _chequear_mensajes_de_commit(problemas, avisos)
+    return problemas, avisos, mds, dominios, canonicos, alcance
 
 
-def _chequear_mensajes_de_commit(problemas):
+def _chequear_mensajes_de_commit(problemas, avisos):
     """Que los mensajes de commit no traigan basura de otro idioma.
 
     El mensaje de un commit es parte del artefacto publicado: se lee, se
@@ -1939,6 +1945,11 @@ def _chequear_mensajes_de_commit(problemas):
 
     Se mira el HISTORIAL ALCANZABLE desde HEAD (lo que se publica): lo que
     queda huerfano (un commit amended) no sale, asi que no se juzga.
+
+    Y se distinguen dos cosas: lo que AUN NO ha salido (se puede arreglar con
+    'git commit --amend' y por tanto FRENA la puerta) y lo que ya salio
+    (historia: avisar, porque reescribir el historial es otra decision, y una
+    puerta que no se puede pasar dejaria el repo en rojo para siempre).
     """
     raiz = _raiz_git()
     if not raiz:
@@ -1950,18 +1961,40 @@ def _chequear_mensajes_de_commit(problemas):
         return
     if r.returncode != 0:
         return
+    ya_publicados = _commits_publicados(raiz)
     for bloque in r.stdout.split("\x1e"):
         bloque = bloque.strip()
         if not bloque:
             continue
         h, _, cuerpo = bloque.partition("\t")
         mt = RE_BASURA.search(cuerpo)
-        if mt:
+        if not mt:
+            continue
+        if h.strip() in ya_publicados:
+            avisos.append({
+                "tipo": "basura en el historial", "archivo": h.strip(),
+                "msg": f"el mensaje del commit {h.strip()} trae '{mt.group(0)}' y ya "
+                       f"salio publicado: es historia. Aviso, no fallo: arreglarlo "
+                       f"exigiria reescribir el historial"})
+        else:
             problemas.append({
                 "tipo": "basura en el historial", "archivo": h.strip(),
                 "msg": f"el mensaje del commit {h.strip()} trae '{mt.group(0)}': el "
                        f"historial es texto publicado y se lee. Si es el ultimo commit, "
                        f"se corrige con 'git commit --amend'"})
+
+
+def _commits_publicados(raiz):
+    """Los commits que ya estan en el remoto: los que no se pueden arreglar
+    sin reescribir la historia (un amend no los toca)."""
+    try:
+        r = subprocess.run(["git", "-C", raiz, "rev-list", "--remotes", "--abbrev-commit"],
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    if r.returncode != 0:
+        return set()
+    return set(r.stdout.split())
 
 
 def _chequear_atribucion(problemas):
@@ -2025,7 +2058,16 @@ def main():
         print("ERROR: no se encuentra la skill", file=sys.stderr)
         return 2
 
-    problemas, avisos, mds, dominios, canonicos = _dos_pasadas()
+    problemas, avisos, mds, dominios, canonicos, alcance = _dos_pasadas()
+
+    # lo que este guard NO ha podido mirar, se dice: un guard que no
+    # encuentra su objeto tiene que decirlo, no pasar en silencio (la copia
+    # instalada no tiene .git, y ahi el historial no se puede ver).
+    notas = []
+    if not _raiz_git():
+        notas.append("sin repo: los mensajes de commit no se han podido mirar "
+                     "(el historial vive en el repo; la copia instalada no lo tiene)")
+        print("NOTA: " + notas[-1])
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}
@@ -2034,7 +2076,7 @@ def main():
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump({"ok": not problemas, "problemas": problemas,
-                       "avisos": avisos,
+                       "avisos": avisos, "notas": notas,
                        "dominios": {k: v for k, v in sorted(dominios_resumen.items())},
                        "alcanzables": len(alcance)}, f, ensure_ascii=False, indent=1)
     if avisos:
