@@ -188,12 +188,47 @@ def _plantilla(destino):
     return destino
 
 
+def _plan_ligero(destino, skill_dir):
+    """Un plan minimo pero REAL: dos escenas del catalogo, con voz.
+
+    No es un cascaron: las escenas son de verdad (`apertura` y `final`, del
+    catalogo de la propia skill) y llevan la voz que el motor espera. Lo que
+    se quita es la DURACION: 2 s en vez de 30.
+    """
+    muestras_p = os.path.join(skill_dir, "scripts", "escenas_muestra.json")
+    muestras = {}
+    if os.path.exists(muestras_p):
+        with open(muestras_p, encoding="utf-8") as fh:
+            muestras = (json.load(fh) or {}).get("escenas") or {}
+
+    def escena(tipo, frm, to):
+        e = dict(muestras.get(tipo, {"tipo": tipo}))
+        e["tipo"] = tipo
+        e["from"] = frm
+        e["to"] = to
+        e["voz"] = "Una frase de prueba."
+        return e
+
+    plan = {"duracion": 2.0, "tema": "prueba",
+            "escenas": [escena("apertura", 0.0, 1.0), escena("final", 1.0, 2.0)]}
+    with open(destino, "w", encoding="utf-8") as fh:
+        json.dump(plan, fh, indent=1, ensure_ascii=False)
+    return destino
+
+
 def _assets(tmp, skill_dir):
     """Los assets con los que se sustituye lo que la prosa nombra."""
     a = {}
     plan = os.path.join(skill_dir, "scripts", "demo_plan.json")
     if os.path.exists(plan):
         a["plan"] = plan
+        # Un plan LIGERO (2 escenas, 2 s) para las piezas que se miden
+        # enteras: la puerta y la rubrica no necesitan un plan rico, necesitan
+        # que el COMANDO funcione. Medido: con el plan de muestra (30 s) cada
+        # ejecucion cuesta 35 s y 77 s; con el ligero, 4,5 s y 5,9 s. Los 13
+        # comandos de esas dos piezas dejan de costar 12 minutos y cuestan
+        # 66 segundos.
+        a["plan_ligero"] = _plan_ligero(os.path.join(tmp, "plan_ligero.json"), skill_dir)
     # el video lleva AUDIO: loudness y montaje mapean 0:a, y un video mudo
     # no les da nada que hacer (el comando "funciona" y no hace su trabajo)
     vid = os.path.join(tmp, "video.mp4")
@@ -278,7 +313,19 @@ _SUFIJOS = {
 SALIDAS = ("-o", "--out", "--output", "--salida", "--sheet")
 
 
-def _sustituir(partes, assets, scratch=None):
+# Las piezas que se miden enteras: la puerta y la rubrica. Para ellas el
+# plan es un INPUT (tienen que poder leer un plan), no la materia prima de la
+# medicion: por eso se les da el plan LIGERO. Con el motivo escrito al lado.
+PLAN_LIGERO_PARA = {
+    "scripts/qa_entrega.py": "miden la pieza entera: con el plan de muestra "
+                             "cada ejecucion cuesta 35 s y la validacion se va "
+                             "a 38 min; con el plan ligero, 4,5 s",
+    "scripts/puntuar.py": "miden la pieza entera: con el plan de muestra cada "
+                           "ejecucion cuesta 77 s; con el plan ligero, 5,9 s",
+}
+
+
+def _sustituir(partes, assets, scratch=None, plan_key="plan"):
     """(partes, resuelto). Resuelto=False si algo no se puede sustituir."""
     salida = []
     anterior = None
@@ -318,9 +365,9 @@ def _sustituir(partes, assets, scratch=None):
                 salida.append(assets["plantilla"])
                 continue
             if "plan" in bajo and "shorts" not in bajo:
-                if "plan" not in assets:
+                if plan_key not in assets:
                     return None, False
-                salida.append(assets["plan"])
+                salida.append(assets[plan_key])
                 continue
             if base.startswith("brand"):
                 if "brand" not in assets:
@@ -376,7 +423,9 @@ def _correr_comando(skill_dir, cmd, tmp, assets, timeout=120):
     ruta = os.path.join(skill_dir, script)
     if not os.path.exists(ruta):
         return True, "", ""            # lo ve otro guard
-    nuevas, resuelto = _sustituir(partes[1:], assets, scratch=os.path.join(tmp, "cwd"))
+    plan_key = "plan_ligero" if script in PLAN_LIGERO_PARA else "plan"
+    nuevas, resuelto = _sustituir(partes[1:], assets, scratch=os.path.join(tmp, "cwd"),
+                                  plan_key=plan_key)
     if not resuelto:
         return True, "", ""            # se salta: no se puede sustituir
     cmd_real = [sys.executable, ruta] + nuevas
