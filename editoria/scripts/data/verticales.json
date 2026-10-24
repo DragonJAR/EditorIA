@@ -26,7 +26,12 @@
    "sin_test": {
     "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 39 escenas del catalogo), no un test",
     "scripts/film_marca.py": "renderiza una pieza entera de cine: la validacion ya lo hace con la v2"
-   }
+   },
+   "entrada": [
+    "render_plan",
+    "plan.json",
+    "step 1"
+   ]
   },
   {
    "nombre": "editar",
@@ -56,7 +61,11 @@
    ],
    "sin_test": {
     "scripts/ffmpeg_tools/transcribir.py": "necesita el modelo de voz (Whisper) instalado"
-   }
+   },
+   "entrada": [
+    "step 6",
+    "montaje"
+   ]
   },
   {
    "nombre": "clonar/resumir",
@@ -67,6 +76,10 @@
     "referencia",
     "alinear",
     "contact_sheet"
+   ],
+   "entrada": [
+    "clonar",
+    "resumen"
    ]
   },
   {
@@ -84,8 +97,15 @@
     "beat_grid",
     "beat_file",
     "loudness"
+   ],
+   "entrada": [
+    "voz",
+    "mezclar_audio",
+    "sfx",
+    "step 4"
    ]
   }
  ],
- "_sin_test": "Lo que NO se puede medir con un test, y por que. Un script de una vertical que no ejecuta ningun test y no tiene motivo aqui es un puntero a nada, y el guard lo dice. El motivo va aqui al lado: un motivo sin escribir es un tapon."
+ "_sin_test": "Lo que NO se puede medir con un test, y por que. Un script de una vertical que no ejecuta ningun test y no tiene motivo aqui es un puntero a nada, y el guard lo dice. El motivo va aqui al lado: un motivo sin escribir es un tapon.",
+ "_entrada": "Las palabras que la ENTRADA (SKILL.md, que es lo primero que lee el agente) tiene que usar para que la vertical se encuentre. Una vertical con ruta en el mapa pero sin nombre en la entrada tampoco se encuentra: el guard lo dice."
 }

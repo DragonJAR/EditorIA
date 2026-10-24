@@ -153,6 +153,30 @@ class TestGuardDeVerticales(unittest.TestCase):
         self.assertEqual(p.returncode, 1,
                          f"el guard paso con una vertical sin ruta:\n{salida[-1500:]}")
 
+    def test_una_vertical_sin_entrada_tambien_se_corta(self):
+        """MUTACION: si la ENTRADA (el SKILL.md, que es lo primero que lee el
+        agente) deja de nombrar una vertical, el guard tiene que decirlo. Una
+        vertical con ruta en el mapa pero sin nombre en la entrada tampoco se
+        encuentra: el indice no es la puerta de entrada, es un indice.
+
+        La vertical del SONIDO fue justo una isla (no tenia ni ruta), asi que
+        esta capa no es teorica."""
+        raiz = self._copia()
+        skill = os.path.join(raiz, "SKILL.md")
+        with open(skill, encoding="utf-8") as fh:
+            texto = fh.read()
+        # se le quita el nombre a la vertical del sonido
+        quitado = texto.replace("mezclar_audio", "el mezclador de la pieza")
+        self.assertNotEqual(quitado, texto, "no se quito el nombre")
+        with open(skill, "w", encoding="utf-8") as fh:
+            fh.write(quitado)
+        p = self._auditar(raiz)
+        salida = p.stdout + p.stderr
+        self.assertIn("vertical sin entrada", salida,
+                      f"el guard no vio una vertical que la entrada no nombra:\n{salida[-1500:]}")
+        self.assertEqual(p.returncode, 1,
+                         f"el guard paso con una vertical sin entrada:\n{salida[-1500:]}")
+
     def test_una_vertical_sin_puerta_tambien_se_corta(self):
         """Y si su ruta no acaba en la puerta, tambien: una vertical que
         entrega sin medir no es una vertical."""

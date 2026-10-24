@@ -488,6 +488,23 @@ def _chequear_verticales(problemas):
         if "qa-entrega" not in bloque:
             problemas.append({"tipo": "vertical sin puerta", "archivo": "references/mapa.md",
                               "msg": f'la ruta de la vertical "{nombre}" no acaba en qa-entrega.md'})
+        # la ENTRADA: el SKILL.md es lo primero que lee el agente. Una
+        # vertical con ruta en el mapa pero sin nombre en la entrada tampoco
+        # se encuentra.
+        entrada = v.get("entrada") or []
+        if entrada:
+            skill_p = os.path.join(BASE, "SKILL.md")
+            if os.path.exists(skill_p):
+                with open(skill_p, encoding="utf-8") as fh:
+                    entrada_txt = fh.read().lower()
+                faltan = [w for w in entrada if w.lower() not in entrada_txt]
+                if faltan:
+                    problemas.append({"tipo": "vertical sin entrada",
+                                      "archivo": "SKILL.md",
+                                      "msg": f'la vertical "{nombre}" no se nombra en la '
+                                             f'entrada (faltan: {", ".join(faltan)}): el '
+                                             f'agente lee el SKILL.md primero, y una '
+                                             f'vertical que no aparece ahi no se encuentra'})
         claves = v.get("claves") or []
         de_vertical = [sc for sc in scripts
                        if any(k in os.path.basename(sc) for k in claves)]
