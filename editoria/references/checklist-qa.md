@@ -65,6 +65,12 @@ confirman, tú corriges. Nada llega al usuario sin pasar el loop.
     flashes/pops accidentales en el render.
 18. **Loop seam check** (L1, piezas con loop): comparar frame 0 vs último frame
     (misma composición, posición y color). Si no empalman, el loop se nota.
+19. **Declaración de capacidades** (L1): si la pieza se entregó SIN una
+    capacidad que necesitaba (3D, Remotion, HyperFrames, transcripción local,
+    voz de marca), la entrega lo dice: qué falta, por qué se degrade, y con
+    qué comando se instala. Una pieza entregada sin su 3D y sin que nadie lo
+    diga no es una pieza económica: es una pieza incompleta
+    (`references/capacidades.md`).
 
 ## L2 — Diálogo y boundaries
 

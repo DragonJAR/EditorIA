@@ -173,7 +173,7 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   montaje con música, recorte/adaptación. Para piezas simples sin plan.
 - **references/capacidades.md** — inventario de capacidades: qué valida
   `scripts/check_env.py` (herramientas locales, APIs, assets), capacidades
-  multimodales del modelo, MCP y tabla de degradación elegante.
+  multimodales del modelo, MCP y tabla de degradación declarada.
 - **references/tecnicas-video.md** — LA BIBLIOTECA: catálogo maestro de técnicas
   2025–2026 (investigación web, 16 secciones): transiciones, tipografía cinética,
   ritmo, cámara, efectos, dataviz animada (sección profunda), fotos→dinámicas
