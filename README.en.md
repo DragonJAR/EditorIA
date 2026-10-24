@@ -244,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 41 root + 19 in ffmpeg_tools/ + 35 in _tests/ = 95 scripts
+│   ├── scripts/                       # 41 root + 19 in ffmpeg_tools/ + 36 in _tests/ = 96 scripts
 │   │   ├── render_plan.py             # Main plan renderer (39 scenes)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking

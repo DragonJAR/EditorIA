@@ -31,6 +31,13 @@ es la variación medible. Jerarquía canónica de cadencia (tres relojes):
 - **Al menos 25% de cuadros casi quietos** (diferencia media por cuadro
   mínima) y **al menos una pausa ≥ 1s** bajo el umbral. El silencio visual
   le da peso a lo que se mueve.
+  **Salvedad por concepto**: una pieza sobre planos reales que siempre se
+  mueven (footage vivo) no tiene ese silencio: no es un defecto de la pieza,
+  es que el mínimo no le aplica. Mismo caso que la ráfaga, que tampoco es un
+  defecto si el concepto no la pide. Se declara con
+  `verificar_ritmo.py --sobre-footage-vivo`, que pone esos dos mínimos en
+  «no aplica» (con el motivo) y **sigue midiendo igual la cadencia y la
+  ráfaga**: el silencio visual no es la excusa para no tener ritmo.
 - **Al menos una ráfaga** si el concepto tiene impactos: ≥3 cambios grandes
   dentro de 1.5s. Un concepto sin impactos (un elemento que se transforma,
   una cámara continua) no necesita ráfaga — no es un defecto.

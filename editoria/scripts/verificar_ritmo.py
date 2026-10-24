@@ -84,6 +84,12 @@ def main():
     ap.add_argument("video")
     ap.add_argument("--cortes", default=None,
                     help="tiempos de corte en segundos, ej. 0,1.6,3.0,4.8")
+    ap.add_argument("--sobre-footage-vivo", action="store_true",
+                    help="la pieza va sobre planos reales que siempre se mueven: el "
+                         "silencio visual no aplica (el minimo de cuadros quietos y "
+                         "la pausa son de una pieza de motion graphics, donde el "
+                         "silencio lo compone el piece, no el footage). Los otros "
+                         "minimos (cadencia, rafaga) se siguen midiendo igual.")
     import os as _os, sys as _sys
     _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
     from _comun import ayudar
@@ -106,8 +112,17 @@ def main():
 
     quiet = diffs < STILL_THRESH
     still_frac = float(quiet.mean())
-    ok &= leg("quietud", "PASS" if still_frac >= STILL_MIN else "FAIL",
-              f"{still_frac:.0%} cuadros quietos (min {STILL_MIN:.0%})")
+    if a.sobre_footage_vivo:
+        # Una pieza sobre planos reales que siempre se mueven no tiene el
+        # silencio visual que compone una pieza de motion graphics: no es un
+        # defecto de la pieza, es que el minimo no aplica a este concepto
+        # (el mismo caso que la rafaga, que ya es un WARN cuando el concepto
+        # no la pide). Los demas minimos se siguen midiendo igual.
+        leg("quietud", "N/A", f"{still_frac:.0%} cuadros quietos — no aplica sobre "
+                              "footage vivo (el silencio visual lo compone el piece)")
+    else:
+        ok &= leg("quietud", "PASS" if still_frac >= STILL_MIN else "FAIL",
+                  f"{still_frac:.0%} cuadros quietos (min {STILL_MIN:.0%})")
 
     # pausa más larga: racha de cuadros quietos consecutivos
     best = cur = 0
@@ -115,8 +130,12 @@ def main():
         cur = cur + 1 if q else 0
         best = max(best, cur)
     stretch = best / fps
-    ok &= leg("pausa", "PASS" if stretch >= QUIET_STRETCH_MIN else "FAIL",
-              f"pausa más larga {stretch:.1f}s (min {QUIET_STRETCH_MIN:.0f}s)")
+    if a.sobre_footage_vivo:
+        leg("pausa", "N/A", f"pausa más larga {stretch:.1f}s — no aplica sobre "
+                            "footage vivo (el silencio visual lo compone el piece)")
+    else:
+        ok &= leg("pausa", "PASS" if stretch >= QUIET_STRETCH_MIN else "FAIL",
+                  f"pausa más larga {stretch:.1f}s (min {QUIET_STRETCH_MIN:.0f}s)")
 
     big = diffs > BIG_THRESH
     win = max(1, int(BURST_WIN * fps))
