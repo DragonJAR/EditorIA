@@ -553,6 +553,7 @@ def verificar(skill_dir=None, comandos=None, timeout=120, solo=None):
         copiados = 0
         saltados = 0
         por_motivo = {}
+        light = {}
         for cmd in comandos:
             partes = cd._partir(cmd)
             if not partes:
@@ -566,6 +567,8 @@ def verificar(skill_dir=None, comandos=None, timeout=120, solo=None):
                     saltados += 1
                     por_motivo.setdefault(motivo, []).append(cmd)
                 continue
+            if s in PLAN_LIGERO_PARA:
+                light.setdefault(s, []).append(cmd)
             ok, motivo_rot, salida = _correr_comando(skill_dir, cmd, tmp,
                                                        assets, timeout=timeout)
             copiados += 1
@@ -574,7 +577,14 @@ def verificar(skill_dir=None, comandos=None, timeout=120, solo=None):
         informe = {"comandos": len(comandos), "copiados": copiados,
                    "saltados": saltados,
                    "saltados_por_motivo": {k: len(v) for k, v in por_motivo.items()},
-                   "clis_documentadas": len(cd.scripts_de_los_comandos(skill_dir))}
+                   "clis_documentadas": len(cd.scripts_de_los_comandos(skill_dir)),
+                   # QUE se midio es parte del veredicto: un comando medido con
+                   # el plan ligero no dice nada del plan de muestra, y su
+                   # salida (una puerta que rechaza la pieza) sin este dato
+                   # se lee como un juicio sobre la pieza de 30 s.
+                   "plan_ligero": {k: {"comandos": v,
+                                        "motivo": PLAN_LIGERO_PARA[k]}
+                                   for k, v in light.items()}}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return problemas, informe
@@ -600,6 +610,9 @@ def main():
     for motivo, n in sorted(informe["saltados_por_motivo"].items(),
                             key=lambda kv: -kv[1]):
         print(f"   saltado ({n}): {motivo}")
+    for script, datos in sorted(informe.get("plan_ligero", {}).items()):
+        print(f"   medido con plan LIGERO ({len(datos['comandos'])} comandos de "
+              f"{script}): {datos['motivo']}")
     print(f"{len(problemas)} problemas")
     return 1 if problemas else 0
 
