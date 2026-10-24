@@ -12,6 +12,10 @@ igualar: porcentaje de cuadros casi quietos, número de cortes duros, dónde
 están las ráfagas, cuánto aire blanco. Una pieza construida sin medir sale
 con cadencia uniforme — siempre.
 
+Y leer el veredicto **entero**: si una comprobación sale `SIN MEDIR`, esa
+referencia todavía no está medida (ver la sección *Verificación* de este
+documento): no es un defecto de la referencia, es que falta el dato.
+
 ## Falla 1: la cadencia (el metrónomo)
 
 Tomas de la misma duración con la misma forma (corte, zoom, etiqueta,
@@ -157,6 +161,30 @@ Reglas de cordura:
 falla la pieza si la cadencia es uniforme o si no hay pausas. La prueba de
 encadenamiento es de diseño (revisar el plan: ¿cada beat nace del anterior?),
 no de píxeles.
+
+**Y tiene un tercer veredicto, que no es un aprobado: `SIN MEDIR`.** Sin
+cortes no hay duraciones de toma que comparar, así que el coeficiente de
+variación no se tiene: esa comprobación **no se pudo hacer**, y el
+verificador sale con código 2, no con 0. Un `PASS — no lee como slideshow`
+sobre una medición que no ocurrió es una afirmación que el verificador no
+puede hacer: la pieza sigue sin verificar. Se mide pasando `--plan` (los
+tiempos de las escenas, que son los beats que percibe el espectador) o
+`--cortes`.
+
+Los estados de una comprobación, y lo que significa cada uno:
+
+| Final | Qué significa | ¿Falla la pieza? |
+|---|---|---|
+| `PASS` | medida y cumplida | no |
+| `FAIL` | medida y **no** cumplida | **sí** (código 1) |
+| `WARN` | medida, y el concepto no la pide (la ráfaga) | no |
+| `N/A` | el mínimo no aplica y el HECHO está declarado (el plan) | no |
+| `SIN MEDIR` | **no se pudo medir**: falta el dato | no, pero tampoco aprueba (código 2) |
+
+Sobre una referencia: una fuente sin cortes duros devuelve `SIN MEDIR` en la
+cadencia — o es un plano continuo, o sus cortes son fundidos (que
+`scene-select` no ve). En los dos casos es un **dato de la referencia** que
+se anota, no un veredicto sobre la pieza.
 
 ---
 

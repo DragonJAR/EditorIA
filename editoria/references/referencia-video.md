@@ -54,7 +54,7 @@ cortes, roles y `plantilla.json`. Anotar la URL en `ANALYSIS.md`. Una referencia
 
 1. **Palabras con tiempo**: `python scripts/alinear.py fuente.mp4 -o fuente.palabras.json --idioma es` (sin guion = transcripción por palabra; acepta video). La transcripción es evidencia, no interpretación: un nombre mal reconocido no es un error de pronunciación.
 2. **Cortes**: `python scripts/ffmpeg_tools/scenes.py fuente.mp4 --sheet evidencia/cortes.png`. Un corte de cámara ayuda a navegar; no decide qué va junto (un objeto que sobrevive al corte pertenece a un sistema más largo).
-3. **Cadencia**: `python scripts/verificar_ritmo.py fuente.mp4` sobre la referencia (regla dura de `references/ritmo.md`).
+3. **Cadencia**: `python scripts/verificar_ritmo.py fuente.mp4` sobre la referencia (regla dura de `references/ritmo.md`). Si la fuente no tiene cortes duros, la cadencia sale `SIN MEDIR` (no es un aprobado ni un defecto): o es un plano continuo, o sus cortes son fundidos. Se anota como dato de la referencia y se mide con `--cortes` si los hay.
 4. **Mosaicos con palabras** (`scripts/contact_sheet.py`), a la escala de la pregunta:
 
 | Pregunta | Mosaico |
