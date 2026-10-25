@@ -152,6 +152,18 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   renderiza como corte que cruza: la escena saliente termina de irse debajo
   de la entrante (sin frames vacíos) y la entrante arranca con micro-fade de
   30 ms.
+- **Repertorio declarado**: el plan puede declarar qué intenciones
+  persigue y por qué descarta las demás, contra la única fuente
+  intención→escena (`scripts/data/repertorio.json`):
+  `"intenciones": ["gancho", "dato", "proceso", "cierre"]` y
+  `"no_aplica": {"demostracion": "sin capturas reales", "imagen-texto": "sin foto ni cita"}`.
+  La mano se pide con `python scripts/repertorio.py sugerir --intenciones ... --anterior <plan anterior>`
+  y se verifica con `python scripts/repertorio.py cobertura plan.json`.
+  Con alguna de las dos claves presentes, el auditor comprueba que cada
+  intención declarada tiene escena (`intencion-sin-escena`) y que ninguna
+  intención queda ni usada ni declarada (`intencion-olvidada`): lo no
+  usado queda explícito, no olvidado. Sin las claves, plan heredado y el
+  auditor no inventa el aviso.
 
 ## Render
 

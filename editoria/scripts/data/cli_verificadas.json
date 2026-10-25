@@ -154,6 +154,9 @@
   "scripts/render_plan.py": [
    "scripts/_tests/test_core_and_scenes.py"
   ],
+  "scripts/repertorio.py": [
+   "scripts/_tests/test_repertorio.py"
+  ],
   "scripts/retakes.py": [
    "scripts/_tests/test_verticales.py"
   ],

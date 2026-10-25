@@ -22,6 +22,7 @@ import argparse, json, os, re, statistics, sys
 
 from speech_estimate import (AIRE_VOZ, RITMOS, auditar_plan_voces, detectar_idioma,
                              estimar_duracion, silabas)
+import repertorio as REP
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _comun import CV_MIN_CADENCIA  # noqa: E402
@@ -359,8 +360,13 @@ def _textos(v, clave=""):
                 yield from _textos(x, k)
 
 
-def auditar_tells(plan):
-    """Tells medibles del plan → [{nivel:'AVISO', t, codigo, msg}] (siempre AVISO)."""
+def auditar_tells(plan, anteriores=None):
+    """Tells medibles del plan → [{nivel:'AVISO', t, codigo, msg}] (siempre AVISO).
+
+    `anteriores`: planes de piezas anteriores del mismo proyecto. Sin ellos
+    solo se puede medir la variedad DENTRO de la pieza; con ellos, también
+    que esta pieza no repita la ruta de la anterior (`ruta-repetida`). El
+    CLI lo expone como --anterior (repetible)."""
     if not isinstance(plan, dict) or not isinstance(plan.get("escenas"), list):
         return []
     ok = set(plan.get("tells_ok") or [])
@@ -406,15 +412,76 @@ def auditar_tells(plan):
         dominante, veces = max(((t_, tipos.count(t_)) for t_ in distintos),
                                key=lambda p: p[1], default=(None, 0))
         if len(distintos) <= 3 or veces >= 0.5 * n_tipos:
+            fams = REP.familias()
+            resumen_fams = "; ".join(f"{k}={'/'.join(v[:3])}…" for k, v in list(fams.items())[:5])
             add("poco-repertorio", 0.0,
                 f"solo {len(distintos)} tipos de escena en {n_tipos} escenas "
                 f"({', '.join(distintos)}; «{dominante}» x{veces}): la pieza se lee "
                 "como la plantilla de siempre. Elige cada escena por su intencion "
-                "(references/intencion-escena.md: dato=stats/bars/ranking/gauge/pie, "
-                "proceso=pasos/timeline/orbita, testimonio=quote/comentario, "
-                "cierre=remate/final/oferta...) y, entre dos piezas, no repitas el "
-                "tipo dominante de la anterior si el argumento no lo pide. Si esta "
-                "sobriedad es deliberada, decláralo en \"tells_ok\": [\"poco-repertorio\"]")
+                f"(scripts/data/repertorio.json, la fuente única: {resumen_fams}) "
+                "— repertorio.py sugerir rota la familia evitando la pieza anterior — "
+                "y, entre dos piezas, no repitas el tipo dominante de la anterior si el "
+                "argumento no lo pide. Si esta sobriedad es deliberada, decláralo en "
+                "\"tells_ok\": [\"poco-repertorio\"]")
+
+    # Ruta repetida ENTRE piezas: el dominante de esta es el de la anterior,
+    # o casi todos sus tipos ya salían en ella. Antes esto no lo medía nadie:
+    # cada pieza, auditada sola, parecía variada y el proyecto entero era la
+    # misma ruta. La familia para rotar sale de repertorio.json (REP), la
+    # misma que consume repertorio.py sugerir --anterior.
+    if anteriores:
+        actuales = set(tipos)
+        dom_actual = max(((t_, tipos.count(t_)) for t_ in actuales),
+                         key=lambda p: p[1], default=(None, 0))[0]
+        for viejo in anteriores:
+            tipos_viejos = REP.tipos_de(viejo)
+            if not tipos_viejos:
+                continue
+            dom_viejo = REP.dominante(viejo)
+            if dom_actual and dom_actual == dom_viejo:
+                add("ruta-repetida", 0.0,
+                    f"el tipo dominante de esta pieza («{dom_actual}») ya era el de la "
+                    "anterior: entre piezas también se repite la ruta. Rota dentro de "
+                    "su familia (scripts/data/repertorio.json) con "
+                    "`repertorio.py sugerir --anterior <plan anterior>`, o decláralo en "
+                    "\"tells_ok\": [\"ruta-repetida\"] si el argumento lo pide")
+                break
+            viejos = set(tipos_viejos)
+            if actuales and len(actuales & viejos) >= 0.8 * len(actuales):
+                add("ruta-repetida", 0.0,
+                    f"{len(actuales & viejos)} de {len(actuales)} tipos de esta pieza ya "
+                    "salían en la anterior: la ruta es casi la misma aunque el dominante "
+                    "cambie. Pide otra mano con `repertorio.py sugerir --anterior "
+                    "<plan anterior>` o decláralo en \"tells_ok\": [\"ruta-repetida\"]")
+                break
+
+    # Intenciones declaradas: si el plan declara qué intenciones persigue
+    # ("intenciones") o qué descarta ("no_aplica"), se verifica contra la
+    # fuente única. Sin ninguna de las dos claves, plan heredado: no se
+    # inventa un aviso que el plan nunca prometió.
+    if "intenciones" in plan or "no_aplica" in plan:
+        fams = REP.familias()
+        cubiertas = {i for t in set(tipos) for i in REP.intencion_de(t)}
+        declaradas = [i for i in (plan.get("intenciones") or [])]
+        no_aplica = plan.get("no_aplica") or {}
+        for inten in declaradas:
+            if inten not in fams:
+                add("intencion-sin-escena", 0.0,
+                    f"la intención «{inten}» no existe en scripts/data/repertorio.json "
+                    f"(válidas: {', '.join(fams)}): corrige el nombre, no la escena")
+            elif inten not in cubiertas:
+                add("intencion-sin-escena", 0.0,
+                    f"la intención declarada «{inten}» no la cubre ninguna escena: "
+                    f"su familia es {'/'.join(fams[inten])} — elige una por el "
+                    "argumento o mueve la intención a \"no_aplica\" con su porqué")
+        olvidadas = [i for i in fams
+                     if i not in cubiertas and i not in declaradas and i not in no_aplica]
+        if olvidadas:
+            add("intencion-olvidada", 0.0,
+                f"intenciones ni usadas ni declaradas: {', '.join(olvidadas)}: lo no "
+                "usado queda explícito, no olvidado — cubre la que el argumento pida "
+                "o declara en el plan \"no_aplica\": {\"<intencion>\": \"<por qué>\"} "
+                "(repertorio.py cobertura las lista con su familia)")
     n = len(escenas)
     if n >= 5 and sum(1 for _, e in escenas if e.get("rotulo")) >= 0.8 * n:
         add("rotulo-en-todas", 0.0, f"{sum(1 for _, e in escenas if e.get('rotulo'))} de {n} escenas llevan rótulo (kicker): es el reflejo de plantilla; resérvalo a donde aporta (si es la firma deliberada de la dirección, decláralo en tells_ok)")
@@ -459,6 +526,9 @@ def main():
                     help="duración mínima de la escena final (default: 2.0s)")
     ap.add_argument("--sin-tells", action="store_true",
                     help="no busca «tells» de pieza generada (jerga, emoji, repeticiones...)")
+    ap.add_argument("--anterior", action="append", default=[], metavar="PLAN",
+                    help="plan.json de la pieza anterior del proyecto (repetible): "
+                         "activa el tell ruta-repetida entre piezas")
     a = ap.parse_args()
 
     if not os.path.isfile(a.plan):
@@ -481,7 +551,14 @@ def main():
 
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
     if not a.sin_tells:
-        hallazgos += auditar_tells(plan)
+        anteriores = []
+        for ruta in a.anterior:
+            try:
+                with open(ruta, encoding="utf-8") as fh:
+                    anteriores.append(json.load(fh))
+            except (OSError, ValueError) as ex:
+                sys.exit(f"ERROR: no pude leer el plan anterior {ruta}: {ex}")
+        hallazgos += auditar_tells(plan, anteriores=anteriores)
     escenas = plan.get("escenas", []) if isinstance(plan, dict) and isinstance(plan.get("escenas"), list) else []
     errores = sum(1 for h in hallazgos if h["nivel"] == "ERROR")
     if a.json:

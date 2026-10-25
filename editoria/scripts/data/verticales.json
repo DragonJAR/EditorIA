@@ -10,6 +10,7 @@
    "claves": [
     "render_plan",
     "auditar_plan",
+    "repertorio",
     "lint_copy",
     "speech_estimate",
     "medir_animacion",

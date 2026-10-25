@@ -75,6 +75,7 @@ EJECUTABLES = {
     "scripts/qa_entrega.py",
     "scripts/referencia.py",
     "scripts/render_plan.py",
+    "scripts/repertorio.py",
     "scripts/sfx.py",
     "scripts/speech_estimate.py",
     "scripts/verificar_ritmo.py",

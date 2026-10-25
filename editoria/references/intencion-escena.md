@@ -125,23 +125,53 @@ imagen con zoom y paneo progresivo (es una foto, no una escena de datos).
 Este indice da UNA escena por intencion, y esa es la trampa: si cada pieza
 resuelve «dato» con `stats` y «cierre» con `final`, todas las piezas se
 parecen aunque el catalogo tenga 39 tipos. La escena se elige por el
-argumento, y dentro de la misma intencion hay familia para rotar:
+argumento, y dentro de la misma intencion hay familia para rotar. La tabla
+de abajo ES `scripts/data/repertorio.json` (la única fuente; si difieren,
+manda el JSON y `repertorio.py validar` lo dice):
 
 | intencion | familia (rota segun el argumento y la pieza anterior) |
 |---|---|
 | gancho | `apertura`, `hero`, `countdown`, `buscador`, `pildoras`, `orbOpen` |
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
 | proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy` |
-| social/testimonio | `chat`, `comentario`, `notificacion`, `quote` |
+| social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
 | cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave` |
+| comparacion | `versus`, `bars`, `ranking` |
+| demostracion | `demo`, `callout`, `buscador` |
+| estado | `listo`, `pago`, `recupera`, `notificacion` |
+| imagen-texto | `kenburns`, `typewriter`, `rotulo_inferior`, `quote` |
+| estructura | `index`, `canales`, `medianoche` |
 
-(Fuente ejecutable de las familias: `FAMILIAS_ESCENAS` en
-`scripts/clonar_video.py`, que es la que usa `variar` para permutar.)
-Antes de elegir, mira que tipos uso la pieza anterior del proyecto (su
-plan o `PROGRESO.md`): no repitas su tipo dominante si el argumento no lo
-pide. `auditar_plan.py` avisa (`poco-repertorio`) cuando una pieza entera
-usa solo 2–3 tipos o un tipo en la mitad de las escenas; `demo_plan.json`
-es un ejemplo trabajado, no la plantilla por defecto.
+Una escena puede servir a varias intenciones (`bars` da un dato y también
+compara): por eso las 39 escenas del motor quedan alcanzables, incluidas
+las que la antigua tabla dejaba fuera (`versus`, `demo`, `callout`,
+`kenburns`, `typewriter`, `listo`, `pago`, `recupera`, `index`, `canales`,
+`medianoche`, `orbOpen`, `rotulo_inferior`).
+
+El mecanismo, no la memoria del agente:
+
+```bash
+python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre --anterior ../pieza-anterior/plan.json
+python scripts/repertorio.py cobertura plan.json
+python scripts/auditar_plan.py plan.json --anterior ../pieza-anterior/plan.json
+```
+
+`sugerir` elige una escena por intención rotando la familia de forma
+determinista (misma `--semilla`, misma mano) y evitando los tipos de las
+piezas anteriores mientras la familia tenga otra opción; si no la tiene,
+lo dice (`reutilizada`). Antes de elegir, mira que tipos uso la pieza
+anterior del proyecto (su plan o `PROGRESO.md`): no repitas su tipo
+dominante si el argumento no lo pide. `auditar_plan.py` avisa dentro de la
+pieza (`poco-repertorio`: solo 2–3 tipos o un tipo en la mitad) y entre
+piezas (`ruta-repetida`, solo con `--anterior`); `demo_plan.json` es un
+ejemplo trabajado, no la plantilla por defecto.
+
+Y lo que no se usa no se olvida: el plan declara sus intenciones y el
+porqué de las que descarta (`"intenciones": [...]`,
+`"no_aplica": {"demostracion": "sin capturas reales"}`).
+`repertorio.py cobertura` lista cada intención sin tocar como declarada o
+SIN DECLARAR, y el auditor avisa (`intencion-sin-escena`,
+`intencion-olvidada`) cuando el plan declara y no cumple.
 
 ## 3. Receta de movimiento por escena
 

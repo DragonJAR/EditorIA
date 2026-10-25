@@ -23,17 +23,18 @@ import sys
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE, "scripts"))
 import referencia as REF
+import repertorio as REP
 import speech_estimate as SE
 
 
-# Familias de escenas compatibles para variación de layouts visuales (100% catálogo oficial de 39 escenas)
-FAMILIAS_ESCENAS = {
-    "hook": ["titular", "apertura", "hero", "pildoras", "countdown", "buscador"],
-    "dato": ["stats", "ranking", "bars", "gauge", "pie", "bento"],
-    "social": ["chat", "comentario", "notificacion", "quote"],
-    "proceso": ["pasos", "timeline", "orbita", "leads", "handoff", "hoy"],
-    "cierre": ["final", "remate", "audiowave", "oferta", "confetti"]
-}
+# Familias de escenas compatibles para variación de layouts visuales.
+# DERIVADAS de la única fuente intención→escena (scripts/data/repertorio.json,
+# vía repertorio.familias()): antes esta lista vivía solo aquí, con el nombre
+# fantasma "titular" (no es una escena del motor; llegaba a apertura por
+# MAPEO_ESCENAS_VALIDAS) y con 13 escenas del catálogo fuera de toda familia.
+# Los roles del clonado (hook...) se traducen con roles_clonar del mismo JSON.
+FAMILIAS_ESCENAS = {rol: REP.familias()[inten]
+                    for rol, inten in REP.cargar()["roles_clonar"].items()}
 
 # Mapeo canónico de alias a escenas registradas en render_plan.py
 MAPEO_ESCENAS_VALIDAS = {

@@ -616,7 +616,8 @@ class TestViralFeaturesAndPrimitives(unittest.TestCase):
 
     def test_clonar_video_segmentacion_y_familias(self):
         # Familias de escenas virales
-        self.assertIn("titular", CV.FAMILIAS_ESCENAS["hook"])
+        self.assertIn("apertura", CV.FAMILIAS_ESCENAS["hook"])
+        self.assertNotIn("titular", CV.FAMILIAS_ESCENAS["hook"])
         self.assertIn("ranking", CV.FAMILIAS_ESCENAS["dato"])
         self.assertIn("notificacion", CV.FAMILIAS_ESCENAS["social"])
         self.assertIn("audiowave", CV.FAMILIAS_ESCENAS["cierre"])
