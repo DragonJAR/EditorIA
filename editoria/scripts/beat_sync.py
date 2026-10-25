@@ -25,6 +25,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import asegurar_padre  # noqa: E402
+
 
 def beats_hasta(grid, duracion):
     """Genera todos los tiempos de beat de la rejilla hasta `duracion`."""
@@ -224,6 +227,7 @@ def main():
                   file=sys.stderr)
 
     if es_edl and args.edl_out:
+        asegurar_padre(args.edl_out)
         its = iter(ajustados)
         caidos = 0
         with open(args.edl_out, "w", encoding="utf-8") as fh:
@@ -243,6 +247,7 @@ def main():
            "cortes": ajustados, "movimientos": movimientos}
     out = json.dumps(doc, ensure_ascii=False, indent=2)
     if args.output:
+        asegurar_padre(args.output)
         open(args.output, "w", encoding="utf-8").write(out + "\n")
         print(f"escribi {args.output}", file=sys.stderr)
     else:

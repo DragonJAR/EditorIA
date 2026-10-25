@@ -32,6 +32,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "ffmpeg_tools"))
+from _comun import asegurar_padre  # noqa: E402
+
 try:
     import numpy as np
 except ImportError:
@@ -351,6 +354,7 @@ def main():
         for p_ in g["picos"][:24]:
             print(f"   {p_['t']:7.3f}s  fuerza {p_['fuerza']:.2f}  {p_['db']:6.1f} dB")
     if a.salida_json:
+        asegurar_padre(a.salida_json)
         Path(a.salida_json).write_text(json.dumps(g, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"OK rejilla guardada en {a.salida_json}")
 

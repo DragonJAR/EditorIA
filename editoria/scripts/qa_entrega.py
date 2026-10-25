@@ -84,17 +84,22 @@ def _paso_delivery(video, plataforma):
 
 
 def _paso_medir(video):
-    rc, out = _correr([os.path.join(SCRIPTS, "medir_animacion.py"), "--video", video])
-    nota = None
-    pops = tirones = 0
-    for linea in out.splitlines():
-        m = re.search(r"([\d.]+)\s+\S+\.mp4\s+pops=(.*?)\s+tirones=\[(.*?)\]", linea)
-        if m:
-            nota = float(m.group(1))
-            pops = 0 if m.group(2) in ("[]", "") else len(m.group(2).split(","))
-            tirones = 0 if not m.group(3).strip() else len(m.group(3).split(","))
-    if nota is None:
+    # La nota se lee del JSON estructurado, no de un regex sobre la salida
+    # de consola: el regex exigia un basename sin espacios acabado en .mp4
+    # y declaraba "no se pudo medir" piezas perfectamente medibles.
+    with tempfile.TemporaryDirectory(prefix="editoria_qa_medir_") as tmp:
+        ruta_json = os.path.join(tmp, "medidas.json")
+        rc, out = _correr([os.path.join(SCRIPTS, "medir_animacion.py"),
+                           "--video", video, "--json", ruta_json])
+        if rc != 0 or not os.path.exists(ruta_json):
+            return {"nombre": "movimiento", "ok": False, "detalle": "no se pudo medir"}
+        with open(ruta_json, encoding="utf-8") as f:
+            res = json.load(f)
+    if not res:
         return {"nombre": "movimiento", "ok": False, "detalle": "no se pudo medir"}
+    nota = float(res[0].get("nota", 0))
+    pops = len(res[0].get("pops") or [])
+    tirones = int(res[0].get("tirones") or 0)
     ok = nota >= NOTA_MINIMA and pops == 0
     return {"nombre": "movimiento", "ok": ok,
             "detalle": f"nota {nota} (min {NOTA_MINIMA:g}) · {pops} pops · {tirones} tirones"}

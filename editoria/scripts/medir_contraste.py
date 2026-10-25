@@ -184,6 +184,7 @@ def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None):
 
 
 def main():
+    from _comun import asegurar_padre
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", help="escribe el informe en un JSON")
     ap.add_argument("--umbral", type=float, default=MINIMO,
@@ -191,6 +192,7 @@ def main():
     a = ap.parse_args()
     h = medir(a.umbral)
     if a.json:
+        asegurar_padre(a.json)
         json.dump(h, open(a.json, "w"), indent=1, ensure_ascii=False)
     if not h:
         print(f"OK: ningun texto del catalogo baja de {a.umbral}:1 de contraste")
@@ -199,7 +201,7 @@ def main():
         for x in sorted(h, key=lambda d: d["ratio"]):
             print(f"  {x['ratio']:5.2f}  {x['escena']:14s} {x['formato']:10s} "
                   f"color={tuple(x['color'])} {x['texto']!r}")
-    return 0
+    return 1 if h else 0
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ from pathlib import Path
 
 KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(KIT, "ffmpeg_tools"))
-from _comun import die, info  # noqa: E402
+from _comun import asegurar_padre, die, info  # noqa: E402
 
 try:
     import numpy as np
@@ -340,6 +340,8 @@ def main() -> int:
     else:
         guion_palabras = None
 
+    out_path = Path(args.out) if args.out else audio.with_suffix(".palabras.json")
+    asegurar_padre(out_path)
     info(f"transcribiendo con ASR local (idioma={args.idioma}, modelo={args.modelo})")
     palabras = transcribir_palabras(audio, args.idioma, args.modelo, args.motor)
     if not palabras:
@@ -359,7 +361,6 @@ def main() -> int:
         except Exception as ex:
             info(f"refinamiento omitido: {ex}")
 
-    out_path = Path(args.out) if args.out else audio.with_suffix(".palabras.json")
     payload = {
         "audio": str(audio),
         "idioma": args.idioma,

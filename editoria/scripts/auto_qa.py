@@ -31,7 +31,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
-from _comun import die, info, probe
+from _comun import asegurar_padre, die, info, probe
 
 FPS_MUESTREO = 4          # muestras por segundo para el análisis
 ANCHO = 320               # ancho de análisis (rápido)
@@ -348,6 +348,7 @@ def main():
     defectos = sorted(defectos, key=lambda x: x["t0"])
 
     sheet = a.sheet or os.path.splitext(a.video)[0] + "_qa.png"
+    asegurar_padre(sheet)
     vw = meta["video"].get("width") or 0
     vh = meta["video"].get("height") or 0
     contact_sheet(a.video, defectos, dur, sheet, safe=a.safe,
@@ -359,6 +360,7 @@ def main():
                            "por_tipo": {t: sum(1 for d in defectos if d["tipo"] == t)
                                         for t in set(d["tipo"] for d in defectos)}}}
     if a.json:
+        asegurar_padre(a.json)
         with open(a.json, "w", encoding="utf-8") as f:
             json.dump(reporte, f, ensure_ascii=False, indent=1)
         info(f"reporte: {a.json}")

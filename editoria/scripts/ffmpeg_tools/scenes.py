@@ -26,24 +26,13 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import (add_common, apply_common, default_font_file, die, emit,
+from _comun import (add_common, apply_common, asegurar_padre as _asegurar_padre, default_font_file, die, emit,
                     escape_filter_path, ffmpeg_base, info, print_json, probe,
                     require_tool, run)
 
 SCORE_RE = re.compile(r"frame:(\d+)\s+pts:\d+\s+pts_time:([0-9.]+)")
 
 
-def _asegurar_padre(ruta):
-    """Crea la carpeta destino de una salida si no existe.
-
-    Sin esto, ffmpeg muere con un codigo opaco (251) porque no puede abrir
-    el archivo: el fallo es de la ruta, no del video.
-    """
-    padre = os.path.dirname(os.path.abspath(ruta))
-    try:
-        os.makedirs(padre, exist_ok=True)
-    except OSError as ex:
-        die(f"no se pudo crear la carpeta de salida {padre}: {ex}")
 
 
 def detect_scenes(path, threshold, min_len, duration, ratio=3.0):

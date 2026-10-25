@@ -30,6 +30,9 @@ import re
 import sys
 import unicodedata
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import asegurar_padre  # noqa: E402
+
 # Muletillas: una isla que solo tiene estas se va (con --keep-fillers se queda).
 FILLERS = {
     "es": {"eh", "em", "este", "esta", "mmm", "mm", "ah", "ay", "ejem"},
@@ -433,9 +436,11 @@ def main():
         return 0
 
     out = args.output or os.path.splitext(args.input)[0] + "_retakes.json"
+    asegurar_padre(out)
     with open(out, "w", encoding="utf-8") as fh:
         json.dump(plan, fh, ensure_ascii=False, indent=2)
     if args.edl:
+        asegurar_padre(args.edl)
         with open(args.edl, "w", encoding="utf-8") as fh:
             for k in keeps:
                 fh.write(f"{k[0]:.3f}-{k[1]:.3f}\n")

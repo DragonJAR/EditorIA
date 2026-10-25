@@ -18,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _comun import (video_args, aac_args, add_common, apply_common, cfr_args, audio_codec_for,
-                    default_output, die, emit, ffmpeg_base, info, print_json, probe,
+                    asegurar_padre, default_output, die, emit, ffmpeg_base, info, print_json, probe,
                     require_tool, run)
 
 SIL_RE = re.compile(r"silence_(start|end): ([0-9.]+)")
@@ -100,6 +100,7 @@ def main():
          f"{kept:.2f}s de {duration:.2f}s (quitando {removed:.2f}s)")
 
     if args.edl:
+        asegurar_padre(args.edl)
         with open(args.edl, "w", encoding="utf-8") as fh:
             for s, e in keeps:
                 fh.write(f"{s:.3f}-{e:.3f}\n")

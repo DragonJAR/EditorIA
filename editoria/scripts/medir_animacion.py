@@ -533,7 +533,7 @@ def main():
     import tempfile
     import galeria
     import render_plan as R
-    from _comun import NEUTRO
+    from _comun import NEUTRO, asegurar_padre
     medios = tempfile.mkdtemp(prefix="editoria_medir_")
     try:
         galeria.assets(medios, NEUTRO["acento"])
@@ -559,6 +559,7 @@ def main():
                 print(f"{r['nota']:5.1f}  {r['escena']}  pops={r['pops'][:6]} tirones={r['t_tirones'][:6]} "
                       f"muerto={r['muerto']} densidad={r['densidad']}{extra}")
             if a.json:
+                asegurar_padre(a.json)
                 json.dump(res, open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
             return 0
         if a.ver:
@@ -621,6 +622,7 @@ def main():
         print(f"\nNOTA GLOBAL {global_} · mínima {minima['nota']} ({minima['escena']} {minima['formato']}) · "
               f"pops {sum(len(r['pops']) for r in res)} · tirones {sum(r['tirones'] for r in res)}")
         if a.json:
+            asegurar_padre(a.json)
             json.dump(res, open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
         if a.historial:
             os.makedirs(os.path.join(SKILL, "metricas"), exist_ok=True)
