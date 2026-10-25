@@ -244,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Paquete listo para subir a Claude.ai
 ├── editoria/                          # Carpeta de la skill (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definición + frontmatter YAML + flujo principal
-│   ├── scripts/                       # 46 motores raíz + 19 en ffmpeg_tools/ + 44 en _tests/ = 109 scripts
+│   ├── scripts/                       # 48 motores raíz + 19 en ffmpeg_tools/ + 46 en _tests/ = 113 scripts
 │   │   ├── render_plan.py             # Motor principal de render por plan (39 escenas)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
@@ -276,6 +276,8 @@ EditorIA/
 │   │   ├── _film.py                   # Utilidades compartidas de films
 │   │   ├── galeria.py                 # Suite visual de las 39 escenas
 │   │   ├── validate_skill.py          # Validador determinista de la skill
+│   │   ├── _guard_entorno.py          # ¿La suite da el mismo veredicto sin repo?
+│   │   ├── _cerrar_tip.py             # Cierra un tip: mide, compara y dice una línea
 │   │   ├── demo_plan.json             # Plan de ejemplo
 │   │   ├── escenas_muestra.json       # Muestras canónicas de las 39 escenas
 │   │   ├── _tests/                    # Suite de tests unitarios (unittest)
@@ -421,6 +423,30 @@ Las contribuciones son bienvenidas. Áreas que necesitan expansión:
 - **Voice roster** (`scripts/voz_off.py VOCES`): añade voces ElevenLabs para nuevos idiomas
 - **Brand packs** (`brand/`): nuevos packs de ejemplo
 - **Validator** (`scripts/validate_skill.py`): nuevos checks de calidad
+
+### Verificar antes de publicar
+
+Un tip se cierra con una sola línea. El envoltorio mide las tres superficies
+que importan y no deja lugar a la mirada manual (que es donde se leía el log
+equivocado):
+
+```bash
+python3 editoria/scripts/_cerrar_tip.py
+# el tip 429b980 ESTA CERRADO: repo verde, entorno honesto, copia sincronizada
+```
+
+Qué mide, en orden:
+
+1. **La puerta del repo**, en un *worktree* aislado del commit (nunca en el
+   árbol de trabajo: ahí mide lo que otra sesión esté escribiendo).
+2. **El entorno**: la misma suite **sin repo**, en una copia aislada
+   (`scripts/_guard_entorno.py`). La copia instalada no tiene repo, así que si
+   la suite da un veredicto distinto ahí, una sola puerta no basta: el guard
+   nombra los tests que cambian de veredicto.
+3. **La copia instalada**: que lo que usa el agente sea exactamente lo
+   publicado (`scripts/sincronizar_instalada.py --check`).
+
+El envoltorio no publica: medir y publicar son cosas distintas.
 
 ## 🙏 Créditos y fuentes
 

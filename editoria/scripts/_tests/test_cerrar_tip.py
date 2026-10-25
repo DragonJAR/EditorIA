@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+"""Tests del envoltorio que cierra un tip: una linea, tres mediciones.
+
+Cerrar un tip son tres mediciones (la puerta del repo, el entorno sin repo y
+la copia instalada) y una mirada manual. La mirada manual es donde se cuelan
+los errores: el log equivocado, la puerta corrida en el arbol COMPARTIDO
+(mide lo que otra sesion esta escribiendo por debajo) y el paso olvidado.
+
+El envoltorio existe para que eso no dependa de la memoria. Su MUTACION es
+exactamente eso: si dice "esta cerrado" cuando algo fallo, es peor que no
+decir nada, porque el verde falso se publica.
+
+Aqui no se paga la puerta de verdad: las tres mediciones se inyectan. Lo que
+se comprueba de verdad es la MECANICA del envoltorio: que mide en un worktree
+aislado, que no publica, que se para si hay otra puerta corriendo, y que una
+medicion roja IMPIDE el cierre.
+
+Run with: python3 -m unittest discover -s SKILL/scripts/_tests
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SCRIPTS = os.path.dirname(HERE)
+BASE = os.path.dirname(SCRIPTS)
+CERRAR = os.path.join(SCRIPTS, "_cerrar_tip.py")
+
+sys.path.insert(0, SCRIPTS)
+import _cerrar_tip as C  # noqa: E402
+
+
+def _git(repo, *args):
+    return subprocess.run(["git", "-C", repo, *args],
+                          capture_output=True, text=True, timeout=60)
+
+
+def _puerta(ok=True, veredicto_suite=0):
+    """Una puerta de mentira: verde con la linea de la suite, o roja."""
+    def _f(ruta_skill, log):
+        with open(log, "w", encoding="utf-8") as fh:
+            if ok:
+                fh.write("commit medido: abc1234 (main)\n")
+                if veredicto_suite is not None:
+                    fh.write("OK  tests unitarios de scripts/_tests (589 OK)\n")
+                fh.write("SKILL VALIDO\n")
+            else:
+                fh.write("commit medido: abc1234 (main)\n"
+                         "FAIL tests unitarios de scripts/_tests (2 fallos)\n"
+                         "2 FALLO(S)\n")
+        return {"ok": ok, "rc": 0 if ok else 1, "fallos": 0 if ok else 2,
+                "detalle": "sin fallos" if ok else "2 FALLO(S)",
+                "segundos": 0.1, "log": log, "veredicto_suite": veredicto_suite}
+    return _f
+
+
+def _entorno(ok=True):
+    def _f(ruta_skill, veredicto_suite, log):
+        with open(log, "w", encoding="utf-8") as fh:
+            fh.write("OK  la suite es honesta con el entorno\n" if ok else
+                     "FALLA  la suite no es honesta con el entorno: 1 test cae\n")
+        return {"ok": ok, "detalle": ("la suite es honesta con el entorno" if ok else
+                                      "1 test cae sin repo"),
+                "segundos": 0.1, "log": log}
+    return _f
+
+
+def _copia(ok=True):
+    def _f(raiz, log):
+        with open(log, "w", encoding="utf-8") as fh:
+            fh.write("la copia coincide con lo publicado\n" if ok else
+                     "la copia se diferencia de lo publicado\n")
+        return {"ok": ok, "rc": 0, "detalle": ("coincide" if ok else
+                                               "la copia NO coincide con lo publicado"),
+                "segundos": 0.1, "log": log}
+    return _f
+
+
+class CerrarTip(unittest.TestCase):
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="editoria_cerrar_")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        self.raiz = os.path.join(self.dir, "repo")
+        os.makedirs(self.raiz)
+        _git(self.raiz, "init", "-q")
+        # el repo necesita un commit: sin HEAD no hay tip que cerrar
+        with open(os.path.join(self.raiz, "SKILL.md"), "w", encoding="utf-8") as fh:
+            fh.write("---\nname: editoria\ndescription: fixture\n---\n")
+        _git(self.raiz, "add", "-A")
+        _git(self.raiz, "-c", "user.email=t@t.t", "-c", "user.name=t",
+             "commit", "-q", "-m", "base")
+        # un remoto de verdad, para comprobar que el envoltorio NO publica
+        self.remoto = os.path.join(self.dir, "remoto.git")
+        subprocess.run(["git", "init", "--bare", "-q", self.remoto],
+                       capture_output=True, text=True, timeout=60)
+        _git(self.raiz, "remote", "add", "origin", self.remoto)
+        _git(self.raiz, "push", "-q", "origin", "HEAD:refs/heads/main")
+        self.log_dir = os.path.join(self.dir, "logs")
+
+    def _cerrar(self, **kw):
+        kw.setdefault("raiz", self.raiz)
+        kw.setdefault("log_dir", self.log_dir)
+        kw.setdefault("puerta", _puerta())
+        kw.setdefault("entorno", _entorno())
+        kw.setdefault("copia", _copia())
+        return C.cerrar(**kw)
+
+    # --- la mutacion: un verde falso es peor que no decir nada ---------------
+
+    def test_las_tres_mediciones_en_verde_cierran_el_tip(self):
+        """El camino bueno: todo verde y una sola linea que lo dice."""
+        v = self._cerrar()
+        self.assertTrue(v["cerrado"], f"todo verde tiene que cerrar: {v}")
+        self.assertIn("repo verde", v["motivo"])
+
+    def test_la_puerta_roja_impide_el_cierre(self):
+        """La MUTACION: si la puerta falla, NO se puede cerrar."""
+        v = self._cerrar(puerta=_puerta(ok=False))
+        self.assertFalse(v["cerrado"], f"una puerta roja no cierra nada: {v}")
+        self.assertIn("puerta", v["motivo"])
+
+    def test_el_entorno_dishonesto_impide_el_cierre(self):
+        """La MUTACION: si la suite no es honesta con el entorno, NO se cierra."""
+        v = self._cerrar(entorno=_entorno(ok=False))
+        self.assertFalse(v["cerrado"], f"un entorno dishonesto no cierra nada: {v}")
+        self.assertIn("honesta", v["motivo"])
+
+    def test_la_copia_desfasada_impide_el_cierre(self):
+        """La MUTACION: si la copia instalada no es lo publicado, NO se cierra."""
+        v = self._cerrar(copia=_copia(ok=False))
+        self.assertFalse(v["cerrado"], f"una copia desfasada no cierra nada: {v}")
+        self.assertIn("copia", v["motivo"])
+
+    def test_un_veredicto_de_suite_ilegible_impide_el_cierre(self):
+        """Si no se puede leer el veredicto de la suite, no se mide el entorno.
+
+        Y no se dice "cerrado": no se sabe si el entorno es honesto.
+        """
+        v = self._cerrar(puerta=_puerta(ok=True, veredicto_suite=None))
+        self.assertFalse(v["cerrado"],
+                         f"sin veredicto de suite no se puede cerrar: {v}")
+        self.assertIn("suite", v["motivo"])
+
+    # --- el aislamiento: la puerta no se mide en el arbol compartido -----------
+
+    def test_la_medicion_no_toca_el_arbol_compartido(self):
+        """La puerta se corre en un WORKTREE AISLADO, no en el arbol de trabajo.
+
+        Medir en el arbol compartido es medir lo que otra sesion esta
+        escribiendo por debajo: el veredicto no es de nada.
+        """
+        vistas = {}
+
+        def _puerta_que_mira(ruta_skill, log):
+            vistas["ruta"] = ruta_skill
+            return _puerta()(ruta_skill, log)
+
+        v = self._cerrar(puerta=_puerta_que_mira)
+        self.assertTrue(v["cerrado"])
+        self.assertNotIn(os.path.realpath(self.raiz), os.path.realpath(vistas["ruta"]),
+                         "la puerta se ha corrido en el arbol compartido")
+        self.assertIn(os.path.join("wt", "editoria"), vistas["ruta"],
+                      "la puerta se ha corrido en el worktree aislado")
+
+    def test_no_publica_nada(self):
+        """El envoltorio mide: NO publica. Publicar es de quien publica."""
+        remoto_antes = subprocess.run(["git", "--git-dir", self.remoto,
+                                       "rev-parse", "refs/heads/main"],
+                                      capture_output=True, text=True, timeout=60).stdout.strip()
+        self._cerrar()
+        remoto_despues = subprocess.run(["git", "--git-dir", self.remoto,
+                                         "rev-parse", "refs/heads/main"],
+                                        capture_output=True, text=True, timeout=60).stdout.strip()
+        self.assertEqual(remoto_antes, remoto_despues,
+                         "el envoltorio no puede publicar nada")
+
+    def test_se_para_si_hay_otra_puerta_corriendo(self):
+        """Dos validaciones a la vez se pisan: el fallo sale como del producto."""
+        original = C._puertas_vivas
+        C._puertas_vivas = lambda: [4242]
+        try:
+            v = self._cerrar()
+        finally:
+            C._puertas_vivas = original
+        self.assertFalse(v["cerrado"], f"con otra puerta corriendo no se mide: {v}")
+        self.assertIn("puerta", v["motivo"])
+        self.assertIn("4242", v["motivo"], "el motivo tiene que decir que puerta")
+
+    # --- el tip que no existe -------------------------------------------------
+
+    def test_un_tip_que_no_existe_no_cierra_nada(self):
+        v = self._cerrar(tip="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+        self.assertFalse(v["cerrado"])
+        self.assertIn("no existe", v["motivo"])
+
+    # --- la CLI ----------------------------------------------------------------
+
+    def test_la_cli_con_un_tip_inexistente_sale_con_error(self):
+        """La CLI tiene que poder FALLAR, no solo informar."""
+        r = subprocess.run([sys.executable, CERRAR, "--raiz", self.raiz,
+                            "--tip", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"],
+                           capture_output=True, text=True, timeout=300)
+        self.assertEqual(r.returncode, 1,
+                         f"con un tip inexistente la CLI sale con 1 (salio {r.returncode})")
+        self.assertIn("NO ESTA CERRADO", r.stdout)
+        self.assertNotIn("Traceback", r.stderr,
+                         "la CLI no puede reventar con un traceback: es lo que ve el agente")
+
+    def test_la_cli_tiene_ayuda(self):
+        """`--help` no puede reventar: es lo primero que un agente ejecuta."""
+        r = subprocess.run([sys.executable, CERRAR, "--help"],
+                           capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("--tip", r.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

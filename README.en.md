@@ -244,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 46 root + 19 in ffmpeg_tools/ + 44 in _tests/ = 109 scripts
+│   ├── scripts/                       # 48 root + 19 in ffmpeg_tools/ + 46 in _tests/ = 113 scripts
 │   │   ├── render_plan.py             # Main plan renderer (39 scenes)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
@@ -276,6 +276,8 @@ EditorIA/
 │   │   ├── _film.py                   # Shared film utilities
 │   │   ├── galeria.py                 # Visual suite for all 39 scenes
 │   │   ├── validate_skill.py          # Deterministic skill validator
+│   │   ├── _guard_entorno.py          # Does the suite give the same verdict without a repo?
+│   │   ├── _cerrar_tip.py             # Closes a tip: measures, compares, one-line verdict
 │   │   ├── demo_plan.json             # Sample plan
 │   │   ├── escenas_muestra.json       # Canonical samples for all 39 scenes
 │   │   ├── _tests/                    # Unit test suite (unittest)
@@ -421,6 +423,30 @@ Contributions are welcome. Areas that need expansion:
 - **Voice roster** (`scripts/voz_off.py VOCES`): add ElevenLabs voices for new languages
 - **Brand packs** (`brand/`): new example packs
 - **Validator** (`scripts/validate_skill.py`): new quality checks
+
+### Verifying before publishing
+
+A tip is closed with a single line. The wrapper measures the three surfaces
+that matter and leaves no room for the manual look (which is where the wrong
+log used to be read):
+
+```bash
+python3 editoria/scripts/_cerrar_tip.py
+# the tip 429b980 IS CLOSED: repo green, environment honest, copy in sync
+```
+
+What it measures, in order:
+
+1. **The repo gate**, in an isolated *worktree* of the commit (never in the
+   working tree: there it would measure what another session is writing).
+2. **The environment**: the same suite **without a repo**, in an isolated copy
+   (`scripts/_guard_entorno.py`). The installed copy has no repo, so if the
+   suite gives a different verdict there, one gate is not enough: the guard
+   names the tests whose verdict changes.
+3. **The installed copy**: that what the agent uses is exactly what was
+   published (`scripts/sincronizar_instalada.py --check`).
+
+The wrapper does not publish: measuring and publishing are different things.
 
 ## 🙏 Credits and sources
 

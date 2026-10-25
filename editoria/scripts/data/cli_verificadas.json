@@ -4,13 +4,20 @@
  "_como_se_regenera": "python3 scripts/_censo_clis.py --escribir",
  "verificadas": {
   "scripts/_censo_clis.py": [
-   "scripts/_tests/test_censo_clis.py"
+   "scripts/_tests/test_censo_clis.py",
+   "scripts/_tests/test_guard_entorno.py"
+  ],
+  "scripts/_cerrar_tip.py": [
+   "scripts/_tests/test_cerrar_tip.py"
   ],
   "scripts/_comandos_copiables.py": [
    "scripts/_tests/test_comandos_copiables.py"
   ],
   "scripts/_guard_doctrina.py": [
    "scripts/_tests/test_guard_doctrina.py"
+  ],
+  "scripts/_guard_entorno.py": [
+   "scripts/_tests/test_guard_entorno.py"
   ],
   "scripts/actualizar_conteos.py": [
    "scripts/_tests/test_actualizar_conteos.py"
