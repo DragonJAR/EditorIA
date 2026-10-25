@@ -321,6 +321,10 @@ escribir es un tapón).
     por definicion, y ahi el marcador es legitimo.
     Lo verifica `scripts/_comandos_copiables.py`: mira solo los comandos
     que se COPIAN y avisa de los marcadores que nadie sustituye.
+    OJO al escribir esta misma regla: un parentesis angular con una letra
+    dentro lo caza el validador de markdown, asi que aqui los marcadores
+    van con puntos. La regla que explica el fallo no puede romper el
+    guard que lo caza.
 
 ## 5. Los scripts
 

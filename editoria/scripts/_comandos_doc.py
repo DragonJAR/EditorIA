@@ -245,8 +245,12 @@ def verificar_todo(skill_dir):
 # herramienta no reviente al usarla). El ImportError de look.py estaba DENTRO
 # de default_font_file(): la intercepcion llego a parse_args sin despeinarse,
 # porque el fallo no estaba en los argumentos sino en el efecto.
+# Ninguna CLI documentada queda sin ejecutar por la suite: el validador
+# tambien se ejecuta (en su modo barato, `--cabecera`, que lee el commit
+# medido sin pagar la puerta entera). El motivo de por que el guard de
+# comandos NO copia el comando del validador vive en su propia tabla
+# (`scripts/_comandos_copiables.py`): son dos cosas distintas.
 MOTIVOS_SIN_EJECUCION = {
-    "scripts/validate_skill.py": "es la validacion misma: el guard corre DENTRO de ella, asi que copiarla seria llamarse a si misma (para leer su cabecera: --cabecera)",
 }
 
 
