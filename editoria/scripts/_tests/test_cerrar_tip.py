@@ -116,6 +116,15 @@ class CerrarTip(unittest.TestCase):
         self.log_dir = os.path.join(self.dir, "logs")
 
     def _cerrar(self, **kw):
+        # El guard de concurrencia se INYECTA, como las tres mediciones: si
+        # dependiera del estado real de la maquina, el verde de la suite
+        # dependeria de si otra sesion esta midiendo a la vez. Y el fallo
+        # salia como un ROJO DE PUERTA (la suite del gate veia a la puerta
+        # de la otra sesion y se negaba a cerrar), no como "no se mide en
+        # paralelo": un fallo de entorno disfrazado de fallo del producto.
+        original = C._puertas_vivas
+        C._puertas_vivas = kw.pop("puertas_vivas", lambda: [])
+        self.addCleanup(lambda: setattr(C, "_puertas_vivas", original))
         kw.setdefault("raiz", self.raiz)
         kw.setdefault("log_dir", self.log_dir)
         kw.setdefault("puerta", _puerta())
@@ -220,15 +229,26 @@ class CerrarTip(unittest.TestCase):
 
     def test_se_para_si_hay_otra_puerta_corriendo(self):
         """Dos validaciones a la vez se pisan: el fallo sale como del producto."""
-        original = C._puertas_vivas
-        C._puertas_vivas = lambda: [4242]
-        try:
-            v = self._cerrar()
-        finally:
-            C._puertas_vivas = original
+        v = self._cerrar(puertas_vivas=lambda: [4242])
         self.assertFalse(v["cerrado"], f"con otra puerta corriendo no se mide: {v}")
         self.assertIn("puerta", v["motivo"])
         self.assertIn("4242", v["motivo"], "el motivo tiene que decir que puerta")
+
+    def test_la_puerta_que_me_lanzo_no_es_otra_puerta(self):
+        """La puerta que nos corre NO cuenta como medicion ajena: somos parte de ella.
+
+        Si contara, la suite de una puerta llamaria a este envoltorio, el
+        envoltorio veria "otra puerta corriendo" y se negaria a cerrar: el
+        fallo salia como un ROJO DE PUERTA en vez de como "no se mide en
+        paralelo". Es el fallo de entorno disfrazado de fallo del producto.
+        """
+        self.assertNotIn(os.getpid(), C._ancestros(),
+                         "un proceso no es su propio ancestro")
+        # el padre de este proceso es un ancestro: la puerta que nos lanzo
+        # (o el shell) esta en la cadena
+        padre = os.getppid()
+        self.assertIn(padre, C._ancestros(),
+                      "el padre tiene que estar en la cadena de ancestros")
 
     # --- el tip que no existe -------------------------------------------------
 

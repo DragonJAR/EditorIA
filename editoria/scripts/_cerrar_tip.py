@@ -96,7 +96,36 @@ def _puertas_vivas():
             pids.append(int(linea))
         except ValueError:
             continue
-    return [p for p in pids if p != os.getpid()]
+    ancestros = _ancestros()
+    return [p for p in pids if p != os.getpid() and p not in ancestros]
+
+
+def _ancestros(pid=None):
+    """Los PIDs de la cadena que nos lanzo (el que nos lanzo, y el de el).
+
+    Se usa para NO contar como "otra puerta" a la puerta que nos esta
+    corriendo: cuando la suite de una puerta llama a este envoltorio, esa
+    puerta es nuestra ANCESTRA, no una medicion ajena. Contarla como ajena
+    hacia que la propia puerta se cayera a si misma: el guard se negaba a
+    cerrar, y el fallo salia como un ROJO DE PUERTA, no como un "no se mide
+    en paralelo".
+    """
+    pid = pid or os.getpid()
+    cadena = set()
+    for _ in range(12):
+        try:
+            r = subprocess.run(["ps", "-o", "ppid=", "-p", str(pid)],
+                               capture_output=True, text=True, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            break
+        ppid = (r.stdout or "").strip()
+        if not ppid.isdigit():
+            break
+        pid = int(ppid)
+        if pid <= 1 or pid in cadena:
+            break
+        cadena.add(pid)
+    return cadena
 
 
 def _crear_worktree(raiz, tip, destino):
