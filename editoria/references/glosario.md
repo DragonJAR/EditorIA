@@ -69,6 +69,7 @@ un parametro del plan, esta es su definicion.
 | **paleta** | los colores de la pieza. Uno solo de acento | `references/principios.md` |
 | **acento** | el color unico que comunica (el del pack, o el elegido en modo libre) | `references/principios.md` |
 | **movimiento signature** | el gesto propio de la pieza, el que la hace reconocible | `references/principios.md` |
+| **firma de estilo / signature features** | lo que hace reconocible un lenguaje MG a primera vista; se juzga, no se diluye | `references/estilos-codigo.md` |
 | **un protagonista por plano** | en cada plano, un solo elemento se mueve: si dos se mueven, uno sobra | `references/principios.md` |
 | **arco dramatico** | la estructura del relato: marco, tension, giro, resonancia | `references/dramaturgia.md` |
 | **hook** | los primeros segundos: lo que obliga a seguir mirando | `references/dramaturgia.md` |

@@ -163,6 +163,17 @@ Cuando el usuario pida el look de un producto real o entregue un archivo
 - Ideal: personaje que se mueve, rotoscopio, animación de arena, papel
   desplegable. No ideal para rótulos, cifras ni demos de producto.
 
+## 9. Catálogo de estilos en código (catálogo externo)
+
+Cuando el brief pide un lenguaje de motion canónico (flat vector, line
+art, isométrico, soft 3D, cel boil, collage, liquid, morph, Bauhaus,
+synthwave/VHS, aurora+glass, hanazi/variety captions, sticker explainer, pixel, HUD
+cyberpunk), la tabla de firmas, técnicas con números y motor está en
+`references/estilos-codigo.md`. Aquí viven los lenguajes ya rodados en
+producción; allí, las quince firmas para one-shots y dirección de arte, con su
+fuente declarada. El prompt se arma con la Familia 7 de
+`prompt-motion-graphics.md`.
+
 ---
 
-→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/brand-packs.md`, `references/scene-patterns-from-internet.md`
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/brand-packs.md`, `references/scene-patterns-from-internet.md`, `references/estilos-codigo.md`
