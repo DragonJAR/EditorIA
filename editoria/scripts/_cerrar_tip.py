@@ -84,9 +84,20 @@ def _git(raiz, *args, timeout=120):
 
 
 def _puertas_vivas():
-    """Los PIDs de otras puertas corriendo ahora mismo (o [])."""
+    """Los PIDs de otras puertas corriendo ahora mismo (o []).
+
+    La puerta que nos ha lanzo (nuestra ancestra) NO cuenta: somos parte de
+    ella, no una medicion en paralelo. Las demas si: dos sesiones midiendo a
+    la vez se pisan (y el fallo sale como si fuera del producto).
+
+    El patron va ANCLADO al final de la linea de comandos (`validate_skill.py$`):
+    sin ancla, `pgrep -f` casa con CUALQUIER linea que mencione ese nombre,
+    incluidos los comandos de inspeccion que uno escribe para mirar si hay una
+    puerta corriendo (que es justo lo que hace el que vigila). Un guard que se
+    dispara con su propio sentinel no vigila nada.
+    """
     try:
-        r = subprocess.run(["pgrep", "-f", "validate_skill.py"],
+        r = subprocess.run(["pgrep", "-f", r"validate_skill\.py$"],
                            capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
         return []

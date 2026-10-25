@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -233,6 +234,24 @@ class CerrarTip(unittest.TestCase):
         self.assertFalse(v["cerrado"], f"con otra puerta corriendo no se mide: {v}")
         self.assertIn("puerta", v["motivo"])
         self.assertIn("4242", v["motivo"], "el motivo tiene que decir que puerta")
+
+    def test_un_comando_que_mentione_la_puerta_no_cuenta_como_puerta(self):
+        """Un guard que se dispara con su propio sentinel no vigila nada.
+
+        `pgrep -f validate_skill.py` (sin ancla) casa con CUALQUIER linea de
+        comandos que mencione ese nombre: y los comandos de inspeccion que
+        uno escribe para mirar si hay una puerta corriendo son justamente
+        esos. O sea: el guard se disparaba solo con el comando que lo vigila
+        (y el envoltorio se negaba a cerrar sin motivo).
+        """
+        senuelo = subprocess.Popen(
+            ["/bin/bash", "-c", "echo validate_skill.py; sleep 30"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(senuelo.kill)
+        time.sleep(0.3)
+        vivos = C._puertas_vivas()
+        self.assertNotIn(senuelo.pid, vivos,
+                         "un comando que solo MENCIONA la puerta no es una puerta")
 
     def test_la_puerta_que_me_lanzo_no_es_otra_puerta(self):
         """La puerta que nos corre NO cuenta como medicion ajena: somos parte de ella.
