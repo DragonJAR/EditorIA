@@ -188,13 +188,11 @@ python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3
 python scripts/ffmpeg_tools/caption.py final.mp4 --palabras voz.palabras.json --karaoke --animate pop -o final_sub.mp4
 ```
 
-For a narrated social piece the captions are part of the piece, not an extra: burn them from the aligned words (`caption.py --palabras ... --karaoke`) and declare `"subtitulos": true` in the plan — the delivery gate now asks for that declaration on reels/tiktok/shorts. Without an ElevenLabs key (or a paid agreement), the music bed is procedural and free: `python scripts/musica.py cama -o cama.wav --dur 60` generates it with ffmpeg oscillators; mix it with `musica.py mix` and declare it as the fallback bed (`references/sonido.md`).
+For a narrated social piece the captions are part of the piece: burn them from the aligned words (`caption.py --palabras ... --karaoke`) and declare `"subtitulos": true` in the plan — the delivery gate asks for that declaration on reels/tiktok/shorts. Without an API key the music bed is procedural and free (`musica.py cama`; details in `references/sonido.md`).
 
-Expected output: `final.mp4` with voice on top, music ducked ~15 dB under active speech, every SFX cue placed at its anchor, and the mix at the delivery loudness (-14 LUFS, true peak -1.5 dBTP). A piece with music but no SFX reads as a video with a background, not as a designed piece.
+**The loudness step is part of the mix, not an extra**: the mixer sums voices, music and cues but does not normalize, so `loudness.py` closes the pipeline — run it before the gate, not after.
 
-**The loudness step is part of the mix, not an extra**: the mixer only sums voices, music and cues — it does not normalize. A mix left at the mixer's own level lands around -18 LUFS and the delivery gate rejects it (`delivery:reels`), so `loudness.py` closes the pipeline. Run it before the gate, not after.
-
-**Without an API key**: the `voz_off.py` script stops and says so; there is no silent fallback to a robotic voice. If the user asks for the system voice, `scripts/voz_local.py` does the same job with the same contract (plan in, one audio track out, `--guion` written, the voice placed at `from + 0.4 s`, and a hard failure if two voices overlap): `python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt`. It is a **draft** voice — no emotional direction, since the system voice cannot read `[slowly]` — and that is said to the user. See `references/sonido.md`.
+**Without an API key**: `voz_off.py` stops and says so; there is no silent fallback to a robotic voice. `scripts/voz_local.py` does the same job with the same contract, as a **draft** voice (no emotional direction: the system voice cannot read `[slowly]`) — and that is said to the user. See `references/sonido.md`.
 
 ### Step 5: Run Quality Assurance and Verify Delivery
 
