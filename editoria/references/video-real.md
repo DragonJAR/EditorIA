@@ -49,7 +49,7 @@ vestirlo sin que se note el bisturí.
 Cuando se parte de un video de referencia o se quiere modelar una estructura viral probada:
 1. **Ingesta y separación**: `python scripts/referencia.py --video clip.mp4` (o `--url "..."` vía yt-dlp) extrae metadatos, pistas de audio en 48kHz (edición máster) y 16kHz (transcripción) y contact sheet para revisión visual rápida.
 2. **Clonación de estructura y ritmo**: `python scripts/clonar_video.py analizar --video ref.mp4` descompone la pieza en `plantilla.json` y `ANALYSIS.md` (gancho, retención, clímax, CTA).
-3. **Generación de variantes**: `python scripts/clonar_video.py variar --plantilla plantilla.json --variantes 3 --tema "..."` genera planes listos auditando tiempos de habla con `scripts/speech_estimate.py`.
+3. **Generación de variantes**: `python scripts/clonar_video.py variar --plantilla plantilla.json --variantes 3 --tema "Acme"` genera planes listos auditando tiempos de habla con `scripts/speech_estimate.py`.
 
 ## Reglas editoriales (grabación cruda)
 

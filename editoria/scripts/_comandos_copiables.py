@@ -34,6 +34,7 @@ Uso:
 import glob
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -327,6 +328,11 @@ _SUFIJOS = {
     ".txt": "texto", ".csv": "csv", ".srt": "srt",
 }
 
+# Un marcador que nadie sustituye: "..." o algo entre < > o { }. Los que si
+# se sustituyen tienen extension (plan.json, video.mp4) - de ahi sale el
+# asset. Los demas llegan tal cual al comando.
+_MARCADOR = re.compile(r"\.\.\.|<[^>]*>|\{[^}]*\}")
+
 
 # Las banderas cuyo valor es un FICHERO DE SALIDA. La salida no se sustituye
 # por el asset: se escribe en un sitio de raspado. Si no, el comando
@@ -595,6 +601,19 @@ def verificar(skill_dir=None, comandos=None, timeout=120, solo=None):
                 continue
             if s in PLAN_LIGERO_PARA:
                 light.setdefault(s, []).append(cmd)
+            # Un marcador que NADIE sustituye. Los que si se sustituyen son
+            # los que tienen extension (plan.json, video.mp4): de ahi sale el
+            # asset. Un token con "..." o entre < > o { } llega tal cual al
+            # comando, y puede NO FALLAR (argparse se come "..." como valor)
+            # y aun asi ser una promesa rota: la pieza sale con el titulo
+            # literal "...". Solo se mira en los comandos que se COPIAN: los
+            # que se saltan con motivo son formas por definicion (el usuario
+            # mete su carpeta, su url) y ahi el marcador es donde va lo suyo.
+            for t in partes[1:]:
+                if _MARCADOR.search(t):
+                    problemas.append(
+                        f"comando copiado con un marcador que nadie sustituye "
+                        f"({t}): se pegara tal cual  ->  {cmd}")
             ok, motivo_rot, salida = _correr_comando(skill_dir, cmd, tmp,
                                                        assets, timeout=timeout)
             copiados += 1

@@ -216,6 +216,43 @@ class TestComandosCopiables(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_un_marcador_que_nadie_sustituye_cae(self):
+        """Un comando COPIADO que lleva un marcador que nadie sustituye ("...",
+        algo entre < > o { }) es una promesa rota en silencio: el agente lo pega
+        tal cual y puede que no falle (argparse se come "..." como valor), y la
+        pieza sale con el titulo literal "...". El guard lo dice.
+
+        Y la MUTACION: si el check se apaga, el marcador se pasa. Se muta una
+        COPIA del modulo (el original no se toca) y se comprueba que la copia
+        ya no lo dice: si la mutacion no se aplica, no prueba nada."""
+        cc = self._guard()
+        cmd = 'scripts/verificar_ritmo.py video.mp4 --tema "..."'
+        problemas, _ = cc.verificar(BASE, comandos=[cmd])
+        self.assertTrue(
+            any("marcador que nadie sustituye" in p for p in problemas),
+            f"el marcador sin sustituir tiene que caer: {problemas}")
+
+        with open(GUARD, encoding="utf-8") as fh:
+            fuente = fh.read()
+        self.assertIn("if _MARCADOR.search(t):", fuente,
+                      "el modulo ya no tiene el check que se va a mutar")
+        tmp = tempfile.mkdtemp(prefix="editoria_mut_marc_")
+        try:
+            ruta = os.path.join(tmp, "mutado.py")
+            with open(ruta, "w", encoding="utf-8") as fh:
+                fh.write(fuente.replace("if _MARCADOR.search(t):",
+                                        "if False:", 1))
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("mutado_guard", ruta)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            problemas_mut, _ = mod.verificar(BASE, comandos=[cmd])
+            self.assertFalse(
+                any("marcador que nadie sustituye" in p for p in problemas_mut),
+                "la mutacion no se aplico: no prueba nada")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_la_salida_no_se_escribe_sobre_la_entrada(self):
         """El valor de -o (y de las otras banderas de salida) va a un sitio de
         raspado. Si se sustituyera por el asset de entrada, el comando
