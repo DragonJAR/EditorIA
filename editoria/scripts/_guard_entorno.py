@@ -38,8 +38,11 @@ LO QUE NO MIRA (y lo dice)
   · NO comprueba la COPIA INSTALADA de verdad: esa es otra superficie, la que
     usa el agente, y se mide con su propia puerta. Aqui se mide una copia
     AISLADA, que se puede tirar sin danar nada.
-  · NO mide el resto de la puerta (renders, mapa, censo): solo la suite. Que
-    la suite sea honesta NO dice que el render sea igual en los dos sitios.
+  · NO corre la puerta COMPLETA en la copia: solo la suite. Los renders de
+    escenas y el contraste del censo los hace la puerta, y en la copia no se
+    hacen (los tests de la suite si pueden ejercitar otros guards). Que la
+    suite sea honesta NO dice que el resto de la puerta sea igual en los dos
+    sitios.
   · NO dice que el repo y la copia tengan el mismo contenido: eso lo dice el
     check de sincronizacion (`scripts/sincronizar_instalada.py --check`).
   · NO se puede lanzar en paralelo con otra puerta: dos suites a la vez se

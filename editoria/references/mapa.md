@@ -355,6 +355,8 @@ escribir es un tapón).
 | `scripts/_comandos_doc.py` | que los comandos que dice el SKILL.md se puedan correr |
 | `scripts/_comandos_copiables.py` | que el comando que dice la prosa, COPIADO Y PEGADO con assets reales, funcione (el argumento del tipo equivocado no lo ve argparse) |
 | `scripts/_guard_doctrina.py` | que la prosa no vuelva a llamar "opcional" a una capacidad que la pieza puede necesitar (se DECLARA al usuario, no se degrada en silencio) |
+| `scripts/_guard_entorno.py` | que la suite dé el MISMO veredicto con repo y sin repo: la copia instalada no tiene repo, y si los tests cambian de veredicto ahí, una sola puerta no basta (lo mide, no lo supone) |
+| `scripts/_cerrar_tip.py` | cerrar un tip: mide en un worktree aislado (puerta, entorno y copia instalada) y lo dice en una línea; no mide en el árbol compartido y no publica |
 
 ---
 
