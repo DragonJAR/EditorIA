@@ -107,6 +107,40 @@ class TestComandosDoc(unittest.TestCase):
         problemas = CD.verificar_comando(self.dir, fantasma + " -o x")
         self.assertTrue(problemas)
 
+    def test_un_script_sin_argparse_no_se_intenta_ejecutar(self):
+        """El interceptor corta en el primer parse_args: si el script no de
+        eso, el hijo se lanza ENTERO (el validador se lanza la puerta, que
+        dura media hora) y lo matan a los 120 s. Verificarlo no dice nada y
+        cuesta 2 minutos por mencion: se salta, y se dice que se salta.
+        """
+        # un script que NO usa argparse y que, ademas, no termina nunca:
+        # si el guard lo intentara, este test tardaria (o se quedaria colgado)
+        lento = os.path.join(self.dir, "scripts", "lento.py")
+        with open(lento, "w", encoding="utf-8") as f:
+            f.write("import time\nwhile True:\n    time.sleep(1)\n")
+        del CD.SIN_VERIFICAR[:]
+        problemas = CD.verificar_comando(self.dir, "scripts/lento.py -o x")
+        self.assertEqual(problemas, [], "un script sin argparse no se puede juzgar")
+        self.assertIn("scripts/lento.py -o x", CD.SIN_VERIFICAR,
+                      "el comando saltado tiene que quedar dicho: un guard "
+                      "que no mira algo, lo dice")
+        del CD.SIN_VERIFICAR[:]
+
+    def test_un_script_con_argparse_sigue_verificandose(self):
+        """Lo que se salta es lo que no se puede juzgar, no lo que se puede."""
+        usa = os.path.join(self.dir, "scripts", "con_flags.py")
+        with open(usa, "w", encoding="utf-8") as f:
+            f.write("import argparse\n"
+                    "ap = argparse.ArgumentParser()\n"
+                    "ap.add_argument('--obligatorio')\n"
+                    "ap.parse_args()\n")
+        del CD.SIN_VERIFICAR[:]
+        problemas = CD.verificar_comando(self.dir, "scripts/con_flags.py -o x")
+        self.assertTrue(problemas, "un flag obligatorio que falta es un fallo")
+        self.assertEqual(CD.SIN_VERIFICAR, [],
+                         "un script con argparse SI se verifica")
+        del CD.SIN_VERIFICAR[:]
+
     def test_los_readme_tambien_se_verifican(self):
         """Los README son la puerta de entrada del proyecto: sus comandos
         se copian tal cual, asi que tambien tienen que ser ejecutables."""

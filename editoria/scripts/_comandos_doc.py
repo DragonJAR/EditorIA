@@ -171,6 +171,27 @@ def _partir(cmd):
     return shlex.split(limpio)
 
 
+def _usa_argparse(ruta):
+    """¿El script usa argparse? Si no, este metodo NO lo puede juzgar.
+
+    El interceptor corta en el primer `parse_args`: si el script no tiene de
+    esos, el hijo se lanza ENTERO (el validador se lanza la puerta, que dura
+    media hora) y lo matan a los 120 s. Verificarlo no dice nada -ya se sabe
+    que no se puede juzgar- y cuesta 2 minutos por cada mencion documentada.
+    Se salta, y el motivo esta aqui, no en una lista blanca: una lista
+    blanca se pudre sin que nadie lo note.
+    """
+    try:
+        with open(ruta, encoding="utf-8", errors="replace") as fh:
+            fuente = fh.read()
+    except OSError:
+        return True
+    # se busca el USO, no la palabra: un comentario que dice "no usa argparse"
+    # no hace que el script use argparse.
+    return ("import argparse" in fuente) or ("argparse.ArgumentParser" in fuente) \
+        or ("from argparse" in fuente)
+
+
 def _probar(skill_dir, cmd, timeout=120):
     """(ok, motivo). True = los argumentos documentados bastan."""
     partes = _partir(cmd)
@@ -186,6 +207,9 @@ def _probar(skill_dir, cmd, timeout=120):
     ruta = os.path.join(skill_dir, script)
     if not os.path.exists(ruta):
         return False, f"no existe {script}"
+    if not _usa_argparse(ruta):
+        SIN_VERIFICAR.append(cmd)
+        return True, ""     # no se puede juzgar: ver _usa_argparse
     runner = (
         "SCRIPT = %r\nARGV = %r\n" % (ruta, args) + _INTERCEPTAR
     )
@@ -203,6 +227,21 @@ def _probar(skill_dir, cmd, timeout=120):
         return False, (faltan[-1].strip() if faltan else "argumentos invalidos")
     # el script no usa argparse: no se puede juzgar con este metodo
     return True, ""
+
+
+# Los comandos que este guard no puede juzgar (el script no usa argparse).
+# Se dicen al final del informe: un guard que no mira algo tiene que decirlo.
+SIN_VERIFICAR = []
+
+
+def _dice_los_no_verificables():
+    if not SIN_VERIFICAR:
+        return
+    print(f"   {len(SIN_VERIFICAR)} comando(s) no verificables con este metodo "
+          f"(el script no usa argparse): el interceptor no los puede cortar, "
+          f"asi que el guard no los intenta (2 min cada uno): "
+          f"{', '.join(SIN_VERIFICAR[:3])}"
+          f"{'...' if len(SIN_VERIFICAR) > 3 else ''}")
 
 
 def verificar(skill_dir):
@@ -231,6 +270,7 @@ def verificar_todo(skill_dir):
         ok, motivo = _probar(skill_dir, cmd)
         if not ok:
             problemas.append(f"[README] {cmd}  ->  {motivo}")
+    _dice_los_no_verificables()
     return problemas
 
 
