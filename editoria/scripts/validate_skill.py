@@ -6,8 +6,13 @@ scripts enlazados existen, sin archivos huérfanos, sin README.md,
 sin angle brackets en frontmatter ni markdown, SKILL.md < 5000 palabras,
 TODOS los scripts compilan y las 30 escenas renderizan.
 Sale 0 si todo pasa, 1 si algo falla.
+
+La PRIMERA linea del log es la cabecera: dice de que commit es este veredicto
+(un "SIN REPO" si no hay repo). Sin ella, un log verde no dice de que
+ejecucion es, y leer el verde del fichero equivocado es atribuir a hoy el
+veredicto de ayer. `--cabecera` imprime solo esa linea y sale.
 """
-import atexit, os, shutil, sys, re, ast, glob, json, subprocess, tempfile
+import atexit, os, shutil, sys, re, ast, glob, json, subprocess, tempfile, datetime
 
 _TMP_DIRS = []
 def _mkdtemp(prefix="editoria_"):
@@ -31,6 +36,69 @@ fails = []
 def check(cond, msg):
     print(("OK  " if cond else "FAIL") + " " + msg)
     if not cond: fails.append(msg)
+
+
+# 0. DE QUE COMMIT ES ESTE VEREDICTO.
+#    Un log dice "SKILL VALIDO" sin decir de que ejecucion es: hay docenas
+#    de logs de validate_skill de noches distintas, todos con el mismo
+#    nombre base, y leer el verde del fichero equivocado es atribuir a HOY
+#    el veredicto de AYER. El log se escribe solo: la cabecera va en la
+#    PRIMERA linea, no se busca despues. Y si no hay repo (la copia
+#    instalada no lo tiene), lo DICE en vez de callar: un "sin repo"
+#    honesto vale mas que un sha inventado.
+def _git_out(repo, *args):
+    try:
+        return subprocess.run(["git", "-C", repo, *args], capture_output=True,
+                              text=True, timeout=15).stdout.strip()
+    except Exception:
+        return ""
+
+
+def commit_medido(base):
+    """(sha corto, rama) del repo que contiene esta skill; ('', '') si no hay."""
+    repo = os.path.dirname(os.path.abspath(base))
+    top = _git_out(repo, "rev-parse", "--show-toplevel")
+    if not top:
+        return ("", "")
+    try:
+        # el repo tiene que CONTENER la skill: si la skill viviera dentro de
+        # otro repo, ese sha no seria el de esta pieza
+        if os.path.commonpath([os.path.realpath(top),
+                               os.path.realpath(base)]) != os.path.realpath(top):
+            return ("", "")
+    except (ValueError, OSError):
+        return ("", "")
+    return (_git_out(repo, "rev-parse", "--short", "HEAD"),
+            _git_out(repo, "rev-parse", "--abbrev-ref", "HEAD"))
+
+
+def arbol_sucio(base):
+    """True si el repo tiene cambios sin commitear.
+
+    Entonces el veredicto NO es del commit: es del arbol que se midio, y
+    decir solo el sha seria mentirle al que lea el log despues.
+    """
+    repo = os.path.dirname(os.path.abspath(base))
+    return bool(_git_out(repo, "status", "--porcelain"))
+
+
+def linea_commit(base):
+    sha, rama = commit_medido(base)
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if not sha:
+        return (f"commit medido: SIN REPO (el historial vive en el repo; esta "
+                f"copia no lo tiene) · {stamp}")
+    sucio = " · ARBOL CON CAMBIOS SIN COMMITEAR" if arbol_sucio(base) else ""
+    return f"commit medido: {sha} ({rama}){sucio} · {stamp}"
+
+
+if "--cabecera" in sys.argv:
+    # modo rapido: solo la cabecera. Para poder leer QUE se esta midiendo sin
+    # pagar la puerta entera (y para que el test no tarde media hora).
+    print(linea_commit(BASE))
+    sys.exit(0)
+
+print(linea_commit(BASE))
 
 # 1. frontmatter y reglas de nombres de Skill-for-Claude.txt
 check("SKILL.md" in os.listdir(BASE), "archivo principal nombrado exactamente SKILL.md (case-sensitive)")

@@ -300,6 +300,20 @@
 
 - 2026-10-24 · **Las capacidades no son "opcionales": se DECLARAN**: la palabra "opcional" servia para dos cosas distintas —"el motor no lo necesita" (ciertas) y "la pieza no lo necesita" (falso: nadie sabe si la pieza lo necesita hasta hacerla)— y confundirlas permitia entregar menos en silencio. Regla: el liston es la calidad del resultado, no la comodidad del entorno; si una capacidad falta, se dice en la PRIMERA respuesta, con su comando de instalacion, y se entrega la mejor version que se pueda mientras tanto. Fuente unica: `references/capacidades.md`. El detector (`scripts/check_env.py`) dice que falta y como se instala; el guard de prosa (`scripts/_guard_doctrina.py`) caza que la palabra vuelva a colarse. Medido: 6 frases rotas corregidas (`instalacion.md`, `scene-patterns-from-internet.md`, `check_env.py`) y la constante `LIBS_OPCIONALES` de `check_env.py` renombrada a `LIBS_DECLARABLES` para que el codigo no diga lo contrario que la prosa.
 
+- 2026-10-25 · **Un veredicto lleva su contexto: el log dice de que commit es**: un
+  log de `validate_skill.py` dice "SKILL VALIDO" sin decir de que ejecucion es: hay
+  docenas de logs de noches distintas, todos con el mismo nombre base, y leer el
+  verde del fichero equivocado es atribuir a HOY el veredicto de AYER. El texto verde
+  no miente, solo responde a una pregunta que nadie hacia (leido asi: el log de la
+  sesion hermana, que habia que cortar, parecia un verde que era de un log de la
+  ronda anterior). Regla: la PRIMERA linea del log es la cabecera, con el commit
+  medido (sha corto y rama); si el arbol tiene cambios sin commitear, lo dice,
+  porque entonces el veredicto es del arbol y no del commit; y si no hay repo (la
+  copia instalada no lo tiene) dice "SIN REPO" en vez de callar, porque un sha
+  inventado seria una mentira. Para leer que se esta midiendo sin pagar la puerta
+  entera: `python3 scripts/validate_skill.py --cabecera`. Lo vigila
+  `scripts/_tests/test_cabecera_commit.py`.
+
 ---
 
 → Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/animacion.md`, `references/fluidez.md`, `references/coherencia-espacial.md`
