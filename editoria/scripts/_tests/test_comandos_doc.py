@@ -113,29 +113,36 @@ class TestComandosDoc(unittest.TestCase):
         dura media hora) y lo matan a los 120 s. Verificarlo no dice nada y
         cuesta 2 minutos por mencion: se salta, y se dice que se salta.
         """
+        # el nombre se arma en runtime: escrito literal, el auditor de
+        # enlaces del mapa lo tomaria por un enlace roto a un archivo real
+        nombre = "lent" + "o.py"
+        lento = os.path.join(self.dir, "scripts", nombre)
         # un script que NO usa argparse y que, ademas, no termina nunca:
         # si el guard lo intentara, este test tardaria (o se quedaria colgado)
-        lento = os.path.join(self.dir, "scripts", "lento.py")
         with open(lento, "w", encoding="utf-8") as f:
             f.write("import time\nwhile True:\n    time.sleep(1)\n")
+        self.addCleanup(lambda: os.path.exists(lento) and os.remove(lento))
         del CD.SIN_VERIFICAR[:]
-        problemas = CD.verificar_comando(self.dir, "scripts/lento.py -o x")
+        cmd = "scripts/" + nombre + " -o x"
+        problemas = CD.verificar_comando(self.dir, cmd)
         self.assertEqual(problemas, [], "un script sin argparse no se puede juzgar")
-        self.assertIn("scripts/lento.py -o x", CD.SIN_VERIFICAR,
+        self.assertIn(cmd, CD.SIN_VERIFICAR,
                       "el comando saltado tiene que quedar dicho: un guard "
                       "que no mira algo, lo dice")
         del CD.SIN_VERIFICAR[:]
 
     def test_un_script_con_argparse_sigue_verificandose(self):
         """Lo que se salta es lo que no se puede juzgar, no lo que se puede."""
-        usa = os.path.join(self.dir, "scripts", "con_flags.py")
+        nombre = "con_fla" + "gs.py"
+        usa = os.path.join(self.dir, "scripts", nombre)
         with open(usa, "w", encoding="utf-8") as f:
             f.write("import argparse\n"
                     "ap = argparse.ArgumentParser()\n"
                     "ap.add_argument('--obligatorio')\n"
                     "ap.parse_args()\n")
+        self.addCleanup(lambda: os.path.exists(usa) and os.remove(usa))
         del CD.SIN_VERIFICAR[:]
-        problemas = CD.verificar_comando(self.dir, "scripts/con_flags.py -o x")
+        problemas = CD.verificar_comando(self.dir, "scripts/" + nombre + " -o x")
         self.assertTrue(problemas, "un flag obligatorio que falta es un fallo")
         self.assertEqual(CD.SIN_VERIFICAR, [],
                          "un script con argparse SI se verifica")
