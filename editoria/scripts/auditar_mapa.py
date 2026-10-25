@@ -92,7 +92,19 @@ def _n_publicados(subruta, filtro):
 MAPA = "references/mapa.md"
 PIE = re.compile(r"^→ Canónico: `(?P<can>[^`]+)` · Dominio: (?P<dom>[^·]+?) · "
                   r"Vecinos: (?P<vec>[^\n]+)$", re.M)
-REF = re.compile(r"(?:references|scripts|film|metricas|assets|brand)/[A-Za-z0-9_./-]+\.(?:md|py|json|png|mp4|mp3|ttf)")
+# El extractor de rutas citadas. OJO con la frontera de palabra: sin ella, una
+# ruta ".jsonl" se extraia TRUNCADA (la alternativa `json` casa y la "l"
+# final se queda fuera), y el chequeo de enlaces rotos iba a buscar un
+# fichero que no existe. La excepcion lo tapaba, de modo que el bug no se
+# veia... hasta que el fichero dejo de publicarse y la copia instalada se
+# quedo sin el.
+#
+# OJO tambien con este comentario: el checker lee los .py y encuentra las
+# rutas que se citan. Escribir aqui la ruta truncada (para explicarla) es
+# volver a crear el enlace roto que este comentario describe.
+REF = re.compile(r"(?:references|scripts|film|metricas|assets|brand)/"
+                  r"[A-Za-z0-9_./-]+\.(?:md|py|jsonl|json|png|mp4|mp3|ttf)"
+                  r"(?![A-Za-z0-9])")
 MEDIA = (".mp3", ".mp4", ".png", ".ttf")
 SCRIPT_REF = re.compile(r"scripts/[A-Za-z0-9_./-]+\.py")
 
@@ -115,7 +127,16 @@ RE_BASURA = re.compile(
 # Rutas que NO son archivos de la skill: se declaran con su motivo para que
 # la auditoria no marque ruido real.
 EXCEPCIONES = {
-    "metricas/historial.json": "artefacto de runtime: lo crea --historial al medir",
+    # El historial de metricas es un artefacto de RUNTIME: lo crea
+    # `medir_animacion.py --historial` al medir. No se versiona (asi no viaja a
+    # la copia instalada ni ensucia el arbol al medir).
+    "metricas/historial.jsonl": "artefacto de runtime: lo crea --historial al medir",
+    # Y el nombre ANTIGUO (sin la "l"): el arbol publicado lo sigue citando
+    # en su propia lista de excepciones hasta que este commit aterrice. El
+    # mecanismo de EXCEPCIONES es exactamente para esto: una ruta citada que
+    # no es un archivo de la skill, con su motivo.
+    "metricas/historial.json": "nombre antiguo del artefacto de runtime: lo cita "
+                               "el arbol publicado hasta que aterrice este cambio",
     "brand/mi_pack.json": "ejemplo del pack propio del usuario (references/brand-packs.md)",
     "assets/isotipo.png": "ejemplo de la plantilla de un brand pack (references/brand-packs.md)",
     "assets/logotipo.png": "ejemplo de la plantilla de un brand pack (references/brand-packs.md)",
