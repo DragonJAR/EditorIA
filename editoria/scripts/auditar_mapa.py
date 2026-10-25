@@ -1150,6 +1150,33 @@ def _canonico_en(raiz, commit, rel_skill):
         return False
 
 
+def _suites_declaradas_en_la_prosa():
+    """(frase, numero) de lo que dice el SKILL.md. (None, None) si no lo dice.
+
+    El numero que la prosa enuncia TIENE que verificarse. Antes, el SKILL.md
+    enumeraba las 46 suites y el guard las comparaba una a una con el arbol:
+    una edicion a mano de la lista se cazaba. Ahora la prosa solo dice "N
+    suites", asi que si ese numero miente, la promesa envejece en silencio: y
+    el unico que lo miraba era la herramienta que lo escribe, que ademas
+    depende de que el texto siga casando con su patron (si alguien reescribe
+    la frase, la herramienta deja de actualizar el numero... y el numero se
+    congela CON LA GUARDIA PUESTA).
+    """
+    skill = os.path.join(BASE, "SKILL.md")
+    if not os.path.exists(skill):
+        return None, None
+    try:
+        with open(skill, encoding="utf-8") as fh:
+            txt = fh.read()
+    except OSError:
+        return None, None
+    mt = re.search(r"unit tests in (.+?) pass via", txt)
+    if not mt:
+        return None, None
+    num = re.search(r"\((\d+) suites\)", mt.group(1))
+    return mt.group(1), (int(num.group(1)) if num else None)
+
+
 def _chequear_lista_de_suites(problemas):
     """Que la lista de suites del canonico sea el conjunto real.
 
@@ -1174,6 +1201,22 @@ def _chequear_lista_de_suites(problemas):
         # con HEAD. Aqui solo se avisa de que no se ha podido mirar.
         return
     reales = _suites_publicadas()
+    # y el NUMERO de la prosa se verifica contra el canonico. Los tres
+    # estados tienen que verse: la prosa miente (FALLO), el canonico esta
+    # viejo (FALLO, el otro check) o los dos cuadran (nada que decir).
+    frase, numero = _suites_declaradas_en_la_prosa()
+    if numero is None:
+        problemas.append({
+            "tipo": "el SKILL.md no dice cuantas suites hay", "archivo": "SKILL.md",
+            "msg": "el SKILL.md no dice '(N suites)': el numero de suites no se "
+                   "puede verificar, y una promesa que no se puede verificar no "
+                   "es una promesa (lo escribe `scripts/actualizar_conteos.py`)"})
+    elif numero != len(listadas):
+        problemas.append({
+            "tipo": "numero de suites desfasado", "archivo": "SKILL.md",
+            "msg": f"el SKILL.md dice {numero} suites y el canonico declara "
+                   f"{len(listadas)}: la prosa miente sobre las suites que tienen "
+                   f"que pasar (lo escribe `scripts/actualizar_conteos.py`)"})
     for f in sorted(reales - listadas):
         problemas.append({
             "tipo": "suite sin enlistar", "archivo": RUTA_SUITES,

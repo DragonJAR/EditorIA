@@ -568,6 +568,42 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"lo publicado desfasado tiene que ser fallo:\n{out}")
         self.assertIn("MAPA:", out)
 
+    def test_detecta_el_numero_de_suites_que_miente_en_la_prosa(self):
+        # La prosa dice "(N suites)". Si ese numero miente, la promesa envejece
+        # en silencio: el canonico y el arbol estan bien, pero el SKILL.md dice
+        # otra cosa. Antes la lista entera se comparaba ruta a ruta y esto se
+        # cazaba; ahora el numero tiene que VERIFICARSE, no solo escribirse.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_numero"))
+        ruta = os.path.join(raiz, "SKILL.md")
+        with open(ruta, encoding="utf-8") as f:
+            txt = f.read()
+        mt = re.search(r"\((\d+) suites\)", txt)
+        self.assertIsNotNone(mt, "la prosa deberia decir cuantas suites hay")
+        mentira = f"({int(mt.group(1)) + 1} suites)"
+        with open(ruta, "w", encoding="utf-8") as f:
+            f.write(txt[:mt.start()] + mentira + txt[mt.end():])
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"el numero que miente tiene que detectarse:\n{out}")
+        self.assertIn("numero de suites desfasado", out)
+
+    def test_detecta_una_prosa_que_no_dice_cuantas_suites_hay(self):
+        # Si alguien reescribe la frase y el numero deja de estar, la
+        # herramienta que lo escribe deja de actualizarlo (su patron no casa)
+        # y el numero se congela CON LA GUARDIA PUESTA. Eso es un fallo: la
+        # promesa no se puede verificar.
+        raiz = _copia_completa(os.path.join(self.dir, "skill_sin_numero"))
+        ruta = os.path.join(raiz, "SKILL.md")
+        with open(ruta, encoding="utf-8") as f:
+            txt = f.read()
+        mt = re.search(r"unit tests in (.+?) pass via", txt)
+        self.assertIsNotNone(mt, "la prosa deberia hablar de las suites")
+        with open(ruta, "w", encoding="utf-8") as f:
+            f.write(txt[:mt.start()] + "unit tests in the test folder pass via"
+                    + txt[mt.end():])
+        rc, out = _auditar(raiz)
+        self.assertEqual(rc, 1, f"una prosa sin numero tiene que detectarse:\n{out}")
+        self.assertIn("no dice cuantas suites hay", out)
+
     def test_detecta_un_commit_que_arrastra_trabajo(self):
         # un commit puede llevarse trabajo en vuelo al arbol commiteado: el
         # doc y el codigo quedan coherentes entre si (los dos erroneos a la
