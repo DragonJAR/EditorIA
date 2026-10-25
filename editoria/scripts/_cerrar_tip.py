@@ -84,31 +84,51 @@ def _git(raiz, *args, timeout=120):
 
 
 def _puertas_vivas():
-    """Los PIDs de otras puertas corriendo ahora mismo (o []).
+    """Los PIDs de las puertas REALES que hay corriendo ahora (o []).
+
+    Se busca el PROCESO, no su texto. `pgrep -f validate_skill.py` contaba como
+    puerta CUALQUIER linea de comandos que mencionara ese nombre: un watcher
+    (un shell esperando a que terminara otra medicion), un grep, un tail de un
+    log, un editor. Entonces el envoltorio se negaba a medir ("no se mide en
+    paralelo") sin que hubiera nadie midiendo, y el fallo salia como un rojo
+    de puerta. El mismo olor de toda la noche: un detector que se dispara por
+    lo que PARECE en vez de por lo que ES.
+
+    Ahora se mira `ps`: cuenta solo lo que es un interprete de python con el
+    script como ARGUMENTO (y ese fichero existe). Un shell tiene comm=bash, un
+    grep comm=grep, un tail comm=tail: ninguno es una puerta.
 
     La puerta que nos ha lanzo (nuestra ancestra) NO cuenta: somos parte de
-    ella, no una medicion en paralelo. Las demas si: dos sesiones midiendo a
-    la vez se pisan (y el fallo sale como si fuera del producto).
-
-    El patron va ANCLADO al final de la linea de comandos (`validate_skill.py$`):
-    sin ancla, `pgrep -f` casa con CUALQUIER linea que mencione ese nombre,
-    incluidos los comandos de inspeccion que uno escribe para mirar si hay una
-    puerta corriendo (que es justo lo que hace el que vigila). Un guard que se
-    dispara con su propio sentinel no vigila nada.
+    ella, no una medicion en paralelo. Las ajenas si: dos sesiones midiendo a
+    la vez se pisan.
     """
     try:
-        r = subprocess.run(["pgrep", "-f", r"validate_skill\.py$"],
+        r = subprocess.run(["ps", "-o", "pid=,comm=,args="],
                            capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
         return []
+    ancestros = _ancestros()
     pids = []
-    for linea in r.stdout.split():
+    for linea in r.stdout.splitlines():
+        partes = linea.strip().split(None, 2)
+        if len(partes) < 3:
+            continue
+        pid_s, comm, args = partes
+        if "python" not in comm.lower():
+            continue                      # un shell no es una puerta
+        tokens = args.split()
+        if not tokens or not tokens[-1].endswith("validate_skill.py"):
+            continue                      # el script tiene que ser el argumento
+        if not os.path.exists(tokens[-1]):
+            continue                      # y ese argumento tiene que existir
         try:
-            pids.append(int(linea))
+            pid = int(pid_s)
         except ValueError:
             continue
-    ancestros = _ancestros()
-    return [p for p in pids if p != os.getpid() and p not in ancestros]
+        if pid == os.getpid() or pid in ancestros:
+            continue
+        pids.append(pid)
+    return pids
 
 
 def _ancestros(pid=None):

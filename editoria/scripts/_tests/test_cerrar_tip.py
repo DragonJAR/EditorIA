@@ -238,7 +238,8 @@ class CerrarTip(unittest.TestCase):
     def test_un_comando_que_mentione_la_puerta_no_cuenta_como_puerta(self):
         """Un guard que se dispara con su propio sentinel no vigila nada.
 
-        `pgrep -f validate_skill.py` (sin ancla) casa con CUALQUIER linea de
+        `pgrep -f validate_skill.py` (sin ancla, y luego anclado al final de
+        la linea) casa con CUALQUIER linea de
         comandos que mencione ese nombre: y los comandos de inspeccion que
         uno escribe para mirar si hay una puerta corriendo son justamente
         esos. O sea: el guard se disparaba solo con el comando que lo vigila
@@ -252,6 +253,22 @@ class CerrarTip(unittest.TestCase):
         vivos = C._puertas_vivas()
         self.assertNotIn(senuelo.pid, vivos,
                          "un comando que solo MENCIONA la puerta no es una puerta")
+
+    def test_un_python_que_no_ejecuta_la_puerta_tampoco_cuenta(self):
+        """Un interprete de python con el nombre en un argumento NO es la puerta.
+
+        El detector mira el proceso (interprete) Y el argumento (que sea el
+        script, y que ese fichero exista). Un python que lleva el nombre por
+        delante no esta ejecutando la puerta.
+        """
+        senuelo = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(30)", "validate_skill.py"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(senuelo.kill)
+        time.sleep(0.3)
+        vivos = C._puertas_vivas()
+        self.assertNotIn(senuelo.pid, vivos,
+                         "un python que NO ejecuta la puerta no es una puerta")
 
     def test_la_puerta_que_me_lanzo_no_es_otra_puerta(self):
         """La puerta que nos corre NO cuenta como medicion ajena: somos parte de ella.
