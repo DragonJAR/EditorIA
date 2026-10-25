@@ -43,6 +43,7 @@ Sale 0 si el tip esta cerrado, 1 si no.
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -115,18 +116,25 @@ def _quitar_worktree(raiz, destino):
     return True, out + err
 
 
+#: La linea de la puerta que dice como salio la suite. El prefijo es "OK  " o
+#: "FAIL" MAS un espacio (el `check` de la puerta anade uno mas), asi que se
+#: busca con un regex y no con un `startswith` de espacios exactos: un
+#: `startswith` que no casa NO es un fallo de la puerta, es un envoltorio que
+#: se queda sin veredicto... y que se niega a cerrar. Que es lo que hizo.
+_LINEA_SUITE = re.compile(r"^(OK|FAIL)\s+tests unitarios de scripts/_tests\b")
+
+
 def _veredicto_suite_desde_puerta(salida):
     """(codigo, () ) del veredicto de la suite, leido de la puerta.
 
     La puerta corre la suite por dentro y no expone su codigo: lo deja
     escrito en una linea. Si esa linea no esta, no se inventa el veredicto:
-    se devuelve None y el envoltorio dice que no lo pudo leer.
+    se devuelve None y el envoltorio dice que no lo pudo leer (y NO cierra).
     """
-    for linea in salida.splitlines():
-        if linea.startswith("OK  tests unitarios"):
-            return 0, ()
-        if linea.startswith("FAIL tests unitarios"):
-            return 1, ()
+    for linea in (salida or "").splitlines():
+        mt = _LINEA_SUITE.match(linea)
+        if mt:
+            return (0 if mt.group(1) == "OK" else 1), ()
     return None, ()
 
 

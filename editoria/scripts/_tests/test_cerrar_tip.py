@@ -39,18 +39,31 @@ def _git(repo, *args):
                           capture_output=True, text=True, timeout=60)
 
 
-def _puerta(ok=True, veredicto_suite=0):
-    """Una puerta de mentira: verde con la linea de la suite, o roja."""
+def _puerta(ok=True, veredicto_suite=0, linea_suite=None):
+    """Una puerta de mentira: verde con la linea de la suite, o roja.
+
+    La linea se escribe EXACTA como la escribe la puerta de verdad ("OK" mas
+    tres espacios, porque su `check` pone "OK  " y anade otro): un fixture
+    que no se parece al original es un fixture que no prueba nada (asi se
+    colaron 14 fallos falsos en la primera medicion).
+
+    `linea_suite` permite los tres casos: con la linea y el veredicto (lo
+    normal), sin veredicto pero CON linea (el envoltorio lo lee del log), y
+    sin linea (el log no dice nada: entonces no se puede cerrar).
+    """
+    if linea_suite is None:
+        linea_suite = veredicto_suite is not None
+
     def _f(ruta_skill, log):
         with open(log, "w", encoding="utf-8") as fh:
             if ok:
                 fh.write("commit medido: abc1234 (main)\n")
-                if veredicto_suite is not None:
-                    fh.write("OK  tests unitarios de scripts/_tests (589 OK)\n")
+                if linea_suite:
+                    fh.write("OK   tests unitarios de scripts/_tests (589 OK)\n")
                 fh.write("SKILL VALIDO\n")
             else:
                 fh.write("commit medido: abc1234 (main)\n"
-                         "FAIL tests unitarios de scripts/_tests (2 fallos)\n"
+                         "FAIL  tests unitarios de scripts/_tests (2 fallos)\n"
                          "2 FALLO(S)\n")
         return {"ok": ok, "rc": 0 if ok else 1, "fallos": 0 if ok else 2,
                 "detalle": "sin fallos" if ok else "2 FALLO(S)",
@@ -136,12 +149,38 @@ class CerrarTip(unittest.TestCase):
         self.assertFalse(v["cerrado"], f"una copia desfasada no cierra nada: {v}")
         self.assertIn("copia", v["motivo"])
 
+    def test_el_veredicto_de_la_suite_se_lee_del_log_real(self):
+        """La linea de la puerta tiene TRES espacios, no dos.
+
+        El `check` de la puerta escribe "OK  " y anade un espacio mas. Un
+        `startswith` de dos espacios NO casa, y el envoltorio se queda sin
+        veredicto: no cierra. Asi que el envoltorio lee el log con un regex.
+        """
+        rc, _ = C._veredicto_suite_desde_puerta(
+            "commit medido: abc (main)\n"
+            "OK   tests unitarios de scripts/_tests (609 OK)\n"
+            "SKILL VALIDO\n")
+        self.assertEqual(rc, 0, "el veredicto de la suite tiene que leerse del log real")
+        rc, _ = C._veredicto_suite_desde_puerta(
+            "FAIL  tests unitarios de scripts/_tests (2 fallos)\n2 FALLO(S)\n")
+        self.assertEqual(rc, 1, "una suite que cae se lee como caida")
+        self.assertIsNone(C._veredicto_suite_desde_puerta("nada de esto\n")[0],
+                          "si no hay linea, no se inventa el veredicto")
+
+    def test_el_veredicto_cae_del_log_cuando_la_puerta_no_lo_da(self):
+        """El log es la fuente: si la puerta no trae el veredicto, se lee de alli."""
+        v = self._cerrar(puerta=_puerta(ok=True, veredicto_suite=None,
+                                        linea_suite=True))
+        self.assertTrue(v["cerrado"],
+                        f"el veredicto se lee del log de la puerta: {v}")
+
     def test_un_veredicto_de_suite_ilegible_impide_el_cierre(self):
         """Si no se puede leer el veredicto de la suite, no se mide el entorno.
 
         Y no se dice "cerrado": no se sabe si el entorno es honesto.
         """
-        v = self._cerrar(puerta=_puerta(ok=True, veredicto_suite=None))
+        v = self._cerrar(puerta=_puerta(ok=True, veredicto_suite=None,
+                                        linea_suite=False))
         self.assertFalse(v["cerrado"],
                          f"sin veredicto de suite no se puede cerrar: {v}")
         self.assertIn("suite", v["motivo"])
