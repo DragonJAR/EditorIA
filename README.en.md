@@ -244,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 48 root + 19 in ffmpeg_tools/ + 46 in _tests/ = 113 scripts
+│   ├── scripts/                       # 49 root + 19 in ffmpeg_tools/ + 47 in _tests/ = 115 scripts
 │   │   ├── render_plan.py             # Main plan renderer (39 scenes)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
@@ -277,6 +277,7 @@ EditorIA/
 │   │   ├── galeria.py                 # Visual suite for all 39 scenes
 │   │   ├── validate_skill.py          # Deterministic skill validator
 │   │   ├── _guard_entorno.py          # Does the suite give the same verdict without a repo?
+│   │   ├── compilar_reel.py           # Compile N videos into one reel (measures and cuts)
 │   │   ├── _cerrar_tip.py             # Closes a tip: measures, compares, one-line verdict
 │   │   ├── demo_plan.json             # Sample plan
 │   │   ├── escenas_muestra.json       # Canonical samples for all 39 scenes

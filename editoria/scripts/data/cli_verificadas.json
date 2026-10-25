@@ -66,6 +66,9 @@
    "scripts/_tests/test_clonar_video.py",
    "scripts/_tests/test_comandos_copiables.py"
   ],
+  "scripts/compilar_reel.py": [
+   "scripts/_tests/test_compilar_reel.py"
+  ],
   "scripts/contact_sheet.py": [
    "scripts/_tests/test_core_and_scenes.py",
    "scripts/_tests/test_referencia.py"

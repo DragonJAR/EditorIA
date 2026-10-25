@@ -52,6 +52,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
 | See what the engine can draw (the 39 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the map and this file publish; `--check` only reports) |
+| Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable, the published tree and the working tree agree) |
 | Keep the installed copy in sync | **Install**: `scripts/sincronizar_instalada.py` (extracts what is published and deletes the bytecode cache, so the copy never runs code that no longer exists) |
 | Quick kinetic card (one phrase) | **Quick**: recipe `quick-kinetic` in `references/modos-rapidos.md` |
@@ -271,7 +272,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (46 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (47 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 
