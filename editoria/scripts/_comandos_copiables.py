@@ -59,6 +59,7 @@ EJECUTABLES = {
     "scripts/contact_sheet.py",
     "scripts/direccion_arte.py",
     "scripts/ffmpeg_tools/caption.py",
+    "scripts/ffmpeg_tools/componer.py",
     "scripts/ffmpeg_tools/delivery_check.py",
     "scripts/ffmpeg_tools/loudness.py",
     "scripts/ffmpeg_tools/montaje.py",

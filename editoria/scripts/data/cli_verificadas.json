@@ -82,6 +82,9 @@
   "scripts/ffmpeg_tools/caption.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
   ],
+  "scripts/ffmpeg_tools/componer.py": [
+   "scripts/_tests/test_componer.py"
+  ],
   "scripts/ffmpeg_tools/delivery_check.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
   ],

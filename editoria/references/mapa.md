@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-63 referencias, 49 scripts, 19 herramientas de ffmpeg y 47 suites de tests. Este
+63 referencias, 49 scripts, 20 herramientas de ffmpeg y 48 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -357,6 +357,7 @@ escribir es un tapón).
 | `scripts/_guard_doctrina.py` | que la prosa no vuelva a llamar "opcional" a una capacidad que la pieza puede necesitar (se DECLARA al usuario, no se degrada en silencio) |
 | `scripts/_guard_entorno.py` | que la suite dé el MISMO veredicto con repo y sin repo: la copia instalada no tiene repo, y si los tests cambian de veredicto ahí, una sola puerta no basta (lo mide, no lo supone) |
 | `scripts/compilar_reel.py` | compilar varios videos en un reel: mide cada clip, elige su mejor momento, los corta con disolvencia y escribe el plan con los tiempos ya calculados (el fondo y el plan salen de la MISMA cuenta: si hicieran cuentas distintas, la voz se desfasaria del footage) |
+| `scripts/ffmpeg_tools/componer.py` | meter la tipografía ENCIMA del footage con profundidad: la máscara del desenfoque sale del ALFA de la capa (el fondo se desenfoca SOLO detrás de la letra y el resto queda nítido), genera el velo y avisa de las tres cosas que rompen la pieza (tasas que no casan, capa sin alfa, tamaños distintos) |
 | `scripts/_cerrar_tip.py` | cerrar un tip: mide en un worktree aislado (puerta, entorno y copia instalada) y lo dice en una línea; no mide en el árbol compartido y no publica |
 
 **Y el canónico de las suites**: `scripts/data/suites.json` declara la lista

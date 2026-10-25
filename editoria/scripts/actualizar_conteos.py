@@ -267,6 +267,74 @@ def main():
     return 0
 
 
+def _contrato_cli(dest_skill=None):
+    """(cumplen, total): las CLIs de ffmpeg_tools y las que cumplen el contrato.
+
+    Es la MISMA cuenta que hace el guard (`scripts/auditar_mapa.py`), con la
+    MISMA regla: una CLI es una CLI si usa argparse, y cumple el contrato si
+    usa `add_common`, `apply_common` y `emit`. Si las dos cuentas no
+    coinciden, la herramienta escribiria un numero que el guard rechaza: el
+    bucle "corre la herramienta y vuelve a fallar" no tendria salida.
+
+    Se cuenta sobre `dest_skill` (la copia que se esta editando) y no sobre
+    BASE: en modo --check se trabaja sobre una copia, y contar la del arbol
+    real daria un numero que no es el de lo que se esta escribiendo.
+    """
+    fft = os.path.join(dest_skill or BASE, "scripts", "ffmpeg_tools")
+    cumplen = 0
+    total = 0
+    if not os.path.isdir(fft):
+        return cumplen, total
+    for f in sorted(os.listdir(fft)):
+        if not f.endswith(".py") or f.startswith("_"):
+            continue
+        try:
+            t = open(os.path.join(fft, f), encoding="utf-8").read()
+        except OSError:
+            continue
+        if "ArgumentParser" not in t and "argparse" not in t:
+            continue          # un modulo no es una CLI
+        total += 1
+        if "add_common" in t and "apply_common" in t and "emit(" in t:
+            cumplen += 1
+    return cumplen, total
+
+
+def _transforma_cli_contract(texto, cumplen, total, cambios):
+    """La frase del contrato: "N de las M cumplen el contrato".
+
+    Este numero vivia en la prosa y NADIE lo reescribia: cuando se anadia
+    una herramienta nueva a `ffmpeg_tools/`, la frase se quedaba vieja y el
+    guard la senalaba (conteo obsoleto). El numero es del guard, y lo
+    escribe la herramienta: si no, cada CLI nueva obligaba a contar a mano.
+    """
+    # el `\s+` del patron salta el salto de linea: la prosa puede partir la
+    # frase ("cumplen el\ncontrato") y el numero sigue siendo el mismo. El
+    # patron del guard (`scripts/auditar_mapa.py`) usa `\s+` tambien, asi que
+    # los dos cuentan la MISMA frase.
+    #
+    # La reescritura conserva COMO estaba partida: si la frase vivia en dos
+    # lineas, se deja en dos lineas. Un numero que se reescribe en una sola
+    # linea larga deja la prosa fea, y el proximo --check lo detectaria como
+    # desfasado otra vez (el texto viejo ya no esta).
+    nuevo = f"{cumplen} de las {total} cumplen el contrato"
+    mt = re.search(r"\d+\s+de\s+las\s+\d+\s+cumplen\s+el\s+contrato", texto)
+    if not mt:
+        return texto
+    # la COMPARACION ignora los espacios: la prosa puede partir la frase en
+    # dos lineas y el numero sigue siendo el mismo. Si no, el --check se quejaria
+    # de un texto que ya dice la verdad (y el bucle "corrige y vuelve a fallar"
+    # no tendria salida).
+    if re.sub(r"\s+", " ", mt.group(0)).strip() == nuevo:
+        return texto
+    if "\n" in mt.group(0):
+        # estaba partida: se parte por el mismo punto (despues de "cumplen el")
+        partes_nuevo = nuevo.split(" cumplen el contrato")
+        nuevo = partes_nuevo[0] + " cumplen el\ncontrato"
+    cambios.append(("references/cli-contract.md", mt.group(0).strip(), nuevo.strip()))
+    return texto[:mt.start()] + nuevo + texto[mt.end():]
+
+
 def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
     """Aplica los cambios a la copia de la skill indicada."""
     nombres = AM._suites_publicadas()
@@ -283,6 +351,15 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
     if os.path.exists(ruta):
         texto = open(ruta, encoding="utf-8").read()
         nuevo = _transforma_skill(texto, refs, nombres, cambios)
+        if nuevo != texto:
+            open(ruta, "w", encoding="utf-8").write(nuevo)
+    # el contrato de CLI: el numero de las que cumplen vive en la prosa y lo
+    # escribe esta herramienta (si no, cada CLI nueva lo dejaba viejo)
+    ruta = os.path.join(dest_skill, "references", "cli-contract.md")
+    if os.path.exists(ruta):
+        texto = open(ruta, encoding="utf-8").read()
+        cumplen, total = _contrato_cli(dest_skill)
+        nuevo = _transforma_cli_contract(texto, cumplen, total, cambios)
         if nuevo != texto:
             open(ruta, "w", encoding="utf-8").write(nuevo)
     if dest_repo:

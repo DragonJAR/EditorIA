@@ -69,7 +69,7 @@ lo que no existe**; se usa lo real, o se deja hueco.
 ### Componer la animación sobre el footage (el paso automático)
 
 Lo anterior es para cuando **otra persona** edita la pieza. Cuando la
-compone el agente, el overlay se mete con una cadena de filtros: la
+compone el agente, el overlay se mete con una herramienta: la
 mascara del desenfoque sale del **ALFA** del overlay (no de un rectangulo),
 asi que el fondo se desenfoca SOLO detras de la tipografia y el resto del
 cuadro queda nitido.
@@ -78,24 +78,16 @@ cuadro queda nitido.
    (ProRes 4444 ✓) y el footage base **a la misma tasa** (24 fps si el
    footage es de 24: convertirlo a 30 duplica cuadros y el medidor los lee
    como tirones ✗).
-2. Composicion (ffmpeg, un solo comando):
+2. Composicion (un comando):
 
 ```bash
-ffmpeg -v error -y -i base.mp4 -i capa.mov -i velo.png -i audio.wav \
-  -filter_complex "\
-[0:v]split=2[sh][fb];\
-[fb]boxblur=luma_radius=24:luma_power=2,eq=saturation=0.40:brightness=-0.20:contrast=0.9[bl];\
-[1:v]split=2[ov][ovs];\
-[ovs]format=rgba,alphaextract,format=gray[al];\
-[al]boxblur=luma_radius=45:luma_power=2[ab];\
-[ab]lut=y='if(gt(val,28),min(1,(val-28)/130),0)'[mk];\
-[sh][bl][mk]maskedmerge[mm];\
-[mm][ov]overlay=0:0:format=auto[ov2];\
-[ov2][2:v]overlay=0:0:format=auto,format=yuv420p[v]" \
-  -map "[v]" -map 3:a -t DUR -r 24 \
-  -c:v libx264 -preset slow -crf 19 -profile:v high -level 4.1 \
-  -pix_fmt yuv420p -movflags +faststart -c:a aac -b:a 192k -ar 48000 -shortest out.mp4
+python scripts/ffmpeg_tools/componer.py base.mp4 capa.mov \
+    --audio mezcla.mp4 --fps 24 -o final.mp4
 ```
+
+La herramienta genera el velo por defecto (la capa suave que hace que la
+caja blanca lea sobre la foto), avisa de las tres cosas que ROMPEN la
+pieza —tasas que no casan, capa sin alfa, tamanos distintos— y compone.
 
 Que hace cada trozo, porque tocarlos sin entenderlos rompe la pieza:
 
@@ -107,6 +99,17 @@ Que hace cada trozo, porque tocarlos sin entenderlos rompe la pieza:
 - `overlay` dos veces: primero el overlay, luego el velo de marca (el PNG que
   oscurece arriba y abajo, donde llega la UI de la plataforma).
 - `-r 24` y `-t DUR`: la tasa del footage y la duracion del plan.
+
+**La escala de la mascara (el fallo que esta receta arrastro):** el filtro
+`lut` trabaja en 0-255, asi que la mascara tiene que salir en esa escala.
+La expresion `min(1,(val-28)/130)` devuelve 0-1, y en 0-255 eso es **cero**:
+la mascara salia vacia y el fondo **no** se desenfocaba detras de la letra.
+La pieza se veia bien igual porque el velo y el texto tapaban lo que
+faltaba, y nadie lo midio. La expresion correcta es
+`min(255,(val-28)*255/130)`. Hoy la lleva `componer.py` y hay un test que
+mide la profundidad de verdad (detras de la letra desenfocado, fuera de la
+letra nitido): si alguien vuelve a escribir la mascara en 0-1, el test
+falla.
 
 ### Overlays con alfa (entregar capas al editor)
 

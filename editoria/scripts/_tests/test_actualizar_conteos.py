@@ -116,6 +116,51 @@ class TestActualizarConteos(unittest.TestCase):
             mapa = f.read()
         self.assertIn(f"{n_root} scripts,", mapa)
 
+    def test_el_numero_del_contrato_cli_lo_escribe_la_herramienta(self):
+        """El contrato de CLI declara "N de las M cumplen el contrato".
+
+        Ese numero vivia en la prosa y NADIE lo reescribia: cada CLI nueva de
+        `ffmpeg_tools/` lo dejaba viejo, y el guard lo senalaba (conteo
+        obsoleto) sin que hubiera forma de arreglarlo con la herramienta
+        canonica. Aqui se comprueba el ciclo entero: se rompe el numero, el
+        guard lo ve, la herramienta lo arregla, y el guard ya no lo ve.
+
+        El guard avisa (no falla) de lo que solo se desvia en el ARBOL de
+        trabajo: lo publicado es un fallo, lo que aun no ha salido es un
+        aviso con la herramienta como remedio. Por eso el veredicto de este
+        test mira lo que el guard DICE, no solo su codigo de salida.
+        """
+        repo, skill = self._repo()
+        contrato = os.path.join(skill, "references", "cli-contract.md")
+        with open(contrato, encoding="utf-8") as f:
+            txt = f.read()
+        # la mutacion conserva COMO esta partida la frase: si se partiera de
+        # otra forma, el guard no la encontraria y no estariamos midiendo el
+        # numero sino el fallo de encontrar la frase
+        roto = re.sub(r"(\d+)(\s+)de(\s+)las(\s+)(\d+)(\s+)cumplen(\s+)el(\s+)contrato",
+                      r"1\2de\3las\4 2\6cumplen\7el\8contrato", txt)
+        self.assertNotEqual(roto, txt, "no se pudo romper el numero del contrato")
+        with open(contrato, "w", encoding="utf-8") as f:
+            f.write(roto)
+        # el guard lo ve (como aviso: el arbol todavia no esta publicado)
+        rc, out = _audita(skill)
+        self.assertIn("conteo obsoleto", out,
+                      f"el guard no vio el numero roto del contrato:\n{out}")
+        self.assertIn("cli-contract.md", out)
+        # la herramienta lo arregla
+        r = _ejecuta(skill)
+        self.assertEqual(r.returncode, 0, f"la herramienta fallo:\n{r.stderr}")
+        # y el guard ya no lo ve
+        rc, out = _audita(skill)
+        self.assertNotIn("cli-contract.md", out,
+                         f"el guard sigue viendo el numero roto:\n{out}")
+        # y la frase sigue partida como estaba (la prosa no se deja en una
+        # linea larga): el numero se conserva, la forma tambien
+        with open(contrato, encoding="utf-8") as f:
+            final = f.read()
+        self.assertIn("cumplen el\ncontrato", final,
+                      "la frase tiene que seguir partida como estaba")
+
     def test_el_check_dice_que_esta_desfasado(self):
         # el --check tiene que decir QUE numero esta mal y cual seria, no solo
         # en que archivo: para eso lo usa el guard como remedy

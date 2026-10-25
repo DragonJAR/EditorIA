@@ -28,10 +28,10 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
   - No credentials or API keys appear in `plan.json` or `brand/*.json` (`$ELEVENLABS_API_KEY` is read from `~/.secrets.env`): `auditar_plan.py` fails with an ERROR if it finds one — the plan ships with the piece.
 - **Best-result rule**: the bar is the quality of the result, not the comfort
   of the environment. When a piece needs a capability that is not there (3D,
-  Remotion, HyperFrames, local transcription), **say so in the first answer**,
-  with the command that installs it, and deliver the best version possible
-  meanwhile. Never deliver less in silence: a piece delivered without its 3D
-  or without its audio, and nobody told, is an incomplete piece
+  Remotion, HyperFrames, Canvas, Drawn, local transcription), **say so in the
+  first answer**, with the command that installs it, and deliver the best
+  version possible meanwhile. Never deliver less in silence: a piece delivered
+  without its 3D or without its audio, and nobody told, is an incomplete piece
   (`references/capacidades.md`).
 - **Paid work rule**: Agree TTS or AI-music work and its expected cost with the user before calling a paid API, record it in the project's `BRIEF.md` (`scripts/proyecto.py`), and treat anything beyond that agreement as the user's decision. After an interruption, resume from the project files and produced material; never pay twice for the same voice or music.
 
@@ -63,16 +63,17 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Existing video + background music | `scripts/musica.py musiconly -v video.mp4 -m mus.mp3 -o final.mp4` |
 | Video + voice-over + music with ducking | `scripts/musica.py gen` then `mix` (music breathes under voice) |
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
+| Type over real footage (the typography ON the video, with depth) | **Compose**: `scripts/ffmpeg_tools/componer.py` (the blur mask comes from the layer's ALPHA, so the background defocuses ONLY behind the type; it also warns of the three things that break the piece) |
 | "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
 | Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
 | New piece with no brand pack, or a piece that looks generic / "AI-made" | **Art direction**: Step 2 + `references/direccion-de-arte.md` (idea from the subject, dealt directions, tells registry) |
 | "Make it bolder / calmer / simpler", polish, animate, retype, recolor, adapt | **Passes**: `references/pasadas.md` (scoped refinements that change only what was named) |
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
-| Complex programmatic animation | **Remotion**: `references/remotion.md` (if it is missing, say so with its install command — never deliver less in silence) |
-| Deterministic HTML piece or data re-render | **HyperFrames**: `references/hyperframes.md` (if it is missing, say so with its install command) |
-| 3D object, product or scene as material | **3D**: `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change; if it is missing, say so with its install command) |
-| Painted material: watercolor, brush strokes, generative doodle, lyric video | **Canvas**: `references/canvas.md` (p5.js + Chrome headless; if it is missing, say so with its install command — never deliver less in silence) |
-| Hand-drawn character animation, rotoscope, sand animation, pop-up paper | **Drawn**: `references/dibujado.md` (whole redrawn poses, exposure sheets, the five looks; the kit is cloned and declared, never vendored — if it is missing, say so with its install command) |
+| Complex programmatic animation | **Remotion**: `references/remotion.md` |
+| Deterministic HTML piece or data re-render | **HyperFrames**: `references/hyperframes.md` |
+| 3D object, product or scene as material | **3D**: `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change) |
+| Painted material: watercolor, brush strokes, generative doodle, lyric video | **Canvas**: `references/canvas.md` (p5.js + Chrome headless) |
+| Hand-drawn character animation, rotoscope, sand animation, pop-up paper | **Drawn**: `references/dibujado.md` (whole redrawn poses, exposure sheets, the five looks; the kit is cloned and declared, never vendored) |
 | Hand-drawn strokes / whiteboard overlay (smooth paths, PNG with alpha) | **Hand draw**: `references/hand-draw.md` + `scripts/hand_draw.py` (offline Pillow path; live camera capture needs MediaPipe — declare it, never ship an empty overlay in silence) |
 | Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
 | "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles with their signature, their techniques with numbers and the engine that serves each; plus the cinema catalogue — both sources declared) |
@@ -266,13 +267,13 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Resolution and codec**: 1080x1920 @30fps for vertical; 1920x1080 @30fps for horizontal (24fps for cinema pieces). H.264, `yuv420p`, CRF 18-22.
 - **Three visual pillars**: Every piece obeys `references/principios.md` (visual coherence, spatial harmony, special effects), `references/tecnicas-video.md`, and `references/tecnicas-reutilizables.md`.
 - **Audio and SFX**: Procedural SFX via `scripts/sfx.py` (`click`, `pop`, `drop`, `whoosh`, `ding`, `thud`, `tick`, `swell`), waveform visualization via `scripts/audio_viz.py`, loudness via `scripts/ffmpeg_tools/loudness.py`, pre-TTS duration estimation via `scripts/speech_estimate.py`, voice-over via `scripts/voz_off.py` (ElevenLabs) or `scripts/voz_local.py` (the system voice, no API, a draft).
-- **Post-production & Viral Cloning kit**: `scripts/clonar_video.py`, `scripts/referencia.py`, `scripts/ffmpeg_tools/verticalizar.py`, `scripts/ffmpeg_tools/grade.py`, `scripts/ffmpeg_tools/variantes.py`, `scripts/ffmpeg_tools/artesanal.py`, `scripts/ffmpeg_tools/scenes.py`, `scripts/ffmpeg_tools/look.py`, `scripts/ffmpeg_tools/speedramp.py`, `scripts/ffmpeg_tools/_comun.py`, `scripts/ffmpeg_tools/_plataforma.py`.
+- **Post-production & Viral Cloning kit**: `scripts/clonar_video.py`, `scripts/referencia.py`, and the `scripts/ffmpeg_tools/` family (each tool is in `references/mapa.md` with what it does).
 - **Captions and conversation formats**: `scripts/ffmpeg_tools/caption.py --hablantes "ANA=FFD400,LUIS=4FC3F7"` colors each speaker (prefix `ANA:` in cues or `speaker` from WhisperX) and never mixes speakers in a cue; `scripts/ffmpeg_tools/montaje.py dividir` builds split screens (`references/formatos.md`).
 - **Clean workspace**: Save final deliverables in the user-requested output folder, never inside the skill folder.
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (47 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (48 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

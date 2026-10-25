@@ -18,6 +18,7 @@
   "test_comandos_copiables.py",
   "test_comandos_doc.py",
   "test_compilar_reel.py",
+  "test_componer.py",
   "test_core_and_scenes.py",
   "test_datos_y_critico.py",
   "test_direccion_arte.py",
