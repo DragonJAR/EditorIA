@@ -246,7 +246,7 @@ def verificar_todo(skill_dir):
 # de default_font_file(): la intercepcion llego a parse_args sin despeinarse,
 # porque el fallo no estaba en los argumentos sino en el efecto.
 MOTIVOS_SIN_EJECUCION = {
-    "scripts/validate_skill.py": "es la validacion misma: se ejecuta con esta opcion",
+    "scripts/validate_skill.py": "es la validacion misma: el guard corre DENTRO de ella, asi que copiarla seria llamarse a si misma (para leer su cabecera: --cabecera)",
 }
 
 

@@ -131,7 +131,7 @@ FUERA = {
     "scripts/render_plan.py": ("renderiza la pieza entera (30 s): la galeria ya lo hace",
                                ["--preview"]),
     "scripts/sincronizar_instalada.py": ("reescribe la copia instalada", []),
-    "scripts/validate_skill.py": ("es la validacion misma: se ejecuta con esta opcion", []),
+    "scripts/validate_skill.py": ("es la validacion misma: el guard corre DENTRO de ella, asi que copiarla seria llamarse a si misma (para leer su cabecera: --cabecera)", []),
     "scripts/voz_local.py": ("usa la voz del sistema: depende de la maquina, no del comando",
                               ["--listar"]),
     "scripts/voz_off.py": ("paga una API de TTS", []),

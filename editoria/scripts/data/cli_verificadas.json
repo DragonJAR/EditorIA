@@ -37,6 +37,7 @@
    "scripts/_tests/test_cli_de_herramientas.py"
   ],
   "scripts/beat_file.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
    "scripts/_tests/test_cli_de_las_cuatro.py"
   ],
   "scripts/beat_grid.py": [
@@ -48,7 +49,8 @@
    "scripts/_tests/test_cli_de_herramientas.py"
   ],
   "scripts/chapters.py": [
-   "scripts/_tests/test_chapters.py"
+   "scripts/_tests/test_chapters.py",
+   "scripts/_tests/test_cli_de_herramientas.py"
   ],
   "scripts/check_env.py": [
    "scripts/_tests/test_cache_fantasma.py"
@@ -92,6 +94,7 @@
    "scripts/_tests/test_ffmpeg_tools.py"
   ],
   "scripts/ffmpeg_tools/silence.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
    "scripts/_tests/test_core_and_scenes.py"
   ],
   "scripts/ffmpeg_tools/speedramp.py": [
@@ -117,7 +120,8 @@
    "scripts/_tests/test_lint_copy.py"
   ],
   "scripts/medir_animacion.py": [
-   "scripts/_tests/test_letra_y_composicion.py"
+   "scripts/_tests/test_letra_y_composicion.py",
+   "scripts/_tests/test_puerta_entrega.py"
   ],
   "scripts/medir_contraste.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
@@ -130,6 +134,7 @@
    "scripts/_tests/test_mezclar_audio.py"
   ],
   "scripts/musica.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
    "scripts/_tests/test_core_and_scenes.py",
    "scripts/_tests/test_mezclar_audio.py"
   ],
@@ -169,6 +174,9 @@
   ],
   "scripts/speech_estimate.py": [
    "scripts/_tests/test_cli_de_las_cuatro.py"
+  ],
+  "scripts/validate_skill.py": [
+   "scripts/_tests/test_cabecera_commit.py"
   ],
   "scripts/verificar_ritmo.py": [
    "scripts/_tests/test_comandos_copiables.py",
