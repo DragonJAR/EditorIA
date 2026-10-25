@@ -2074,6 +2074,7 @@ def main():
     for f, d in sorted(dominios.items()):
         dominios_resumen.setdefault(d, []).append(f)
     if args.json:
+        os.makedirs(os.path.dirname(os.path.abspath(args.json)), exist_ok=True)
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump({"ok": not problemas, "problemas": problemas,
                        "avisos": avisos, "notas": notas,

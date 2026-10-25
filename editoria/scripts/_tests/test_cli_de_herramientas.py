@@ -141,7 +141,12 @@ class TestCLIReal(unittest.TestCase):
 
     def test_medir_contraste(self):
         r = self._correr(os.path.join(ROOT, "medir_contraste.py"))
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        # El exit code dice el veredicto: con hallazgos no puede salir 0
+        # (un agente que encadena comandos ramifica por el codigo).
+        if "textos con contraste por debajo" in r.stdout:
+            self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        else:
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_delivery_check_cumple_el_spec(self):
         """La comprobacion de entrega, con un video real: si el archivo no
@@ -231,6 +236,59 @@ class TestMusicaSinAPI(unittest.TestCase):
                            capture_output=True, text=True, timeout=120, env=env)
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("cama", (r.stdout + r.stderr).lower())
+
+
+class TestCarpetaDestinoYValidacion(unittest.TestCase):
+    """F3 en el resto del kit: una salida en carpeta inexistente se crea,
+    no revienta con FileNotFoundError tras el trabajo; y un --bpm imposible
+    se rechaza antes de dividir por el (o de no terminar nunca)."""
+
+    def _correr(self, *args, timeout=120):
+        return subprocess.run([sys.executable] + list(args),
+                              capture_output=True, text=True, timeout=timeout)
+
+    def test_beat_file_crea_la_carpeta(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "nueva", "beats.json")
+            r = self._correr(os.path.join(SCRIPTS, "beat_file.py"),
+                             "--bpm", "120", "--duracion", "4", "-o", out)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertTrue(os.path.isfile(out))
+
+    def test_beat_file_bpm_cero_no_revienta_ni_cuelga(self):
+        with tempfile.TemporaryDirectory() as d:
+            r = self._correr(os.path.join(SCRIPTS, "beat_file.py"),
+                             "--bpm", "0", "--duracion", "4",
+                             "-o", os.path.join(d, "b.json"), timeout=30)
+            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+            self.assertIn("--bpm", r.stderr)
+
+    def test_chapters_crea_la_carpeta_y_plan_malo_sin_traceback(self):
+        with tempfile.TemporaryDirectory() as d:
+            plan = {"escenas": [{"tipo": "hero", "titulo": "Uno", "from": 0},
+                                  {"tipo": "bento", "titulo": "Dos", "from": 15},
+                                  {"tipo": "final", "titulo": "Tres", "from": 30}]}
+            ruta = os.path.join(d, "plan.json")
+            with open(ruta, "w", encoding="utf-8") as fh:
+                json.dump(plan, fh)
+            out = os.path.join(d, "nueva", "caps.txt")
+            r = self._correr(os.path.join(SCRIPTS, "chapters.py"), ruta, "-o", out)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertTrue(os.path.isfile(out))
+            malo = os.path.join(d, "mal.json")
+            with open(malo, "w", encoding="utf-8") as fh:
+                fh.write("no es json")
+            r = self._correr(os.path.join(SCRIPTS, "chapters.py"), malo)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertNotIn("Traceback", r.stdout + r.stderr)
+
+    def test_silence_crea_la_carpeta_del_edl(self):
+        with tempfile.TemporaryDirectory() as d:
+            video = _video(os.path.join(d, "v.mp4"))
+            out = os.path.join(d, "nueva", "s.txt")
+            r = self._correr(os.path.join(TOOLS, "silence.py"), video, "--edl", out)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertTrue(os.path.isfile(out))
 
 
 if __name__ == "__main__":

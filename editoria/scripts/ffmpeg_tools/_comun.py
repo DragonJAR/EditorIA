@@ -87,6 +87,20 @@ def info(msg: str) -> None:
     sys.stderr.write(f"{msg}\n")
 
 
+def asegurar_padre(ruta) -> None:
+    """Crea la carpeta destino de una salida si no existe.
+
+    Fuente unica del arreglo de scenes.py (F3): sin esto, escribir una
+    salida en una carpeta nueva muere con un FileNotFoundError o un codigo
+    opaco de ffmpeg que no dice que el fallo es la ruta. Se llama ANTES del
+    trabajo caro (render, transcripcion, TTS de pago), no al escribir."""
+    padre = os.path.dirname(os.path.abspath(str(ruta)))
+    try:
+        os.makedirs(padre, exist_ok=True)
+    except OSError as ex:
+        die(f"no se pudo crear la carpeta de salida {padre}: {ex}", kind="output")
+
+
 def require_tool(name: str) -> str:
     """Ruta absoluta de ffmpeg/ffprobe, o sale con instrucciones de instalacion."""
     path = shutil.which(name)
@@ -1146,6 +1160,7 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
                      else (lineas[-1] if lineas else "?"))
         info("whisper.cpp encontrado pero fallo: " + causa[:200])
     # 2. faster-whisper (paquete python)
+    motivo_fw = None
     try:
         from faster_whisper import WhisperModel  # type: ignore
         m = WhisperModel(model, device="cpu", compute_type="int8")
@@ -1155,8 +1170,11 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
             info("transcrito con faster-whisper")
             write_srt(cues, out_srt)
             return cues
-    except ImportError:
-        pass
+    except Exception as ex:  # noqa: BLE001
+        # Instalado pero roto (p. ej. PyAV incompatible) no es "no hay
+        # motor": el motivo se guarda y el error final es el suyo (F1).
+        motivo_fw = f"faster-whisper esta instalado pero fallo: {ex}"
+        info(motivo_fw)
     # 3. openai-whisper CLI
     if shutil.which("whisper"):
         cmd = ["whisper", wav, "--model", model, "--output_format", "srt",
@@ -1170,6 +1188,11 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
             cues = parse_srt(srt)
             write_srt(cues, out_srt)
             return cues
+    if motivo_fw:
+        die(motivo_fw + "\nRepara faster-whisper (pip install -U faster-whisper, "
+            "o pip install \"av==12.3.0\" si es el fallo de PyAV) o instala otro motor:\n"
+            "  whisper.cpp:    brew install whisper-cpp   (luego descarga un modelo: ggml-base.bin)\n"
+            "  openai-whisper: pip install openai-whisper")
     die("no hay motor local de voz-a-texto.\n"
         "Instala uno (todos corren offline):\n"
         "  whisper.cpp:    brew install whisper-cpp   (luego descarga un modelo: ggml-base.bin)\n"

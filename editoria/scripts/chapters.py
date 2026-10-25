@@ -18,6 +18,9 @@ import json
 import os
 import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import asegurar_padre, leer_json  # noqa: E402
+
 
 def fmt_tiempo(s):
     """Convierte segundos a formato YouTube `H:MM:SS` o `MM:SS`.
@@ -98,9 +101,7 @@ def main():
     ap.add_argument("-o", "--output", help="archivo de salida (default: stdout)")
     args = ap.parse_args()
 
-    if not os.path.isfile(args.plan):
-        sys.exit(f"no existe el plan: {args.plan}")
-    plan = json.load(open(args.plan, encoding="utf-8"))
+    plan = leer_json(args.plan, "el plan")
 
     tipo = args.tipo
     if tipo == "auto":
@@ -128,6 +129,7 @@ def main():
     lineas = [f"{fmt_tiempo(t)} {titulo}" for t, titulo in caps]
     out = "\n".join(lineas) + "\n"
     if args.output:
+        asegurar_padre(args.output)
         open(args.output, "w", encoding="utf-8").write(out)
         print(f"escribi {args.output} ({len(caps)} capitulos)", file=sys.stderr)
     else:

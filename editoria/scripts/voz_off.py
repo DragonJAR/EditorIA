@@ -157,8 +157,11 @@ def main():
     ayudar(ap, {'-o': 'audio de salida con la voz de todas las escenas (mp3)', '--model': 'modelo de voz de ElevenLabs'})
     a = ap.parse_args()
     voz_id = VOCES.get(a.voz, a.voz) if a.voz else VOCES[DEFAULT_POR_IDIOMA[a.idioma]]
-    from _comun import leer_json
+    from _comun import asegurar_padre, leer_json
     plan=leer_json(a.plan,"el plan")
+    if not plan.get("escenas"): sys.exit("ERROR: el plan no tiene 'escenas' con voz: " + a.plan)
+    asegurar_padre(a.out)
+    if a.guion: asegurar_padre(a.guion)
     segs=[]
     guion=[]
     pending=[]

@@ -29,6 +29,7 @@ BASE = os.path.dirname(SCRIPTS)
 sys.path.insert(0, SCRIPTS)
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
+from _comun import asegurar_padre  # noqa: E402
 import auto_qa            # noqa: E402
 import delivery_check     # noqa: E402
 import medir_animacion    # noqa: E402
@@ -294,6 +295,7 @@ def _medir_plan(plan):
 
 
 def _volcar(ruta, vals, dets, faltan, media, pasa):
+    asegurar_padre(ruta)
     with open(ruta, "w", encoding="utf-8") as f:
         json.dump({"ejes": vals, "detalles": dets, "faltan": faltan,
                    "media": media, "pasa": pasa,

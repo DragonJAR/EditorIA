@@ -27,6 +27,11 @@ Uso:
 """
 import argparse
 import json
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import asegurar_padre  # noqa: E402
 
 
 def main():
@@ -44,6 +49,11 @@ def main():
                          "(los candidatos a impacto que se miden con beat_grid.py)")
     ap.add_argument("-o", "--salida", required=True, help="JSON de salida")
     a = ap.parse_args()
+    if a.bpm <= 0:
+        ap.error(f"--bpm debe ser mayor que 0 (recibido: {a.bpm})")
+    if a.duracion <= 0:
+        ap.error(f"--duracion debe ser mayor que 0 (recibido: {a.duracion})")
+    asegurar_padre(a.salida)
 
     paso = 60.0 / a.bpm
     beats = []

@@ -113,6 +113,24 @@ class TestSubtitulosEnLaPuerta(unittest.TestCase):
         self.assertIsNone(self.mod._defecto_subtitulos(self._plan(), "youtube"))
 
 
+class TestMedirConNombreRaro(unittest.TestCase):
+    """El paso de movimiento lee el JSON de medir_animacion, no un regex
+    sobre su consola: un video con espacios o sin .mp4 se mide igual."""
+
+    def test_video_con_espacios_se_mide(self):
+        import subprocess as _sp
+        mod = _cargar(QA_ENTREGA, "qa_entrega_medir")
+        with tempfile.TemporaryDirectory() as d:
+            video = os.path.join(d, "mi pieza.mov")
+            _sp.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi",
+                     "-i", "testsrc=duration=2:size=320x180:rate=10",
+                     "-c:v", "libx264", "-pix_fmt", "yuv420p", video],
+                    check=True, capture_output=True, timeout=120)
+            paso = mod._paso_medir(video)
+            self.assertNotEqual(paso["detalle"], "no se pudo medir")
+            self.assertIn("nota", paso["detalle"])
+
+
 class TestConteoDelEncabezado(unittest.TestCase):
     """El encabezado de mapa.md no puede quedarse viejo."""
 

@@ -20,7 +20,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import (add_common, apply_common, die, emit, fuente_marca,  # noqa: E402
+from _comun import (add_common, apply_common, asegurar_padre, die, emit, fuente_marca,  # noqa: E402
                       info, tokens_efectivos)
 
 try:
@@ -145,6 +145,7 @@ def main():
             d.line([0, H * i / 3, W, H * i / 3], fill=ACENTO, width=2)
 
     output = args.output or os.path.splitext(args.input)[0] + "_thumb.png"
+    asegurar_padre(output)
     img.save(output)
     info(f"OK {output} ({W}x{H}, {len(palabras)} palabras)")
     emit(output, formato=args.formato, palabras=len(palabras))

@@ -4389,6 +4389,9 @@ def main():
     if a.preview and not a.hoja:
         _base=os.path.splitext(a.out or os.path.basename(a.plan))[0]
         a.hoja=_base+".preview.jpg"
+    from _comun import asegurar_padre
+    if a.out: asegurar_padre(a.out)
+    if a.hoja: asegurar_padre(a.hoja)
     plan=leer_json(a.plan,"el plan")
     base=os.path.dirname(os.path.abspath(a.plan))
     if not a.datos:

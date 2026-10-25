@@ -9,8 +9,12 @@ para que la cadencia respire con la narración. La key sale de
 $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
 import os, sys, argparse, subprocess
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import asegurar_padre
 
 def gen(prompt,dur,out):
+    asegurar_padre(out)
+    if dur <= 0: sys.exit(f"ERROR: --dur debe ser mayor que 0 (recibido: {dur})")
     key=os.environ.get("ELEVENLABS_API_KEY")
     if not key: sys.exit("Falta ELEVENLABS_API_KEY en el entorno. Sin clave (o sin acuerdo de pago) "
                          "no entregues la pieza sin musica: genera la cama procedural con "
@@ -40,6 +44,8 @@ def cama(dur,out,bpm=92,raiz=110.0,menor=True,vol=0.5):
     (ducking bajo la voz) en vez de entregar la pieza sin musica.
     Determinista: los mismos parametros dan el mismo wav.
     """
+    asegurar_padre(out)
+    if dur <= 0: sys.exit(f"ERROR: --dur debe ser mayor que 0 (recibido: {dur})")
     tercera=1.1892 if menor else 1.2599  # tercera menor / mayor
     freqs=[raiz, raiz*1.5, raiz*2, raiz*tercera]
     partes=[]; entradas=[]
@@ -76,6 +82,7 @@ def vdur(video):
         sys.exit(f"ERROR: duración inválida en {video}: {s!r}")
 
 def mix(video,voz,musica,out,mus_vol=0.12):
+    asegurar_padre(out)
     # música a volumen base + ducking por la voz; voz siempre al frente.
     # Defaults verificados (v4 AI Tinkerers): música ~15 dB bajo la voz
     # (medido con scripts/medir_mezcla.py). Ver reglas-tecnicas.md.
@@ -100,6 +107,7 @@ def mix(video,voz,musica,out,mus_vol=0.12):
 
 def mix_music_only(video,musica,out,mus_vol=0.8,fade_out=2.0):
     """Video + música de fondo, sin voz. Fade de salida para cerrar limpio."""
+    asegurar_padre(out)
     for etq, ruta in (("video", video), ("música", musica)):
         if not os.path.isfile(ruta):
             sys.exit(f"ERROR: no existe el archivo de {etq}: {ruta}")
