@@ -54,16 +54,22 @@ def _git(repo, *args):
 class TestCabeceraCommit(unittest.TestCase):
 
     def test_en_el_repo_dice_el_commit_que_se_mide(self):
-        """En el repo, la cabecera dice el commit REAL del tip que se midio."""
+        """En el repo, la cabecera dice el commit REAL del tip que se midio.
+
+        OJO: la copia instalada NO tiene `.git`, y ahi este test no puede
+        hablar del commit: se salta. Lo de "SIN REPO" lo prueba el test
+        siguiente, con un arbol sin repo de verdad.
+        """
+        esperado = subprocess.run(["git", "-C", SKILL, "rev-parse", "--short", "HEAD"],
+                                   capture_output=True, text=True, timeout=30).stdout.strip()
+        if not esperado:
+            self.skipTest("la skill bajo prueba no tiene repo (copia instalada): "
+                          "el commit lo mide el otro test, con un repo de verdad")
         linea, rc = _cabecera()
         self.assertEqual(rc, 0, f"el modo cabecera debe salir con 0: {linea}")
         self.assertIn("commit medido:", linea)
         self.assertNotIn("SIN REPO", linea,
                          f"en el repo hay repo: {linea}")
-
-        esperado = subprocess.run(["git", "-C", SKILL, "rev-parse", "--short", "HEAD"],
-                                   capture_output=True, text=True, timeout=30).stdout.strip()
-        self.assertTrue(esperado, "el repo debe tener un HEAD")
         self.assertIn(esperado, linea,
                       f"la cabecera ({linea}) no dice el commit medido ({esperado})")
 
