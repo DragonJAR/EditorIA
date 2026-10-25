@@ -36,7 +36,7 @@ LO QUE NO HACE (y lo dice)
   · NO toca los videos de entrada.
 
 Uso:
-    python3 scripts/compilar_reel.py -o salida/ --marca DragonJAR \
+    python3 scripts/compilar_reel.py -o salida/ \
         --titulo "Diez servicios" --lema "Un solo equipo" a.mp4 b.mp4 c.mp4
 """
 import argparse
@@ -60,11 +60,18 @@ CIERRE = 3.55         # la tarjeta de cierre (la voz del cierre necesita aire)
 
 # ---------------------------------------------------------------- seleccion
 
-def _nombre_de(video, i):
-    """El nombre que va en el rotulo: el del fichero, sin tecnicas."""
+def _nombre_de(video, i, marca=""):
+    """El nombre que va en el rotulo: el del fichero, sin el prefijo de la marca.
+
+    La marca se quita con el NOMBRE DEL PACK (en runtime): ninguna marca
+    concreta puede estar escrita en el codigo de la skill.
+    """
     base = os.path.splitext(os.path.basename(video))[0]
-    base = re.sub(r"^(?:dragonjar[_-])?\d{0,2}[-_]?", "", base, flags=re.I)
-    base = base.replace("_", " ").replace("-", " ").strip()
+    if marca:
+        base = re.sub(re.escape(marca), "", base, flags=re.I)
+    base = re.sub(r"^[\s_-]+", "", base)        # los separadores del principio
+    base = re.sub(r"^\d{0,2}[\s_-]*", "", base)  # el numero de orden
+    base = base.replace("_", " ").replace("-", " ").strip(" -")
     return base.title() if base else f"Pieza {i + 1}"
 
 
@@ -248,7 +255,35 @@ def _fondo(segmentos, salida, fps=24):
     return salida
 
 
-def _escribe_plan(ruta, beats, titulo, lema, marca, nombres, total):
+def _pack_de_brand(ruta=None):
+    """El pack de marca: el que se le pase, o el que haya en brand/.
+
+    NINGUNA marca concreta puede estar escrita en el codigo (los packs viven
+    en brand/ y se publican con la skill): el nombre, el lema y el acento se
+    LEEN del pack en runtime.
+    """
+    if ruta:
+        return os.path.abspath(ruta)
+    d = os.path.join(BASE, "brand")
+    packs = sorted(f for f in os.listdir(d) if f.endswith(".json")) if os.path.isdir(d) else []
+    if not packs:
+        return None
+    return os.path.join(d, packs[0])
+
+
+def _datos_de_pack(ruta):
+    """(nombre, lema) del pack. Vacio si no hay pack."""
+    if not ruta or not os.path.isfile(ruta):
+        return "", ""
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            doc = json.load(fh) or {}
+    except (OSError, ValueError):
+        return "", ""
+    return str(doc.get("nombre") or ""), str(doc.get("lema") or "")
+
+
+def _escribe_plan(ruta, beats, titulo, lema, marca, nombres, total, pack, boton, lema_pack):
     """El plan del reel: apertura, un rotulo por video y el cierre."""
     escenas = [{
         "tipo": "apertura", "from": 0.0, "to": beats[0]["from"] if beats else APERTURA,
@@ -264,16 +299,17 @@ def _escribe_plan(ruta, beats, titulo, lema, marca, nombres, total):
             "at": {"entra": round(b["from"] + 0.2, 3)},
         })
     ultima = beats[-1]["to"] if beats else 0.0
+    lema_final = lema_pack or (" ".join(titulo) + " " + " ".join(lema) + ".")
     escenas.append({
         "tipo": "final", "from": ultima, "to": total,
         "marca": marca,
-        "lema": " ".join(titulo) + " " + " ".join(lema) + ".",
-        "boton": "dragonjar.org",
+        "lema": lema_final,
+        "boton": boton,
         "at": {"lema": round(ultima + 0.05, 3), "boton": round(ultima + 1.6, 3)},
         "voz": f"{marca}. Seguridad ofensiva.",
     })
     plan = {
-        "brand": os.path.join(BASE, "brand", "dragonjar.json"),
+        "brand": pack,
         "duracion": total,
         "tamano": "1080x1920",
         "numeros": "es",
@@ -295,7 +331,12 @@ def main():
                     "de cada uno, los corta con disolvencia y escribe el plan")
     ap.add_argument("videos", nargs="+", help="Los videos a compilar")
     ap.add_argument("-o", "--out", required=True, help="Directorio de salida")
-    ap.add_argument("--marca", default="DragonJAR", help="La marca del cierre")
+    ap.add_argument("--brand", default=None,
+                    help="Pack de marca (default: el que haya en brand/)")
+    ap.add_argument("--marca", default=None,
+                    help="La marca del cierre (default: la del pack)")
+    ap.add_argument("--boton", default="",
+                    help="El boton del cierre (default: ninguno)")
     ap.add_argument("--titulo", default="Diez servicios",
                     help="El titular de la apertura (dos lineas con '|')")
     ap.add_argument("--lema", default="Un |solo equipo",
@@ -330,6 +371,16 @@ def main():
 
     out = os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
+    pack = _pack_de_brand(a.brand)
+    if pack is None:
+        print("ERROR: no hay pack de marca (pasa --brand o pon uno en brand/)",
+              file=sys.stderr)
+        return 2
+    nombre_pack, lema_pack = _datos_de_pack(pack)
+    marca = a.marca or nombre_pack
+    if not marca:
+        print("ERROR: el pack no trae 'nombre' y no se paso --marca", file=sys.stderr)
+        return 2
     tmp = tempfile.mkdtemp(prefix="reel_")
     try:
         nombres = []
@@ -355,7 +406,7 @@ def main():
                 ini, fin, origen = 0.0, a.duracion, "por defecto"
             ruta = _recorta(v, ini, fin, os.path.join(tmp, f"{i:02d}.mp4"), a.fps)
             segmentos.append({"ruta": ruta, "dur": fin - ini})
-            nombres.append(_nombre_de(v, i))
+            nombres.append(_nombre_de(v, i, marca))
             print(f"  {os.path.basename(v)}: {ini:.2f}-{fin:.2f} ({origen}) -> "
                   f"'{nombres[-1]}'")
 
@@ -377,7 +428,8 @@ def main():
         titulo = [t.strip() for t in a.titulo.split("|")]
         lema = [t.strip() for t in a.lema.split("|")]
         ruta_plan = os.path.join(out, "plan.json")
-        _escribe_plan(ruta_plan, beats, titulo, lema, a.marca, nombres, total)
+        _escribe_plan(ruta_plan, beats, titulo, lema, marca, nombres, total,
+                      pack, a.boton, lema_pack)
 
         print(f"\nreel compilado: {total:.2f} s · {len(a.videos)} piezas")
         print(f"  fondo: {base}")
