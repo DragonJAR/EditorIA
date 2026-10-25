@@ -157,7 +157,7 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   intención→escena (`scripts/data/repertorio.json`):
   `"intenciones": ["gancho", "dato", "proceso", "cierre"]` y
   `"no_aplica": {"demostracion": "sin capturas reales", "imagen-texto": "sin foto ni cita"}`.
-  La mano se pide con `python scripts/repertorio.py sugerir --intenciones ... --anterior <plan anterior>`
+  La mano se pide con `python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre --anterior ../pieza-anterior/plan.json`
   y se verifica con `python scripts/repertorio.py cobertura plan.json`.
   Con alguna de las dos claves presentes, el auditor comprueba que cada
   intención declarada tiene escena (`intencion-sin-escena`) y que ninguna
