@@ -262,8 +262,10 @@ def main():
     ap.add_argument("--fps", type=int, default=24, help="la tasa de la pieza (24 nativo)")
     ap.add_argument("--duracion", type=float, default=None,
                     help="cortar la pieza a estos segundos")
-    ap.add_argument("--crf", type=int, default=19)
-    ap.add_argument("--preset", default="slow")
+    ap.add_argument("--crf", type=int, default=19,
+                    help="calidad x264: menos es mejor (19 = alto, 23 = bajo)")
+    ap.add_argument("--preset", default="slow",
+                    help="esfuerzo x264: slow = mejor y mas lento, veryfast = rapido")
     add_common(ap)
     args = ap.parse_args()
     apply_common(args)
