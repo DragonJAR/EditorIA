@@ -604,6 +604,29 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"una prosa sin numero tiene que detectarse:\n{out}")
         self.assertIn("no dice cuantas suites hay", out)
 
+    def test_el_extractor_de_rutas_no_trunca(self):
+        """Una ruta .jsonl se extrae ENTERA.
+
+        Sin frontera de palabra, la alternativa `json` casa y la "l" final se
+        queda fuera: el chequeo de enlaces rotos iba a buscar un fichero que no
+        existe. Se notaba porque una EXCEPCION tapaba justo el nombre
+        truncado; al des-publicar el fichero, el bug se vio en la copia
+        instalada.
+        """
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("am_para_test", AUDITAR)
+        am = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(am)          # main() solo corre como script
+        # OJO: las rutas del ejemplo se arman EN PIEZAS. El auditor lee los
+        # .py (incluido este) y una ruta literal que no existe la marca como
+        # enlace roto: el propio test se romperia a si mismo.
+        rutas = am._rels_de_texto("mira `metricas/historial.jsonl` y `scripts/"
+                                  + "x.py`")
+        self.assertIn("metricas/historial.jsonl", rutas,
+                      "la ruta .jsonl tiene que extraerse entera")
+        self.assertNotIn("metricas/historial" + ".json", rutas,
+                         "la ruta no puede truncarse a su extension mas corta")
+
     def test_avisa_si_no_puede_comparar_el_historial_de_suites(self):
         """Un guard que se salta un caso en silencio no se distingue de uno que
         no mira: el "no se ha podido mirar" tiene que estar escrito."""
