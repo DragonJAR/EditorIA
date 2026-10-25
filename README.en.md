@@ -306,7 +306,7 @@ EditorIA/
 │   │       ├── transcribir.py         # Local ASR → SRT + JSON
 │   │       ├── _comun.py              # Shared DRY helpers
 │   │       └── _plataforma.py         # OS abstractions
-│   ├── references/                    # 62 references in kebab-case.md
+│   ├── references/                    # 63 references in kebab-case.md
 │   │   ├── instalacion.md             # Per OS (Win/macOS/Linux)
 │   │   ├── escenas.md                 # Catalog of 39 scenes
 │   │   ├── escenas-extendidas.md      # Portable concepts

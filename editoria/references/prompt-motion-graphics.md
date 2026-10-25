@@ -260,7 +260,7 @@ Build a 20-second product launch video for {{PRODUCT}} using tokens from
 Un estilo no se pide describiéndolo: se pide con su **firma** (los rasgos que lo
 hacen reconocible de un vistazo) y con sus **beats por segundo**. Es la regla
 que sale de los 15 estilos de `Vincentwei1021/mg-styles-15` (MIT), donde cada
-estilo viene con su receta; el catálogo está en `references/canvas.md`.
+estilo viene con su receta; el catálogo está en `references/estilos-codigo.md`.
 
 **1. La firma se escribe verificable, con números.** No "que tenga movimiento
 elástico", sino "overshoot con `cubic-bezier(0.34,1.56,0.64,1)` y entrada

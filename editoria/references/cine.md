@@ -110,6 +110,9 @@ duplicar el motor:
 3. **Cocina de técnicas**: su `TECHNIQUE.md` y sus estilos son material de
    estudio para el camino de cine.
 
+Los dos catálogos de estilos hechos en código (el de cine y el de motion design)
+viven en `references/estilos-codigo.md`, con sus fuentes declaradas.
+
 **La frontera**: es otro motor (Node + Three.js) con su propio director. No
 se integra en el motor de esta skill ni se copia su código; se declara la
 fuente y se usa como referencia y como material.

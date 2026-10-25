@@ -73,6 +73,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Hand-drawn character animation, rotoscope, sand animation, pop-up paper | **Drawn**: `references/dibujado.md` (whole redrawn poses, exposure sheets, the five looks; the kit is cloned and declared, never vendored — if it is missing, say so with its install command) |
 | Hand-drawn strokes / whiteboard overlay (smooth paths, PNG with alpha) | **Hand draw**: `references/hand-draw.md` + `scripts/hand_draw.py` (offline Pillow path; live camera capture needs MediaPipe — declare it, never ship an empty overlay in silence) |
 | Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
+| "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles with their signature, their techniques with numbers and the engine that serves each; plus the cinema catalogue — both sources declared) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` and `references/recetas-ai-video.md` |
 | Animate a scene, a logo, a title, or one element (which technique, how to ask for it) | **Animation selector**: `references/animacion.md` §0 (plan engine, canvas, Remotion, HyperFrames, 3D, hybrid, diagrams — what fits when, and how each one is requested), then the chosen technique's reference |
 | Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (the pack spec plus the operational checklist: assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
@@ -87,7 +88,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 62 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 63 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
