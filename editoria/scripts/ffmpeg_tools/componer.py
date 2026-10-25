@@ -236,7 +236,14 @@ def componer(base, capa, salida, audio=None, velo="auto", fps=24,
     if duracion:
         cmd += ["-t", f"{duracion:.3f}"]
     cmd += ["-r", str(fps)] + x264_args(crf=crf, preset=preset)
-    cmd += ["-profile:v", "high", "-level", "4.1", salida]
+    cmd += ["-profile:v", "high", "-level", "4.1"]
+    if audio:
+        # el audio entra al SPEC de la plataforma (48 kHz, 192 kbps). Sin
+        # esto la pieza sale con la tasa de la fuente (medido: 44.100 Hz)
+        # y la puerta de entrega la rechaza en `delivery:reels`. La receta
+        # que esta herramienta reemplaza lo:"-ar 48000" a mano.
+        cmd += ["-c:a", "aac", "-b:a", "192k", "-ar", "48000"]
+    cmd += [salida]
 
     try:
         run(cmd)

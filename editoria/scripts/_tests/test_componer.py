@@ -179,6 +179,25 @@ class TestComponerReal(unittest.TestCase):
         self.assertTrue(any("se componen desajustados" in a for a in avisos),
                         f"unos tamanos distintos tienen que avisar: {avisos}")
 
+    def test_el_audio_sale_al_spec_de_la_plataforma(self):
+        """El audio de la pieza va a 48 kHz, como lo pide el spec.
+
+        Sin esto la composicion deja el audio a la tasa de la fuente
+        (medido: 44.100 Hz) y la puerta de entrega RECHAZA la pieza en
+        `delivery:reels`. La receta que esta herramienta reemplaza lo
+        hacia a mano con `-ar 48000`; aqui lo hace la herramienta, y con la
+        pista de audio presente.
+        """
+        base = _fondo(os.path.join(self.tmp, "base.mp4"))
+        capa = _capa_con_alfa(os.path.join(self.tmp, "capa.mov"))
+        salida = os.path.join(self.tmp, "final.mp4")
+        comp.componer(base, capa, salida, audio=base, velo=0, fps=24)
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0",
+                            "-show_entries", "stream=sample_rate", "-of", "csv=p=0", salida],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.stdout.strip(), "48000",
+                         f"el audio tiene que salir a 48 kHz (salio {r.stdout.strip()!r})")
+
     def test_una_composicion_limpia_no_avisa(self):
         base = _fondo(os.path.join(self.tmp, "base.mp4"))
         capa = _capa_con_alfa(os.path.join(self.tmp, "capa.mov"))
