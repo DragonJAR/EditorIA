@@ -305,6 +305,23 @@ escribir es un tapón).
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que
     escribe las reglas).
 
+14. **Un marcador en un comando documentado es una promesa rota en
+    silencio.** El agente copia el comando y lo pega TAL CUAL: lo que va
+    entre comillas o tras una bandera es su valor. Si ese valor es un
+    marcador (`...`, `<...>` o `{...}`), el marcador llega literal al
+    script: a veces el comando ni falla -`argparse` se come "..." como
+    valor y la pieza sale con el titulo literal "..."- y a veces se para
+    del todo. Y un marcador no lo sustituye nadie si no lleva EXTENSION
+    (de ahi sale el `plan.json` y el `video.mp4`): un "plan anterior" con
+    espacios no lo cambia nadie.
+    La forma que hay que copiar es la que YA FUNCIONA: una ruta real
+    (`--anterior ../pieza-anterior/plan.json`), no un nombre de ejemplo.
+    Y hay una excepcion: los comandos que se saltan CON MOTIVO (donde el
+    marcador es donde va lo del usuario: su carpeta, su URL) son formas
+    por definicion, y ahi el marcador es legitimo.
+    Lo verifica `scripts/_comandos_copiables.py`: mira solo los comandos
+    que se COPIAN y avisa de los marcadores que nadie sustituye.
+
 ## 5. Los scripts
 
 | script | para que |
