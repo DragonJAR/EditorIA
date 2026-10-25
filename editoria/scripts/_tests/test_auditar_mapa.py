@@ -604,6 +604,26 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertEqual(rc, 1, f"una prosa sin numero tiene que detectarse:\n{out}")
         self.assertIn("no dice cuantas suites hay", out)
 
+    def test_avisa_si_no_puede_comparar_el_historial_de_suites(self):
+        """Un guard que se salta un caso en silencio no se distingue de uno que
+        no mira: el "no se ha podido mirar" tiene que estar escrito."""
+        repo = os.path.join(self.dir, "repo_un_commit")
+        skill = os.path.join(repo, "editoria")
+        _copia_completa(skill)
+
+        def _git(*args):
+            subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+
+        _git("init", "-q")
+        _git("config", "user.email", "test@local")
+        _git("config", "user.name", "test")
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "uno")
+        # un solo commit: no hay HEAD~1 con el que comparar el historial
+        rc, out = _auditar(skill)
+        self.assertIn("no ha mirado nada", out,
+                      f"si no se puede comparar, se dice:\n{out[:800]}")
+
     def test_detecta_un_commit_que_arrastra_trabajo(self):
         # un commit puede llevarse trabajo en vuelo al arbol commiteado: el
         # doc y el codigo quedan coherentes entre si (los dos erroneos a la

@@ -1541,7 +1541,7 @@ def _chequear_clis_del_sk(problemas):
                        f"por ahi y no la encuentra"})
 
 
-def _chequear_commit_que_arrastra_trabajo(problemas):
+def _chequear_commit_que_arrastra_trabajo(problemas, notas=None):
     """Que un commit no haya arrastrado trabajo en vuelo al arbol commiteado.
 
     Cuando se commitea con cambios sin commitear en el arbol, el doc y el
@@ -1553,17 +1553,30 @@ def _chequear_commit_que_arrastra_trabajo(problemas):
     un commit asi ambos son erroneos a la vez: no se ven. Este guard
     mira el commit ANTERIOR: si una suite estaba listada y existia, y
     ahora no esta en ninguno de los dos lados, alguien se la llevo.
+
+    Y cuando NO se puede comparar, se DICE (notas). Un guard que se salta
+    un caso en silencio es indistinguible de un guard que no mira: el
+    "no se ha podido mirar" tiene que estar escrito.
     """
     raiz = _raiz_git()
     if not raiz:
-        return
+        return          # la nota "sin repo" ya la dice main()
     try:
         r = subprocess.run(["git", "-C", raiz, "diff", "--name-only", "HEAD~1", "HEAD"],
                            capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
+        if notas is not None:
+            notas.append("no se ha podido leer HEAD~1: el check de 'suite perdida "
+                         "en el commit' no ha mirado nada")
         return
-    if r.returncode != 0 or not r.stdout.strip():
+    if r.returncode != 0:
+        if notas is not None:
+            notas.append("no hay commit anterior que comparar (HEAD~1 no existe o "
+                         "no se ha podido leer): el check de 'suite perdida en el "
+                         "commit' no ha mirado nada")
         return
+    if not r.stdout.strip():
+        return          # el commit no toco nada: no hay nada que comparar
     tocados = [p for p in r.stdout.split() if p.endswith(".md") or p.endswith(".py")]
     if not tocados:
         return
@@ -1606,6 +1619,13 @@ def _chequear_commit_que_arrastra_trabajo(problemas):
     antes_list, antes_reales = _suites_de("HEAD~1")
     ahora_list, ahora_reales = _suites_de("HEAD")
     if not antes_list:
+        # El commit anterior no declara canonico: no hay con que comparar. Se
+        # DICE, porque un check que se salta un caso en silencio es
+        # indistinguible de un check que no mira.
+        if notas is not None:
+            notas.append("HEAD~1 no tiene el canonico de suites "
+                         "(scripts/data/suites.json): el check de 'suite perdida "
+                         "en el commit' no ha mirado nada")
         return
     # el CANONICO de las suites no puede desaparecer: si se borra, la lista
     # deja de compararse con el arbol y la proteccion se apaga en silencio.
@@ -1812,7 +1832,7 @@ def _chequear_lista_de_escenas(problemas):
                         + ". los nombres son las claves de SCENES en scripts/render_plan.py")})
 
 
-def _todos_los_checks(problemas, mds):
+def _todos_los_checks(problemas, mds, notas=None):
     """Todos los checks, sobre el arbol que este activo.
 
     Se corre dos veces: una sobre el arbol de trabajo y otra sobre un
@@ -1962,7 +1982,7 @@ def _todos_los_checks(problemas, mds):
     _chequear_tests_que_no_se_ejecutan(problemas)
 
     # ---- 16. el commit no arrastro trabajo en vuelo --------------------
-    _chequear_commit_que_arrastra_trabajo(problemas)
+    _chequear_commit_que_arrastra_trabajo(problemas, notas)
 
     # ---- 17. el contrato de CLI dice los que lo cumplen ----------------
     _chequear_contrato_cli(problemas)
@@ -2005,8 +2025,9 @@ def _dos_pasadas():
     global BASE, REFS
     import tempfile
     mds = sorted(f for f in os.listdir(REFS) if f.endswith(".md"))
+    notas = []
     problemas = []
-    dominios, canonicos, alcance = _todos_los_checks(problemas, mds)
+    dominios, canonicos, alcance = _todos_los_checks(problemas, mds, notas)
 
     avisos = []
     raiz = _raiz_git()
@@ -2044,7 +2065,7 @@ def _dos_pasadas():
                 # texto roto dentro. Un aviso que no frena nada no es un aviso:
                 # es una nota.
                 _chequear_mensajes_de_commit(problemas, avisos)
-    return problemas, avisos, mds, dominios, canonicos, alcance
+    return problemas, avisos, mds, dominios, canonicos, alcance, notas
 
 
 def _chequear_mensajes_de_commit(problemas, avisos):
@@ -2172,21 +2193,23 @@ def main():
         print("ERROR: no se encuentra la skill", file=sys.stderr)
         return 2
 
-    problemas, avisos, mds, dominios, canonicos, alcance = _dos_pasadas()
+    problemas, avisos, mds, dominios, canonicos, alcance, notas = _dos_pasadas()
 
     # lo que este guard NO ha podido mirar, se dice: un guard que no
     # encuentra su objeto tiene que decirlo, no pasar en silencio (la copia
     # instalada no tiene .git, y ahi el historial no se puede ver).
-    notas = []
+    # `notas` llega con lo que las dos pasadas ya han dicho (por ejemplo, que
+    # el check del commit no ha podido comparar): se imprime TODO, no solo lo
+    # de aqui.
     if not _raiz_git():
         notas.append("sin repo: los mensajes de commit no se han podido mirar "
                      "(el historial vive en el repo; la copia instalada no lo tiene)")
-        print("NOTA: " + notas[-1])
     if _suites_declaradas() is None:
         notas.append("sin canonico de suites (scripts/data/suites.json): la lista "
                      "de suites no se ha podido mirar, y la proteccion que la "
                      "compara con el arbol queda apagada")
-        print("NOTA: " + notas[-1])
+    for _n in notas:
+        print("NOTA: " + _n)
 
     # ---- informe ------------------------------------------------------
     dominios_resumen = {}
