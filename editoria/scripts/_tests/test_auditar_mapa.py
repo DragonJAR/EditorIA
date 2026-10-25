@@ -21,6 +21,23 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.dirname(HERE)
 BASE = os.path.dirname(SCRIPTS)
+
+
+def _suites_del_canonico(raiz):
+    """Las suites que declara el canonico de ese arbol (lista)."""
+    ruta = os.path.join(raiz, "scripts", "data", "suites.json")
+    if not os.path.exists(ruta):
+        return []
+    with open(ruta, encoding="utf-8") as f:
+        return (json.load(f) or {}).get("suites") or []
+
+
+def _escribe_canonico(raiz, suites):
+    """Escribe el canonico de suites en el arbol indicado."""
+    d = os.path.join(raiz, "scripts", "data")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "suites.json"), "w", encoding="utf-8") as f:
+        json.dump({"_que_es": "fixture", "suites": sorted(suites)}, f, indent=1)
 AUDITAR = os.path.join(SCRIPTS, "auditar_mapa.py")
 
 
@@ -476,15 +493,16 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("densidad de movimiento", out)
 
     def test_detecta_una_suite_sin_enlistar(self):
-        # el SKILL.md enumera las suites que deben pasar: si esa lista no es
+        # el CANONICO enumera las suites que deben pasar: si esa lista no es
         # el conjunto real, la promesa envejece en silencio
         raiz = self.raiz
         d = os.path.join(raiz, "scripts", "_tests")
         os.makedirs(d, exist_ok=True)
-        # primero, las que el SKILL.md lista, para que el check no grune
-        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as f:
-            txt = f.read()
-        for nombre in set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt)):
+        suites = _suites_del_canonico(BASE)
+        self.assertTrue(suites, "el canonico de verdad deberia listar suites")
+        _escribe_canonico(raiz, suites)
+        # primero, las que el canonico lista, para que el check no grune
+        for nombre in suites:
             with open(os.path.join(d, nombre), "w", encoding="utf-8") as f:
                 f.write("# suite de mentira\n")
         # ahora una suite que nadie listo (el nombre se arma en piezas: una
@@ -506,11 +524,9 @@ class TestAuditarMapa(unittest.TestCase):
         fantasma = "test_" + "fantasma.py"
         with open(os.path.join(d, fantasma), "w", encoding="utf-8") as f:
             f.write("# no deberia estar aqui\n")
-        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as f:
-            txt = f.read()
-        ruta = "scripts" + "/_tests/" + fantasma
-        with open(os.path.join(raiz, "SKILL.md"), "w", encoding="utf-8") as f:
-            f.write(txt + "\n`" + ruta + "`\n")
+        # el canonico declara una suite que no existe: enlace roto en lo
+        # publicado
+        _escribe_canonico(raiz, _suites_del_canonico(BASE) + [fantasma])
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"la suite fantasma no se detecto:\n{out}")
         self.assertIn("suite listada que no existe", out)
@@ -570,18 +586,14 @@ class TestAuditarMapa(unittest.TestCase):
         _git("add", "-A")
         _git("commit", "-q", "-m", "uno")
 
-        # el segundo commit: una suite desaparece de la lista Y del arbol
-        s = os.path.join(skill, "SKILL.md")
-        with open(s, encoding="utf-8") as f:
-            txt = f.read()
-        suites = re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt)
-        self.assertTrue(suites, "el SKILL.md deberia listar suites")
+        # el segundo commit: una suite desaparece del canonico Y del arbol
+        suites = _suites_del_canonico(skill)
+        self.assertTrue(suites, "el canonico deberia listar suites")
         victim = suites[0]
         ruta = os.path.join(skill, "scripts", "_tests", victim)
         self.assertTrue(os.path.exists(ruta), f"la suite listada {victim} deberia existir")
         os.remove(ruta)
-        with open(s, "w", encoding="utf-8") as f:
-            f.write(re.sub(r"[,\s]*`?scripts/_tests/" + re.escape(victim) + r"`?", "", txt))
+        _escribe_canonico(skill, [s for s in suites if s != victim])
         _git("add", "-A")
         _git("commit", "-q", "-m", "dos")
 

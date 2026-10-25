@@ -1107,33 +1107,82 @@ def _suites_publicadas():
             and os.path.basename(p).endswith(".py")}
 
 
-def _chequear_lista_de_suites(problemas):
-    """Que la lista de suites del SKILL.md sea el conjunto real.
+#: El CANONICO de las suites: la lista que el guard compara con el arbol.
+#:
+#: La lista vivia en el `SKILL.md`, y ahi era dos cosas a la vez: prosa que el
+#: agente se leia en cada peticion (46 rutas de test que no usa) y una bomba
+#: de relojería para el limite de 5000 palabras (cada suite nueva sumaba una
+#: y la puerta caia por una palabra). Ahora es dato de la herramienta, con
+#: `verticales.json` y `cli_verificadas.json`. Lo que no cambia es el guard:
+#: la lista sigue siendo una copia de la verdad y sigue habiendo alguien que
+#: la compare con el arbol.
+RUTA_SUITES = os.path.join("scripts", "data", "suites.json")
 
-    El SKILL.md enumera las suites que tienen que pasar. Esa lista es una
-    promesa: si alguien anade una suite y no la lista, la promesa sigue
-    diciendo lo mismo y nadie se entera. Y al reves, una suite listada
-    que ya no existe hace fallar la validacion por un archivo que no
-    esta.
+
+def _suites_declaradas():
+    """Las suites que declara el canonico (set), o None si no se ha podido leer.
+
+    None NO es "no hay suites": es "no se ha podido mirar". Un guard que no
+    dice que no mira, no dice nada.
     """
-    skill = os.path.join(BASE, "SKILL.md")
+    ruta = os.path.join(BASE, RUTA_SUITES)
+    if not os.path.exists(ruta):
+        return None
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            doc = json.load(fh) or {}
+    except (OSError, ValueError):
+        return None
+    suites = doc.get("suites")
+    if not isinstance(suites, list):
+        return None
+    return set(suites)
+
+
+def _canonico_en(raiz, commit, rel_skill):
+    """El canonico de suites existia en ese commit?"""
+    try:
+        rr = subprocess.run(["git", "-C", raiz, "cat-file", "-e",
+                             f"{commit}:{rel_skill}/scripts/data/suites.json"],
+                            capture_output=True, text=True, timeout=20)
+        return rr.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _chequear_lista_de_suites(problemas):
+    """Que la lista de suites del canonico sea el conjunto real.
+
+    El SKILL.md enumera las suites que tienen que pasar: si esa lista no es
+    el conjunto real, la promesa envejece en silencio. Y al reves, una suite
+    listada que ya no existe hace fallar la validacion por un archivo que no
+    esta.
+
+    La lista vive en `scripts/data/suites.json` (la escribe
+    `scripts/actualizar_conteos.py`). El SKILL.md solo dice cuantas hay.
+    """
     tests_dir = os.path.join(BASE, "scripts", "_tests")
-    if not os.path.exists(skill) or not os.path.isdir(tests_dir):
+    if not os.path.isdir(tests_dir):
         return
-    txt = open(skill, encoding="utf-8").read()
-    listadas = set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", txt))
-    if not listadas:
+    listadas = _suites_declaradas()
+    if listadas is None:
+        # sin canonico no hay lista que comparar. NO es un fallo por si solo:
+        # el canonico es NUEVO, y mientras no este publicado (o mientras se
+        # mira una copia que no lo tiene) la proteccion simplemente no se
+        # puede aplicar. Lo que si es un fallo es que el canonico
+        # DESAPAREZCA: eso lo caza el check del commit, que compara HEAD~1
+        # con HEAD. Aqui solo se avisa de que no se ha podido mirar.
         return
     reales = _suites_publicadas()
     for f in sorted(reales - listadas):
         problemas.append({
-            "tipo": "suite sin enlistar", "archivo": "SKILL.md",
-            "msg": f"existe scripts/_tests/{f} y el SKILL.md no la lista: "
+            "tipo": "suite sin enlistar", "archivo": RUTA_SUITES,
+            "msg": f"existe scripts/_tests/{f} y el canonico no la lista: "
                    f"la lista de suites tiene que ser el conjunto real"})
     for f in sorted(listadas - reales):
         problemas.append({
-            "tipo": "suite listada que no existe", "archivo": "SKILL.md",
-            "msg": f"el SKILL.md lista scripts/_tests/{f} y ese archivo no existe"})
+            "tipo": "suite listada que no existe", "archivo": RUTA_SUITES,
+            "msg": f"el canonico lista scripts/_tests/{f} y ese archivo no existe"})
 
 
 # los scripts que leen el PLAN DE VIDEO. `shorts_plan.py` y `chapters.py`
@@ -1479,14 +1528,25 @@ def _chequear_commit_que_arrastra_trabajo(problemas):
     rel_skill = os.path.relpath(os.path.realpath(BASE), raiz).replace(os.sep, "/")
 
     def _suites_de(commit):
+        """(listadas, reales) de un commit: lo que declara el canonico y lo que hay.
+
+        El canonico es `scripts/data/suites.json` (la lista que escribe
+        `scripts/actualizar_conteos.py`). Antes la lista vivia en el
+        `SKILL.md`: mismo check, otra fuente.
+        """
         try:
-            rr = subprocess.run(["git", "-C", raiz, "show", f"{commit}:{rel_skill}/SKILL.md"],
+            rr = subprocess.run(["git", "-C", raiz, "show",
+                                 f"{commit}:{rel_skill}/scripts/data/suites.json"],
                                 capture_output=True, text=True, timeout=20)
         except (OSError, subprocess.SubprocessError):
             return set(), set()
-        if rr.returncode != 0:
-            return set(), set()
-        listadas = set(re.findall(r"scripts/_tests/(test_[A-Za-z0-9_]+\.py)", rr.stdout))
+        listadas = set()
+        if rr.returncode == 0:
+            try:
+                doc = json.loads(rr.stdout) or {}
+                listadas = set(doc.get("suites") or [])
+            except ValueError:
+                listadas = set()
         reales = set()
         try:
             rr2 = subprocess.run(["git", "-C", raiz, "ls-tree", "-r", "--name-only",
@@ -1504,6 +1564,17 @@ def _chequear_commit_que_arrastra_trabajo(problemas):
     ahora_list, ahora_reales = _suites_de("HEAD")
     if not antes_list:
         return
+    # el CANONICO de las suites no puede desaparecer: si se borra, la lista
+    # deja de compararse con el arbol y la proteccion se apaga en silencio.
+    # No es lo mismo que "todavia no se ha publicado" (aun no hay canonico
+    # en HEAD~1: no hay nada que borrar).
+    if antes_list and not ahora_list and _canonico_en(raiz, "HEAD~1", rel_skill):
+        problemas.append({
+            "tipo": "canonico de suites borrado", "archivo": RUTA_SUITES,
+            "msg": "el commit borro scripts/data/suites.json: la lista de suites "
+                   "deja de compararse con el arbol, y la proteccion queda apagada "
+                   "en silencio (se regenera con `python scripts/actualizar_conteos.py`)"
+        })
     # una suite que estaba listada Y existia, y ahora no esta en ninguno de
     # los dos lados: se ha perdido en el commit
     perdidas = (antes_list & antes_reales) - ahora_list - ahora_reales
@@ -2067,6 +2138,11 @@ def main():
     if not _raiz_git():
         notas.append("sin repo: los mensajes de commit no se han podido mirar "
                      "(el historial vive en el repo; la copia instalada no lo tiene)")
+        print("NOTA: " + notas[-1])
+    if _suites_declaradas() is None:
+        notas.append("sin canonico de suites (scripts/data/suites.json): la lista "
+                     "de suites no se ha podido mirar, y la proteccion que la "
+                     "compara con el arbol queda apagada")
         print("NOTA: " + notas[-1])
 
     # ---- informe ------------------------------------------------------

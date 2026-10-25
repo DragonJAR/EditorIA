@@ -3,10 +3,15 @@
 
 Cuatro numeros envejecen cada vez que se anade un script o una suite:
 referencias, scripts raiz, herramientas de ffmpeg y suites de tests.
-Viven en varios sitios a la vez (el encabezado de `references/mapa.md`, la
-lista de suites del `SKILL.md` y los README del repo) y actualizarlos a
+Viven en varios sitios a la vez (el encabezado de `references/mapa.md`, el
+numero de suites del `SKILL.md` y los README del repo) y actualizarlos a
 mano es justo lo que se olvida: el documento acaba diciendo una cosa que
 ya no es, y el arbol publicado lleva enlaces rotos o cifras falsas.
+
+Ademas escribe el CANONICO de las suites (`scripts/data/suites.json`): la
+lista que `scripts/auditar_mapa.py` compara con el arbol. Antes esa lista
+vivia enumerada en el `SKILL.md`, y ahi era ruido para el agente (se la leia
+en cada peticion) y una bomba de relojería para el limite de 5000 palabras.
 
 La herramienta cuenta con la MISMA fuente que el guard
 (`scripts/auditar_mapa.py`), asi que los dos no pueden discrepar, y
@@ -22,6 +27,7 @@ Uso:
     python scripts/actualizar_conteos.py --check   # solo informa (no escribe)
 """
 import argparse
+import json
 import os
 import re
 import shutil
@@ -34,6 +40,16 @@ if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
 import auditar_mapa as AM  # noqa: E402  una sola fuente de verdad para contar
+
+#: El CANONICO de las suites: la lista que el guard compara con el arbol.
+#:
+#: La lista vivia en el `SKILL.md`, y ahi era dos problemas a la vez:
+#: CONTENIDO que el agente se leia en cada peticion (46 rutas de test que no
+#: usa) y CONTENIDO que el limite de 5000 palabras del `SKILL.md` podia tumbar
+#: por una palabra (cada suite nueva sumaba una). Aqui vive donde pertenece:
+#: los datos de la herramienta, junto a `verticales.json` y
+#: `cli_verificadas.json`.
+RUTA_SUITES = os.path.join("scripts", "data", "suites.json")
 
 
 def cuentas():
@@ -58,17 +74,6 @@ def cuentas():
     archivos = AM._n_publicados("scripts/_tests", lambda p: p.endswith(".py")
                                  and p != "__init__.py")
     return refs, root, fft, suites, archivos
-
-
-def _lista_de_suites(nombres):
-    """La misma forma que usa el SKILL.md: comas y "and" antes de la ultima."""
-    nombres = sorted(nombres)
-    if not nombres:
-        return "(ninguna)"
-    if len(nombres) == 1:
-        return f"`scripts/_tests/{nombres[0]}`"
-    return (", ".join(f"`scripts/_tests/{n}`" for n in nombres[:-1])
-            + f" and `scripts/_tests/{nombres[-1]}`")
 
 
 def _sustituye(texto, patron, nuevo, etiqueta, cambios):
@@ -98,41 +103,83 @@ def _transforma_mapa(texto, refs, root, fft, suites, cambios):
     return texto
 
 
-def _diff_de_suites(antes, nuevo):
-    """Que cambia entre las dos listas de suites, por NOMBRE.
+def _lee_suites_de_canonico(dest_skill):
+    """Las suites que declara el canonico (set), o None si no esta."""
+    ruta = os.path.join(dest_skill, RUTA_SUITES)
+    if not os.path.exists(ruta):
+        return None
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            doc = json.load(fh) or {}
+    except (OSError, ValueError):
+        return None
+    suites = doc.get("suites")
+    if not isinstance(suites, list):
+        return None
+    return set(suites)
 
-    La lista entera son 30 lineas de paths: lo que se necesita saber es que
-    suite falta o sobra. dos listas que se comparan nombre a nombre.
+
+def _escribe_suites(dest_skill, nombres, cambios):
+    """Escribe el canonico de suites y dice QUE cambia.
+
+    El informe es por NOMBRE: lo que se necesita saber es que suite falta o
+    sobra, no el fichero entero. Y el canonico se escribe SIEMPRE aunque
+    nada haya cambiado, para que exista (un canonico que no esta, no es un
+    canonico: es un hole).
     """
-    a = set(re.findall(r"`([^`]+)`", antes))
-    n = set(re.findall(r"`([^`]+)`", nuevo))
-    faltan = sorted(n - a)
-    sobran = sorted(a - n)
+    ruta = os.path.join(dest_skill, RUTA_SUITES)
+    antes = _lee_suites_de_canonico(dest_skill) or set()
+    lista = sorted(nombres)
+    if antes == set(lista) and os.path.exists(ruta):
+        return
+    faltan = sorted(set(lista) - antes)
+    sobran = sorted(antes - set(lista))
     partes = []
     if faltan:
         partes.append("faltan " + ", ".join(faltan))
     if sobran:
         partes.append("sobran " + ", ".join(sobran))
-    return "; ".join(partes) if partes else "la lista de suites cambia"
+    cambios.append((RUTA_SUITES, "; ".join(partes) if partes else "la lista de suites cambia",
+                    f"{len(lista)} suites"))
+    os.makedirs(os.path.dirname(ruta), exist_ok=True)
+    doc = {
+        "_que_es": "La lista CANONICA de suites de la skill. La escribe "
+                   "`scripts/actualizar_conteos.py` y la compara "
+                   "`scripts/auditar_mapa.py` con el arbol: si aqui falta una "
+                   "suite que existe, o sobra una que no, la promesa del "
+                   "SKILL.md envejece en silencio. Vive aqui (y no en el "
+                   "SKILL.md) porque es dato de la herramienta, no prosa que "
+                   "el agente tenga que leerse en cada peticion.",
+        "_como_se_regenera": "python3 scripts/actualizar_conteos.py",
+        "suites": lista,
+    }
+    with open(ruta, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh, indent=1, ensure_ascii=False)
+        fh.write("\n")
 
 
-def _transforma_lista_de_suites(texto, suites, cambios):
+def _transforma_frase_de_suites(texto, suites, cambios):
+    """El SKILL.md deja de ENUMERAR las suites: dice cuantas hay y donde.
+
+    La lista completa vive en `scripts/data/suites.json`. En el SKILL.md, 46
+    rutas de test eran ruido para el agente (las lee en cada peticion) y una
+    bomba de relojería para el limite de palabras: cada suite nueva sumaba
+    una palabra y la puerta caia por una palabra.
+
+    OJO con la cola: todo lo que viene DESPUES del fragmento tiene que
+    seguir ahi. Una reescritura que se come el resto del archivo (la seccion
+    de ejemplos, los pasos que van despues) es un fallo silencioso y
+    destructivo: el archivo queda mas corto, el "--check" dice "nada" (ya no
+    encuentra nada que cambiar) y nadie se entera.
+    """
     mt = re.search(r"(unit tests in )(.+?)( pass via)", texto)
     if not mt:
         return texto
     antes = mt.group(2)
-    lista = _lista_de_suites(suites)
+    lista = f"`scripts/_tests/` ({len(suites)} suites)"
     if antes == lista:
         return texto
-    # el informe desempaqueta (archivo, lo que decia, lo que dira): anadir
-    # solo el nombre del archivo hacia que el informe reventara justo
-    # cuando se anade una suite, que es cuando mas se usa esta herramienta
-    cambios.append(("SKILL.md", _diff_de_suites(antes, lista), f"{len(suites)} suites"))
-    # OJO con la cola: todo lo que viene DESPUES del fragmento tiene que
-    # seguir ahi. Una reescritura que se come el resto del archivo (la
-    # seccion de ejemplos, los pasos que van despues) es un fallo
-    # silencioso y destructivo: el archivo queda mas corto, el "--check"
-    # dice "nada" (ya no encuentra nada que cambiar) y nadie se entera.
+    cambios.append(("SKILL.md", antes, lista))
     return texto[:mt.start()] + mt.group(1) + lista + mt.group(3) + texto[mt.end():]
 
 
@@ -157,7 +204,7 @@ def _transforma_skill(texto, refs, nombres, cambios):
     """El SKILL.md tambien enuncia el numero de referencias (lo que hace de
     indice). Si la herramienta no lo reescribe, el numero se queda viejo en
     silencio: el guard lo ve, pero el que tiene que arreglarlo es esto."""
-    texto = _transforma_lista_de_suites(texto, nombres, cambios)
+    texto = _transforma_frase_de_suites(texto, nombres, cambios)
     texto = _sustituye(texto, r"\d+ references with one canonical source",
                        f"{refs} references with one canonical source",
                        "SKILL.md", cambios)
@@ -223,6 +270,9 @@ def main():
 def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
     """Aplica los cambios a la copia de la skill indicada."""
     nombres = AM._suites_publicadas()
+    # el canonico primero: si el SKILL.md dice cuantas suites hay, ese numero
+    # tiene que salir de la misma lista que se acaba de escribir
+    _escribe_suites(dest_skill, nombres, cambios)
     ruta = os.path.join(dest_skill, "references", "mapa.md")
     if os.path.exists(ruta):
         texto = open(ruta, encoding="utf-8").read()

@@ -565,6 +565,18 @@ for s in sorted(scripts_mencionados):
 
 # 3b. sin huérfanos: todo archivo del skill debe ser encontrable desde algún .md
 mencionados_todos = set(re.findall(r"(?:references|scripts|film|demo)/[\w\-./]+\.(?:md|json|py|mp4|mp3|png)", corpus))
+# El CANONICO de las suites (scripts/data/suites.json) es un indice VALIDO: las
+# suites que declara son encontrables por el. Antes las enumeraba el SKILL.md;
+# ahora las declara el dato, porque en la prosa eran ruido para el agente (se
+# las leia en cada peticion) y una bomba de relojería para el limite de
+# palabras del SKILL.md.
+try:
+    with open(os.path.join(BASE, "scripts", "data", "suites.json"), encoding="utf-8") as _fh:
+        _suites_canon = (json.load(_fh) or {}).get("suites") or []
+except (OSError, ValueError):
+    _suites_canon = []
+for _s in _suites_canon:
+    mencionados_todos.add("scripts/_tests/" + _s)
 huerfanos = []
 for dp, _dn, fn in os.walk(BASE):
     if "__pycache__" in dp:

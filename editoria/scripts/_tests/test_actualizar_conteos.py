@@ -20,6 +20,7 @@ reelegir solo lo de la skill y no fallar.
 Run with: python3 -m unittest discover -s SKILL/scripts/_tests
 """
 
+import json
 import os
 import re
 import shutil
@@ -193,7 +194,9 @@ class TestActualizarConteos(unittest.TestCase):
         self.assertIsNotNone(mt, "el SKILL.md tiene que traer la lista de suites")
         pre = antes[:mt.start()]
         post = antes[mt.end():]
-        # una suite nueva: la lista del SKILL.md tiene que cambiar
+        # una suite nueva: el CANONICO tiene que cambiarla. El SKILL.md ya no
+        # enumera las suites (esa lista se movio de sitio: era ruido para el
+        # agente y una bomba de relojería para el limite de palabras).
         with open(os.path.join(skill, "scripts", "_tests", "test_nueva_suite.py"), "w",
                   encoding="utf-8") as f:
             f.write("import unittest\n")
@@ -203,7 +206,14 @@ class TestActualizarConteos(unittest.TestCase):
             despues = f.read()
         self.assertTrue(despues.startswith(pre), "la reescritura se come el principio")
         self.assertTrue(despues.endswith(post), "la reescritura se come la cola")
-        self.assertIn("test_nueva_suite.py", despues, "la suite nueva tiene que aparecer")
+        self.assertNotIn("`scripts/_tests/test_", despues,
+                         "el SKILL.md no debe enumerar las suites: la lista vive "
+                         "en el canonico (scripts/data/suites.json)")
+        with open(os.path.join(skill, "scripts", "data", "suites.json"),
+                  encoding="utf-8") as f:
+            suites = (json.load(f) or {}).get("suites") or []
+        self.assertIn("test_nueva_suite.py", suites,
+                      "la suite nueva tiene que aparecer en el canonico")
 
     def test_check_no_escribe(self):
         repo, skill = self._repo()

@@ -358,6 +358,14 @@ escribir es un tapón).
 | `scripts/_guard_entorno.py` | que la suite dé el MISMO veredicto con repo y sin repo: la copia instalada no tiene repo, y si los tests cambian de veredicto ahí, una sola puerta no basta (lo mide, no lo supone) |
 | `scripts/_cerrar_tip.py` | cerrar un tip: mide en un worktree aislado (puerta, entorno y copia instalada) y lo dice en una línea; no mide en el árbol compartido y no publica |
 
+**Y el canónico de las suites**: `scripts/data/suites.json` declara la lista
+de tests que tienen que pasar. La escribe `scripts/actualizar_conteos.py` y la
+compara `scripts/auditar_mapa.py` con el árbol (si falta una suite que existe,
+o sobra una que no, la promesa envejece en silencio). Vive como dato y no
+enumerada en el `SKILL.md` porque en la prosa eran ruido para el agente —que se
+las leía en cada petición— y una bomba de relojería para el límite de palabras:
+cada suite nueva sumaba una palabra y la puerta caía por una palabra.
+
 ---
 
 → Canónico: `references/mapa.md` · Dominio: indice · Vecinos: `references/plan-video.md`, `references/arquitectura.md`, `references/qa-entrega.md`
