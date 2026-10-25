@@ -125,11 +125,36 @@ def _exportar_head(destino, raiz):
     return os.path.join(destino, rel)
 
 
+def _dirs_de(base):
+    """Los directorios (relativos) de un arbol. Las caches no cuentan.
+
+    Los directorios importan por una razon concreta: `git archive` NO guarda
+    los directorios vacios (git no los puede versionar), pero `copytree` SI
+    copia los que hay. Un directorio que se quedo en la copia de una
+    sincronizacion antigua sobrevive a todas las siguientes, porque el
+    sincronizador solo borra ficheros que sobran. Y el check de ficheros no lo
+    ve: el directorio no es un fichero.
+    """
+    out = set()
+    for d, dirs, _files in os.walk(base):
+        dirs[:] = [x for x in dirs
+                   if x not in ("__pycache__", ".ruff_cache", ".pytest_cache")]
+        rel = os.path.relpath(d, base)
+        if rel != ".":
+            out.add(rel.replace(os.sep, "/"))
+    return out
+
+
 def _comparar(base_head, base_copia):
-    """Los archivos que difieren entre lo publicado y la copia."""
+    """Los archivos que difieren entre lo publicado y la copia, y los
+    directorios que sobran o faltan."""
     head, copia = set(), set()
     for d, _dirs, files in os.walk(base_head):
         for f in files:
+            # el .DS_Store es basura del sistema: el .gitignore lo excluye, y
+            # que este en un lado y no en otro no es una diferencia real
+            if f == ".DS_Store":
+                continue
             head.add(os.path.relpath(os.path.join(d, f), base_head))
     for d, _dirs, files in os.walk(base_copia):
         for f in files:
@@ -148,7 +173,11 @@ def _comparar(base_head, base_copia):
                 distintos.append(rel)
         except OSError:
             pass
-    return solo_head, solo_copia, distintos
+    dirs_head = _dirs_de(base_head)
+    dirs_copia = _dirs_de(base_copia)
+    solo_dirs_head = sorted(dirs_head - dirs_copia)
+    solo_dirs_copia = sorted(dirs_copia - dirs_head)
+    return solo_head, solo_copia, distintos, solo_dirs_head, solo_dirs_copia
 
 
 def main():
@@ -169,8 +198,9 @@ def main():
         with tempfile.TemporaryDirectory() as tmp:
             base_head = _exportar_head(tmp, raiz)
             if base_head:
-                solo_head, solo_copia, distintos = _comparar(base_head, copia)
-                if solo_head or solo_copia or distintos:
+                solo_head, solo_copia, distintos, solo_dirs_head, solo_dirs_copia = \
+                    _comparar(base_head, copia)
+                if solo_head or solo_copia or distintos or solo_dirs_copia or solo_dirs_head:
                     print("la copia se diferencia de lo publicado:")
                     for rel in solo_head:
                         print(f"  falta en la copia:   {rel}")
@@ -178,6 +208,12 @@ def main():
                         print(f"  sobra en la copia:   {rel}")
                     for rel in distintos:
                         print(f"  distinto:            {rel}")
+                    for rel in solo_dirs_head:
+                        print(f"  falta el directorio: {rel}")
+                    for rel in solo_dirs_copia:
+                        print(f"  sobra el directorio: {rel} "
+                              f"(vacio: git archive no guarda directorios vacios, "
+                              f"pero copytree si)")
                 else:
                     print("la copia coincide con lo publicado")
                 if escribir:
@@ -186,6 +222,17 @@ def main():
                         if os.path.isfile(ruta):
                             os.remove(ruta)
                     shutil.copytree(base_head, copia, dirs_exist_ok=True)
+                    # los directorios que sobran ya estan vacios (sus ficheros
+                    # se acaban de borrar): se pueden quitar. Solo si estan
+                    # vacios de verdad: un directorio con contenido no se
+                    # toca, porque ahi puede haber algo que el usuario puso.
+                    for rel in solo_dirs_copia:
+                        ruta = os.path.join(copia, rel)
+                        if os.path.isdir(ruta):
+                            try:
+                                os.rmdir(ruta)
+                            except OSError:
+                                pass
                     print("copia actualizada con lo publicado")
     else:
         print("sin repo: la copia ES lo publicado; solo se comprueba y se limpia")

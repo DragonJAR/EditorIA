@@ -156,6 +156,61 @@ class TestSincronizarInstalada(unittest.TestCase):
         self.assertNotIn("solo en el arbol", txt,
                          "lo que no esta publicado no puede quedar en la copia")
 
+    def test_detecta_y_limpia_un_directorio_vacio_que_sobra(self):
+        # `git archive` NO guarda los directorios vacios (git no los puede
+        # versionar), pero `copytree` SI copia los que hay. Un directorio que
+        # se quedo en la copia de una sincronizacion antigua sobrevive a
+        # todas las siguientes, porque el sincronizador solo borraba ficheros
+        # que sobran. Y el check de ficheros no lo ve: un directorio vacio no
+        # es un fichero. O sea: el check decia "coincide" con basura dentro.
+        repo = os.path.join(self.dir, "repo_dirs")
+        skill = os.path.join(repo, "editoria")
+        _copia_skill(skill)
+
+        def _git(*args):
+            subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+
+        _git("init", "-q")
+        _git("config", "user.email", "test@local")
+        _git("config", "user.name", "test")
+        _git("add", "-A")
+        _git("commit", "-q", "-m", "uno")
+
+        # la copia se deja como esta el repo (sin directorios vacios)
+        r = subprocess.run(
+            [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
+             "--destino", self.destino],
+            capture_output=True, text=True, timeout=300, cwd=skill)
+        self.assertEqual(r.returncode, 0, f"la sincronizacion fallo:\n{r.stdout}\n{r.stderr}")
+
+        # y ahora aparece un directorio vacio, como el que se colaba hace dias
+        sobra = os.path.join(self.destino, "editoria", "referencia_analisis")
+        os.makedirs(sobra, exist_ok=True)
+
+        r = subprocess.run(
+            [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
+             "--destino", self.destino, "--check"],
+            capture_output=True, text=True, timeout=300, cwd=skill)
+        self.assertIn("sobra el directorio", r.stdout,
+                      f"el check tiene que ver el directorio que sobra:\n{r.stdout}")
+        self.assertNotIn("la copia coincide con lo publicado", r.stdout,
+                         "con un directorio de mas, la copia NO coincide")
+
+        r = subprocess.run(
+            [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
+             "--destino", self.destino],
+            capture_output=True, text=True, timeout=300, cwd=skill)
+        self.assertEqual(r.returncode, 0, f"la sincronizacion fallo:\n{r.stdout}\n{r.stderr}")
+        self.assertFalse(os.path.exists(sobra),
+                         "el directorio vacio que sobra tiene que irse")
+
+        r = subprocess.run(
+            [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
+             "--destino", self.destino, "--check"],
+            capture_output=True, text=True, timeout=300, cwd=skill)
+        self.assertIn("la copia coincide con lo publicado", r.stdout,
+                      f"despues de sincronizar, la copia coincide del todo:\n{r.stdout}")
+
 
 if __name__ == "__main__":
     unittest.main()
