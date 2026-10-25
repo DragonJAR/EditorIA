@@ -393,6 +393,28 @@ def auditar_tells(plan):
             if clave in TITULARES and len(limpio) > TITULAR_MAX:
                 add("titular-largo", t, f"{donde}: {clave} de {len(limpio)} caracteres (> {TITULAR_MAX}): el auto-fit lo encoge hasta que deja de ser titular; recorta o pasa el resto a una línea de apoyo")
 
+    # Poco repertorio: la pieza entera con dos o tres tipos de escena (o un
+    # tipo en la mitad de las escenas) se lee como la plantilla de siempre,
+    # aunque ninguna escena se repita tres veces seguidas. El catalogo tiene
+    # 39 tipos y el indice por intencion (references/intencion-escena.md)
+    # da la escena por ARGUMENTO: este aviso mide el sintoma, la eleccion
+    # sigue siendo del argumento, no de una cuota.
+    tipos = [e.get("tipo") for _, e in escenas]
+    n_tipos = len(tipos)
+    if n_tipos >= 6:
+        distintos = sorted(set(tipos))
+        dominante, veces = max(((t_, tipos.count(t_)) for t_ in distintos),
+                               key=lambda p: p[1], default=(None, 0))
+        if len(distintos) <= 3 or veces >= 0.5 * n_tipos:
+            add("poco-repertorio", 0.0,
+                f"solo {len(distintos)} tipos de escena en {n_tipos} escenas "
+                f"({', '.join(distintos)}; «{dominante}» x{veces}): la pieza se lee "
+                "como la plantilla de siempre. Elige cada escena por su intencion "
+                "(references/intencion-escena.md: dato=stats/bars/ranking/gauge/pie, "
+                "proceso=pasos/timeline/orbita, testimonio=quote/comentario, "
+                "cierre=remate/final/oferta...) y, entre dos piezas, no repitas el "
+                "tipo dominante de la anterior si el argumento no lo pide. Si esta "
+                "sobriedad es deliberada, decláralo en \"tells_ok\": [\"poco-repertorio\"]")
     n = len(escenas)
     if n >= 5 and sum(1 for _, e in escenas if e.get("rotulo")) >= 0.8 * n:
         add("rotulo-en-todas", 0.0, f"{sum(1 for _, e in escenas if e.get('rotulo'))} de {n} escenas llevan rótulo (kicker): es el reflejo de plantilla; resérvalo a donde aporta (si es la firma deliberada de la dirección, decláralo en tells_ok)")
@@ -410,7 +432,20 @@ def auditar_tells(plan):
     if len(durs) >= 5 and statistics.mean(durs) > 0:
         cv = statistics.pstdev(durs) / statistics.mean(durs)
         if cv < CV_MIN_CADENCIA:
-            add("cadencia-uniforme", 0.0, f"las {len(durs)} escenas duran casi lo mismo (CV {cv:.2f} < {CV_MIN_CADENCIA}): se lee como metrónomo (ritmo.md); varía las duraciones")
+            con_voz = sum(1 for _, e in ordenadas
+                          if isinstance(e.get("voz"), str) and e["voz"].strip())
+            if con_voz >= 0.8 * len(durs):
+                # La duracion la manda la voz (cada escena = su frase): no es
+                # un metronomo elegido, es el reloj de la narracion. Se
+                # DECLARA la excepcion, no se ignora en silencio (ritmo.md).
+                add("cadencia-uniforme", 0.0,
+                    f"las {len(durs)} escenas duran casi lo mismo (CV {cv:.2f} < {CV_MIN_CADENCIA}), "
+                    f"pero {con_voz} llevan voz: la duracion la manda la narracion (cada escena = su "
+                    "frase). Si es deliberado, decláralo en el plan con \"tells_ok\": "
+                    "[\"cadencia-uniforme\"] y anota el porqué en el proyecto; si no, adelgaza el "
+                    "texto de las escenas largas y reparte el aire (ritmo.md)")
+            else:
+                add("cadencia-uniforme", 0.0, f"las {len(durs)} escenas duran casi lo mismo (CV {cv:.2f} < {CV_MIN_CADENCIA}): se lee como metrónomo (ritmo.md); varía las duraciones o decláralo en \"tells_ok\": [\"cadencia-uniforme\"] si es deliberado")
     return out
 
 def main():

@@ -58,6 +58,42 @@ class TestVariar(unittest.TestCase):
             self.assertIn("plantilla", (r.stdout + r.stderr).lower())
 
 
+class TestAnimacionContinua(unittest.TestCase):
+    """Sin cortes duros no hay HOOK/CIERRE por posicion que inventar."""
+
+    def _mid(self, n):
+        return {"scenes": [{"start": i * 60.0, "end": (i + 1) * 60.0,
+                            "audio_rms": 0.1, "audio_peak": 0.2} for i in range(n)],
+                "audio_peaks": []}
+
+    def test_dos_tramos_no_son_hook_y_cierre(self):
+        sys.path.insert(0, SCRIPTS)
+        import clonar_video as CV
+        segs = CV._segmentos_medidos(self._mid(2))
+        self.assertEqual([s["rol"] for s in segs], ["continuo", "continuo"])
+        self.assertIsNone(segs[0]["tipo_sugerido"])
+
+    def test_con_cortes_si_hay_roles(self):
+        sys.path.insert(0, SCRIPTS)
+        import clonar_video as CV
+        segs = CV._segmentos_medidos(self._mid(4))
+        self.assertEqual(segs[0]["rol"], "hook")
+        self.assertEqual(segs[-1]["rol"], "cierre")
+
+    def test_variar_se_niega_con_una_plantilla_continua(self):
+        with tempfile.TemporaryDirectory() as d:
+            ruta = os.path.join(d, "plantilla.json")
+            with open(ruta, "w", encoding="utf-8") as fh:
+                json.dump({"duracion_referencia": 120.0, "animacion_continua": True,
+                           "segmentos": [{"indice": 1, "from": 0, "to": 120.0,
+                                          "rol": "continuo", "tipo_sugerido": None}]}, fh)
+            r = subprocess.run([sys.executable, CLONAR, "variar", "--plantilla", ruta,
+                                "--variantes", "1", "--out", os.path.join(d, "v")],
+                               capture_output=True, text=True, timeout=120)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("continua", (r.stdout + r.stderr).lower())
+
+
 class TestAnalizar(unittest.TestCase):
     """El análisis: los momentos del video se MEDIDEN, no se suponen.
 

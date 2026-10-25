@@ -120,6 +120,15 @@ class TestHerramientasSeEjecutan(unittest.TestCase):
                          "el EDL deberia ser START-END: " + linea)
         self.assertNotIn("ImportError", r.stdout + r.stderr)
 
+    def test_scenes_sheet_crea_la_carpeta_destino(self):
+        # --sheet a una carpeta que no existe: ffmpeg moria con 251 sin
+        # decir que el fallo era la ruta, no el video.
+        video = _video_con_corte(os.path.join(self.dir, "corte2.mp4"))
+        sheet = os.path.join(self.dir, "no", "existe", "cortes.png")
+        r = self._correr("scenes.py", video, "--sheet", sheet)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(os.path.exists(sheet))
+
     def test_shorts_plan_de_punta_a_punta(self):
         plan = {
             "fuente": self.video,

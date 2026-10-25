@@ -120,6 +120,29 @@ imagen con zoom y paneo progresivo (es una foto, no una escena de datos).
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
 
+## 2b. Rotacion: no usar siempre las mismas
+
+Este indice da UNA escena por intencion, y esa es la trampa: si cada pieza
+resuelve «dato» con `stats` y «cierre» con `final`, todas las piezas se
+parecen aunque el catalogo tenga 39 tipos. La escena se elige por el
+argumento, y dentro de la misma intencion hay familia para rotar:
+
+| intencion | familia (rota segun el argumento y la pieza anterior) |
+|---|---|
+| gancho | `apertura`, `hero`, `countdown`, `buscador`, `pildoras`, `orbOpen` |
+| dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
+| proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy` |
+| social/testimonio | `chat`, `comentario`, `notificacion`, `quote` |
+| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave` |
+
+(Fuente ejecutable de las familias: `FAMILIAS_ESCENAS` en
+`scripts/clonar_video.py`, que es la que usa `variar` para permutar.)
+Antes de elegir, mira que tipos uso la pieza anterior del proyecto (su
+plan o `PROGRESO.md`): no repitas su tipo dominante si el argumento no lo
+pide. `auditar_plan.py` avisa (`poco-repertorio`) cuando una pieza entera
+usa solo 2–3 tipos o un tipo en la mitad de las escenas; `demo_plan.json`
+es un ejemplo trabajado, no la plantilla por defecto.
+
 ## 3. Receta de movimiento por escena
 
 Los resortes del motor, con el **overshoot medido** (el valor de la

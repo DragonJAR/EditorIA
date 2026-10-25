@@ -116,20 +116,41 @@ def _voces_say():
     return parse_voces_say(out)
 
 
+def parse_voces_espeak(texto):
+    """Voces de espeak-ng a partir de la salida de `espeak-ng --voices`.
+
+    Formato real (una tabla, sin ningun campo `Voice:`):
+
+        Pty Language       Age/Gender VoiceName       File                 Other Languages
+         2  es              --/M      Spanish         es
+         5  es-419          --/M      Spanish (Latin America) es-419      (es)
+         5  en              --/M      English         gmw/en
+
+    La segunda columna es el codigo que acepta `-v` (`es`, `es-419`, `en`);
+    su base (`es` en `es-419`) es el idioma. Funcion pura: se puede probar
+    sin tener espeak-ng en la maquina.
+    """
+    voces = []
+    for linea in texto.splitlines():
+        partes = linea.split()
+        if len(partes) < 4 or not partes[0].isdigit():
+            continue
+        codigo = partes[1]
+        if not re.fullmatch(r"[a-z]{2,3}(?:-[A-Za-z0-9]+)?", codigo):
+            continue
+        voces.append({"nombre": codigo, "locale": codigo,
+                      "idioma": codigo.split("-")[0]})
+    return voces
+
+
 def _voces_espeak(binario):
-    """Voces de espeak: su codigo de dos letras es el idioma."""
+    """Voces de espeak: su codigo de idioma es el nombre de la voz."""
     try:
         out = subprocess.run([binario, "--voices"], capture_output=True,
                              text=True, timeout=30).stdout
     except (OSError, subprocess.SubprocessError):
         return []
-    voces = []
-    for linea in out.splitlines():
-        m = re.search(r"Voice:\s*(?P<code>[a-z]{2})", linea)
-        if m:
-            voces.append({"nombre": m.group("code"), "locale": m.group("code"),
-                          "idioma": m.group("code")})
-    return voces
+    return parse_voces_espeak(out)
 
 
 def _voces_powershell():

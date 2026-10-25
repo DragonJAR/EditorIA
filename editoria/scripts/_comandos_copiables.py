@@ -288,7 +288,8 @@ def _assets(tmp, skill_dir):
     # Whisper, que no esta instalado en todas las maquinas.
     palabras = os.path.join(tmp, "palabras.json")
     with open(palabras, "w", encoding="utf-8") as fh:
-        json.dump({"palabras": [{"inicio": round(0.1 * i, 3)} for i in range(60)]}, fh)
+        json.dump({"palabras": [{"texto": f"palabra{i}", "inicio": round(0.1 * i, 3),
+                                 "fin": round(0.1 * i + 0.09, 3)} for i in range(60)]}, fh)
     a["palabras"] = palabras
     # la rejilla musical: la genera la herramienta DE VERDAD (beat_grid.py)
     # sobre la cama de prueba, para que el ancla "beat" tenga algo que resolver

@@ -10,6 +10,8 @@ una pieza antes de entregarse y devuelve UN veredicto:
   4. delivery_check.py el spec de la plataforma (reels, linkedin, youtube...)
   5. medir_animacion.py  coherencia de movimiento: nota, pops y tirones
   6. medir_animacion.py --plan  composicion: letra real, zona segura, solapes
+  7. subtitulos declarados en piezas narradas para reels/tiktok/shorts
+     (con --plan: "subtitulos" en el plan o --subtitulos archivo)
 
 Uso:
     python3 scripts/qa_entrega.py final.mp4
@@ -122,6 +124,52 @@ def _defectos_composicion(letra, zona, solapes):
     return fallos
 
 
+PLATAFORMAS_SOCIALES = ("reels", "tiktok", "shorts")
+
+
+def _defecto_subtitulos(plan, plataforma, ruta_plan=None, archivo=None):
+    """El defecto de subtitulos de una pieza narrada para redes, o None.
+
+    Puro (sin video): quemar subtitulos deja pixeles que ninguna medicion
+    distingue del resto de la imagen, asi que la puerta no puede VERLOS;
+    lo que si puede es no dejar pasar el silencio: una pieza con voz para
+    reels/tiktok/shorts tiene que DECLARAR sus subtitulos (el campo
+    `subtitulos` del plan, o el archivo con --subtitulos) o la exencion.
+    Sin declaracion, la replica del reel salio sin el subtitulo karaoke
+    que era la firma del referente y nadie lo echo en falta.
+    """
+    if plataforma not in PLATAFORMAS_SOCIALES or not isinstance(plan, dict):
+        return None
+    escenas = plan.get("escenas") or []
+    if not any(isinstance(e, dict) and str(e.get("voz") or "").strip() for e in escenas):
+        return None
+    if archivo:
+        return None if os.path.exists(archivo) else f"el archivo de subtitulos no existe: {archivo}"
+    subs = plan.get("subtitulos")
+    if subs is True:
+        return None
+    if isinstance(subs, str) and subs.strip():
+        ruta = subs if os.path.isabs(subs) else os.path.join(
+            os.path.dirname(os.path.abspath(ruta_plan or "")), subs)
+        return None if os.path.exists(ruta) else f"el plan declara subtitulos en {subs} pero el archivo no existe"
+    return ("pieza narrada para " + plataforma + " sin subtitulos declarados: "
+            "genera el SRT/karaoke desde la voz (alinear.py -> caption.py "
+            "--palabras voz.palabras.json --karaoke) y declara \"subtitulos\": true "
+            "en el plan, o pasa --subtitulos <archivo>; si la pieza no los lleva "
+            "a proposito, dilo al usuario (nunca menos en silencio)")
+
+
+def _paso_subtitulos(plan_path, plataforma, archivo=None):
+    try:
+        with open(plan_path, encoding="utf-8") as f:
+            plan = json.load(f)
+    except (OSError, ValueError) as ex:
+        return {"nombre": "subtitulos", "ok": False, "detalle": f"no se pudo leer el plan: {ex}"}
+    defecto = _defecto_subtitulos(plan, plataforma, plan_path, archivo)
+    return {"nombre": "subtitulos", "ok": defecto is None,
+            "detalle": defecto or "declarados para la pieza narrada"}
+
+
 def _paso_composicion(plan, video):
     """Mide el plan con el motor: letra real, zona segura y solapes.
 
@@ -154,6 +202,16 @@ def _paso_composicion(plan, video):
         zona = min(float(r.get("zona", 1.0)) for r in res)
         solapes = [x for r in res for x in (r.get("solapes") or [])]
         fallos = _defectos_composicion(letra, zona, solapes)
+        if letra and letra < LETRA_MIN:
+            # La pasada con alcance necesita la ESCENA culpable, no solo la
+            # cifra global: medir_animacion ya la trae por escena.
+            culpables = [d for r in res for d in (r.get("letra_por_escena") or [])
+                         if d.get("letra_px", 999) < LETRA_MIN]
+            if culpables:
+                fallos = [f + " — " + "; ".join(
+                    f"escena {d['escena']} «{d['texto']}» {d['letra_px']} px"
+                    for d in culpables[:3]) if f.startswith("letra mínima") else f
+                    for f in fallos]
         detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
         if fallos:
             detalle = "; ".join(fallos)
@@ -173,6 +231,10 @@ def main():
                     help="destino de entrega: reels, linkedin, youtube, tiktok, shorts (def. reels)")
     ap.add_argument("--json", action="store_true",
                     help="devuelve el informe en JSON por stdout en vez de texto")
+    ap.add_argument("--subtitulos", default=None,
+                    help="archivo de subtitulos de la pieza (SRT/ASS): en piezas "
+                         "narradas para reels/tiktok/shorts la puerta exige "
+                         "subtitulos declarados (o \"subtitulos\": true en el plan)")
     ap.add_argument("--sin-medir", action="store_true",
                     help="no ejecuta medir_animacion (mas rapido; no mide los pops ni los "
                          "tirones, ni la composicion del plan)")
@@ -191,16 +253,35 @@ def main():
         print(f"ERROR: no existe el plan '{args.plan}'", file=sys.stderr)
         return 2
 
+    # Cada paso se anuncia ANTES de correr y se cierra con su tiempo: en una
+    # VM modesta la puerta de una pieza de ~60 s tarda minutos (medir el
+    # video y el plan son lo caro), y sin esto un timeout mata el proceso
+    # sin dejar ni el veredicto parcial ni que paso estaba corriendo.
+    import time as _time
     pasos = []
+
+    def _ejecutar(nombre, fn):
+        if not args.json:
+            print(f"… {nombre} (puede tardar minutos en piezas de ~60 s; "
+                  f"no es un cuelgue)", flush=True)
+        t0 = _time.time()
+        paso = fn()
+        paso["segundos"] = round(_time.time() - t0, 1)
+        if not args.json:
+            print(f"  {nombre}: {paso['segundos']}s", flush=True)
+        return paso
+
     if args.plan:
-        pasos.append(_paso_plan(args.plan, []))
-        pasos.append(_paso_copy(args.plan, []))
-    pasos.append(_paso_autoqa(args.video, args.ignorar_inicio, args.ignorar_fin))
-    pasos.append(_paso_delivery(args.video, args.plataforma))
+        pasos.append(_ejecutar("plan", lambda: _paso_plan(args.plan, [])))
+        pasos.append(_ejecutar("copy", lambda: _paso_copy(args.plan, [])))
+    pasos.append(_ejecutar("auto_qa", lambda: _paso_autoqa(args.video, args.ignorar_inicio, args.ignorar_fin)))
+    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma)))
+    if args.plan:
+        pasos.append(_ejecutar("subtitulos", lambda: _paso_subtitulos(args.plan, args.plataforma, args.subtitulos)))
     if not args.sin_medir:
-        pasos.append(_paso_medir(args.video))
+        pasos.append(_ejecutar("movimiento", lambda: _paso_medir(args.video)))
         if args.plan:
-            pasos.append(_paso_composicion(args.plan, args.video))
+            pasos.append(_ejecutar("composicion", lambda: _paso_composicion(args.plan, args.video)))
 
     todo_ok = all(p["ok"] for p in pasos)
     if args.json:

@@ -186,7 +186,8 @@ elegida que lo declare, vale.
 | Tell | Código | En su lugar |
 |---|---|---|
 | La misma escena tres veces seguidas | `escena-repetida` | alternar la familia de composición según el argumento |
-| Cadencia de metrónomo: todas las escenas duran casi lo mismo | `cadencia-uniforme` | variar duraciones (`ritmo.md`: CV ≥ 0.25) |
+| Cadencia de metrónomo: todas las escenas duran casi lo mismo | `cadencia-uniforme` | variar duraciones (`ritmo.md`: CV ≥ 0.25); si la duración la manda la voz, declararlo aquí y en el proyecto |
+| Poco repertorio: la pieza entera con 2–3 tipos de escena (o un tipo en la mitad) | `poco-repertorio` | elegir cada escena por su intención y rotar dentro de su familia (`intencion-escena.md` §2b), sin repetir el tipo dominante de la pieza anterior |
 | Rótulo (kicker) sobre casi cada escena | `rotulo-en-todas` | reservarlo a donde aporta. *Nota*: `principios.md` usa el kicker como parte de la jerarquía y el pack puede fijarlo como firma; el tell es el reflejo en cada plano, no su uso deliberado |
 | Orden de plantilla: gancho, logos, tres funciones, testimonio, precio, CTA | ojo | el orden del argumento |
 | Tres tarjetas iguales con icono, título y texto como estructura | ojo | la composición de la dirección elegida; «tres» solo si el contenido tiene tres |

@@ -54,6 +54,10 @@ except ImportError:
 
 SR = 16000  # Whisper trabaja a 16 kHz mono
 
+#: Motivos de fallo de cada motor probado, para que el error final los diga
+#: en vez de concluir «no hay motor» cuando un motor instalado fallo.
+_ERRORES_ASR: list[tuple[str, str]] = []
+
 
 # ───────────────────────── texto ─────────────────────────
 
@@ -110,6 +114,26 @@ def _whisper_cli_palabras(wav: Path, modelo: str, idioma: str | None) -> list[tu
     return _parsear_json_whisper(json.loads((base.with_suffix(".json")).read_text(encoding="utf-8")))
 
 
+def diagnostico_faster_whisper(ex: Exception) -> str:
+    """Diagnostico accionable de un fallo de faster-whisper.
+
+    El fallo conocido es la incompatibilidad con PyAV (`av`): versiones
+    nuevas de `av` quitaron el argumento `metadata_errors` que
+    faster-whisper le pasa a `av.open`, y el error
+    (`open() got an unexpected keyword argument 'metadata_errors'`) no
+    dice que el motor SI esta instalado. Sin este diagnostico, la cascada
+    concluia «no hay motor de ASR local» con faster-whisper presente.
+    """
+    texto = str(ex)
+    if "metadata_errors" in texto or (isinstance(ex, (ImportError, ModuleNotFoundError))
+                                      and "av" in texto.lower()):
+        return ("incompatibilidad faster-whisper/PyAV (el argumento "
+                "'metadata_errors' de av.open cambio de API): actualiza "
+                "faster-whisper (`pip install -U faster-whisper`) o fija "
+                "una PyAV compatible (`pip install \"av==12.3.0\"`)")
+    return f"faster-whisper fallo: {ex}"
+
+
 def _faster_whisper_palabras(wav: Path, modelo: str, idioma: str | None) -> list[tuple[str, float, float, float]]:
     """faster-whisper con word_timestamps=True."""
     try:
@@ -131,7 +155,10 @@ def _faster_whisper_palabras(wav: Path, modelo: str, idioma: str | None) -> list
             info("transcrito con faster-whisper (word_timestamps=True)")
         return palabras
     except Exception as ex:
-        info(f"faster-whisper fallo: {ex}")
+        # No tragar el motivo: si el usuario pidio ESTE motor, el error
+        # final tiene que ser el suyo, no «no hay motor» (ver main).
+        info(diagnostico_faster_whisper(ex))
+        _ERRORES_ASR.append(("faster-whisper", diagnostico_faster_whisper(ex)))
         return []
 
 
@@ -247,6 +274,7 @@ def transcribir_palabras(audio_path: Path, idioma: str | None, modelo: str,
 
 def _asr_en_cascada(wav: Path, idioma: str | None, modelo: str,
                     motor: str | None) -> list[tuple[str, float, float, float]]:
+    _ERRORES_ASR.clear()
     if motor in (None, "auto", "whisper-cli"):
         r = _whisper_cli_palabras(wav, modelo, idioma)
         if r:
@@ -259,10 +287,19 @@ def _asr_en_cascada(wav: Path, idioma: str | None, modelo: str,
         r = _openai_whisper_palabras(wav, modelo, idioma)
         if r:
             return r
-    die("no hay motor de ASR local.\n"
+    if motor not in (None, "auto") and _ERRORES_ASR:
+        # El usuario pidio un motor concreto y ese motor fallo: ese es el
+        # error, con su arreglo. Decir «no hay motor» seria mentir.
+        nombre, motivo = _ERRORES_ASR[-1]
+        die(f"el motor pedido ({nombre}) fallo: {motivo}")
+    detalle = ""
+    if _ERRORES_ASR:
+        detalle = ("\nMotores instalados que fallaron:\n" +
+                   "\n".join(f"  {n}: {m}" for n, m in _ERRORES_ASR) + "\n")
+    die("no hay motor de ASR local que responda.\n" + detalle +
         "Instala uno (todos corren offline):\n"
         "  whisper.cpp:    brew install whisper-cpp   (luego descarga un modelo: ggml-base.bin)\n"
-        "  faster-whisper: pip install faster-whisper\n"
+        "  faster-whisper: pip install faster-whisper   (con PyAV compatible: pip install \"av==12.3.0\" si falla con 'metadata_errors')\n"
         "  openai-whisper: pip install openai-whisper\n")
     return []  # die() sale
 

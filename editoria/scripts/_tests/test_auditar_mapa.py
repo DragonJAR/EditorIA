@@ -1048,20 +1048,20 @@ class TestCifrasDelCodigo(unittest.TestCase):
         self.assertIn("rubrica descuadrada", out)
 
     def test_detecta_un_numero_de_comprobaciones_obsoleto(self):
-        # la puerta corre 3 comprobaciones sin plan y 6 con plan. el numero
+        # la puerta corre 3 comprobaciones sin plan y 7 con plan. el numero
         # que dice la prosa tiene que ser ese.
         raiz = _copia_completa(os.path.join(self.dir, "skill_puerta"))
         m = os.path.join(raiz, "references", "mapa.md")
         with open(m, encoding="utf-8") as f:
             txt = f.read()
-        self.assertIn("seis comprobaciones", txt, "el fixture tiene que traer la cifra buena")
+        self.assertIn("siete comprobaciones", txt, "el fixture tiene que traer la cifra buena")
         with open(m, "w", encoding="utf-8") as f:
-            f.write(txt.replace("seis comprobaciones", "cinco comprobaciones"))
+            f.write(txt.replace("siete comprobaciones", "cinco comprobaciones"))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"el numero obsoleto no se detecto:\n{out}")
         self.assertIn("cifra falsa", out)
         self.assertIn("comprobaciones", out)
-        self.assertIn("6 con plan", out, "el fallo tiene que decir cuantos corre la puerta")
+        self.assertIn("7 con plan", out, "el fallo tiene que decir cuantos corre la puerta")
 
     def test_el_guard_cuenta_los_pasos_de_la_puerta_de_verdad(self):
         # el contador leia montage.py en vez de qa_entrega.py: contaba 0
@@ -1071,14 +1071,14 @@ class TestCifrasDelCodigo(unittest.TestCase):
         q = os.path.join(raiz, "scripts", "qa_entrega.py")
         with open(q, encoding="utf-8") as f:
             txt = f.read()
-        marca = "    pasos.append(_paso_delivery(args.video, args.plataforma))"
+        marca = '    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma)))'
         self.assertIn(marca, txt, "el fixture tiene que traer la puerta")
         with open(q, "w", encoding="utf-8") as f:
             f.write(txt.replace(marca, marca + "\n" + marca, 1))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"anadir un paso a la puerta no se vio:\n{out}")
         self.assertIn("cifra falsa", out)
-        self.assertIn("7 con plan", out,
+        self.assertIn("8 con plan", out,
                       "el guard tiene que leer qa_entrega.py, no otro archivo")
 
     def test_detecta_un_eje_renombrado_en_la_rubrica(self):

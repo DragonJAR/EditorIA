@@ -11,9 +11,16 @@ $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 import os, sys, argparse, subprocess
 
 def gen(prompt,dur,out):
-    import requests   # solo gen usa la red: mezclar no depende de requests
     key=os.environ.get("ELEVENLABS_API_KEY")
-    if not key: sys.exit("Falta ELEVENLABS_API_KEY en el entorno")
+    if not key: sys.exit("Falta ELEVENLABS_API_KEY en el entorno. Sin clave (o sin acuerdo de pago) "
+                         "no entregues la pieza sin musica: genera la cama procedural con "
+                         "'musica.py cama -o cama.wav --dur <segundos>' y mezclala con mix/musiconly, "
+                         "declarandola como respaldo (references/sonido.md)")
+    try:
+        import requests   # solo gen usa la red: mezclar no depende de requests
+    except ImportError:
+        sys.exit("Falta el paquete requests para la API de ElevenLabs: pip install requests "
+                 "(la cama procedural 'musica.py cama' no lo necesita)")
     r=requests.post("https://api.elevenlabs.io/v1/music",
         headers={"xi-api-key":key,"Content-Type":"application/json"},
         json={"prompt":prompt,"music_length_ms":int(dur*1000),
@@ -22,6 +29,38 @@ def gen(prompt,dur,out):
     with open(out,"wb") as fh:
         fh.write(r.content)
     print("OK",out)
+
+def cama(dur,out,bpm=92,raiz=110.0,menor=True,vol=0.5):
+    """Cama musical procedural, sin API y sin derechos: osciladores de ffmpeg.
+
+    El respaldo cuando no hay ELEVENLABS_API_KEY ni acuerdo de pago: un pad
+    de acorde (fundamental, quinta, octava y tercera) con un pulso grave al
+    tempo, filtrado suave y fundidos de entrada/salida. No es una
+    composicion: es la cama declarada como tal, para mezclarla con `mix`
+    (ducking bajo la voz) en vez de entregar la pieza sin musica.
+    Determinista: los mismos parametros dan el mismo wav.
+    """
+    tercera=1.1892 if menor else 1.2599  # tercera menor / mayor
+    freqs=[raiz, raiz*1.5, raiz*2, raiz*tercera]
+    partes=[]; entradas=[]
+    for i,f in enumerate(freqs):
+        entradas+=["-f","lavfi","-i",f"sine=frequency={f:.2f}:duration={dur}"]
+        partes.append(f"[{i}:a]volume={vol/(i+1.6):.3f}[s{i}]")
+    entradas+=["-f","lavfi","-i",f"sine=frequency={raiz/2:.2f}:duration={dur}"]
+    pulso=60.0/max(30.0,float(bpm))
+    partes.append(f"[{len(freqs)}:a]volume={vol*0.7:.3f},tremolo=f={1/pulso:.3f}:d=0.9[pul]")
+    mezcla="".join(f"[s{i}]" for i in range(len(freqs)))+"[pul]"
+    fade_out=max(0.0,dur-2.0)
+    fc=(";".join(partes)+f";{mezcla}amix=inputs={len(freqs)+1}:normalize=0,"
+        f"lowpass=f=1400,afade=t=in:st=0:d=1.2,afade=t=out:st={fade_out}:d=2.0,"
+        f"atrim=0:{dur}[aout]")
+    r=subprocess.run(["ffmpeg","-y","-v","error",*entradas,"-filter_complex",fc,
+                      "-map","[aout]","-ar","48000","-ac","2",out],
+                     capture_output=True,text=True)
+    if r.returncode!=0:
+        sys.exit(f"ERROR: ffmpeg fallo al generar la cama procedural: {(r.stderr or '').strip()[:300]}")
+    print("OK",out,"(cama procedural sin API: pad", "menor" if menor else "mayor",
+          f"a {bpm} BPM sobre {raiz:.0f} Hz; declararla como respaldo, no como composicion)")
 
 def vdur(video):
     if not os.path.isfile(video):
@@ -83,6 +122,16 @@ def main():
     m.add_argument("-m",required=True); m.add_argument("-o",required=True)
     m.add_argument("--mus-vol",type=float,default=0.12,
                    help="volumen base de la música (def: 0.12 ≈ 15 dB bajo la voz)")
+    c=s.add_parser("cama",help="cama musical procedural con ffmpeg, sin API ni clave (respaldo declarado)")
+    c.add_argument("-o",required=True); c.add_argument("--dur",type=float,default=30,
+                   help="duración de la cama en segundos")
+    c.add_argument("--bpm",type=float,default=92,
+                   help="tempo del pulso grave (pulsos por minuto)")
+    c.add_argument("--raiz",type=float,default=110.0,
+                   help="frecuencia fundamental en Hz (110 = La2)")
+    c.add_argument("--mayor",action="store_true",help="acorde mayor (default: menor)")
+    c.add_argument("--vol",type=float,default=0.5,
+                   help="volumen de la cama (0-1; se mezcla luego con mix a 0.12 bajo la voz)")
     mo=s.add_parser("musiconly",help="video + música de fondo (sin voz)")
     mo.add_argument("-v",required=True); mo.add_argument("-m",required=True)
     mo.add_argument("-o",required=True); mo.add_argument("--mus-vol",type=float,default=0.8)
@@ -93,6 +142,7 @@ def main():
     ayudar(ap, {'--prompt': 'descripción de la música: género, tempo, instrumentos, ánimo (en inglés rinde mejor)', '-v': 'video de entrada', '-a': 'voz en off (mp3/wav)', '-m': 'música (mp3/wav)', '--mus-vol': 'volumen de la música (0–1; mix 0.12 ≈ 15 dB bajo la voz, musiconly 0.8)', '--fade-out': 'segundos de fundido de la música al final'})
     a=ap.parse_args()
     if a.cmd=="gen": gen(a.prompt,a.dur,a.o)
+    elif a.cmd=="cama": cama(a.dur,a.o,a.bpm,a.raiz,not a.mayor,a.vol)
     elif a.cmd=="musiconly": mix_music_only(a.v,a.m,a.o,a.mus_vol,a.fade_out)
     else: mix(a.v,a.a,a.m,a.o,a.mus_vol)
 

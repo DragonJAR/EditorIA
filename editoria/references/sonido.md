@@ -44,9 +44,11 @@ Que hace, por dentro:
   equivoca por un 8-24% segun la voz, asi que el numero real sirve para
   juzgar si un texto cabe.
 
-Backends: macOS `say` (probado con audio real), Linux `espeak-ng` (escrito,
-**sin probar aqui**: no hay maquina Linux en este repo) y Windows PowerShell
-con `System.Speech` (escrito, **sin probar aqui**). En macOS las voces de
+Backends: macOS `say` (probado con audio real), Linux `espeak-ng` (el
+parseo de `espeak-ng --voices` esta probado contra su salida real en tabla
+—`Pty Language Age/Gender VoiceName File`—, que no trae ningun campo
+`Voice:`; la sintesis en Linux no se ha probado en este repo) y Windows
+PowerShell con `System.Speech` (escrito, **sin probar aqui**). En macOS las voces de
 espanol se descargan en Ajustes → Accesibilidad → Contenido hablado → Voces
 del sistema; las que ya estan se ven con `--listar`.
 
@@ -208,6 +210,14 @@ línea funciona igual leída en silencio, no necesita voz.
 `mix` (con voz: ducking sidechain) o `musiconly` (sin voz, con fade-out).
 La música sigue el arco visual: hook con pulso, build en el desarrollo,
 resolución en el cierre. Ver `references/reglas-tecnicas.md` (lecciones ffmpeg).
+
+**Sin key ni acuerdo de pago, la cama procedural de la propia skill**:
+`python scripts/musica.py cama -o cama.wav --dur 60 --bpm 92` genera con
+osciladores de ffmpeg (pad de acorde + pulso grave al tempo, determinista,
+sin derechos) y se mezcla con `mix`/`musiconly` como cualquier cama. Es un
+respaldo declarado —se dice al usuario que es procedural—, no una
+composición; la vía por receta externa de abajo sigue existiendo para
+cuando se quiere un arreglo con forma.
 
 ### La segunda vía: música por receta, sin API
 

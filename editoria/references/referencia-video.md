@@ -52,8 +52,8 @@ cortes, roles y `plantilla.json`. Anotar la URL en `ANALYSIS.md`. Una referencia
 
 ## 3. Hacer visible el tiempo
 
-1. **Palabras con tiempo**: `python scripts/alinear.py fuente.mp4 -o fuente.palabras.json --idioma es` (sin guion = transcripción por palabra; acepta video). La transcripción es evidencia, no interpretación: un nombre mal reconocido no es un error de pronunciación.
-2. **Cortes**: `python scripts/ffmpeg_tools/scenes.py fuente.mp4 --sheet evidencia/cortes.png`. Un corte de cámara ayuda a navegar; no decide qué va junto (un objeto que sobrevive al corte pertenece a un sistema más largo).
+1. **Palabras con tiempo**: `python scripts/alinear.py fuente.mp4 -o fuente.palabras.json --idioma es` (sin guion = transcripción por palabra; acepta video). La transcripción es evidencia, no interpretación: un nombre mal reconocido no es un error de pronunciación. El contrato de salida es `{palabras: [{texto, inicio, fin, confianza}]}` (segundos); es el que leen `contact_sheet.py --palabras` y `caption.py --palabras` (que también aceptan la lista plana `[{text|word, start, end}]`). Si faster-whisper está instalado pero falla con `metadata_errors`, es la incompatibilidad con PyAV: `pip install -U faster-whisper` o `pip install "av==12.3.0"` — el propio `alinear.py` lo diagnostica en su mensaje, no concluyas que «no hay motor».
+2. **Cortes**: `python scripts/ffmpeg_tools/scenes.py fuente.mp4 --sheet evidencia/cortes.png` (crea la carpeta destino si no existe). Un corte de cámara ayuda a navegar; no decide qué va junto (un objeto que sobrevive al corte pertenece a un sistema más largo).
 3. **Cadencia**: `python scripts/verificar_ritmo.py fuente.mp4` sobre la referencia (regla dura de `references/ritmo.md`). Si la fuente no tiene cortes duros, la cadencia sale `SIN MEDIR` (no es un aprobado ni un defecto): o es un plano continuo, o sus cortes son fundidos. Se anota como dato de la referencia y se mide con `--cortes` si los hay.
 4. **Mosaicos con palabras** (`scripts/contact_sheet.py`), a la escala de la pregunta:
 
@@ -63,6 +63,8 @@ cortes, roles y `plantilla.json`. Anotar la URL en `ANALYSIS.md`. Una referencia
 | Qué cambia en una frase | `--alrededor "{frase}" --palabras ... --cada 0.2` |
 | Cómo entra, se asienta o sale algo | `--inicio 6.8 --fin 8.4 --todos-los-frames --cols 4 --filas 3` |
 | Leer tipografía o geometría | `--en 7.3 --ancho 960` |
+
+**Referente sin cortes duros (animación continua)**: si scdet ve 1–2 tramos en minutos de video, no hay HOOK/CIERRE que localizar por posición: `clonar_video.py analizar` lo marca como `animacion_continua` (sin roles ni `tipo_sugerido`) y `variar` se niega a variar esa plantilla tal cual. Los beats se sacan de la transcripción por palabra (cada frase es un beat) y de los mosaicos a 1 s/5 s (cada cambio de sistema es un beat); esos beats, con su rol, son los `segmentos` que se escriben a mano en la plantilla antes de variar o de construir el plan.
 
 Las palabras van DEBAJO de cada cuadro (los subtítulos y gráficas originales
 quedan a la vista). Las muestras tienen huecos: un evento breve entre dos

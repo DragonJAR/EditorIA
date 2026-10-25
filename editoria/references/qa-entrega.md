@@ -52,6 +52,22 @@ Tambien acepta `--ignorar-inicio` para un fade-in intencional.
 | `delivery_check` | el spec de la plataforma: resolucion, fps, duracion, bitrate, sonoridad, true peak | la composicion |
 | `medir_animacion` | coherencia de movimiento: pops, tirones, arranques, densidad | el copy, la narrativa |
 | `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan | el copy, el movimiento fino |
+| `subtitulos` | en una pieza **narrada** para reels/tiktok/shorts, que los subtitulos esten declarados (`"subtitulos": true` o la ruta en el plan, o `--subtitulos archivo`) | si el quemado se ve bien (eso se mira en los frames) |
+
+Quemar subtitulos deja pixeles indistinguibles del resto de la imagen, asi
+que este paso no puede VERLOS: lo que impide es el silencio. Sin
+declaracion, la puerta falla con el comando para generarlos
+(`alinear.py` → `caption.py --palabras voz.palabras.json --karaoke`).
+Con plan, cada hallazgo de composicion trae su **escena y su texto**
+(«escena 6:versus "…" 21 px»): la pasada con alcance corrige ahi, sin
+inspeccionar la pieza frame a frame.
+
+**Tiempos**: en una VM modesta, la puerta de una pieza de ~60 s tarda
+minutos (medir el video y el plan es lo caro) y el render `--blur 5`
+varios minutos mas. La puerta anuncia cada paso antes de correrlo y lo
+cierra con su tiempo, y el render imprime progreso con ETA: corre la
+puerta en segundo plano o con un timeout generoso, no con el de un
+comando corto.
 
 **`medir_contraste` NO es un paso de la puerta**: no mira la pieza que
 entregas, sino el CATALOGO de escenas del motor (el texto de cada escena

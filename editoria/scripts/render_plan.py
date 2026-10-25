@@ -870,6 +870,29 @@ def fuente_que_cabe(fabrica, texto, tam, ancho_max, peso=800, minimo=18, tabular
     return fabrica(tam, peso)
 
 
+def circulo_numero(d, cx, cy, radio, texto, color, color_texto, ctx, alpha=255):
+    """Un numero DENTRO de un circulo, centrado y sin desbordar.
+
+    Primitiva unica (la usan `pasos` e `index`): el diametro manda sobre la
+    fuente — la cifra se encoge con `fuente_que_cabe` hasta caber en el
+    ancho util del circulo (1.4·radio) y se dibuja con `cifra` (tabular,
+    centrada en su celda). Antes cada escena fijaba su propio par
+    circulo/fuente: en `index` el circulo era de 32 px fijos con la fuente
+    secundaria (~44 px), asi que un numero de dos cifras desbordaba y el
+    inactivo (gris sobre gris) no se leia.
+    """
+    texto = str(texto)
+    def _con_alpha(c):
+        c = tuple(c)
+        return c[:3] + (int(c[3] * alpha / 255),) if len(c) == 4 else c + (int(alpha),)
+    relleno = _con_alpha(color)
+    tinta = _con_alpha(color_texto)
+    d.ellipse([cx - radio, cy - radio, cx + radio, cy + radio], fill=relleno)
+    fnt = fuente_que_cabe(ctx.fT, texto, int(radio * 1.05), int(radio * 1.4),
+                          800, tabular=True)
+    cifra(d, (cx, cy), texto, fnt, tinta, anchor="mm", final=texto)
+
+
 def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minimo=18):
     """Ajusta un texto a un ancho PARTIÉNDOLO antes de encogerlo.
 
@@ -2279,10 +2302,8 @@ def sc_pasos(ctx, e, t):
             # número
             radio = min(fila_h * 0.35, 60)
             es_activo = k > 0.5
-            ds.ellipse([cx - radio, yi, cx + radio, yi + 2 * radio],
-                      fill=ACENTO if es_activo else (80, 80, 80, 255))
-            fnt_n = ctx.fT(int(radio * 1.2), 800)
-            ds.text((cx, yi + radio), str(i + 1), font=fnt_n, fill=BLANCO, anchor="mm")
+            circulo_numero(ds, cx, yi + radio, radio, i + 1,
+                           ACENTO if es_activo else (80, 80, 80, 255), BLANCO, ctx)
             # texto a la izquierda del número (en columna: debajo)
             fnt = ctx.fX(int(min(46, fila_h * 0.18)), 700)
             ds.text((cx, yi + 2 * radio + 8), it.get("titulo", ""), font=fnt, fill=BLANCO, anchor="mt")
@@ -2311,10 +2332,8 @@ def sc_pasos(ctx, e, t):
             radio = min(col_w * 0.18, 60)
             xi = x0 + (i + 0.5) * col_w - radio          # centrado en su columna
             es_activo = k > 0.5
-            ds.ellipse([xi, cy - radio, xi + 2 * radio, cy + radio],
-                      fill=ACENTO if es_activo else (80, 80, 80, 255))
-            fnt_n = ctx.fT(int(radio * 1.2), 800)
-            ds.text((xi + radio, cy), str(i + 1), font=fnt_n, fill=BLANCO, anchor="mm")
+            circulo_numero(ds, xi + radio, cy, radio, i + 1,
+                           ACENTO if es_activo else (80, 80, 80, 255), BLANCO, ctx)
             # texto
             fnt = ctx.fX(int(unidad() * 0.042), 700)
             lineas = linewrap(it.get("titulo", ""), fnt, col_w * 0.85)
@@ -3545,19 +3564,19 @@ def sc_index(ctx, e, t):
         activo = bool(it.get("activo")) or (i == n - 1 and not any(
             it2.get("activo") for it2 in items))
         fnt = fuente_que_cabe(ctx.fX, texto, ESCALA["secundario"], zx1 - zx0 - 120, 600)
-        fnt_n = ctx.fT(ESCALA["secundario"], 800)
         y = y0 + i * fila_h
         num = cuenta_up(1, i + 1, t, t_i, 0.4)
         al = int(255 * clamp01(k * 1.4))
         col = ACENTO + (al,) if activo else GRIS + (int(al * 0.85),)
-        # el numero en una pastilla: el activo la lleva en acento
-        d.ellipse([zx0, y - 16, zx0 + 32, y + 16],
-                  fill=(ACENTO + (int(al * 0.9),)) if activo else (60, 60, 60, al))
-        d.text((zx0 + 16, y), num, font=fnt_n,
-               fill=BLANCO + (al,) if activo else GRIS + (al,), anchor="mm")
-        d.text((zx0 + 52, y), texto, font=fnt, fill=col, anchor="lm")
+        # el numero en su circulo (primitiva comun): el inactivo va en
+        # blanco atenuado sobre gris, no gris sobre gris (no se leia)
+        radio_n = max(20, min(26, int(fila_h * 0.22)))
+        circulo_numero(d, zx0 + radio_n, y, radio_n, num,
+                       ACENTO if activo else (60, 60, 60, 255), BLANCO, ctx, alpha=al)
+        x_texto = zx0 + 2 * radio_n + 20
+        d.text((x_texto, y), texto, font=fnt, fill=col, anchor="lm")
         if activo:
-            d.line([(zx0 + 52, y + 22), (zx0 + 52 + ctx.tmp.textlength(texto, font=fnt),
+            d.line([(x_texto, y + 22), (x_texto + ctx.tmp.textlength(texto, font=fnt),
                                      y + 22)], fill=ACENTO + (int(150 * al),), width=2)
 
     if e.get("fuente"):
@@ -3920,6 +3939,18 @@ def _render_worker(job):
     frame_con_blur(_W["ctx"],_W["esc"],_W["dur"],fi/fps,fps,blur,obt,_W["ok"]).save(fp,**PNG_CUADRO)
     return fi
 
+def _progreso_render(hechos,total,t0):
+    """Linea de progreso con ETA: % hecho, transcurrido y estimado restante.
+
+    Sin esto, un render --blur 5 de una pieza de ~60 s (cada frame se
+    compone 5 veces: minutos en una VM modesta) parece un cuelgue y un
+    timeout lo mata sin dejar rastro de cuanto faltaba.
+    """
+    import time as _t
+    tr=_t.time()-t0; pct=100.0*hechos/max(1,total)
+    eta=tr/max(1,hechos)*(total-hechos) if hechos else 0
+    print(f"  {hechos}/{total} ({pct:.0f}%) · {tr/60:.1f} min · quedan ~{eta/60:.1f} min",flush=True)
+
 def revisar_overlay(tmpd,n,fps):
     """Chequeos de un overlay transparente (lower third, título, bug):
     empieza y termina vacío (no aparece de golpe ni se corta en el NLE),
@@ -3989,13 +4020,18 @@ def render(plan_path,plan,out,a):
         return _preview(ctx,escenas,dur,fps,a,manchas_ok)
     tmpd=f"{out}.frames"; os.makedirs(tmpd,exist_ok=True)
     print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}"+(" · overlay con alfa" if ALFA else ""),flush=True)
+    if a.blur and a.blur>1:
+        print(f"  blur x{a.blur}: cada frame se compone {a.blur} veces; en una VM modesta "
+              f"una pieza de ~60 s puede tardar varios minutos (progreso con ETA abajo; "
+              f"sin --force, reanudar retoma los frames ya hechos)",flush=True)
     pend=[fi for fi in range(n) if a.force or not os.path.exists(f"{tmpd}/f_{fi:04d}.png")]
     if len(pend)<n: print(f"  retoma: {n-len(pend)} frames ya existen",flush=True)
     jobs=[(fi,f"{tmpd}/f_{fi:04d}.png",fps,a.blur,a.obturador) for fi in pend]
+    import time as _time; _t0=_time.time()
     if a.jobs<=1:
         for i,j in enumerate(jobs):
             frame_con_blur(ctx,escenas,dur,j[0]/fps,fps,a.blur,a.obturador,manchas_ok).save(j[1],**PNG_CUADRO)
-            if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
+            if i%150==0: _progreso_render(i+1,len(jobs),_t0)
     else:
         from multiprocessing import Pool
         _pal=a.paleta or plan.get("paleta")
@@ -4005,12 +4041,12 @@ def render(plan_path,plan,out,a):
         try:
             with Pool(a.jobs,initializer=_init_worker,initargs=init) as pool:
                 for i,_ in enumerate(pool.imap_unordered(_render_worker,jobs,chunksize=4)):
-                    if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
+                    if i%150==0: _progreso_render(i+1,len(jobs),_t0)
         except (PermissionError, OSError):
             _init_worker(*init)
             for i,j in enumerate(jobs):
                 _render_worker(j)
-                if i%150==0: print(f"  {i}/{len(jobs)}",flush=True)
+                if i%150==0: _progreso_render(i+1,len(jobs),_t0)
     if ALFA:
         for av in revisar_overlay(tmpd,n,fps): print("AVISO overlay:",av,flush=True)
     print("frames ok, codificando…",flush=True)

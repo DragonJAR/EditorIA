@@ -167,9 +167,18 @@ def _segmentos_medidos(mid):
     orden = sorted(range(n), key=lambda i: -(escenas[i].get("audio_rms") or 0))
     fuerza = {i: r + 1 for r, i in enumerate(orden)}
 
+    # Sin cortes duros no hay estructura que repartir en roles: una pieza
+    # de animacion continua (scdet ve 1-2 tramos en minutos de video) no
+    # tiene HOOK ni CIERRE localizables por posicion. Inventarlos (el
+    # primer tramo «hook», el resto «cierre») deja una plantilla inutil:
+    # se marca como continua y los beats se sacan de la transcripcion y
+    # los mosaicos, no de los cortes (references/referencia-video.md §3).
+    continua = n <= 2
     segmentos = []
     for i, sc in enumerate(escenas):
-        if i == 0:
+        if continua:
+            rol = "continuo"
+        elif i == 0:
             rol = "hook"
         elif i == n - 1:
             rol = "cierre"
@@ -190,7 +199,7 @@ def _segmentos_medidos(mid):
             "to": round(sc["end"], 2),
             "duracion": round(sc["end"] - sc["start"], 2),
             "rol": rol,
-            "tipo_sugerido": FAMILIAS_ESCENAS[rol][0],
+            "tipo_sugerido": None if continua else FAMILIAS_ESCENAS[rol][0],
             "audio_rms": rms,
             "audio_peak": round(sc.get("audio_peak") or 0, 4),
             "pico": round(pico["time"], 2) if pico else None,
@@ -257,9 +266,15 @@ def cmd_analizar(origen, es_url, out_dir):
     dur = ref_data["metadatos"]["duracion"]
     print(f"\n=== PASO 2: Detección de estructura viral y ritmo ({dur}s) ===")
     mid = _momentos_medidos(ref_data["video"])
+    continua = False
     if mid:
         segmentos = _segmentos_medidos(mid)
+        continua = bool(segmentos) and segmentos[0].get("rol") == "continuo"
         print(f"   {len(segmentos)} momentos MEDIDOS (scenes.py), con su valor al lado")
+        if continua:
+            print("   AVISO: sin cortes duros (animacion continua): la plantilla NO trae "
+                  "roles hook/cierre; los beats salen de la transcripcion por palabra "
+                  "y los mosaicos, no de los cortes (referencia-video.md §3)")
     else:
         segmentos = detectar_cortes(ref_data["video"], dur)
         print("   el medidor no respondió: cortes por silencio y cadencia estándar "
@@ -272,6 +287,7 @@ def cmd_analizar(origen, es_url, out_dir):
         "aspecto": ref_data["metadatos"]["aspecto"],
         "fps": ref_data["metadatos"]["fps"],
         "segmentos": segmentos,
+        "animacion_continua": continua,
         "medicion": {
             "fuente": ("scripts/ffmpeg_tools/scenes.py (scdet + envolvente RMS + picos)"
                        if mid else "silencio + cadencia estándar (sin valor medido)"),
@@ -295,6 +311,14 @@ def cmd_analizar(origen, es_url, out_dir):
         fh.write("- **Pistas extraídas**: Audio 48kHz (`audio_48k.wav`), Audio 16kHz (`audio_16k.wav`)\n")
         fh.write("- **Storyboard**: Contact Sheet con frames clave (`contact_sheet.png`)\n")
         fh.write(f"- **Medición del valor**: {plantilla['medicion']['fuente']}\n\n")
+        if continua:
+            fh.write("> **Animación continua, sin cortes duros**: scdet solo ve "
+                     f"{len(segmentos)} tramo(s), asi que no hay HOOK/CIERRE que "
+                     "localizar por posición y `variar` no debe usarse sobre esta "
+                     "plantilla tal cual. Los beats se sacan de la transcripción "
+                     "por palabra (`alinear.py` sin guion) y de los mosaicos a "
+                     "1 s/5 s: cada frase o cambio de sistema es un beat "
+                     "(references/referencia-video.md §3).\n\n")
         fh.write("## Estructura Viral Descompuesta\n\n")
         if mid:
             fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida | Valor medido |\n")
@@ -358,6 +382,15 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
             "  Este comando espera la plantilla que produce 'analizar' (plantilla.json).\n"
             "  Si le has pasado un plan.json, el motor acepta la abreviatura --plan por "
             "--plantilla: renombralo o usa el plan con render_plan.py.")
+
+    if plantilla.get("animacion_continua") or any(s.get("rol") == "continuo" for s in segmentos):
+        sys.exit(
+            "ERROR: esta plantilla es de una pieza de animacion continua (sin cortes "
+            "duros): no trae roles hook/cierre que variar.\n"
+            "  Trocea primero el tramo continuo en beats por frase con la transcripcion "
+            "por palabra (scripts/alinear.py sin guion) y los mosaicos, escribe esos "
+            "beats como segmentos con su rol en la plantilla, y vuelve a variar.\n"
+            "  Ver references/referencia-video.md §3 (animacion continua).")
 
     print(f"Generando {num_variantes} variantes para el tema: '{tema}'...")
 

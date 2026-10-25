@@ -33,6 +33,19 @@ from _comun import (add_common, apply_common, default_font_file, die, emit,
 SCORE_RE = re.compile(r"frame:(\d+)\s+pts:\d+\s+pts_time:([0-9.]+)")
 
 
+def _asegurar_padre(ruta):
+    """Crea la carpeta destino de una salida si no existe.
+
+    Sin esto, ffmpeg muere con un codigo opaco (251) porque no puede abrir
+    el archivo: el fallo es de la ruta, no del video.
+    """
+    padre = os.path.dirname(os.path.abspath(ruta))
+    try:
+        os.makedirs(padre, exist_ok=True)
+    except OSError as ex:
+        die(f"no se pudo crear la carpeta de salida {padre}: {ex}")
+
+
 def detect_scenes(path, threshold, min_len, duration, ratio=3.0):
     """Cortes = frames cuyo score de scdet supera `threshold` Y destaca de su
     vecindario (score > ratio x mediana de los +-12 frames cercanos). El
@@ -186,12 +199,14 @@ def main():
         result["highlights_rank_by"] = args.rank_by
         info(f"propuse {len(picks)} rangos highlight que suman {result['highlights_total']:.1f}s")
         if args.edl:
+            _asegurar_padre(args.edl)
             with open(args.edl, "w", encoding="utf-8") as fh:
                 for s, e in picks:
                     fh.write(f"{s:.2f}-{e:.2f}\n")
             info(f"guarde {args.edl}")
 
     if args.sheet:
+        _asegurar_padre(args.sheet)
         n = len(scenes)
         cols = min(4, max(1, n))
         rows = max(1, math.ceil(n / cols))

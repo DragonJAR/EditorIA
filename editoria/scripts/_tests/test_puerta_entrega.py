@@ -85,6 +85,34 @@ class TestPuertaEntrega(unittest.TestCase):
                                 "el margen de la puerta debe cubrir el fundido de cierre")
 
 
+class TestSubtitulosEnLaPuerta(unittest.TestCase):
+    """Una pieza narrada para redes sin subtitulos declarados no pasa en silencio."""
+
+    def setUp(self):
+        self.mod = _cargar(QA_ENTREGA, "qa_entrega_subs")
+
+    def _plan(self, **extra):
+        plan = {"duracion": 10.0, "escenas": [
+            {"tipo": "apertura", "from": 0, "to": 5, "voz": "Hola."},
+            {"tipo": "final", "from": 5, "to": 10, "voz": "Adios."}]}
+        plan.update(extra)
+        return plan
+
+    def test_narrada_para_reels_sin_declarar_falla(self):
+        self.assertIsNotNone(self.mod._defecto_subtitulos(self._plan(), "reels"))
+
+    def test_declarados_en_el_plan_pasan(self):
+        self.assertIsNone(self.mod._defecto_subtitulos(
+            self._plan(subtitulos=True), "reels"))
+
+    def test_sin_voz_no_se_exigen(self):
+        plan = {"escenas": [{"tipo": "apertura", "from": 0, "to": 5}]}
+        self.assertIsNone(self.mod._defecto_subtitulos(plan, "reels"))
+
+    def test_fuera_de_redes_no_se_exigen(self):
+        self.assertIsNone(self.mod._defecto_subtitulos(self._plan(), "youtube"))
+
+
 class TestConteoDelEncabezado(unittest.TestCase):
     """El encabezado de mapa.md no puede quedarse viejo."""
 

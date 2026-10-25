@@ -123,7 +123,7 @@ Then author the plan: write `plan.json` following `references/plan-video.md` (39
 
 Before writing the scenes, write the argument: one claim per scene with the proof that carries it, in plain text (`references/copy.md` §1). The order of that list is the order of the video, and it is what keeps a piece from falling into the stock sequence.
 
-Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?*
+Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?* The catalog has 39 scene types; `scripts/demo_plan.json` is one worked example, not the template. Before choosing, check which types the previous piece in this project used (its plan or `PROGRESO.md`) and do not repeat its dominant type unless the argument asks for it: `auditar_plan.py` warns (`poco-repertorio`) when a whole piece uses only a few types or one type in half the scenes.
 
 If you delegate a part (a scene, a block, a batch of scenes to a subagent or to a later pass), the order is written first: `references/brief.md` is the contract of that part — what, where, with what, with what budget, how it is reviewed before it counts as done, and what comes back. Its ownership rule is the one that keeps the parts talking: a missing helper is written private, a bug in a shared file is reported, not silently patched.
 
@@ -150,6 +150,8 @@ python scripts/render_plan.py plan.json --preview 0,2.5,5
 python scripts/render_plan.py plan.json -o out.mp4 --blur 5
 ```
 
+Timing: `--blur 5` composes every frame 5 times — on a modest VM a ~60 s piece takes several minutes (the render prints progress with ETA; re-running without `--force` resumes). The delivery gate (`qa_entrega.py`) on a ~60 s piece takes minutes too: it announces each step and its elapsed time, so run it in the background rather than under a short shell timeout.
+
 Expected output: `out.mp4` rendered at 1080x1920 @30fps (vertical) or 1920x1080 @30fps (horizontal), H.264 `yuv420p`.
 
 ### Step 4: Synthesize Voice-Over, SFX, and Music
@@ -169,7 +171,11 @@ python scripts/mezclar_audio.py plan.json --video out.mp4 \
     --grid grid.json --pack assets/sfx --musica mus.mp3 -o mezclado.mp4
 python scripts/ffmpeg_tools/loudness.py mezclado.mp4 -o final.mp4 -I -14 --tp -1.5
 python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3
+# subtitulos de la pieza narrada (reels/tiktok/shorts): karaoke desde las palabras reales
+python scripts/ffmpeg_tools/caption.py final.mp4 --palabras voz.palabras.json --karaoke --animate pop -o final_sub.mp4
 ```
+
+For a narrated social piece the captions are part of the piece, not an extra: burn them from the aligned words (`caption.py --palabras ... --karaoke`) and declare `"subtitulos": true` in the plan — the delivery gate now asks for that declaration on reels/tiktok/shorts. Without an ElevenLabs key (or a paid agreement), the music bed is procedural and free: `python scripts/musica.py cama -o cama.wav --dur 60` generates it with ffmpeg oscillators; mix it with `musica.py mix` and declare it as the fallback bed (`references/sonido.md`).
 
 Expected output: `final.mp4` with voice on top, music ducked ~15 dB under active speech, every SFX cue placed at its anchor, and the mix at the delivery loudness (-14 LUFS, true peak -1.5 dBTP). A piece with music but no SFX reads as a video with a background, not as a designed piece.
 

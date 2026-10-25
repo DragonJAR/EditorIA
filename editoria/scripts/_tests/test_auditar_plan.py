@@ -31,6 +31,46 @@ def _plan(**extra):
     return plan
 
 
+class TestCadenciaYRepertorio(unittest.TestCase):
+    """La cadencia narrada se declara; el poco repertorio se avisa."""
+
+    TIPOS = ["apertura", "bento", "stats", "pasos", "versus", "final",
+             "remate", "quote", "index", "hero", "bars", "pie"]
+
+    def _plan(self, tipos, con_voz=False, dur=5.0):
+        escenas = []
+        for i, tipo in enumerate(tipos):
+            e = {"tipo": tipo, "from": i * dur, "to": (i + 1) * dur, "titulo": "Dato"}
+            if con_voz:
+                e["voz"] = "Una frase corta."
+            escenas.append(e)
+        return {"duracion": dur * len(tipos), "escenas": escenas}
+
+    def _avisos(self, plan, codigo):
+        return [h["msg"] for h in AP.auditar_tells(plan)
+                if h.get("codigo") == codigo]
+
+    def test_cadencia_con_voz_dice_como_declararla(self):
+        plan = self._plan(self.TIPOS[:6], con_voz=True)
+        msgs = self._avisos(plan, "cadencia-uniforme")
+        self.assertTrue(msgs)
+        self.assertIn("tells_ok", msgs[0])
+        self.assertIn("voz", msgs[0])
+
+    def test_poco_repertorio_avisa(self):
+        plan = self._plan(["bento"] * 4 + ["stats"] * 4)
+        self.assertTrue(self._avisos(plan, "poco-repertorio"))
+
+    def test_repertorio_variado_no_avisa(self):
+        plan = self._plan(self.TIPOS[:8])
+        self.assertFalse(self._avisos(plan, "poco-repertorio"))
+
+    def test_poco_repertorio_se_puede_declarar(self):
+        plan = self._plan(["bento"] * 8)
+        plan["tells_ok"] = ["poco-repertorio"]
+        self.assertFalse(self._avisos(plan, "poco-repertorio"))
+
+
 class TestCredenciales(unittest.TestCase):
     """Una credencial en el plan se publica con la pieza."""
 

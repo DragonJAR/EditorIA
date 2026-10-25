@@ -124,7 +124,7 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   la mezcla con ducking es `scripts/musica.py mix`.
   `medir_animacion --plan` imprime la SINCRONÍA: % de entradas en medio beat
   y de cortes en el uno, frente al azar.
-- **Subtítulos quemados**: `"subtitulos": true` reserva una banda abajo (12 %
+- **Subtítulos quemados**: `"subtitulos": true` (o `"subtitulos": "voz.srt"` con la ruta del archivo generado) reserva una banda abajo (12 %
   del alto, sobre la UI de la plataforma): toda escena compone encima y el
   render imprime el `--margin` exacto para `caption.py`. Sin banda, los
   subtítulos pisan fuentes, botones y pies de las escenas. `caption.py` sin

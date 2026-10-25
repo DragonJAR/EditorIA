@@ -176,6 +176,8 @@ def medir(job):
     from collections import Counter
     tamanos = {}        # texto -> Counter{tamaño: frames en que se dibuja así}
     ultimos = {}        # texto -> el tamaño de su ULTIMO dibujo (el que se queda)
+    ultimos_escena = {}  # (nº escena, tipo, texto) -> tamaño en reposo en ESA escena
+    escena_hold = [None]  # (nº escena, tipo) en hold en el frame que se compone
     original = ImageDraw.ImageDraw.text
 
     def espia(self, xy, text, fill=None, font=None, *a, **k):
@@ -189,6 +191,8 @@ def medir(job):
                     _tam = int(getattr(font, "size", 0))
                     tamanos.setdefault(t, Counter())[_tam] += 1
                     ultimos[t] = _tam    # el estado en el que el texto se queda
+                    if escena_hold[0] is not None:
+                        ultimos_escena[(escena_hold[0][0], escena_hold[0][1], t)] = _tam
         return original(self, xy, text, fill, font, *a, **k)
     ImageDraw.ImageDraw.text = espia
     en_hold = [False]   # la letra se juzga ASENTADA: en una entrada todo pasa por tamaños chicos
@@ -215,6 +219,10 @@ def medir(job):
             ti = i / fps
             en_hold[0] = any(s_["from"] + (s_["to"] - s_["from"]) * 0.5 <= ti <= s_["to"] - 0.6
                              for s_ in escenas)
+            escena_hold[0] = next(
+                ((j + 1, s_.get("tipo", "?")) for j, s_ in enumerate(escenas)
+                 if s_["from"] + (s_["to"] - s_["from"]) * 0.5 <= ti <= s_["to"] - 0.6),
+                None)
             zonas_cifra.append([])
             im = R.componer(ctx, escenas, dur, ti, manchas).convert("L").resize((ancho_a, alto_a))
             frames.append(np.asarray(im, dtype=np.float32))
@@ -225,12 +233,21 @@ def medir(job):
     F = np.stack(frames)
     m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_)
     letra = int(_letra_en_reposo(tamanos, ultimos) * 1080 / min(w, h)) if tamanos else 0
+    # La letra culpable, CON su escena y su texto: un «21 px» global obliga a
+    # inspeccionar frame a frame hasta dar con la escena (dos ciclos de
+    # render en la replica del reel). Esto es lo que la pasada con alcance
+    # de qa-entrega.md necesita para corregir sin mirar toda la pieza.
+    letra_por_escena = sorted(
+        ({"escena": f"{num}:{tipo}", "texto": texto[:40],
+          "letra_px": int(tam * 1080 / min(w, h))}
+         for (num, tipo, texto), tam in ultimos_escena.items()),
+        key=lambda d: d["letra_px"])
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
         m["muerto"] = 0.0
         m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
-                costo=round(costo, 3))
+                letra_por_escena=letra_por_escena, costo=round(costo, 3))
 
 
 def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
@@ -588,6 +605,10 @@ def main():
         for r in res:
             for x in r.get("solapes", []):
                 print(f"  SOLAPE {r['formato']} {x}")
+            for d in (r.get("letra_por_escena") or []):
+                if d["letra_px"] < LETRA_MIN:
+                    print(f"  LETRA {r['formato']} escena {d['escena']}: «{d['texto']}» "
+                          f"{d['letra_px']} px (< {LETRA_MIN}) — acorta ese texto o alarga su escena")
         global_ = round(float(np.mean([r["nota"] for r in res])), 2)
         minima = min(res, key=lambda r: r["nota"])
         if a.plan and plan.get("musica"):   # edición al ritmo: tiempos reales del plan vs la rejilla

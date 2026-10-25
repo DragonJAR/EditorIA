@@ -44,6 +44,12 @@ es la variación medible. Jerarquía canónica de cadencia (tres relojes):
   donde la escena es más larga, no al revés— y se reparte el aire que queda.
   El plan se escribe con esa cuenta ya hecha: `auditar_plan.py` avisa de la
   voz que se sale de su escena y de las escenas que duran casi lo mismo.
+  **Cuando la narracion ocupa casi toda la pieza** (cada escena = su frase,
+  la duracion la manda la voz), la cadencia uniforme no es un metronomo
+  elegido: es una excepcion deliberada y se **declara**, no se ignora en
+  silencio — `"tells_ok": ["cadencia-uniforme"]` en el plan y el porque en
+  la memoria del proyecto. El auditor lo dice en su propio aviso cuando
+  casi todas las escenas llevan voz.
 - **Al menos 25% de cuadros casi quietos** (diferencia media por cuadro
   mínima) y **al menos una pausa ≥ 1s** bajo el umbral. El silencio visual
   le da peso a lo que se mueve.

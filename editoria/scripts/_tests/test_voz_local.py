@@ -59,6 +59,36 @@ class TestParseoDeVoces(unittest.TestCase):
         self.assertEqual(voces[0]["nombre"], "Mónica")
 
 
+# Salida REAL de `espeak-ng --voices` (tabla, sin ningun campo `Voice:`):
+# el parser anterior buscaba `Voice:\s*(..)` y no encontraba ninguna voz
+# en un Linux con espeak-ng y voces `es`/`es-419` instaladas.
+MUESTRA_ESPEAK = """Pty Language       Age/Gender VoiceName       File                 Other Languages
+ 5  af              --/M      Afrikaans       af
+ 2  es              --/M      Spanish         es
+ 5  es-419          --/M      Spanish (Latin America) es-419      (es)
+ 5  en              --/M      English         gmw/en
+"""
+
+
+class TestParseoEspeak(unittest.TestCase):
+    def test_parsea_la_tabla_real(self):
+        voces = VL.parse_voces_espeak(MUESTRA_ESPEAK)
+        codigos = [v["nombre"] for v in voces]
+        self.assertIn("es", codigos)
+        self.assertIn("es-419", codigos)
+        self.assertIn("en", codigos)
+
+    def test_el_idioma_de_una_variante_es_su_base(self):
+        voces = {v["nombre"]: v for v in VL.parse_voces_espeak(MUESTRA_ESPEAK)}
+        self.assertEqual(voces["es-419"]["idioma"], "es")
+
+    def test_con_la_tabla_real_si_hay_voz_en_espanol(self):
+        voces = VL.parse_voces_espeak(MUESTRA_ESPEAK)
+        elegida = VL.elegir_voz(voces, "espeak-ng", "es", None)
+        self.assertIsNotNone(elegida)
+        self.assertEqual(elegida["idioma"], "es")
+
+
 class TestEleccionDeVoz(unittest.TestCase):
     """La voz se elige entre las INSTALADAS: si no hay ninguna del idioma
     pedido, el script falla en voz alta (no degrada en silencio)."""

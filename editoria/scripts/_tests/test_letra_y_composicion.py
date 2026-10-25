@@ -22,6 +22,45 @@ import medir_animacion as MA   # noqa: E402
 import qa_entrega as QA        # noqa: E402
 
 
+class TestCirculoNumero(unittest.TestCase):
+    """El numero dentro del circulo: cabe en el circulo y se lee.
+
+    En `index` el circulo era de 32 px fijos con la fuente secundaria:
+    un numero de dos cifras desbordaba, y el inactivo era gris sobre gris.
+    """
+
+    def test_la_cifra_cabe_en_el_circulo(self):
+        import render_plan as R
+        from PIL import Image, ImageDraw
+        R.formato(1080, 1920)
+        ctx = R.Ctx()
+        img = Image.new("RGBA", (400, 200), (10, 10, 10, 255))
+        d = ImageDraw.Draw(img)
+        for texto in ("1", "10", "12"):
+            R.circulo_numero(d, 100, 100, 24, texto, (60, 60, 60), R.BLANCO, ctx)
+            # la fuente elegida tiene que caber en el ancho util del circulo
+            fnt = R.fuente_que_cabe(ctx.fT, texto, int(24 * 1.05), int(24 * 1.4),
+                                    800, tabular=True)
+            self.assertLessEqual(R.largo(texto, fnt, True), 24 * 1.4 + 1)
+
+    def test_el_numero_queda_dentro_de_los_pixeles_del_circulo(self):
+        import render_plan as R
+        from PIL import Image, ImageDraw
+        R.formato(1080, 1920)
+        ctx = R.Ctx()
+        img = Image.new("RGBA", (200, 200), (0, 0, 0, 255))
+        d = ImageDraw.Draw(img)
+        R.circulo_numero(d, 100, 100, 24, "12", (60, 60, 60), (255, 255, 255), ctx)
+        # fuera del circulo (radio 24) no hay pixeles de la cifra
+        px = img.load()
+        for x, y in ((100, 60), (100, 140), (60, 100), (140, 100)):
+            self.assertEqual(px[x, y], (0, 0, 0, 255))
+        # y dentro hay cifra blanca
+        blancos = sum(1 for yy in range(76, 125) for xx in range(76, 125)
+                      if px[xx, yy][:3] == (255, 255, 255))
+        self.assertGreater(blancos, 20)
+
+
 class TestLetraEnReposo(unittest.TestCase):
     """El tamano con el que el texto SE QUEDA, no el que pasa durante la entrada."""
 

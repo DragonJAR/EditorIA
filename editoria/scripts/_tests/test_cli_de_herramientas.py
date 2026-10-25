@@ -188,5 +188,50 @@ class TestCLIReal(unittest.TestCase):
                         "el pack de SFX no se genero:\n" + r.stdout + r.stderr)
 
 
+class TestAlinearDiagnostico(unittest.TestCase):
+    """faster-whisper instalado pero incompatible con PyAV no es «no hay motor»."""
+
+    def test_el_fallo_metadata_errors_se_diagnostica(self):
+        sys.path.insert(0, SCRIPTS)
+        import alinear
+        diag = alinear.diagnostico_faster_whisper(
+            TypeError("open() got an unexpected keyword argument 'metadata_errors'"))
+        self.assertIn("PyAV", diag)
+        self.assertIn("av==12.3.0", diag)
+
+    def test_leer_palabras_acepta_el_formato_corto(self):
+        sys.path.insert(0, TOOLS)
+        from _comun import leer_palabras
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+            json.dump([{"w": "hola", "start": 0.0, "end": 0.4}], fh)
+            ruta = fh.name
+        try:
+            palabras = leer_palabras(ruta)
+            self.assertEqual(palabras[0]["texto"], "hola")
+        finally:
+            os.unlink(ruta)
+
+
+class TestMusicaSinAPI(unittest.TestCase):
+    """Sin ELEVENLABS_API_KEY hay cama procedural, no silencio."""
+
+    def test_cama_genera_audio(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = os.path.join(d, "cama.wav")
+            r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "musica.py"),
+                                "cama", "-o", out, "--dur", "2"],
+                               capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertGreater(os.path.getsize(out), 10000)
+
+    def test_gen_sin_clave_apunta_a_la_cama(self):
+        env = {k: v for k, v in os.environ.items() if k != "ELEVENLABS_API_KEY"}
+        r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "musica.py"),
+                            "gen", "-o", "x.mp3", "--prompt", "test", "--dur", "5"],
+                           capture_output=True, text=True, timeout=120, env=env)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("cama", (r.stdout + r.stderr).lower())
+
+
 if __name__ == "__main__":
     unittest.main()

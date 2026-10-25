@@ -1185,6 +1185,10 @@ def leer_palabras(path: str) -> List[Dict[str, Any]]:
     ({segments: [{speaker?, words: [...]}]}). `hablante` (o `speaker`, por
     palabra o por segmento) es opcional: None si el archivo no lo trae."""
     data = leer_json(path, "el JSON de palabras")
+    # El formato canonico es el de scripts/alinear.py:
+    # {"palabras": [{"texto": ..., "inicio": 0.0, "fin": 0.4, "confianza": ...}]}
+    # Se aceptan tambien la lista plana [{text|word|w, start, end}] y la
+    # salida segmentada de Whisper/WhisperX (ver el docstring).
     items: List[Tuple[Dict[str, Any], Any]] = []
     if isinstance(data, dict) and isinstance(data.get("segments"), list):
         for seg in data["segments"]:
@@ -1195,7 +1199,7 @@ def leer_palabras(path: str) -> List[Dict[str, Any]]:
         items = [(w, None) for w in (lista or []) if isinstance(w, dict)]
     out = []
     for w, hab_seg in items:
-        texto = str(w.get("texto") or w.get("text") or w.get("word") or "").strip()
+        texto = str(w.get("texto") or w.get("text") or w.get("word") or w.get("w") or "").strip()
         a, b = _to_float(w.get("inicio", w.get("start"))), _to_float(w.get("fin", w.get("end")))
         if texto and a is not None and b is not None:
             out.append({"texto": texto, "inicio": a, "fin": max(b, a + 0.05),

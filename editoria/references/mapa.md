@@ -125,7 +125,7 @@ escribir es un tapón).
 | `sfx.md` | la capa de efectos de sonido | sonido |
 | `copy.md` | el texto que decide si un video se lee como diseñado | copy |
 | `share-copy.md` | el texto que acompaña al video al publicarlo | copy |
-| `qa-entrega.md` | la puerta de entrega: seis comprobaciones con plan (tres sin), un veredicto | qa |
+| `qa-entrega.md` | la puerta de entrega: siete comprobaciones con plan (tres sin), un veredicto | qa |
 | `auto-qa.md` | el loop de ver, detectar y corregir | qa |
 | `checklist-qa.md` | la lista de verificación humana | qa |
 | `pasadas.md` | las pasadas de refinamiento: corregir lo nombrado, sin tocar el resto | qa |
@@ -318,7 +318,7 @@ escribir es un tapón).
 | `scripts/musica.py` | musica y mezcla con ducking |
 | `scripts/auto_qa.py` | los defectos de maquina del render |
 | `scripts/medir_animacion.py` | los pops, los tirones y la coherencia de movimiento |
-| `scripts/qa_entrega.py` | la puerta: las seis comprobaciones con plan (tres sin), un veredicto |
+| `scripts/qa_entrega.py` | la puerta: las siete comprobaciones con plan (tres sin), un veredicto |
 | `scripts/actualizar_conteos.py` | reescribir los conteos que enuncian este mapa y el SKILL.md (`--check` solo informa) |
 | `scripts/sincronizar_instalada.py` | dejar la copia instalada en lo publicado y sin bytecode fantasma |
 | `scripts/mezclar_audio.py` | el ensamblado del audio: voz + música (duckeada) + SFX en su instante |
