@@ -68,26 +68,73 @@ def cuentas():
     no tendria salida.
     """
     refs = AM._n_publicados("references", lambda p: p.endswith(".md"))
+    escenas = AM._n_escenas_publicadas()
     root = AM._n_publicados("scripts", lambda p: p.endswith(".py") and p.count("/") == 1)
     fft = AM._n_publicados("scripts/ffmpeg_tools", lambda p: p.endswith(".py"))
     suites = len(AM._suites_publicadas())
     archivos = AM._n_publicados("scripts/_tests", lambda p: p.endswith(".py")
                                  and p != "__init__.py")
-    return refs, root, fft, suites, archivos
+    return refs, root, fft, suites, archivos, escenas
 
 
-def _sustituye(texto, patron, nuevo, etiqueta, cambios):
-    """Sustituye la primera coincidencia y anota el detalle del cambio.
+def _sustituye(texto, patron, nuevo, etiqueta, cambios, todas=False):
+    """Sustituye la coincidencia y anota el detalle del cambio.
 
     `cambios` guarda (archivo, lo que decia, lo que dira): el --check
     imprime eso, para que el que pregunta sepa QUE esta desfasado y no
     solo en que archivo.
+
+    `todas=True` reescribe TODAS las apariciones: una cifra que enuncia el
+    tamaño de una cosa va en mas de un sitio (el resumen, la tabla, el arbol
+    de ficheros) y si solo se cambia el primero, el numero se queda viejo en
+    los demas y el guard sigue diciendo que esta desfasado.
     """
     mt = re.search(patron, texto)
-    if not mt or mt.group(0) == nuevo:
+    if not mt:
+        return texto
+    if todas:
+        m_ref = re.search(r"\d+", nuevo)
+        nuevo_re = int(m_ref.group(0)) if m_ref else 0
+        # solo es un CAMBIO si la CIFRA difiere: el texto encontrado puede
+        # ser ya correcto y reportarlo como desfasado haria que el --check
+        # se quejara de algo que esta bien (y el bucle no tendria salida)
+        numeros = {int(m.group(1)) for m in re.finditer(patron, texto)
+                   if m.groups() and m.group(1).isdigit()}
+        if not numeros or numeros == {int(nuevo_re)}:
+            return texto
+        for numero in numeros:
+            cambios.append((etiqueta, str(numero), str(nuevo_re)))
+        return re.sub(patron, lambda _m: nuevo, texto)
+    if mt.group(0) == nuevo:
         return texto
     cambios.append((etiqueta, mt.group(0).strip(), nuevo.strip()))
     return texto[:mt.start()] + nuevo + texto[mt.end():]
+
+
+#: Las formas en que la prosa enuncia el TAMAÑO del catalogo de escenas. Las
+#: vigila el guard (`scripts/auditar_mapa.py`); si una forma se queda fuera de
+#: esta lista, el numero se queda viejo en esa prosa y el guard avisa sin que
+#: la herramienta pueda arreglarlo.
+_FORMAS_DE_ESCENAS = (r"\d+ escenas compuestas", r"\d+ scenes composed",
+                      r"Suite visual de las \d+ escenas",
+                      r"Visual suite for all \d+ scenes",
+                      r"Muestras canónicas de las \d+ escenas",
+                      r"Canonical samples for all \d+ scenes",
+                      r"Catálogo de \d+ escenas", r"Catalog of \d+ scenes",
+                      r"componen las \d+ escenas", r"compose all \d+ scenes",
+                      r"\d+ tipos de escena", r"\d+ scene types",
+                      r"\d+ tipos —", r"\d+ types —",
+                      r"motor principal de render por plan \(\d+ escenas\)",
+                      r"main render engine by plan \(\d+ scenes\)",
+                      r"\(\d+ escenas\)", r"\(\d+ scenes\)")
+
+
+def _transforma_escenas(texto, escenas, etiqueta, cambios):
+    """El tamaño del catalogo de escenas, en todas sus formas."""
+    for patron in _FORMAS_DE_ESCENAS:
+        texto = _sustituye(texto, patron, patron.replace(r"\d+", str(escenas)),
+                           etiqueta, cambios, todas=True)
+    return texto
 
 
 def _transforma_mapa(texto, refs, root, fft, suites, cambios):
@@ -183,7 +230,7 @@ def _transforma_frase_de_suites(texto, suites, cambios):
     return texto[:mt.start()] + mt.group(1) + lista + mt.group(3) + texto[mt.end():]
 
 
-def _transforma_readme(texto, refs, root, fft, suites, archivos, etiqueta, cambios):
+def _transforma_readme(texto, refs, root, fft, suites, archivos, escenas, etiqueta, cambios):
     total = root + fft + archivos
     texto = _sustituye(
         texto, r"# \d+ motores raíz \+ \d+ en ffmpeg_tools/ \+ \d+ en _tests/ = \d+ scripts",
@@ -197,10 +244,15 @@ def _transforma_readme(texto, refs, root, fft, suites, archivos, etiqueta, cambi
                        f"{refs} referencias en kebab-case.md", etiqueta, cambios)
     texto = _sustituye(texto, r"\d+ references in kebab-case\.md",
                        f"{refs} references in kebab-case.md", etiqueta, cambios)
+    # el tamaño del CATALOGO de escenas: lo vigila el guard y lo enuncian los
+    # README. Sin esto, anadir una escena dejaba la cifra vieja (y el guard
+    # la senalaba como conteo obsoleto: no habia forma de arreglarlo con la
+    # herramienta, que es justo lo que la herramienta debe evitar)
+    texto = _transforma_escenas(texto, escenas, etiqueta, cambios)
     return texto
 
 
-def _transforma_skill(texto, refs, nombres, cambios):
+def _transforma_skill(texto, refs, nombres, cambios, escenas=0):
     """El SKILL.md tambien enuncia el numero de referencias (lo que hace de
     indice). Si la herramienta no lo reescribe, el numero se queda viejo en
     silencio: el guard lo ve, pero el que tiene que arreglarlo es esto."""
@@ -208,6 +260,8 @@ def _transforma_skill(texto, refs, nombres, cambios):
     texto = _sustituye(texto, r"\d+ references with one canonical source",
                        f"{refs} references with one canonical source",
                        "SKILL.md", cambios)
+    if escenas:
+        texto = _transforma_escenas(texto, escenas, "SKILL.md", cambios)
     return texto
 
 
@@ -222,7 +276,7 @@ def main():
                     help="solo informa de lo que esta desfasado (no escribe)")
     args = ap.parse_args()
 
-    refs, root, fft, suites, archivos = cuentas()
+    refs, root, fft, suites, archivos, escenas = cuentas()
     total = root + fft + archivos
     print(f"referencias {refs} · scripts raiz {root} · ffmpeg_tools {fft} · "
           f"suites {suites} · archivos en _tests/ {archivos} · scripts en total {total}")
@@ -248,7 +302,7 @@ def main():
         with tempfile.TemporaryDirectory() as tmp:
             copia = os.path.join(tmp, "editoria")
             shutil.copytree(BASE, copia, ignore=shutil.ignore_patterns("__pycache__"))
-            _aplica(copia, None, refs, root, fft, suites, archivos, cambios)
+            _aplica(copia, None, refs, root, fft, suites, archivos, escenas, cambios)
             if raiz_repo:
                 for nombre in ("README.md", "README.en.md"):
                     origen = os.path.join(raiz_repo, nombre)
@@ -258,11 +312,11 @@ def main():
                         # no tenerlo (y el test lo vigila)
                         texto = open(origen, encoding="utf-8").read()
                         _transforma_readme(texto, refs, root, fft, suites, archivos,
-                                            nombre, cambios)
+                                           escenas, nombre, cambios)
         _informe(cambios)
         return 0
 
-    _aplica(BASE, raiz_repo, refs, root, fft, suites, archivos, cambios)
+    _aplica(BASE, raiz_repo, refs, root, fft, suites, archivos, escenas, cambios)
     _informe(cambios)
     return 0
 
@@ -335,7 +389,7 @@ def _transforma_cli_contract(texto, cumplen, total, cambios):
     return texto[:mt.start()] + nuevo + texto[mt.end():]
 
 
-def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
+def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, cambios):
     """Aplica los cambios a la copia de la skill indicada."""
     nombres = AM._suites_publicadas()
     # el canonico primero: si el SKILL.md dice cuantas suites hay, ese numero
@@ -350,7 +404,7 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
     ruta = os.path.join(dest_skill, "SKILL.md")
     if os.path.exists(ruta):
         texto = open(ruta, encoding="utf-8").read()
-        nuevo = _transforma_skill(texto, refs, nombres, cambios)
+        nuevo = _transforma_skill(texto, refs, nombres, cambios, escenas)
         if nuevo != texto:
             open(ruta, "w", encoding="utf-8").write(nuevo)
     # el contrato de CLI: el numero de las que cumplen vive en la prosa y lo
@@ -366,12 +420,12 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, cambios):
         for nombre in ("README.md", "README.en.md"):
             origen = os.path.join(dest_repo, nombre)
             if os.path.exists(origen):
-                _aplica_readme(origen, refs, root, fft, suites, archivos, cambios)
+                _aplica_readme(origen, refs, root, fft, suites, archivos, escenas, cambios)
 
 
-def _aplica_readme(ruta, refs, root, fft, suites, archivos, cambios):
+def _aplica_readme(ruta, refs, root, fft, suites, archivos, escenas, cambios):
     texto = open(ruta, encoding="utf-8").read()
-    nuevo = _transforma_readme(texto, refs, root, fft, suites, archivos,
+    nuevo = _transforma_readme(texto, refs, root, fft, suites, archivos, escenas,
                                 os.path.basename(ruta), cambios)
     if nuevo != texto:
         open(ruta, "w", encoding="utf-8").write(nuevo)

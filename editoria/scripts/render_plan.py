@@ -623,6 +623,62 @@ def aplicar_globales(plan):
     v = plan.get("numeros", "en")
     NUMEROS.update(LOCALES.get(v, LOCALES["en"]) if isinstance(v, str) else
                    {k: str(v.get(k, NUMEROS[k])) for k in ("miles", "decimal")})
+    _preparar_camara(plan)
+
+
+# ---- CAMARA DE LA PIEZA (una trayectoria, no una por escena) -------------
+#
+# El problema: `respiracion` usaba `dt = t - e["from"]`, o sea el reloj de la
+# cámara se REINICIABA en cada corte. Medido en el plan de muestra: la escena
+# saliente llegaba a escala 1,0433 con dy +5,7 px y la entrante arrancaba en
+# 1,0000 con dy 0,00 -> un salto de 4,3-5 % de escala y hasta 6 px en CADA
+# union. La pieza se leia como un montage, no como una toma continua.
+#
+# La solución: el plan declara la TRAYECTORIA de la cámara y se evalua sobre
+# el reloj GLOBAL de la pieza. Por construcción es continua: en un corte, la
+# escena que sale y la que entra ven el MISMO instante, así que calculan la
+# MISMA escala. No hace falta sincronizar nada: no hay dos relojes.
+#
+#   "camara": {"z0": 2.40, "z1": 1.00, "flota": 6}
+#
+# `z0` y `z1` son las escalas al principio y al final de la pieza (z1 < z0 es
+# un alejamiento progresivo: el objeto se hace pequeno y la pieza respira).
+# Sin `camara` en el plan, el motor se comporta como antes (el push-in por
+# escena): esta capacidad es opt-in y no cambia las piezas existentes.
+_CAMARA={"z0":None,"z1":None,"flota":6,"t0":0.0,"t1":1.0,"activa":False}
+
+
+def _preparar_camara(plan):
+    """Deja la trayectoria de cámara lista (o la apaga si el plan no la pide)."""
+    _CAMARA.update({"z0":None,"z1":None,"flota":FLOTA_CAM,"t0":0.0,"t1":1.0,"activa":False})
+    if "camara" not in plan:
+        return                      # el plan no la pide: la camara se comporta como antes
+    cam=plan.get("camara") or {}
+    if not isinstance(cam,dict):
+        return
+    try:
+        z0=float(cam.get("z0",1.0)); z1=float(cam.get("z1",z0))
+    except (TypeError,ValueError):
+        return
+    esc=plan.get("escenas") or []
+    if not esc:
+        return
+    t0=float(min((e.get("from",0.0) for e in esc), default=0.0))
+    t1=float(max((e.get("to",t0) for e in esc), default=t0+1.0))
+    if t1<=t0:
+        t1=t0+1.0
+    _CAMARA.update({"z0":z0,"z1":z1,"flota":float(cam.get("flota",FLOTA_CAM)),
+                    "t0":t0,"t1":t1,"activa":True})
+
+
+def _escala_camara(t):
+    """La escala de la cámara en el instante t (trayectoria global)."""
+    if not _CAMARA["activa"]:
+        return 1.0
+    z0,z1=_CAMARA["z0"],_CAMARA["z1"]
+    t0,t1=_CAMARA["t0"],_CAMARA["t1"]
+    p=clamp01((t-t0)/max(1e-6,t1-t0))
+    return z0+(z1-z0)*p
 
 
 def separar(txt, miles=None, decimal=None):
@@ -1761,7 +1817,14 @@ def sc_bars(ctx, e, t):
 def sc_gauge(ctx, e, t):
     """Indicador circular (gauge) con cuenta animada al medio.
     Params: `titulo`, `valor`, `max`, `etiqueta`, `at{rotulo, gauge, valor, etiqueta}`.
+
+    Dos formas del mismo indicador, UNA idea con dos formas: `forma: "anillo"` es
+    el dial de marcas radiales (una MAGNITUD leida de un vistazo); sin `forma`
+    es el arco de 270 grados (el de antes). El dispatcher va al principio para
+    que las dos formas compartan la idea y no la codificacion.
     """
+    if e.get("forma") == "anillo":
+        return sc_gauge_anillo(ctx, e, t)
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     at = e["at"]
@@ -1795,6 +1858,117 @@ def sc_gauge(ctx, e, t):
     # y una cifra sin fuente a la vista es una cifra suelta (references/copy.md
     # §4). el linter acepta el campo `fuente` en cualquier escena, asi que
     # aqui tiene que dibujarse de verdad.
+    if e.get("fuente"):
+        pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 2.0))
+    return capa_salida(layer, t, e["to"])
+
+
+def _tick_radial(d, cx, cy, r_in, r_out, ang, half_w, color):
+    """Una marca radial del anillo: un trapecio fino orientado hacia fuera."""
+    a = math.radians(ang)
+    ca, sa = math.cos(a), math.sin(a)
+    tx, ty = -sa, ca                      # la tangente
+    x0, y0 = cx + ca * r_in, cy + sa * r_in
+    x1, y1 = cx + ca * r_out, cy + sa * r_out
+    d.polygon([(x0 + tx * half_w, y0 + ty * half_w),
+               (x1 + tx * half_w, y1 + ty * half_w),
+               (x1 - tx * half_w, y1 - ty * half_w),
+               (x0 - tx * half_w, y0 - ty * half_w)], fill=color)
+
+
+def sc_gauge_anillo(ctx, e, t):
+    """El medidor de ANILLO: un anillo de marcas radiales que se llena.
+
+    Es la forma "anillo" del gauge (la de arco es la de arriba): un anillo
+    completo de N marcas finas, como el velocimetro de un coche o el dial de
+    un panel de control. Sirve para lo que el arco no dice: una MAGNITUD
+    (0 a 50, 0 a 100) leida de un vistazo, con la marca llena growsl y el
+    numero dentro.
+
+    Params: `valor`, `max`, `ticks` (marcas, 50), `etiqueta` (lo pequeno de
+    encima: "aprendizaje"), `sufijo` (lo de al lado: "/50"), `color` (la marca
+    llena; por defecto el acento del pack), `grosor`, `boton` (el boton oscuro
+    debajo: "Editar"), `at{rotulo, gauge, valor, etiqueta}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e["at"]
+    valor = e.get("valor", 0)
+    maxv = max(1e-9, e.get("max", 100))
+    n = int(e.get("ticks", 50))
+    color = e.get("color")
+    col = tuple(color) + (255,) if isinstance(color, (list, tuple)) and len(color) == 3 else ACENTO
+
+    # el dial vive en el centro de la zona segura: el objeto heroe.
+    # `cy` es su altura en fraccion del alto (el copy va encima, en `y_frase`)
+    cx, cy = W / 2, H * float(e.get("cy", 0.46))
+    r = unidad() * float(e.get("radio", 0.28))
+    r_in = r - unidad() * 0.045
+    half_w = unidad() * 0.009
+
+    t_in = at.get("gauge", e["from"] + 0.3)
+    ka = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))
+    g_ = smoothstep(clamp01((t - t_in) / 1.2))
+    # el valor ANIMA dentro de la escena: de `valor_desde` (el valor del beat
+    # anterior) al valor de este. Sin esto el dial salta de 31 a 3 en el
+    # corte y la puerta lo cuenta como 10 pops (medido).
+    v0 = e.get("valor_desde", valor)
+    dur_esc = max(0.4, float(e["to"]) - float(e["from"]))
+    prog = smoothstep(clamp01((t - t_in) / dur_esc))
+    valor_actual = v0 + (valor - v0) * prog
+    fraccion = clamp01(valor_actual / maxv)
+    llenas = int(round(fraccion * n * g_))
+
+    # el anillo: las marcas vacias (oscuras) y las llenas (color)
+    for i in range(n):
+        ang = -90 + 360.0 * i / n
+        if i < llenas:
+            _tick_radial(d, cx, cy, r_in, r, ang, half_w, col)
+        else:
+            _tick_radial(d, cx, cy, r_in, r, ang, half_w, (38, 38, 42, int(255 * ka)))
+    # el aro: el borde que cierra el dial
+    d.ellipse([cx - r - half_w * 1.6, cy - r - half_w * 1.6,
+               cx + r + half_w * 1.6, cy + r + half_w * 1.6],
+              outline=(58, 58, 64, int(220 * ka)), width=max(2, int(half_w * 0.55)))
+
+    # dentro: la etiqueta pequena, la cifra grande y el sufijo
+    fnt_val = ctx.fT(unidad() * 0.115, 700)
+    val = cuenta_up(v0, valor, t, t_in, dur=dur_esc, progreso=g_)
+    texto_val = cuenta_up(0, valor, 1e9, 0)
+    if e.get("sufijo"):
+        fs = ctx.fT(unidad() * 0.042, 600)
+        d.text((cx, cy - unidad() * 0.012), texto_val, font=fnt_val, fill=BLANCO + (255,), anchor="rm")
+        d.text((cx + unidad() * 0.012, cy - unidad() * 0.004), str(e["sufijo"]), font=fs,
+               fill=GRIS + (230,), anchor="lm")
+    else:
+        d.text((cx, cy - unidad() * 0.012), val, font=fnt_val, fill=BLANCO + (255,), anchor="mm")
+
+    t_et = at.get("etiqueta", t_in + 0.5)
+    if e.get("etiqueta") and t >= t_et - 0.3:
+        ke = smoothstep(clamp01((t - t_et) / 0.35))
+        d.text((cx, cy - unidad() * 0.085), str(e["etiqueta"]), font=ctx.fX(unidad() * 0.024, 500),
+               fill=GRIS + (int(220 * ke),), anchor="mm")
+
+    # el boton oscuro (la accion que la escena representa: "Editar")
+    t_b = at.get("boton", t_in + 1.0)
+    if e.get("boton") and t >= t_b - 0.3:
+        kb = smoothstep(clamp01((t - t_b) / 0.35))
+        fb = ctx.fX(unidad() * 0.030, 600)
+        tw = ctx.tmp.textlength(str(e["boton"]), font=fb)
+        bw, bh = tw + unidad() * 0.05, unidad() * 0.062
+        bx, by = cx - bw / 2, cy + r * 0.30
+        d.rounded_rectangle([bx, by, bx + bw, by + bh], radius=int(bh * 0.28),
+                            fill=(30, 30, 34, int(235 * kb)))
+        d.text((cx, by + bh / 2), str(e["boton"]), font=fb,
+               fill=BLANCO + (int(255 * kb),), anchor="mm")
+    # la frase encima del dial: el dial es el objeto y el copy es su lectura.
+    # van en la MISMA escena a proposito: el motor compone una escena a la vez,
+    # y si el copy fuera otra escena, en el corte el dial desaparecia.
+    if e.get("frase"):
+        # `y_frase` es la ALTURA de la ultima linea en fraccion del alto (la
+        # misma medida que `cy`): el copy va encima del dial y no lo pisa.
+        dibuja_frase(ctx, d, e, t, H * float(e.get("y_frase", 0.20)),
+                     tam=e.get("tam_frase"))
     if e.get("fuente"):
         pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 2.0))
     return capa_salida(layer, t, e["to"])
@@ -2211,6 +2385,213 @@ def sc_typewriter(ctx, e, t):
         if not termino or math.sin(t * 8) > 0:
             d.rectangle([cur[0] + 6, cur[1] - 2, cur[0] + 6 + max(4, tam * 0.07), cur[1] + tam * 1.05],
                         fill=ACENTO)
+    pie_fuente(ctx, d, e, t, e["from"] + 2.5)
+    return capa_salida(layer, t, e["to"])
+
+
+# El AZUL DE LA SELECCION: el recuadro que marca una palabra. No viene del
+# pack (no es identidad de marca: es una convencion de lectura, como el
+# subrayado o la flecha) y por eso vive aqui y no en el pack.
+AZUL_SELECCION=(43,127,255)
+
+
+def _frase_layout(ctx, e, tam, visibles=None):
+    """(palabras, lineas, linea_de, ancho_de, gap, lh) de una frase cinetica.
+
+    El flujo de palabras y su salto de linea se calculan UNA vez y los usan
+    las escenas que la dibujan (la frase suelta y el dial que lleva la frase
+    encima): dos copias de este calculo serian dos copias que se desvanecan.
+    """
+    zx0, _zy0, zx1, _zy1 = caja_segura()
+    maxw = zx1 - zx0 - 40
+    fnt = ctx.fX(tam, 500)
+    fnt_b = ctx.fX(tam, 800)     # la palabra clave va en negrita: es MAS ANCHA
+    gap = ctx.tmp.textlength(" ", font=fnt) + tam * 0.24
+    palabras = (e.get("frase") or e.get("texto") or "").split()
+    if visibles is not None:
+        palabras = [palabras[i] for i in visibles]
+    clave = (e.get("clave") or "").strip().lower()
+
+    def _ancho_de(w_):
+        """El ancho REAL de la palabra, con la fuente con la que se dibuja.
+
+        Medir todas las palabras con la misma fuente y dibujar la clave con
+        otra es como se sale una linea del ancho: el texto se sale de la zona
+        segura y el centrado sale mal (medido: la palabra clave en negrita
+        empujaba la linea 40 px fuera).
+        """
+        es_clave = ("*" in w_) or (bool(clave) and
+                                  w_.replace("*", "").strip(",.;:!?\u00bf\u00a1\"'").lower() == clave)
+        return ctx.tmp.textlength(w_.replace("*", ""), font=(fnt_b if es_clave else fnt))
+
+    lineas, cur, x = [], [], 0.0
+    for i, w_ in enumerate(palabras):
+        ww = _ancho_de(w_)
+        if cur and x + ww > maxw:
+            lineas.append(cur); cur = []; x = 0.0
+        cur.append((i, x, ww)); x += ww + gap
+    if cur:
+        lineas.append(cur)
+    linea_de, ancho_de = {}, {}
+    for li, ln in enumerate(lineas):
+        total = sum(w for _, _, w in ln) + gap * max(0, len(ln) - 1)
+        ancho_de[li] = total
+        for i, x, _ in ln:
+            linea_de[i] = li
+    return palabras, lineas, linea_de, ancho_de, gap, maxw
+
+
+def y_de_pantalla(e, t, y_destino):
+    """Traduce una Y de PANTALLA (la zona segura) a la capa de la escena.
+
+    La camara escala la capa entera alrededor de su ancla, asi que un copy
+    dibujado en coordenadas de capa se va de la zona segura cuando la camara
+    se acerca. El copy que debe quedarse QUIETO (la frase) se compensa con la
+    inversa de la transformacion.
+
+    Es lo que hace el reel de referencia: el dial se acerca y se aleja, y la
+    frase se queda clavada en su sitio. Sin esta compensacion, un zoom fuerte
+    saca el texto del cuadro (medido: con la camara a 1,85 la linea de la
+    frase caia 10 px por encima del borde superior).
+    """
+    fr, dy = respiracion(e, t)
+    if abs(fr - 1.0) < 1e-6:
+        return y_destino
+    cx, cy = W / 2, H * 0.45
+    return cy + (y_destino - cy - dy) / fr
+
+
+def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
+    """Dibuja la frase cinetica: el copy entra PALABRA a PALABRA y el bloque
+    sube para que la ultima palabra quede siempre en la misma zona.
+
+    La palabra marcada con `*` (o la que dice `clave`) va en blanco y en
+    negrita sobre el gris del resto; `seleccion` le pone encima el recuadro
+    azul, como si alguien la hubiera marcado. Lo que ya se ha dicho se
+    desvanece: solo se ven las ultimas `ventana` palabras.
+
+    Devuelve el numero de palabras escritas (0 si todavia no hay ninguna).
+    """
+    at = e.get("at") or {}
+    texto = e.get("frase") or e.get("texto") or ""
+    if not texto:
+        return 0
+    t_in = at.get("rotulo", e.get("from", 0.0))
+    tam_pantalla = int(tam or e.get("tam", unidad() * 0.055))
+    # el copy se queda del MISMO TAMANO en pantalla: la camara escala la
+    # capa, asi que el tamano en la capa se divide por el factor de camara.
+    # (si no, el texto crecia y menguaba con el zoom, y las lineas se
+    # rozaban: un texto pisa a otro)
+    fr_cam, _dy_cam = respiracion(e, t)
+    tam = max(18, int(round(tam_pantalla / max(0.2, fr_cam))))
+    fnt = ctx.fX(tam, 500)      # la frase es texto courant, no titular
+    fnt_b = ctx.fX(tam, 800)     # la palabra clave, en negrita
+    clave = (e.get("clave") or "").strip().lower()
+    seleccion = (e.get("seleccion") or "").strip().lower()
+
+    def _limpia(w_):
+        return w_.replace("*", "")
+
+    def _marca(w_):
+        """(es_clave, es_seleccion) de una palabra."""
+        ws = _limpia(w_).strip(",.;:!?\u00bf\u00a1\"'").lower()
+        return ("*" in w_) or (bool(clave) and ws == clave), (bool(seleccion) and ws == seleccion)
+
+    cps = float(e.get("cps", 1.6))
+    ventana = int(e.get("ventana", 5))
+    todas = (e.get("frase") or e.get("texto") or "").split()
+    k = min(len(todas), int(max(0.0, t - t_in) * cps) + 1)
+    if k <= 0:
+        return 0
+    primero = max(0, k - ventana)
+    # el layout es de las palabras VISIBLES: el bloque se recompone en cada
+    # palabra nueva y sale centrado. Con el layout de la frase ENTERA, una
+    # linea casi vacia se centraba como si estuviera llena y se salia del
+    # cuadro por la izquierda (medido: 160 px fuera).
+    #
+    # Y el bloque NO se mueve de golpe: cuando la recomposicion cambia el
+    # sitio de una palabra, esa palabra se funde de su sitio viejo al nuevo.
+    # Si se moviera de golpe, el medidor lo contaria como un pop (un bloque de
+    # 10x10 px que cambia de golpe: medido, 10 pops, todos en el instante de
+    # anadir palabra).
+    dur_fusion = 0.22
+    # el layout es FIJO (la frase entera): el bloque NO se recompone al anadir
+    # palabra. Es lo que hace el reel de referencia: las palabras aparecen en
+    # su sitio y las viejas se apagan; el bloque no se mueve (medido: si se
+    # recompone, el bloque salta de sitio y el medidor lo cuenta como un pop:
+    # 10 pops, todos en el instante de anadir palabra).
+    palabras, lineas, linea_de, ancho_de, gap, maxw = _frase_layout(ctx, e, tam)
+    # el interlineado se compensa con la camara: si no, el copy crecia y
+    # menguaba con el zoom (la camara escala la capa entera).
+    lh = tam * 1.52      # en la capa: con la camara, sale a 1,52 en pantalla
+    linea_ancla = max(linea_de.values()) if linea_de else 0
+    zx0, _zy0, _zx1, _zy1 = caja_segura()
+    y_ancla = y_de_pantalla(e, t, y_ancla)
+    # el instante en que entra la palabra nueva: la fusion va de alli
+    t_palabra = t_in + max(0, k - 1) / max(0.01, cps)
+    m_fusion = smoothstep(clamp01((t - t_palabra) / dur_fusion))
+
+    def _sitio(layout_lineas, layout_linea_de, layout_ancho, idx):
+        li = layout_linea_de.get(idx)
+        if li is None:
+            return None
+        pos = [p for p in layout_lineas[li] if p[0] == idx]
+        if not pos:
+            return None
+        ultimo = max(layout_linea_de.values()) if layout_linea_de else 0
+        return (zx0 + (maxw - layout_ancho.get(li, 0)) / 2.0 + pos[0][1],
+                y_ancla + (li - ultimo) * lh)
+
+    for i in range(len(palabras)):
+        w_ = palabras[i]
+        texto_w = _limpia(w_)
+        es_clave, es_sel = _marca(w_)
+        f = fnt_b if es_clave else fnt
+        edad = (len(palabras) - 1 - i)
+        fade = 1.0 if edad == 0 else max(0.0, 1.0 - edad / float(max(1, ventana)))
+        if es_clave:
+            fade = max(fade, 0.92)       # la clave no se apaga: es el mensaje
+        if edad == 0:
+            # la palabra NUEVA entra fundida: si aparece de golpe, el medidor
+            # la cuenta como un pop (un bloque de 10x10 px que cambia de
+            # golpe: medido, eran casi todos los pops que quedaban)
+            fade *= smoothstep(clamp01((t - t_palabra) / 0.22))
+        col = BLANCO if es_clave else GRIS
+        sitio = _sitio(lineas, linea_de, ancho_de, i)
+        if sitio is None:
+            continue
+        for (x, y), fa in ((sitio, fade),):
+            al = int(255 * fa)
+            if al <= 2:
+                continue
+            d.text((x, y), texto_w, font=f, fill=col + (al,), anchor="la")
+            if es_sel:
+                ww = ctx.tmp.textlength(texto_w, font=f)
+                d.rounded_rectangle([x - tam * 0.12, y - tam * 0.10, x + ww + tam * 0.12,
+                                     y + tam * 1.02], radius=int(tam * 0.16),
+                                    outline=AZUL_SELECCION + (min(255, al + 40),),
+                                    width=max(2, int(tam * 0.035)))
+    return k
+
+
+def sc_frase(ctx, e, t):
+    """Frase cinetica: el copy entra PALABRA a PALABRA y el bloque sube para
+    que la ultima palabra quede siempre en la misma zona (teleprompter).
+
+    Es la escena del copy que se LEE, no el titular que golpea: no sale de
+    golpe, se escribe. La palabra marcada con `*` (o la que dice `clave`) va
+    en blanco y en negrita sobre el gris del resto; `seleccion` le pone
+    encima el recuadro azul, como si alguien la hubiera marcado. Lo que ya se
+    ha dicho se desvanece: solo se ven las ultimas `ventana` palabras.
+
+    Params: `frase` (el texto; `*palabra*` marca la clave), `clave` (alternativa
+    a los asteriscos), `seleccion` (la palabra con recuadro), `cps` (palabras
+    por segundo, 1.6), `tam`, `y` (donde queda la ultima palabra), `ventana`
+    (palabras visibles, 5), `at{rotulo}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    dibuja_frase(ctx, d, e, t, float(e.get("y", H * 0.20)))
     pie_fuente(ctx, d, e, t, e["from"] + 2.5)
     return capa_salida(layer, t, e["to"])
 
@@ -3679,6 +4060,8 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "timeline":sc_timeline,"quote":sc_quote,"versus":sc_versus,"confetti":sc_confetti,
         # Ronda 2: reactvideoeditor/remotion-templates (81 templates MIT)
         "typewriter":sc_typewriter,"kenburns":sc_kenburns,"pasos":sc_pasos,
+        # Ronda 12: la frase cinetica (el copy que se lee palabra a palabra)
+        "frase":sc_frase,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,
@@ -3767,12 +4150,36 @@ def pintar(ctx,e,t):
 
 _ESCALA={}
 A_SANGRE={"kenburns","confetti"}   # cubren el cuadro a propósito: no se miden ni encogen
+_ZONAS={}   # caja declarada por escena: {"idx": (x0,y0,x1,y1)}
 def escala_segura(ctx,e,idx):
     """Factor de escala FIJO por escena para que su contenido quepa en la zona
     segura. Se mide el bbox del contenido en varios instantes de la escena
-    (no por frame: un factor por frame bombearía)."""
+    (no por frame: un factor por frame bombearía).
+
+    ZONA DECLARADA: si la escena trae `"zona": [x0,y0,x1,y1]`, el factor se
+    calcula sobre esa caja y NO sobre el bbox medido. Dos escenas que
+    declaran la misma zona salen con el MISMO factor, y entonces el contenido
+    conserva su sitio de una a otra (antes: cada escena midia su propio bbox
+    y el factor saltaba 0,5-1 % en cada corte: medido 1,000 / 0,995 / 0,991
+    sobre la caja ancla (W/2, 0,45H), o sea la caja no se quedaba quieta).
+    """
     if idx in _ESCALA: return _ESCALA[idx]
     if e["tipo"] in A_SANGRE: _ESCALA[idx]=1.0; return 1.0   # fondo a sangre; el texto ya va en la zona segura
+    cx,cy=W/2,H*0.45
+    zona=e.get("zona")
+    if isinstance(zona,(list,tuple)) and len(zona)==4:
+        try:
+            xs0,ys0,xs1,ys1=(float(v) for v in zona)
+        except (TypeError,ValueError):
+            zona=None
+        if zona is not None:
+            f=1.0
+            if xs1>xs0 and ys1>ys0:
+                f=min(f,(cx-SAFE["left"])/max(1,cx-xs0),(W-SAFE["right"]-cx)/max(1,xs1-cx),
+                      (cy-SAFE["top"])/max(1,cy-ys0),(H-SAFE["bottom"]-cy)/max(1,ys1-cy))
+            f=max(0.70,min(1.0,f))
+            _ESCALA[idx]=f if f<0.995 else 1.0
+            return _ESCALA[idx]
     fr,to=e["from"],e["to"]
     xs0,xs1,ys0,ys1=W,0,H,0
     for i in range(6):
@@ -3801,8 +4208,22 @@ FLOTA_CAM=6    # px de flotación vertical: mueve TODOS los bordes (el push-in c
                # mueve lo que está cerca de su centro)
 
 def respiracion(e,t):
-    """(escala, dy) de la cámara de la escena: push-in lento + flotación suave."""
+    """(escala, dy) de la cámara de la escena: push-in lento + flotación suave.
+
+    El reloj es GLOBAL cuando el plan declara una trayectoria de cámara
+    (`plan["camara"]`): la cámara no se reinicia en cada corte, así que la
+    escala y la flotación son continuas de una escena a la siguiente (antes
+    el reloj era `t - e["from"]` y en cada corte la escala saltaba 4-5 %:
+    medido, la pieza se leía como un montage y no como una toma continua).
+
+    Sin trayectoria declarada el motor se comporta como antes: el push-in es
+    por escena y la flotación también. La capacidad es opt-in y no cambia las
+    piezas ya hechas.
+    """
     if ALFA or e["tipo"] in CAMARA_PROPIA or not e.get("respira",True): return 1.0,0.0
+    if _CAMARA["activa"]:
+        # trayectoria global: continua por construcción (mismo t -> misma escala)
+        return _escala_camara(t), _CAMARA["flota"]*math.sin(2*math.pi*0.3*t)
     dt=max(0.0,t-e["from"])
     return 1+min(RESPIRA_MAX,RESPIRA*dt), FLOTA_CAM*math.sin(2*math.pi*0.3*dt)
 
@@ -4119,7 +4540,10 @@ def completar_escena(e,i=0):
     if not all(isinstance(e.get(c),(int,float)) for c in ("from","to")) or e["to"]<=e["from"]:
         sys.exit(f"ERROR: escena {i+1} ({tipo}): necesita `from` y `to` en segundos, con to > from")
     e=dict(e); m=muestra(tipo)
-    if m and isinstance(m.get("at"),dict) and isinstance(e.get("at",{}),dict):
+    # `at` SIEMPRE existe: una escena nueva (sin muestra) que no traiga tiempos
+    # se rompe al leer `e["at"]` dentro de la escena (KeyError, no un aviso)
+    e["at"]=dict(e.get("at") or {})
+    if m and isinstance(m.get("at"),dict):
         k=(e["to"]-e["from"])/max(0.1,m["to"]-m["from"])
         at=dict(e.get("at") or {})
         for clave,v in m["at"].items():
@@ -4241,6 +4665,17 @@ def preparar_escenas(ctx,plan):
         for i,e in enumerate(escenas):
             resuelto=_recorrer_datos(e,datos,i,e)
             e.clear(); e.update(resuelto)
+    # el dial no salta entre beats: cada escena de gauge arranca en el valor
+    # de la anterior (salvo que el plan lo diga). El plan puede declarar
+    # `valor_desde` para romper la cadena a proposito.
+    _valor_previo=None
+    for e in escenas:
+        if e.get("tipo")=="gauge" and e.get("forma")=="anillo":
+            if "valor_desde" not in e and _valor_previo is not None:
+                e["valor_desde"]=_valor_previo
+            _valor_previo=e.get("valor",_valor_previo)
+        elif e.get("tipo")=="gauge" and e.get("valor") is not None:
+            _valor_previo=e.get("valor")
     if plan.get("musica") and plan.get("ritmo",True):   # edición al ritmo de la música
         escenas=al_ritmo(escenas,plan)
     for i,e in enumerate(escenas):

@@ -15,6 +15,7 @@
   "test_cli_de_herramientas.py",
   "test_cli_de_las_cuatro.py",
   "test_clonar_video.py",
+  "test_coherencia_y_frase.py",
   "test_comandos_copiables.py",
   "test_comandos_doc.py",
   "test_compilar_reel.py",

@@ -154,9 +154,29 @@ y `ali-abassi/remotion-templates` (Charts & Data, Stat Counter, Quote Card).
 `at{rotulo, bar0..n, fuente}`. Toda cifra lleva su `fuente` en pantalla.
 Fuente: `DataBarChart` de `lifeprompt-team/remotion-scenes` (MIT).
 
-**`gauge`** — Indicador circular (270°) con cuenta animada al centro.
-`valor`, `max`, `etiqueta`, `at{rotulo, gauge, etiqueta}`.
-Fuente: `DataGauge` (MIT).
+**`gauge`** — Indicador circular con cuenta animada al centro. Dos formas de
+la misma idea: el arco de 270° (sin `forma`) y el **anillo** de marcas
+radiales (`forma: "anillo"`). `valor`, `max`, `etiqueta`,
+`at{rotulo, gauge, etiqueta}`. Fuente: `DataGauge` (MIT).
+
+**`gauge` con `forma: "anillo"`** — El dial de marcas: un anillo completo de
+`n` marcas finas que se llenan con el valor, con la cifra y el sufijo
+(`sufijo: "/50"`) dentro y la etiqueta pequeña encima. Es lo que sirve para
+una MAGNITUD leida de un vistazo (un panel de control, un velocimetro, el
+estado de un aprendizaje). Params: `valor`, `max`, `ticks` (50), `sufijo`,
+`etiqueta`, `color?`, `radio?`, `cy?`, `boton?`, y `frase?` (la frase
+cinetica va ENCIMA, en la misma escena: el motor compone una escena a la vez
+y si el copy fuera otra, en el corte el dial desaparecia).
+`at{rotulo, gauge, etiqueta, boton}`.
+
+**`frase`** — La frase cinematica: el copy entra PALABRA a PALABRA y el
+bloque se recompone centrado (teleprompter). La palabra marcada con `*` (o
+la que dice `clave`) va en blanco y en negrita sobre el gris del resto, y
+`seleccion` le pone el recuadro azul. Lo que ya se ha dicho se desvanece:
+solo se ven las ultimas `ventana` palabras. Params: `frase`, `clave?`,
+`seleccion?`, `cps?` (palabras por segundo, 1.6), `tam?`, `y?` (donde queda
+la ultima palabra), `ventana?` (5), `at{rotulo}`. Es la escena del copy que
+se LEE, no del titular que golpea.
 
 **`ranking`** — Ranking horizontal con barras proporcionales, #1 lleva acento.
 `items[{etiqueta, valor, fecha?}]`, `at{rotulo, item0..n, fuente}`.

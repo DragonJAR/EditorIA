@@ -33,6 +33,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
   version possible meanwhile. Never deliver less in silence: a piece delivered
   without its 3D or without its audio, and nobody told, is an incomplete piece
   (`references/capacidades.md`).
+- **Coherence rule**: a piece is one continuous shot, not a list of effects. Declare the camera in the plan (`"camara"`) so it never restarts at a cut, and give the scenes that share a frame the same `"zona"` so the content keeps its place.
 - **Paid work rule**: Agree TTS or AI-music work and its expected cost with the user before calling a paid API, record it in the project's `BRIEF.md` (`scripts/proyecto.py`), and treat anything beyond that agreement as the user's decision. After an interruption, resume from the project files and produced material; never pay twice for the same voice or music.
 
 ## Motor Selector
@@ -47,10 +48,10 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | "Use the whole catalog, don't repeat last piece's route" | **Repertoire**: `scripts/repertorio.py sugerir/cobertura/validar` (the single intent→scene source: `scripts/data/repertorio.json`; rotation that avoids previous pieces, coverage with what was not used declared, no orphan scenes) |
 | Write or check the on-screen copy | **Copy**: `references/copy.md` + `scripts/lint_copy.py` (the copy is authored before the plan and checked against the engine's own auto-fit) |
 | Check the piece before delivering | **Gate**: `scripts/qa_entrega.py` (plan, copy, render, spec and motion in one verdict; `references/qa-entrega.md`) |
-| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (39 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
+| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (40 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
 | Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles from `references/estilos.md`, then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline with its own scripts (`references/pipeline-resumen.md`) is legacy |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
-| See what the engine can draw (the 39 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
+| See what the engine can draw (the 40 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the map and this file publish; `--check` only reports) |
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable, the published tree and the working tree agree) |
@@ -63,6 +64,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Existing video + background music | `scripts/musica.py musiconly -v video.mp4 -m mus.mp3 -o final.mp4` |
 | Video + voice-over + music with ducking | `scripts/musica.py gen` then `mix` (music breathes under voice) |
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
+| Copy that writes itself word by word, or a dial that fills | **Scenes**: `references/escenas.md` (`frase` and `gauge` with `forma: "anillo"`) |
 | Type over real footage (the typography ON the video, with depth) | **Compose**: `scripts/ffmpeg_tools/componer.py` (the blur mask comes from the layer's ALPHA, so the background defocuses ONLY behind the type; it also warns of the three things that break the piece) |
 | "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
 | Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
@@ -124,11 +126,11 @@ Run it before writing the plan and again whenever the brief changes. It never ov
 
 Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "video de ciberseguridad" --sector ciberseguridad --tono demo --modo explicar --tiene capturas` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (a style pack usable with `--brand`). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
 
-Then author the plan: write `plan.json` following `references/plan-video.md` (39 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
+Then author the plan: write `plan.json` following `references/plan-video.md` (40 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
 
 Before writing the scenes, write the argument: one claim per scene with the proof that carries it, in plain text (`references/copy.md` §1). The order of that list is the order of the video, and it is what keeps a piece from falling into the stock sequence.
 
-Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?* The catalog has 39 scene types; `scripts/demo_plan.json` is one worked example, not the template. The single intent→scene source is `scripts/data/repertorio.json`, consumed by `scripts/repertorio.py` — do not pick from memory or from the example: deal the hand first, then let the argument adjust it.
+Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?* The catalog has 40 scene types; `scripts/demo_plan.json` is one worked example, not the template. The single intent→scene source is `scripts/data/repertorio.json`, consumed by `scripts/repertorio.py` — do not pick from memory or from the example: deal the hand first, then let the argument adjust it.
 
 ```bash
 python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre --anterior ../previous-piece/plan.json
@@ -273,7 +275,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (39/39 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (48 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (40/40 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (49 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 
@@ -340,11 +342,7 @@ Should trigger:
 - "create a brand bumper"
 - "make one like this video, but for my product"
 - "turn this podcast into a split-screen clip with colored captions"
-- "write the copy for this video"
 - "check this video before I send it to the client"
-- "this video looks generic, make it feel designed"
-- "make this scene bolder but keep everything else"
-- "animate this logo and this title"
 - "make it viral / prepáralo para TikTok y Reels"
 - "put our brand on it (here is the logo)"
 
@@ -386,13 +384,14 @@ Solution:
 
 ### Error: Text renders smaller than the scene next to it
 
-Cause: the line is wider than the safe zone, so the engine shrinks it. With a kinetic title all lines share one size, so the longest line shrinks every line (`references/copy.md` §2).
+Cause: The scene's content is taller or wider than the safe zone, so the engine
+shrinks everything to fit (`references/reglas-tecnicas.md`).
 
 Solution:
 
-1. Run `python scripts/lint_copy.py plan.json` and read the size it reports for the offending field.
-2. Cut words in the copy, not in the font: a nine-word title at 60 px reads worse than five words at 120 px.
-3. Re-render. The engine shrinks, it never rewrites, so the fix belongs in the plan.
+1. Give the scene its own `zona` (the box it occupies) so the rest of the piece
+   does not get shrunk with it.
+2. Re-measure with `python scripts/medir_animacion.py`.
 
 ### Error: Large `.frames` cache directories
 

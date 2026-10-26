@@ -14,9 +14,9 @@
 
 EditorIA convierte un agente en un editor de video completo. Puede:
 
-- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con 39 tipos — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index` y `orbOpen`.
+- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con 40 tipos — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen` y `frase`.
 - **Componer visualmente**: escena con `--datos` (CSV), escena sobre plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto, alfa overlay y rotación.
-- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 20 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 39 escenas.
+- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 20 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 40 escenas.
 - **Voz en off y música con IA**: ElevenLabs TTS con cache content-addressed, música con ducking sidechain, alineación palabra-a-palabra (`alinear.py`) sobre Whisper local (whisper.cpp / faster-whisper / openai-whisper en cascada).
 - **Brand packs marca-blanca**: la identidad vive en `brand/*.json` (DragonJAR incluido como ejemplo). Sin pack, modo libre con criterio cinematográfico puro. Nunca identidad hardcoded en el código.
 - **QA automatizado**: máquina (`auto_qa.py` detecta negros, congelados, flashes, audio) + revisor visual del agente sobre contact sheet. Rúbrica de premios de 8 ejes (ninguno bajo 4/5).
@@ -172,8 +172,8 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 
 | Capacidad | Descripción |
 |---|---|
-| Plan declarativo | `plan.json` con 39 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
-| Catálogo unificado | 39 escenas compuestas con 20 primitivas DRY (cero lógica duplicada) |
+| Plan declarativo | `plan.json` con 40 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
+| Catálogo unificado | \d+ escenas compuestas con 20 primitivas DRY (cero lógica duplicada) |
 | `--blur 5` | Motion blur de obturador 180° en la entrega final |
 | `--force` | Re-renderiza todo (sin él retoma donde iba) |
 | `--datos` | CSV-driven (auto-fit de fuente, wrap, line break) |
@@ -244,8 +244,8 @@ EditorIA/
 ├── editoria.zip                       # Paquete listo para subir a Claude.ai
 ├── editoria/                          # Carpeta de la skill (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definición + frontmatter YAML + flujo principal
-│   ├── scripts/                       # 49 motores raíz + 20 en ffmpeg_tools/ + 48 en _tests/ = 117 scripts
-│   │   ├── render_plan.py             # Motor principal de render por plan (39 escenas)
+│   ├── scripts/                       # 49 motores raíz + 20 en ffmpeg_tools/ + 49 en _tests/ = 118 scripts
+│   │   ├── render_plan.py             # Motor principal de render por plan \(40 escenas\)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
 │   │   ├── alinear.py                 # Word-level voice alignment (Whisper)
@@ -274,13 +274,13 @@ EditorIA/
 │   │   ├── film_marca.py              # Film cinematográfico v1
 │   │   ├── film_marca_v2.py           # Film cinematográfico v2
 │   │   ├── _film.py                   # Utilidades compartidas de films
-│   │   ├── galeria.py                 # Suite visual de las 39 escenas
+│   │   ├── galeria.py                 # Suite visual de las \d+ escenas
 │   │   ├── validate_skill.py          # Validador determinista de la skill
 │   │   ├── _guard_entorno.py          # ¿La suite da el mismo veredicto sin repo?
 │   │   ├── compilar_reel.py           # Compila N videos en un reel (mide y corta)
 │   │   ├── _cerrar_tip.py             # Cierra un tip: mide, compara y dice una línea
 │   │   ├── demo_plan.json             # Plan de ejemplo
-│   │   ├── escenas_muestra.json       # Muestras canónicas de las 39 escenas
+│   │   ├── escenas_muestra.json       # Muestras canónicas de las \d+ escenas
 │   │   ├── _tests/                    # Suite de tests unitarios (unittest)
 │   │   │   ├── test_chapters.py
 │   │   │   ├── test_core_and_scenes.py
@@ -312,7 +312,7 @@ EditorIA/
 │   │       └── _plataforma.py         # Abstracciones de SO
 │   ├── references/                    # 63 referencias en kebab-case.md
 │   │   ├── instalacion.md             # Por SO (Win/macOS/Linux)
-│   │   ├── escenas.md                 # Catálogo de 39 escenas
+│   │   ├── escenas.md                 # Catálogo de 40 escenas
 │   │   ├── escenas-extendidas.md      # Conceptos portables
 │   │   ├── plan-video.md              # Schema del plan.json
 │   │   ├── shorts-plan-schema.md      # Schema del shorts-plan.json
