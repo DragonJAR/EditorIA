@@ -1,0 +1,82 @@
+{
+ "_nota": "PACK DE ESTILO, no de marca: es una paleta y un aire, no una empresa. Vive en brand/ porque la doctrina prohibe que un color concreto viva en el codigo de la skill. OJO: el NOMBRE del pack es un literal PROHIBIDO en scripts/ (el guard lo vigila): no puede ser una palabra que ya exista en el codigo. Por eso este no se llama 'ambar' (ambar es un color de la paleta) ni 'estudio' (es una direccion de arte): dos veces que se eligio el nombre por lo que sonaba y el guard lo veto.",
+ "version": 1,
+ "nombre": "Carbón",
+ "lema": "El dato se lee en un dial.",
+ "caption": {
+  "_nota": "Banda central, nunca abajo donde pisa la UI.",
+  "bold": true,
+  "karaoke": true,
+  "outline": 2,
+  "position": "center",
+  "size": 28
+ },
+ "colores": {
+  "_nota": "Fondo casi negro con un halo calido detras del dial. El acento ambar se reserva para la MAGNITUD (las marcas llenas del anillo): el ojo va ahi antes que a la palabra.",
+  "acento": "#E8B464",
+  "acento_oscuro": "#8A6524",
+  "blanco": "#FAFAF7",
+  "gris": "#8C8C8C",
+  "gris_superficie": "#141414",
+  "negro": "#080808"
+ },
+ "colors": {
+  "accent": "#E8B464",
+  "accent_dark": "#8A6524",
+  "white": "#FAFAF7",
+  "gray": "#8C8C8C",
+  "surface": "#141414",
+  "black": "#080808"
+ },
+ "font": "Plus Jakarta Sans",
+ "font_file": "../assets/fonts/PlusJakartaSans-wght.ttf",
+ "fonts_dir": "../assets/fonts",
+ "tipografias": {
+  "etiquetas_mono": {
+   "archivo": "DejaVu Sans Mono",
+   "familia": "DejaVu Sans Mono",
+   "uso": "kickers, datos técnicos"
+  },
+  "texto": {
+   "archivo": "../assets/fonts/Montserrat-wght.ttf",
+   "familia": "Montserrat",
+   "pesos": [
+    400,
+    600
+   ]
+  },
+  "titulares": {
+   "archivo": "../assets/fonts/PlusJakartaSans-wght.ttf",
+   "familia": "Plus Jakarta Sans",
+   "pesos": [
+    700,
+    800
+   ]
+  },
+  "titulares_itálica": {
+   "archivo": "../assets/fonts/PlusJakartaSans-Italic-wght.ttf",
+   "familia": "Plus Jakarta Sans",
+   "pesos": [
+    700,
+    800
+   ],
+   "uso": "display cinetico en itálica (el reel de referencia)"
+  }
+ },
+ "voces": {
+  "_nota": "Voces por defecto (ElevenLabs). Se pueden sobreescribir por proyecto.",
+  "es": "Fernanda Sanmiguel"
+ },
+ "reglas": {
+  "_nota_isotipo": "Si hay un protagonista grande en el plano, el isotipo no compite: o no aparece, o aparece con un rol claro y recurrente.",
+  "_nota_transiciones": "Cortes secos entre escenas; el fondo es el MISMO dial y la camara es UNA trayectoria: el plano continua aunque cambie la frase.",
+  "isotipo_con_protagonista": false,
+  "rejillas_decorativas": false,
+  "transiciones": "corte_seco",
+  "efectos_glitch": false,
+  "_nota_glitch": "RGB split, shake, strobe y hue shift solo si el brief los pide: compiten con la identidad."
+ },
+ "logos": {
+  "_nota": "Este pack no trae isotipo: es un aire, no una marca."
+ }
+}

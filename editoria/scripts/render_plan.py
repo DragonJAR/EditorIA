@@ -21,6 +21,7 @@ from _comun import NEUTRO, segmentos_enfasis   # paleta neutra y énfasis *...* 
 ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
 FJ=resolver_fuente("Plus Jakarta Sans", generica="sans-bold")
+FJI=None   # display en itálica: la trae el pack si la declara ("titulares_itálica")
 FM=resolver_fuente("Montserrat", generica="sans")
 MONO=resolver_fuente("DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
 LOGO=None; ISOTIPO=None; MARCA_NOMBRE=None
@@ -228,6 +229,7 @@ class Ctx:
         if Image is None or np is None:
             sys.exit("ERROR: falta dependencia (PIL/numpy): pip install pillow numpy")
         self.fT=lambda s,w=800: font(FJ,s,w)
+        self.fTi=lambda s,w=800: font(FJI or FJ,s,w)   # display en itálica (si el pack la trae)
         self.fX=lambda s,w=600: font(FM,s,w)
         self.fM=lambda s,w=700: font(MONO,s,w)
         self.tmp=ImageDraw.Draw(Image.new("L",(10,10)))
@@ -2395,7 +2397,7 @@ def sc_typewriter(ctx, e, t):
 AZUL_SELECCION=(43,127,255)
 
 
-def _frase_layout(ctx, e, tam, visibles=None):
+def _frase_layout(ctx, e, tam, visibles=None, max_lineas=None):
     """(palabras, lineas, linea_de, ancho_de, gap, lh) de una frase cinetica.
 
     El flujo de palabras y su salto de linea se calculan UNA vez y los usan
@@ -2432,6 +2434,16 @@ def _frase_layout(ctx, e, tam, visibles=None):
         cur.append((i, x, ww)); x += ww + gap
     if cur:
         lineas.append(cur)
+    if max_lineas is not None and len(lineas) > max_lineas:
+        # lo que no cabe NO se dibuja: se acorta el COPY, no se achica la letra
+        lineas = lineas[:max_lineas]
+        linea_de, ancho_de = {}, {}
+        for li, ln in enumerate(lineas):
+            total = sum(w for _, _, w in ln) + gap * max(0, len(ln) - 1)
+            ancho_de[li] = total
+            for i, x, _ in ln:
+                linea_de[i] = li
+        return palabras, lineas, linea_de, ancho_de, gap, maxw
     linea_de, ancho_de = {}, {}
     for li, ln in enumerate(lineas):
         total = sum(w for _, _, w in ln) + gap * max(0, len(ln) - 1)
@@ -2484,13 +2496,67 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     # rozaban: un texto pisa a otro)
     fr_cam, _dy_cam = respiracion(e, t)
     tam = max(18, int(round(tam_pantalla / max(0.2, fr_cam))))
-    fnt = ctx.fX(tam, 500)      # la frase es texto courant, no titular
-    fnt_b = ctx.fX(tam, 800)     # la palabra clave, en negrita
+    # el AUTO-FIT: la frase se encoge hasta que cabe en la zona segura (en
+    # ANCHO y en ALTO). Sin esto, un copy largo se sale del cuadro y la
+    # escena entera baja al piso de la zona segura (medido: x0.72 con el
+    # copy x2, y con la banda de subtitulos todavia menos).
+    zx0, zy0, zx1, zy1 = caja_segura()
+    ancho_max = (zx1 - zx0) - 40
+    # el bloque crece hacia ARRIBA desde el ancla: el sitio que tiene es el
+    # de ARRIBA del ancla, no toda la zona segura (si no, con el copy x2 el
+    # bloque se sale por arriba y la escena baja al piso de la zona)
+    # la posicion la da vy(): remapea la fraccion de H a la caja segura
+    # ACTUAL (con la banda de subtitulos, la caja se comprime y la frase
+    # sube en vez de que la red la encoja entera)
+    y_frase = vy(float(e.get("y", 0.20)))
+    alto_max = max(60.0, y_frase - zy0)
+    palabras_txt = (e.get("frase") or e.get("texto") or "").split()
+    # el piso es el de LEGIBILIDAD (26 px), no un piso de "no microscopico":
+    # una letra por debajo de 26 no se lee en un telefono (medido: con el copy
+    # x2 el auto-fit bajaba la frase a 13 px y la puerta lo rechazaba). Si
+    # con 26 px el copy no cabe, se ACORTA EL COPY (lo que no cabe, no se
+    # dibuja), no se achica la letra: references/copy.md.
+    max_lineas = 99
+    # el piso es el de la TINTA (26 px), no el del cuerpo: la letra que se
+    # mide es la caja real del texto, y a 26 px de cuerpo la tinta mide ~19
+    # (medido: la puerta rechazaba 22 px con el copy x2)
+    piso_fuente = int(MIN_LETRA * 1.45)
+    while tam > piso_fuente:
+        _f = (ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fX)(tam, 500)
+        _lineas = linewrap(" ".join(palabras_txt), _f, ancho_max, ctx.tmp)
+        if (len(_lineas) * tam * 1.52) <= alto_max:
+            max_lineas = len(_lineas)
+            break
+        tam = max(piso_fuente, int(tam * 0.92))
+    else:
+        # con la letra en su MINIMO todavia no cabe: se acorta el copy
+        _f = (ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fX)(tam, 500)
+        _lineas = linewrap(" ".join(palabras_txt), _f, ancho_max, ctx.tmp)
+        max_lineas = max(1, int(alto_max // max(1, tam * 1.52)))
+    # la ITALICA del display (el reel de referencia escribe en itálica): si la
+    # escena la pide y el pack la trae, se usa; si no, la redonda.
+    fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fX
+    fnt = fab(tam, 500)         # la frase es texto courant, no titular
+    fnt_b = fab(tam, 800)        # la palabra clave, en negrita
     clave = (e.get("clave") or "").strip().lower()
     seleccion = (e.get("seleccion") or "").strip().lower()
 
     def _limpia(w_):
-        return w_.replace("*", "")
+        return w_.replace("*", "").replace("~", "").replace("^", "")
+
+    def _caja_de(w_):
+        """El tipo de resalte de una palabra: "roja", "blanca" o None.
+
+        El markup: `~palabra~` la pone en una CAJA ROJA (texto blanco) y
+        `^palabra^` en una CAJA BLANCA (texto oscuro). Es el sistema del reel
+        de referencia: la palabra que sostiene el dato va dentro de un
+        bloque de color, y el resto es texto.
+        """
+        if "~" in w_:
+            return "roja"
+        if "^" in w_:
+            return "blanca"
+        return None
 
     def _marca(w_):
         """(es_clave, es_seleccion) de una palabra."""
@@ -2520,7 +2586,8 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     # su sitio y las viejas se apagan; el bloque no se mueve (medido: si se
     # recompone, el bloque salta de sitio y el medidor lo cuenta como un pop:
     # 10 pops, todos en el instante de anadir palabra).
-    palabras, lineas, linea_de, ancho_de, gap, maxw = _frase_layout(ctx, e, tam)
+    palabras, lineas, linea_de, ancho_de, gap, maxw = _frase_layout(
+        ctx, e, tam, max_lineas=max_lineas)
     # el interlineado se compensa con la camara: si no, el copy crecia y
     # menguaba con el zoom (la camara escala la capa entera).
     lh = tam * 1.52      # en la capa: con la camara, sale a 1,52 en pantalla
@@ -2542,35 +2609,85 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
         return (zx0 + (maxw - layout_ancho.get(li, 0)) / 2.0 + pos[0][1],
                 y_ancla + (li - ultimo) * lh)
 
+    # EL ESTADO DE CADA PALABRA (el sistema del reel de referencia):
+    #   · la que aun NO se ha escrito: no se ve
+    #   · la recien alcanzada: GRIS y mas CHICA (crece a su tamano)
+    #   · la ya alcanzada: BLANCA (o gris si no es la clave)
+    #   · la ACTIVA (la ultima): blanca y con el SUBRAYADO ROJO debajo
+    # Asi el ojo sigue la palabra que se esta leyendo, y el bloque nunca se
+    # mueve de sitio (medido: recomponerlo daba 10 pops).
+    #
+    # El CRECIMIENTO de la palabra: si apareciese de golpe, el medidor lo
+    # cuenta como un pop (un bloque de 10x10 px que cambia de golpe).
+    dur_crece = 0.30
     for i in range(len(palabras)):
         w_ = palabras[i]
         texto_w = _limpia(w_)
         es_clave, es_sel = _marca(w_)
-        f = fnt_b if es_clave else fnt
-        edad = (len(palabras) - 1 - i)
-        fade = 1.0 if edad == 0 else max(0.0, 1.0 - edad / float(max(1, ventana)))
+        tipo_caja = _caja_de(w_)
+        # el estado de la palabra, segun el MODELO DEL REEL DE REFERENCIA:
+        #   · la que AUN NO se ha alcanzado (i >= k): se ve, pero en GRIS y
+        #     mas CHICA (0,66): el lector ve la frase entera por delante
+        #   · la alcanzada: BLANCA, a su tamano, y se apaga con la edad
+        #   · la ACTIVA (la ultima alcanzada): blanca y con el SUBRAYADO ROJO
+        alcanzada = i < k
+        activa = (i == k - 1)
+        edad = k - 1 - i
+        fade = 1.0 if edad == 0 else max(0.0, 1.0 - (edad - 1) / float(max(1, ventana)))
         if es_clave:
             fade = max(fade, 0.92)       # la clave no se apaga: es el mensaje
-        if edad == 0:
-            # la palabra NUEVA entra fundida: si aparece de golpe, el medidor
-            # la cuenta como un pop (un bloque de 10x10 px que cambia de
-            # golpe: medido, eran casi todos los pops que quedaban)
+        if activa:
             fade *= smoothstep(clamp01((t - t_palabra) / 0.22))
-        col = BLANCO if es_clave else GRIS
         sitio = _sitio(lineas, linea_de, ancho_de, i)
         if sitio is None:
             continue
-        for (x, y), fa in ((sitio, fade),):
-            al = int(255 * fa)
-            if al <= 2:
-                continue
-            d.text((x, y), texto_w, font=f, fill=col + (al,), anchor="la")
-            if es_sel:
-                ww = ctx.tmp.textlength(texto_w, font=f)
-                d.rounded_rectangle([x - tam * 0.12, y - tam * 0.10, x + ww + tam * 0.12,
-                                     y + tam * 1.02], radius=int(tam * 0.16),
-                                    outline=AZUL_SELECCION + (min(255, al + 40),),
-                                    width=max(2, int(tam * 0.035)))
+        x, y = sitio
+        # la palabra RECIEN alcanzada crece desde 0,66 hasta su tamano
+        escala_p = 1.0
+        if not alcanzada:
+            escala_p = 0.66           # la que aun no se ha leido: pequena
+        elif activa:
+            # la ACTIVA crece al entrar (0,66 -> 1,0): el reel de referencia
+            # lo hace asi, y es movimiento de verdad (si la palabra saliera
+            # de golpe, el medidor lo contaria como un pop)
+            escala_p = 0.66 + 0.34 * smoothstep(clamp01((t - t_palabra) / dur_crece))
+        if es_clave or tipo_caja in ("roja", "blanca"):
+            col = BLANCO
+        elif alcanzada:
+            col = BLANCO
+        else:
+            col = GRIS
+        if tipo_caja == "blanca":
+            col = NEGRO
+        tam_p = max(10, int(round(tam * escala_p)))
+        f = fab(tam_p, 800) if (es_clave or tipo_caja) else fab(tam_p, 500)
+        al = int(255 * fade)
+        if al <= 2:
+            continue
+        if tipo_caja:
+            # la CAJA DE RESALTE, detras del texto: roja con texto blanco o
+            # blanca con texto oscuro (medido: 8-12 px de radio, el relleno
+            # toca la ascender y deja ~14 px de aire bajo la linea base)
+            ww = ctx.tmp.textlength(texto_w, font=f)
+            pad_x, pad_y = tam_p * 0.16, tam_p * 0.16
+            caja = [x - pad_x, y - pad_y * 0.55, x + ww + pad_x, y + tam_p * 1.02]
+            relleno = ACENTO if tipo_caja == "roja" else BLANCO
+            d.rounded_rectangle(caja, radius=int(tam_p * 0.12),
+                                fill=relleno + (al,))
+        d.text((x, y), texto_w, font=f, fill=col + (al,), anchor="la")
+        if es_sel:
+            ww = ctx.tmp.textlength(texto_w, font=f)
+            d.rounded_rectangle([x - tam * 0.12, y - tam * 0.10, x + ww + tam * 0.12,
+                                 y + tam * 1.02], radius=int(tam * 0.16),
+                                outline=AZUL_SELECCION + (min(255, al + 40),),
+                                width=max(2, int(tam * 0.035)))
+        if activa and not tipo_caja:
+            # el SUBRAYADO ROJO de la palabra activa: una barra solida del
+            # ancho de la palabra, pegada debajo (medido: 8-9 px de grosor)
+            ww = ctx.tmp.textlength(texto_w, font=f)
+            grosor = max(4, int(tam_p * 0.075))
+            d.rectangle([x, y + tam_p * 1.02, x + ww, y + tam_p * 1.02 + grosor],
+                        fill=ACENTO + (al,))
     return k
 
 
@@ -2591,7 +2708,7 @@ def sc_frase(ctx, e, t):
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    dibuja_frase(ctx, d, e, t, float(e.get("y", H * 0.20)))
+    dibuja_frase(ctx, d, e, t, vy(float(e.get("y", 0.20))))
     pie_fuente(ctx, d, e, t, e["from"] + 2.5)
     return capa_salida(layer, t, e["to"])
 
@@ -4114,9 +4231,11 @@ def aplicar_brand(brand_path):
     from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
     d = leer_pack(brand_path)
     _instalar_tokens(colores_marca(brand_path))
+    global FJI
     for rol, glob, defecto, gen in (("titulares", "FJ", "Plus Jakarta Sans", "sans-bold"),
                                     ("texto", "FM", "Montserrat", "sans"),
-                                    ("etiquetas_mono", "MONO", "DejaVu Sans Mono", "mono")):
+                                    ("etiquetas_mono", "MONO", "DejaVu Sans Mono", "mono"),
+                                    ("titulares_itálica", "FJI", "Plus Jakarta Sans", "sans-bold")):
         hit = fuente_marca(brand_path, rol, defecto, gen)
         if hit: globals()[glob] = hit
     logos = d.get("logos") or {}
@@ -4554,19 +4673,46 @@ def completar_escena(e,i=0):
 COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}
 _CAMPOS={}
 def campos_de(tipo):
-    """Campos que una escena LEE, sacados de su propio código (e["x"] /
-    e.get("x") en su función y en los helpers que reciben `e`): el esquema
-    nunca se desincroniza del renderizador porque ES el renderizador."""
+    """Campos que una escena LEE, sacados de su propio codigo (e["x"] /
+    e.get("x") en su funcion y en los helpers a los que LLAMA): el esquema
+    nunca se desincroniza del renderizador porque ES el renderizador.
+
+    El alcance es el que de verdad existe: una escena ve los campos de SUS
+    helpers, no los de todas. Antes, cualquier helper con un `e` en la firma
+    exercia sus campos en TODAS las escenas: al anadir `dibuja_frase` (que
+    lee `cps`), el campo `cps` paso a ser "conocido" en el esquema de las 40,
+    y la sugerencia de un campo mal escrito (`pasos` -> `items`) empezo a
+    proponer `cps` (medido: lo caza el check "campos mal escritos").
+    """
     if not _CAMPOS:
         import inspect
         pat=re.compile(r'\be(?:\.get\(|\[)"(\w+)"')
-        fn_escenas=set(SCENES.values())
+        llama=re.compile(r"\b([A-Za-z_]\w*)\s*\(")
+        helpers={}
+        for nombre,f_ in list(globals().items()):
+            if not inspect.isfunction(f_): continue
+            if "e" not in inspect.signature(f_).parameters: continue
+            try: src=inspect.getsource(f_)
+            except (OSError,TypeError): src=""
+            helpers[nombre]=(set(pat.findall(src)),src)
+
+        def _de(nombre,visto):
+            """Los campos de un helper y de los helpers a los que llama."""
+            if nombre in visto or nombre not in helpers: return set()
+            visto.add(nombre)
+            campos,src=helpers[nombre]
+            for c in llama.findall(src):
+                campos=campos|_de(c,visto)
+            return campos
+
         comunes=set(COMUNES)
-        for f_ in list(globals().values()):
-            if inspect.isfunction(f_) and f_ not in fn_escenas and "e" in inspect.signature(f_).parameters:
-                comunes|=set(pat.findall(inspect.getsource(f_)))
         for t_,f_ in SCENES.items():
-            _CAMPOS[t_]=comunes|set(pat.findall(inspect.getsource(f_)))
+            try: src=inspect.getsource(f_)
+            except (OSError,TypeError): src=""
+            campos=set(pat.findall(src))
+            for c in llama.findall(src):
+                campos=campos|_de(c,set())
+            _CAMPOS[t_]=comunes|campos
     return _CAMPOS.get(tipo,set(COMUNES))
 
 def avisos_de_campos(e,i=0):

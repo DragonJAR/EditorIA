@@ -116,7 +116,6 @@ class TestFrontmatterYCatalogo(unittest.TestCase):
         for node in tree.body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "SCENES" for t in node.targets):
                 scenes_keys = [k.value for k in node.value.keys if isinstance(k, ast.Constant)]
-        self.assertEqual(len(scenes_keys), 39)
         self.assertIn("hero", scenes_keys)
         self.assertIn("bento", scenes_keys)
         self.assertIn("buscador", scenes_keys)
@@ -128,6 +127,9 @@ class TestFrontmatterYCatalogo(unittest.TestCase):
         with open(os.path.join(SCRIPTS, "escenas_muestra.json"), encoding="utf-8") as fh:
             muestras = json.load(fh)["escenas"]
         self.assertEqual(set(scenes_keys), set(muestras.keys()))
+        # el numero del catalogo NO se escribe a mano en los tests: sale de
+        # aqui (si no, cada escena nueva rompe el test y hay que acordarse)
+        self.assertEqual(len(scenes_keys), len(muestras))
 
 
 class TestComunYDelivery(unittest.TestCase):

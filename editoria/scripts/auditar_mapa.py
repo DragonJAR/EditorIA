@@ -953,7 +953,7 @@ def _n_escenas_publicadas():
     """El tamaño del catalogo de escenas, como lo cuenta el guard.
 
     La herramienta que escribe los numeros (scripts/actualizar_conteos.py)
-    toma la cifra de aqui: una sola cuenta, dos复读os.
+    toma la cifra de aqui: una sola cuenta, dos sitios.
     """
     return _n_escenas(os.path.join(BASE, "scripts"))
 

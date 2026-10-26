@@ -1,4 +1,4 @@
-# Catálogo de escenas (39 tipos del plan)
+# Catálogo de escenas (40 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -99,7 +99,7 @@ alfa creciente (`smoothstep`). Es el corte más neutro del catálogo: no pide
 atención como la `mancha` ni deja formas orgánicas en el encuadre. Se declara
 en la escena entrante: `"transicion": "dissolve"`.
 
-## Catálogo unificado de escenas (39 tipos del plan)
+## Catálogo unificado de escenas (40 tipos del plan)
 
 El catálogo integra las 13 escenas originales más 23 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
@@ -170,13 +170,25 @@ y si el copy fuera otra, en el corte el dial desaparecia).
 `at{rotulo, gauge, etiqueta, boton}`.
 
 **`frase`** — La frase cinematica: el copy entra PALABRA a PALABRA y el
-bloque se recompone centrado (teleprompter). La palabra marcada con `*` (o
-la que dice `clave`) va en blanco y en negrita sobre el gris del resto, y
-`seleccion` le pone el recuadro azul. Lo que ya se ha dicho se desvanece:
-solo se ven las ultimas `ventana` palabras. Params: `frase`, `clave?`,
-`seleccion?`, `cps?` (palabras por segundo, 1.6), `tam?`, `y?` (donde queda
-la ultima palabra), `ventana?` (5), `at{rotulo}`. Es la escena del copy que
-se LEE, no del titular que golpea.
+bloque se recompone centrado (teleprompter). Es la escena del copy que se
+LEE, no del titular que golpea.
+
+El ESTADO DE CADA PALABRA (el sistema del reel de referencia):
+  · la que AUN NO se ha alcanzado: se ve, pero en GRIS y mas CHICA (0,66);
+  · la alcanzada: BLANCA, a su tamano, y se apaga con la edad;
+  · la ACTIVA (la ultima alcanzada): blanca, con el SUBRAYADO ROJO debajo.
+El resalte de una palabra: `*clave*` la pone en blanco y en negrita sobre
+el gris; `~clave~` la mete en una CAJA ROJA (texto blanco) y `^clave^` en una
+CAJA BLANCA (texto oscuro); `seleccion` le pone el recuadro azul.
+
+Params: `frase`, `clave?`, `seleccion?`, `cps?` (palabras por segundo, 1.6),
+`tam?`, `y?` (fraccion del alto donde queda la ultima palabra), `ventana?`
+(5), `itálica?` (usa el display en italica si el pack la trae), `at{rotulo}`.
+
+El copy se ENCOGE solo hasta el piso de letra (26 px de tinta) y, si aun
+así no cabe, se ACORTA el copy: la letra no baja de 26 px (no se lee en un
+telefono). El bloque NO se recompone al anadir palabra (medido: hacerlo
+hacia que el bloque saltase de sitio y el medidor lo contara como 10 pops).
 
 **`ranking`** — Ranking horizontal con barras proporcionales, #1 lleva acento.
 `items[{etiqueta, valor, fecha?}]`, `at{rotulo, item0..n, fuente}`.

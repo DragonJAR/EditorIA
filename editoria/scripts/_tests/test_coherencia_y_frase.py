@@ -196,14 +196,74 @@ class TestFraseCinetica(unittest.TestCase):
         self.assertGreater(grises, 200, "el resto de la frase tiene que verse en gris")
 
     def test_la_frase_aparece_palabra_a_palabra(self):
-        """Al principio hay menos pixeles de texto que despues."""
+        """Al principio hay menos TEXTO que despues.
+
+        La medida es la EXTENSION horizontal, no el numero de pixeles: con el
+        sistema de estados por palabra (la recien alcanzada crece desde
+        0,66 y la vieja se apaga) el area casi no cambia, pero la linea se
+        hace mas larga. Medir el area habria dado un falso negativo.
+        """
         R = self.R
         e = {"tipo": "frase", "from": 0.0, "to": 8.0,
              "frase": "uno dos tres cuatro cinco seis", "cps": 1.0}
-        p0 = sum(1 for r, g, b, a in self._pintar(e, 0.1).getdata() if a > 120)
-        p3 = sum(1 for r, g, b, a in self._pintar(e, 3.1).getdata() if a > 120)
-        self.assertGreater(p3, p0 * 1.5,
-                           "la frase tiene que escribir MAS palabras con el tiempo")
+
+        def _blancos(e_, t_):
+            """Los pixeles BLANCOS: las palabras ALCANZADAS.
+
+            La frase entera esta en el cuadro desde el principio (las no
+            alcanzadas, en gris y mas pequenas): lo que crece con el tiempo
+            es el numero de palabras alcanzadas, y esa es la medida.
+            """
+            capa = self._pintar(e_, t_)
+            return sum(1 for r, g, b, a in capa.getdata()
+                       if a > 120 and r > 225 and g > 225 and b > 215)
+
+        b0 = _blancos(e, 0.1)
+        b3 = _blancos(e, 3.1)
+        self.assertGreater(b3, b0 * 1.4,
+                           "la frase tiene que alcanzar MAS palabras con el tiempo")
+
+    def test_la_palabra_activa_lleva_el_subrayado_rojo(self):
+        """El estado de palabra del reel: la ACTIVA lleva el subrayado rojo.
+
+        Es lo que hace que el ojo sepa cual es la palabra que se esta
+        leyendo. Se mide por los pixeles del color de acento, que solo
+        puede venir del subrayado.
+        """
+        R = self.R
+        e = {"tipo": "frase", "from": 0.0, "to": 8.0,
+             "frase": "uno dos tres cuatro cinco", "cps": 1.0}
+        ac = R.ACENTO[:3]
+
+        def _acento(capa):
+            return sum(1 for r, g, b, a in capa.getdata()
+                       if a > 120 and abs(r - ac[0]) < 45 and abs(g - ac[1]) < 45
+                       and abs(b - ac[2]) < 45)
+
+        self.assertGreater(_acento(self._pintar(e, 3.2)), 100,
+                           "la palabra activa tiene que llevar el subrayado rojo")
+
+    def test_la_caja_roja_marca_la_palabra(self):
+        """`~palabra~` la pone dentro de una CAJA ROJA (texto blanco)."""
+        R = self.R
+        e = {"tipo": "frase", "from": 0.0, "to": 8.0,
+             "frase": "esto es ~lo importante* aqui", "cps": 1.0}
+        ac = R.ACENTO[:3]
+        capa = self._pintar(e, 3.2)
+        rojo = sum(1 for r, g, b, a in capa.getdata()
+                   if a > 120 and abs(r - ac[0]) < 45 and abs(g - ac[1]) < 45
+                   and abs(b - ac[2]) < 45)
+        self.assertGreater(rojo, 200, "la palabra en caja roja tiene que verse roja")
+
+    def test_la_caja_blanca_pone_el_texto_oscuro(self):
+        """`^palabra^` la pone en una CAJA BLANCA (texto oscuro encima)."""
+        R = self.R
+        e = {"tipo": "frase", "from": 0.0, "to": 8.0,
+             "frase": "esto es ^esto otro* aqui", "cps": 1.0}
+        capa = self._pintar(e, 3.2)
+        claros = sum(1 for r, g, b, a in capa.getdata()
+                     if a > 200 and r > 235 and g > 235 and b > 225)
+        self.assertGreater(claros, 200, "la caja blanca tiene que verse blanca")
 
     def test_la_frase_no_se_sale_de_la_zona_segura(self):
         """Lo que se escribe cabe: la zona segura es el contrato."""
@@ -218,6 +278,26 @@ class TestFraseCinetica(unittest.TestCase):
         self.assertGreaterEqual(bb[0], zx0 - 6, "la frase se sale por la izquierda")
         self.assertLessEqual(bb[2], zx1 + 6, "la frase se sale por la derecha")
 
+
+    def test_la_italica_del_display_se_usa_cuando_la_piden(self):
+        """El reel de referencia escribe el display en ITALICA.
+
+        Sin una fuente con italica, el resultado se ve en redonda y no se
+        parece al original: por eso la variable entra en el pack (el rol
+        "titulares_itálica") y la escena la pide con `itálica: true`.
+        """
+        import render_plan as R
+        pack = os.path.join(os.path.dirname(SCRIPTS), "brand", "carbon.json")
+        R.aplicar_brand(pack)
+        try:
+            fnt_recta = R.Ctx().fTi(60, 800)
+            self.assertIsNotNone(fnt_recta)
+            # el nombre de la fuente dice si es la italica
+            nombre = " ".join(str(x) for x in fnt_recta.getname())
+            self.assertIn("Italic", nombre,
+                          f"la fuente del display deberia ser la italica: {nombre}")
+        finally:
+            R.aplicar_brand(None)
 
 class TestAnillo(unittest.TestCase):
     """El medidor de anillo: un dial de marcas que se llena."""

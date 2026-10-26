@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Tests del repertorio: la única fuente intención→escena y su rotación.
 
-Lo que motivó esto: el catálogo tiene 39 escenas y el flujo normal usaba
+Lo que motivó esto: el catálogo tenía 39 escenas y el flujo normal usaba
 siempre las mismas 6-8. Las familias para rotar vivían solo en
 clonar_video.py (27 nombres, un fantasma 'titular', 13 huérfanas), el
 auditor repetía otra lista a mano en el texto de un aviso, y entre piezas
@@ -40,7 +40,8 @@ class TestFuenteUnica(unittest.TestCase):
     def test_todo_el_catalogo_es_alcanzable(self):
         cubiertas = {e for v in REP.familias().values() for e in v}
         self.assertEqual(cubiertas, REP.catalogo())
-        self.assertEqual(len(cubiertas), 39)
+        import render_plan as _R
+        self.assertEqual(len(cubiertas), len(_R.SCENES))
 
     def test_clonar_deriva_de_la_misma_fuente(self):
         fams = REP.familias()
@@ -89,7 +90,8 @@ class TestCoberturaYAuditoria(unittest.TestCase):
 
     def test_resumen_mide_contra_el_catalogo_entero(self):
         r = REP.resumen([_plan(["apertura", "stats", "final"])])
-        self.assertEqual(r["n_catalogo"], 39)
+        import render_plan as _R
+        self.assertEqual(r["n_catalogo"], len(_R.SCENES))
         self.assertEqual(r["n_tipos"], 3)
         self.assertIn("gancho", r["intenciones_cubiertas"])
 
@@ -163,7 +165,8 @@ class TestCLI(unittest.TestCase):
     def test_listar_todo_por_cli(self):
         r = self._corre("listar", "--todo")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("39 escenas", r.stdout)
+        import render_plan as _R
+        self.assertIn(f"{len(_R.SCENES)} escenas", r.stdout)
         self.assertIn("paletas", r.stdout)
 
 

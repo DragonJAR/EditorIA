@@ -4,7 +4,7 @@
 plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_frames ──▶ .mp4 (BT.709)
      │  (+ tabla --datos)│                              └─▶ .mov/.webm (overlay con alfa)
      │                ├── motor de fluidez (resortes, easings, transiciones según pack/tono)
-     │                ├── 39 escenas (references/escenas.md)
+     │                ├── 40 escenas (references/escenas.md)
      │                └── identidad: del brand pack (o modo libre)
      │
      └── formato en references/plan-video.md (tiempos absolutos, at:{})
@@ -40,7 +40,7 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   (`--loop`) y contact sheet con zona segura (`--safe`) o zonas de pantalla
   final de YouTube (`--end-screen`). Ver `references/auto-qa.md`.
 - **scripts/galeria.py** — el ciclo crear → validar de todo lo animable:
-  renderiza las 39 escenas con `scripts/escenas_muestra.json` (la misma
+  renderiza las 40 escenas con `scripts/escenas_muestra.json` (la misma
   fuente que el smoke test de `validate_skill.py`) y cada herramienta
   (overlay con alfa, mancha, `--datos`, 16:9, captions, pase, audiograma,
   films, thumbnail), pasa `auto_qa` a cada video y deja `resumen.png` +
