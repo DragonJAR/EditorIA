@@ -116,6 +116,13 @@ imagen con zoom y paneo progresivo (es una foto, no una escena de datos).
 ### "Quiero un plano de fondo con la imagen"
 `kenburns` — el fondo de la pieza cuando lo que importa es la foto, no el dato.
 
+### "Quiero que el copy se escriba y se lea, palabra a palabra"
+`frase` — la frase entra palabra a palabra y lo ya dicho se desvanece; la
+palabra clave va en blanco y en negrita sobre el gris. Es la escena del copy
+que se LEE (un reel de copy, un dato que se explica), no del titular que
+golpea. `typewriter` es el otro: caracter a caracter, con cursor, para una
+cita o una transcripcion.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.

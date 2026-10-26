@@ -1546,6 +1546,42 @@ def _chequear_texto_fijo_sobre_acento(problemas):
                            f"lee. usa texto_sobre(acento)"})
 
 
+def _chequear_indice_inverso(problemas):
+    """Que TODA escena del motor se encuentre en el indice inverso.
+
+    `references/intencion-escena.md` es lo que dice QUE ANIMACION va con
+    cada pedido del cliente. Si una escena nueva no esta ahi, el agente no
+    la va a elegir nunca: la pieza sale con la misma animacion de siempre.
+    Sin este check, la lista envejece en silencio (medido: el motor tenia 40
+    escenas y el indice solo caminaba con 23 entradas en 2026-10-26).
+    """
+    import ast
+    plan = os.path.join(REFS, "plan-video.md")
+    idx = os.path.join(REFS, "intencion-escena.md")
+    if not (os.path.exists(plan) and os.path.exists(idx)):
+        return
+    try:
+        arbol = ast.parse(_contenido_publicado("scripts/render_plan.py"))
+    except (OSError, SyntaxError):
+        return
+    tipos = []
+    for n in arbol.body:
+        if isinstance(n, ast.Assign) and any(getattr(x, "id", "") == "SCENES" for x in n.targets):
+            tipos = [k.value for k in n.value.keys]
+    if not tipos:
+        return
+    with open(idx, encoding="utf-8") as fh:
+        texto = fh.read()
+    faltan = [t for t in tipos if f"`{t}`" not in texto]
+    if faltan:
+        problemas.append({
+            "tipo": "escena sin indice inverso", "archivo": "references/intencion-escena.md",
+            "msg": f"el motor tiene {len(tipos)} escenas y el indice inverso no "
+                   f"menciona: {', '.join(faltan)} (una escena sin entrada en el "
+                   f"indice no la elige nunca: la pieza sale con la misma "
+                   f"animacion de siempre)"})
+
+
 def _chequear_clis_del_sk(problemas):
     """Que toda CLI de la skill se pueda encontrar desde el SKILL.md.
 
@@ -1999,7 +2035,10 @@ def _todos_los_checks(problemas, mds, notas=None):
     # ---- 15. toda CLI se encuentra desde el SKILL.md -------------------
     _chequear_clis_del_sk(problemas)
 
-    # ---- 15b. ningun texto fijo sobre una caja de acento -------------
+    # ---- 15b. toda escena se encuentra en el indice inverso ------------
+    _chequear_indice_inverso(problemas)
+
+    # ---- 15c. ningun texto fijo sobre una caja de acento -------------
     _chequear_texto_fijo_sobre_acento(problemas)
 
     # ---- 15b2. la lista de escenas es el conjunto real ---------------
