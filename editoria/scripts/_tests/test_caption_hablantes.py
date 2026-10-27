@@ -118,7 +118,12 @@ class TestMargenesYFuentes(unittest.TestCase):
             with open(pack, "w", encoding="utf-8") as fh:
                 json.dump({"fonts_dir": "fonts"}, fh)
             marca = _comun.load_brand(pack)
-        self.assertEqual(marca["fonts_dir"], os.path.join(d, "fonts"))
+        # OJO: se comparan las rutas RESUELTAS por los dos lados. En macOS
+        # /var es un symlink de /private/var, asi que el temporal puede venir
+        # escrito de una forma y load_brand devuelve la otra: el test pasaba o
+        # fallaba segun como estuviera escrito el TMPDIR, no segun el codigo.
+        self.assertEqual(os.path.realpath(marca["fonts_dir"]),
+                         os.path.realpath(os.path.join(d, "fonts")))
 
 
 class TestAgrupacion(unittest.TestCase):
