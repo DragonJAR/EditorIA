@@ -101,7 +101,7 @@ en la escena entrante: `"transicion": "dissolve"`.
 
 ## Catálogo unificado de escenas (42 tipos del plan)
 
-El catálogo integra las 13 escenas originales más 23 escenas de
+El catálogo integra las 13 escenas originales más 29 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
 `references/scene-patterns-from-internet.md`). Cada escena nueva se compone
 con las primitivas DRY de `render_plan.py` (lista al final de este archivo).

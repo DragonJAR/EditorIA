@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-63 referencias, 49 scripts, 20 herramientas de ffmpeg y 51 suites de tests. Este
+63 referencias, 49 scripts, 20 herramientas de ffmpeg y 52 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -24,7 +24,7 @@ contradigan.
 | **movimiento** | `animacion.md` | los 12 principios, overshoot medido, curvas, coreografía, cámara, tipografía en movimiento | siempre que algo se mueva |
 | **estructura** | `principios.md` | la idea, el arco, la dirección, el tono, los lenguajes visuales | antes de escribir el guion |
 | **plan** | `plan-video.md` | el schema de `plan.json`, el bloque `datos`, los límites del motor | al escribir el plan |
-| **escenas** | `escenas.md` | el catálogo de 39 tipos de escena y sus parámetros | al elegir escena |
+| **escenas** | `escenas.md` | el catálogo de 42 tipos de escena y sus parámetros | al elegir escena |
 | **sonido** | `sonido.md` | voz, música y SFX; el ritmo musical vive en `audio.md`, la capa de efectos en `sfx.md` | al mezclar |
 | **copy** | `copy.md` | el texto en pantalla, la aritmética del rótulo, la prueba sin inventarla | al escribir el copy |
 | **qa** | `qa-entrega.md` | la puerta de entrega; el loop y sus causas en `auto-qa.md`, la lista humana en `checklist-qa.md`, el gate de premios en `rubrica-premios.md` | antes de entregar |
@@ -115,7 +115,7 @@ escribir es un tapón).
 | `arquitectura.md` | cómo encaja la skill por dentro | plan |
 | `shorts-plan-schema.md` | el contrato de `shorts-plan.json` | plan |
 | `media-hard-rules.md` | las reglas duras del media-tooling | plan |
-| `escenas.md` | el catálogo de 39 tipos de escena | escenas |
+| `escenas.md` | el catálogo de 42 tipos de escena | escenas |
 | `escenas-extendidas.md` | los conceptos portables del catálogo | escenas |
 | `animacion.md` | los 12 principios del movimiento | movimiento |
 | `fluidez.md` | el motor: resortes, continuidad, ritmo, personalidad | movimiento |
@@ -206,7 +206,7 @@ escribir es un tapón).
      encuentra es un archivo que nadie usa.
    - *¿Esta en la ENTRADA que el agente lee primero?* -> el guard del indice
      del `SKILL.md` (`scripts/auditar_mapa.py`): una CLI enlazada solo en una
-     referencia es media invisible. El caso: `galeria.py` (las 39 escenas del
+     referencia es media invisible. El caso: `galeria.py` (las 42 escenas del
      catalogo) y `beat_file.py` (el camino inverso a `beat_grid.py`: el beat se
      autora primero y la musica nace de el) estaban enlazadas en una
      referencia y no en el indice: el agente no las encontraba.

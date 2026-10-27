@@ -40,7 +40,7 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   (`--loop`) y contact sheet con zona segura (`--safe`) o zonas de pantalla
   final de YouTube (`--end-screen`). Ver `references/auto-qa.md`.
 - **scripts/galeria.py** — el ciclo crear → validar de todo lo animable:
-  renderiza las 40 escenas con `scripts/escenas_muestra.json` (la misma
+  renderiza las 42 escenas con `scripts/escenas_muestra.json` (la misma
   fuente que el smoke test de `validate_skill.py`) y cada herramienta
   (overlay con alfa, mancha, `--datos`, 16:9, captions, pase, audiograma,
   films, thumbnail), pasa `auto_qa` a cada video y deja `resumen.png` +

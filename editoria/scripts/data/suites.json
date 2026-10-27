@@ -10,6 +10,7 @@
   "test_cache_fantasma.py",
   "test_cadena_e_iconos.py",
   "test_caption_hablantes.py",
+  "test_catalogo_prosa.py",
   "test_censo_clis.py",
   "test_cerrar_tip.py",
   "test_chapters.py",

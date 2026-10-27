@@ -147,7 +147,7 @@ no glifos: un glifo depende de que la fuente lo tenga.
 
 Este indice da UNA escena por intencion, y esa es la trampa: si cada pieza
 resuelve «dato» con `stats` y «cierre» con `final`, todas las piezas se
-parecen aunque el catalogo tenga 39 tipos. La escena se elige por el
+parecen aunque el catalogo tenga 42 tipos. La escena se elige por el
 argumento, y dentro de la misma intencion hay familia para rotar. La tabla
 de abajo ES `scripts/data/repertorio.json` (la única fuente; si difieren,
 manda el JSON y `repertorio.py validar` lo dice):
@@ -166,7 +166,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 | estructura | `index`, `canales`, `medianoche` |
 
 Una escena puede servir a varias intenciones (`bars` da un dato y también
-compara): por eso las 39 escenas del motor quedan alcanzables, incluidas
+compara): por eso las 42 escenas del motor quedan alcanzables, incluidas
 las que la antigua tabla dejaba fuera (`versus`, `demo`, `callout`,
 `kenburns`, `typewriter`, `listo`, `pago`, `recupera`, `index`, `canales`,
 `medianoche`, `orbOpen`, `rotulo_inferior`).

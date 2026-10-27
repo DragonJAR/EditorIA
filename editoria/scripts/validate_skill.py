@@ -624,14 +624,36 @@ for _node in _rp_tree.body:
 _muestras_dict = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
 _n_sc = len(_scenes_ast)
 _malas_doc = []
-for _doc in ("SKILL.md", "references/escenas.md", "references/plan-video.md", "references/arquitectura.md"):
-    _txt_d = open(os.path.join(BASE, _doc), encoding="utf-8").read()
-    _pat_d = (r"(\d+)\s+escenas\s+\(references/escenas\.md\)" if _doc.endswith("arquitectura.md") else
-              r"(\d+)\s+(?:tipos\s+(?:de\s+escena|del\s+plan)|scene\s+types)|(\d+)/\2\s+(?:escenas|scenes)")
-    for _m in re.finditer(_pat_d, _txt_d):
-        _num = int(_m.group(1) or _m.group(2))
-        if _num != _n_sc:
-            _malas_doc.append(f"{_doc}: {_m.group(0)}")
+# El tamaño del catálogo se comprueba con la REGLA del guard
+# (`auditar_mapa.FORMAS_CATALOGO`), no con una lista de frases: la prosa dice
+# el tamaño de muchas maneras y una lista solo vigila las que alguien pensó.
+# MEDIDO: la puerta daba verde con 18 cifras falsas en 12 ficheros porque solo
+# miraba 4 documentos con 2 frases. Ahora mira TODA la prosa con la misma tabla
+# que la herramienta usa para reescribirla (una idea, un canónico).
+import auditar_mapa as _AM  # noqa: E402
+_docs_catalogo = [("SKILL.md", os.path.join(BASE, "SKILL.md"))]
+_refs_dir_c = os.path.join(BASE, "references")
+if os.path.isdir(_refs_dir_c):
+    for _n_c in sorted(os.listdir(_refs_dir_c)):
+        if _n_c.endswith(".md"):
+            _docs_catalogo.append((f"references/{_n_c}",
+                                   os.path.join(_refs_dir_c, _n_c)))
+for _n_c in ("README.md", "README.en.md"):
+    _p_c = os.path.join(os.path.dirname(BASE), _n_c)
+    if os.path.exists(_p_c):
+        _docs_catalogo.append((_n_c, _p_c))
+for _etq_c, _ruta_c in _docs_catalogo:
+    _txt_d = open(_ruta_c, encoding="utf-8").read()
+    for _h in _AM._cifras_del_catalogo(_txt_d):
+        if _h["exclusion"] or _h["cifra"] == _n_sc:
+            continue
+        _malas_doc.append(f"{_etq_c}: {_h['fragmento']}")
+    for _d in _AM._descomposiciones_del_catalogo(_txt_d):
+        if _d["primera"] + _d["segunda"] != _n_sc:
+            _malas_doc.append(f"{_etq_c}: {_d['fragmento']}")
+    for _p in _AM._pares_del_catalogo(_txt_d):
+        if _p["primera"] != _n_sc or _p["segunda"] != _n_sc:
+            _malas_doc.append(f"{_etq_c}: {_p['fragmento']}")
 check(not _malas_doc, f"la doc (ES/EN) cuenta {_n_sc} escenas como el código ({'; '.join(_malas_doc) or 'coincide'})")
 _sin_m = sorted(set(_scenes_ast) - set(_muestras_dict))
 check(not _sin_m, f"cada escena tiene muestra en escenas_muestra.json ({', '.join(_sin_m) or 'todas'})")

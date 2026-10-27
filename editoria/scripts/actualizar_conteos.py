@@ -171,6 +171,51 @@ _PLACEHOLDERS_DE_ESCENAS = (
 )
 
 
+def _reescribe_catalogo(texto, escenas, etiqueta, cambios):
+    """El tamaño del catalogo, con la REGLA del guard (una idea, un canonico).
+
+    La herramienta y el guard usan la MISMA tabla (`auditar_mapa.py`): toda
+    cifra que el guard senala, esta herramienta sabe arreglarla. Antes cada
+    uno tenia su propia lista de frases, y una forma que el guard veia y la
+    herramienta no podia tocar era un numero viejo que se agingaba en
+    silencio: MEDIDO, la puerta daba verde con 18 cifras falsas en 12
+    ficheros (la prosa decia 39 y 40 con un motor de 41 escenas).
+
+    Los reemplazos se aplican DE FINAL A PRINCIPIO: al cambiar una cifra
+    cambia el largo del texto, y si se aplicaran en orden las posiciones de
+    las siguientes dejarian de valer (un "39" de tres digitos por un "42" de
+    dos desplaza todo lo que viene despues).
+    """
+    reemplazos = []
+    for h in AM._cifras_del_catalogo(texto):
+        if h["exclusion"] or h["cifra"] == escenas:
+            continue
+        reemplazos.append((h["ini"], h["fin"], str(escenas),
+                           f"dice {h['cifra']} escenas del catalogo",
+                           f"{escenas} escenas del catalogo"))
+    for d in AM._descomposiciones_del_catalogo(texto):
+        nuevo = escenas - d["primera"]
+        if nuevo < 0 or d["segunda"] == nuevo:
+            continue
+        reemplazos.append((d["ini"], d["fin"], str(nuevo),
+                           f"dice {d['primera']}+{d['segunda']} escenas del catalogo",
+                           f"{d['primera']}+{nuevo} escenas del catalogo"))
+    for p in AM._pares_del_catalogo(texto):
+        if p["primera"] == escenas and p["segunda"] == escenas:
+            continue
+        antes = f"dice {p['primera']}/{p['segunda']} escenas del catalogo"
+        despues = f"{escenas}/{escenas} escenas del catalogo"
+        reemplazos.append((p["ini"], p["fin"], str(escenas), antes, despues))
+        reemplazos.append((p["ini2"], p["fin2"], str(escenas), antes, despues))
+    if not reemplazos:
+        return texto
+    reemplazos.sort(key=lambda r: r[0], reverse=True)
+    for ini, fin, nuevo, antes, despues in reemplazos:
+        texto = texto[:ini] + nuevo + texto[fin:]
+        cambios.append((etiqueta, antes, despues))
+    return texto
+
+
 def _transforma_escenas(texto, escenas, etiqueta, cambios):
     """El tamaño del catalogo de escenas, en todas sus formas."""
     for patron in _FORMAS_DE_ESCENAS:
@@ -512,12 +557,14 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, c
     if os.path.exists(ruta):
         texto = open(ruta, encoding="utf-8").read()
         nuevo = _transforma_mapa(texto, refs, root, fft, suites, cambios)
+        nuevo = _reescribe_catalogo(nuevo, escenas, "references/mapa.md", cambios)
         if nuevo != texto:
             open(ruta, "w", encoding="utf-8").write(nuevo)
     ruta = os.path.join(dest_skill, "SKILL.md")
     if os.path.exists(ruta):
         texto = open(ruta, encoding="utf-8").read()
         nuevo = _transforma_skill(texto, refs, nombres, cambios, escenas)
+        nuevo = _reescribe_catalogo(nuevo, escenas, "SKILL.md", cambios)
         if nuevo != texto:
             open(ruta, "w", encoding="utf-8").write(nuevo)
     # el contrato de CLI: el numero de las que cumplen vive en la prosa y lo
@@ -544,6 +591,7 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, c
             ruta = os.path.join(refs_dir, nombre)
             texto = open(ruta, encoding="utf-8").read()
             nuevo = _transforma_escenas(texto, escenas, f"references/{nombre}", cambios)
+            nuevo = _reescribe_catalogo(nuevo, escenas, f"references/{nombre}", cambios)
             nuevo = _transforma_lista_de_escenas(nuevo, catalogo or [],
                                                  f"references/{nombre}", cambios)
             if nuevo != texto:
@@ -561,6 +609,7 @@ def _aplica_readme(ruta, refs, root, fft, suites, archivos, escenas, cambios,
     texto = open(ruta, encoding="utf-8").read()
     nuevo = _transforma_readme(texto, refs, root, fft, suites, archivos, escenas,
                                 os.path.basename(ruta), cambios, catalogo)
+    nuevo = _reescribe_catalogo(nuevo, escenas, os.path.basename(ruta), cambios)
     if nuevo != texto:
         open(ruta, "w", encoding="utf-8").write(nuevo)
 
