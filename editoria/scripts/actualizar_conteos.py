@@ -115,7 +115,12 @@ def _sustituye(texto, patron, nuevo, etiqueta, cambios, todas=False):
             return texto
         for numero in sorted(numeros):
             cambios.append((etiqueta, str(numero), str(nuevo_re)))
-        return re.sub(patron, lambda _m: nuevo, texto)
+
+        def _cifras(mt):
+            # se cambian SOLO las cifras de lo encontrado: el resto del
+            # texto (con sus escapes y sus parentesis) se queda como esta
+            return re.sub(r"\d+", str(nuevo_re), mt.group(0))
+        return re.sub(patron, _cifras, texto)
     if mt.group(0) == nuevo:
         return texto
     cambios.append((etiqueta, mt.group(0).strip(), nuevo.strip()))
@@ -131,12 +136,21 @@ _FORMAS_DE_ESCENAS = (r"\d+ escenas compuestas", r"\d+ scenes composed",
                       r"Visual suite for all \d+ scenes",
                       r"Muestras canónicas de las \d+ escenas",
                       r"Canonical samples for all \d+ scenes",
-                      r"Catálogo de \d+ escenas", r"Catalog of \d+ scenes",
+                      r"[Cc]atálogo de \d+ escenas", r"[Cc]atalog of \d+ scenes",
                       r"componen las \d+ escenas", r"compose all \d+ scenes",
-                      r"\d+ tipos de escena", r"\d+ scene types",
-                      r"\d+ tipos del plan", r"\d+ plan scene types",
-                      r"Tipos de escena \(\d+\)", r"Scene types \(\d+\)",
-                      r"\d+ tipos —", r"\d+ types —",
+                      r"con \d+ tipos de escena", r"con \d+ tipos —",
+                      r"with \d+ types —", r"with \d+ scene types",
+                      r"\d+ scene types",
+                      # la cifra del catálogo SIN calificador: el numero dice
+                      # de que variante es ("39 tipos de escena" es el total;
+                      # "los 13 tipos de escena" es historico; "2-3 tipos de
+                      # escena" es un rango y no se toca). El `(?<![\d-])`
+                      # importa: sin el, la coincidencia puede empezar en el
+                      # SEGUNDO digito ("los 13" -> "los 142").
+                      r"(?<![\d–])(?<!los )\d+ tipos de escena",
+                      r"(?<![\d–])(?<!los )\d+ tipos del plan",
+                      r"Tipos de escena \(\d+\)",
+                      r"\d+ escenas \(references/escenas\.md\)",
                       r"motor principal de render por plan \(\d+ escenas\)",
                       r"main render engine by plan \(\d+ scenes\)",
                       r"\(\d+ escenas\)", r"\(\d+ scenes\)",
@@ -515,6 +529,25 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, c
         nuevo = _transforma_cli_contract(texto, cumplen, total, cambios)
         if nuevo != texto:
             open(ruta, "w", encoding="utf-8").write(nuevo)
+    # TODA la prosa que el guard vigila: hasta ahora la herramienta solo
+    # escribia mapa.md, SKILL.md, cli-contract.md y los README, pero el guard
+    # mira el TAMANO DEL CATALOGO en las 63 referencias. Una forma que el
+    # guard ve y la herramienta no puede arreglar es un numero viejo que se
+    # aginga en silencio (medido en la ronda 13: la puerta de af84307 fallo
+    # por "la doc cuenta 41 escenas como el codigo" en escenas.md y
+    # arquitectura.md, dos ficheros que la herramienta NO tocaba).
+    refs_dir = os.path.join(dest_skill, "references")
+    if os.path.isdir(refs_dir):
+        for nombre in sorted(os.listdir(refs_dir)):
+            if not nombre.endswith(".md") or nombre in ("mapa.md", "cli-contract.md"):
+                continue      # mapa.md y cli-contract.md tienen su propia via
+            ruta = os.path.join(refs_dir, nombre)
+            texto = open(ruta, encoding="utf-8").read()
+            nuevo = _transforma_escenas(texto, escenas, f"references/{nombre}", cambios)
+            nuevo = _transforma_lista_de_escenas(nuevo, catalogo or [],
+                                                 f"references/{nombre}", cambios)
+            if nuevo != texto:
+                open(ruta, "w", encoding="utf-8").write(nuevo)
     if dest_repo:
         for nombre in ("README.md", "README.en.md"):
             origen = os.path.join(dest_repo, nombre)

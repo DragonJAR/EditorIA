@@ -2917,6 +2917,37 @@ def sc_frase(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def _encaja_una_linea(fabrica, texto, tam, ancho_max, peso=800, minimo=26):
+    """(fuente, texto) en UNA linea que cabe en `ancho_max`.
+
+    Primero se ENCOGE la letra (hasta el piso de letra legible, 26 px: por
+    debajo no se lee en un movil) y, si aun asi no cabe, se ACORTA EL COPY
+    (por palabras y, como ultima medida, a media palabra). La regla de
+    references/copy.md: la letra no baja del piso; lo que se acorta es el
+    copy, y queda anotado en RECORTES.
+
+    Sin esto, un texto largo se sale de su hueco y PISA al de al lado: la
+    puerta lo mide ("ningun texto pisa a otro") y lo rechaza.
+    """
+    texto = str(texto)
+    f = fuente_que_cabe(fabrica, texto, tam, ancho_max, peso, minimo=minimo)
+    if largo(texto, f) <= ancho_max:
+        return f, texto
+    RECORTES.append(dict(texto=texto, ancho_max=int(ancho_max)))
+    palabras = texto.split()
+    while len(palabras) > 1:
+        palabras = palabras[:-1]
+        t = " ".join(palabras) + "…"
+        if largo(t, f) <= ancho_max:
+            return f, t
+    t = ""
+    for ch in texto:
+        if largo(t + ch + "…", f) > ancho_max:
+            break
+        t += ch
+    return f, (t + "…" if t else texto)
+
+
 def _lineas_de_casilla(texto, fnt, ancho, max_lineas=2):
     """Las lineas del texto de una casilla.
 
@@ -3179,17 +3210,19 @@ def sc_cadena(ctx, e, t):
                     BLANCO + (255,) if activo else (110, 110, 110, 255))
         y_txt = ty + node + 10
         # el titulo va en su propia caja (el reel NO lo pone en versalitas:
-        # solo el sub-rótulo va en monoespaciada mayúscula)
-        titulo = str(it.get("titulo", ""))
-        fnt_t = fuente_que_cabe(ctx.fT, titulo, ESCALA["secundario"], paso - 16,
-                                800, minimo=ESCALA["secundario"])
+        # solo el sub-rótulo va en monoespaciada mayúscula). Se ENCOGE hasta
+        # el piso de letra legible y, si aun asi no cabe, se acorta el copy:
+        # si se sale de su hueco, PISA al del nodo de al lado (la puerta lo
+        # mide: "ningun texto pisa a otro").
+        fnt_t, titulo = _encaja_una_linea(ctx.fT, it.get("titulo", ""),
+                                           ESCALA["secundario"], paso - 16,
+                                           800, 26)
         ds.text((xc, y_txt), titulo, font=fnt_t,
                 fill=BLANCO + (255,) if activo else GRIS + (255,), anchor="ma")
         if it.get("sub"):
-            fnt_s = fuente_que_cabe(ctx.fM, str(it.get("sub", "")).upper(),
-                                    ESCALA["nota"], paso - 16, 700,
-                                    minimo=ESCALA["nota"])
-            ds.text((xc, y_txt + alto_txt + 6), str(it.get("sub", "")).upper(),
+            fnt_s, sub_txt = _encaja_una_linea(ctx.fM, it.get("sub", ""),
+                                                ESCALA["nota"], paso - 16, 700, 26)
+            ds.text((xc, y_txt + alto_txt + 6), sub_txt,
                     font=fnt_s, fill=GRIS + (255,), anchor="ma")
         fundir(layer, sub, k)
     return capa_salida(layer, t, e["to"])

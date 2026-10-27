@@ -1,4 +1,4 @@
-# Catálogo de escenas (40 tipos del plan)
+# Catálogo de escenas (42 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -99,7 +99,7 @@ alfa creciente (`smoothstep`). Es el corte más neutro del catálogo: no pide
 atención como la `mancha` ni deja formas orgánicas en el encuadre. Se declara
 en la escena entrante: `"transicion": "dissolve"`.
 
-## Catálogo unificado de escenas (40 tipos del plan)
+## Catálogo unificado de escenas (42 tipos del plan)
 
 El catálogo integra las 13 escenas originales más 23 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
@@ -367,10 +367,11 @@ pegan).
 
 Los iconos son **trazos dibujados**, no glifos (un glifo depende de que la
 fuente lo tenga: "✓" sale como caja vacía en muchas). Los que hay:
-`codigo` (`</>`), `globo` (círculo con elipse vertical y ecuador), `alerta`
-(triángulo con el signo), `lupa` (círculo con mango) y `reloj` (círculo con
-agujas). Un icono que no existe se dibuja como el borde de una ficha: se ve
-que falta, y no es un hole silencioso en la pieza.
+`codigo` (los dos chevrones y la barra del signo de código), `globo`
+(círculo con elipse vertical y ecuador), `alerta` (triángulo con el signo),
+`lupa` (círculo con mango) y `reloj` (círculo con agujas). Un icono que no
+existe se dibuja como el borde de una ficha: se ve que falta, y no es un
+hole silencioso en la pieza.
 ## Qué escena para qué dato
 
 Elegir la escena por la forma del dato y por lo que el plano deja leer, no por

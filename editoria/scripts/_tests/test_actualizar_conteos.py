@@ -364,6 +364,38 @@ class TestCifrasDelCatalogo(unittest.TestCase):
         self.assertIn("Suite visual de las 41 escenas", nuevo)
         self.assertTrue(cambios)
 
+    def test_no_toca_las_cifras_historicas(self):
+        """El numero se reescribe cuando es el TOTAL del catalogo, no cuando
+        es historico ("los 13 tipos de escena" son los del sistema original) ni
+        cuando es un rango ("2-3 tipos de escena").
+
+        El patron lleva el calificador que distingue una cosa de otra (regla
+        13 de references/mapa.md): sin el, la herramienta reescribe la
+        historia y el rango (medido: "los 13 tipos de escena" salia como
+        "los 142" y "2-3 tipos de escena" como "2-42").
+        """
+        import actualizar_conteos as AC
+        texto = ("El formato plan.json y los 13 tipos de escena vienen de\n"
+                 "Poco repertorio: la pieza entera con 2–3 tipos de escena\n"
+                 "EditorIA renderiza motion graphics 2D: 39 tipos de escena\n")
+        nuevo = AC._transforma_escenas(texto, 42, "prueba", [])
+        self.assertIn("los 13 tipos de escena", nuevo,
+                      "una cifra historica no se toca")
+        self.assertIn("2–3 tipos de escena", nuevo, "un rango no se toca")
+        self.assertIn("42 tipos de escena", nuevo,
+                      "el total del catalogo si se actualiza")
+
+    def test_al_reescribir_solo_cambian_las_cifras(self):
+        """El resto del texto que se encuentra (con sus parentesis y sus
+        escapes) se queda como esta: si se sustituye el texto entero por el
+        patron, los escapes del patron se filtran a la prosa (medido: la
+        prosa quedo con "42 escenas \\(references/escenas\\.md\\)")."""
+        import actualizar_conteos as AC
+        texto = "  ├── 40 escenas (references/escenas.md)\n"
+        nuevo = AC._transforma_escenas(texto, 42, "prueba", [])
+        self.assertIn("42 escenas (references/escenas.md)", nuevo)
+        self.assertNotIn("\\(", nuevo, "los escapes del patron se filtraron")
+
 
 if __name__ == "__main__":
     unittest.main()

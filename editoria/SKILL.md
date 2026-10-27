@@ -52,7 +52,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles from `references/estilos.md`, then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline with its own scripts (`references/pipeline-resumen.md`) is legacy |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
 | See what the engine can draw (the 42 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
-| Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the map and this file publish; `--check` only reports) |
+| Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the prose publishes; `--check` only reports) |
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable, the published tree and the working tree agree) |
 | Keep the installed copy in sync | **Install**: `scripts/sincronizar_instalada.py` (extracts what is published and deletes the bytecode cache, so the copy never runs code that no longer exists) |
@@ -64,8 +64,8 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Existing video + background music | `scripts/musica.py musiconly -v video.mp4 -m mus.mp3 -o final.mp4` |
 | Video + voice-over + music with ducking | `scripts/musica.py gen` then `mix` (music breathes under voice) |
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
-| Copy that writes itself word by word, a dial that fills, or a record of what is confirmed and what is pending | **Scenes**: `references/escenas.md` (`frase`, `constancia` and `gauge` with `forma: "anillo"`) |
-| Type over real footage (the typography ON the video, with depth) | **Compose**: `scripts/ffmpeg_tools/componer.py` (the blur mask comes from the layer's ALPHA, so the background defocuses ONLY behind the type; `--marco "x,y,w,h"` frames the clip in a rounded box instead; it also warns of the three things that break the piece) |
+| Copy that writes itself word by word, a dial that fills, a record of what is confirmed | **Scenes**: `references/escenas.md` (`frase`, `constancia`, `gauge` with `forma: "anillo"`) |
+| Type over real footage (the typography ON the video, with depth) | **Compose**: `scripts/ffmpeg_tools/componer.py` (the blur mask comes from the layer's ALPHA, so the background defocuses ONLY behind the type; `--marco "x,y,w,h"` frames the clip in a box) |
 | "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
 | Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
 | New piece with no brand pack, or a piece that looks generic / "AI-made" | **Art direction**: Step 2 + `references/direccion-de-arte.md` (idea from the subject, dealt directions, tells registry) |

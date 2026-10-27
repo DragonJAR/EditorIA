@@ -261,6 +261,32 @@ class TestCadenaDeEstados(unittest.TestCase):
         self.assertGreater(f, 0.995,
                            "la escena tiene que caber en la zona segura sin encogerse")
 
+    def test_los_titulos_no_se_pisan_ni_con_el_copy_doblado(self):
+        """Con el copy DOBADO el titulo se sale de su hueco y pisa al del nodo
+        de al lado. Se mide con la MISMA medicion que la puerta
+        (`medir_animacion.solapes`), que es la que lo rechaza."""
+        import medir_animacion as M
+        R = self.R
+        e = R.completar_escena(self._escena(), 0)
+        e["items"] = [dict(i, titulo=f"{i['titulo']} {i['titulo']}",
+                           sub=f"{i['sub']} {i['sub']}") for i in e["items"]]
+        R._ESCALA.clear()
+        s = M.solapes(R, self.ctx, [e], e["to"] + 5)
+        self.assertEqual(s, [], f"los textos se pisan: {s}")
+
+    def test_un_titulo_largo_se_acorta_y_no_baja_de_la_letra(self):
+        """Lo que se acorta es el COPY, no la letra: la letra se queda en el
+        piso de legibilidad (26 px) y el copy pierde palabras (queda anotado
+        en RECORTES)."""
+        R = self.R
+        R.RECORTES.clear()
+        f, texto = R._encaja_una_linea(self.ctx.fT,
+                                        "Un titulo que no cabe ni de coipa",
+                                        R.ESCALA["secundario"], 120, 800, 26)
+        self.assertGreaterEqual(f.size, 26, "la letra no baja del piso legible")
+        self.assertLessEqual(R.largo(texto, f), 120, "el texto tiene que caber")
+        self.assertTrue(R.RECORTES, "el copy recortado queda anotado")
+
 
 if __name__ == "__main__":
     unittest.main()
