@@ -3,6 +3,7 @@
  "_como_se_regenera": "python3 scripts/actualizar_conteos.py",
  "suites": [
   "test_actualizar_conteos.py",
+  "test_alfa_webm.py",
   "test_auditar_mapa.py",
   "test_auditar_plan.py",
   "test_beat_secciones.py",
