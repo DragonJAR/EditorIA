@@ -326,6 +326,28 @@ sobre placa oscura: blanco sobre captura clara no se lee.
 y entra el titular. `titulo`, `subtitulo?`, `figura?` (`esfera`, `chat`,
 `robot`), `at{titulo, subtitulo}`. Es lo contrario que `orbita` (donde
 orbitan): aquí se forman. Para intros de producto, IA o capítulos.
+
+### 40-41. Ronda 12 — El acta de lo confirmado (reel de "cara")
+
+**`constancia`** — El **acta** de la pieza: un panel con el guion de arriba y,
+dentro, N casillas con su marca (✓ lo que ya está confirmado, ○ lo que queda
+pendiente) y su texto en versalitas del display en itálica. Es la escena del
+reel de "cara" (`De8KNkdDT68`), medida al píxel sobre él: panel de 960 px con
+el borde a 1 px; la raya del kicker 40×6 px y el kicker en monoespaciada;
+casillas de 425 px con 37 de separación; el círculo lleno de 64 px de diámetro
+con el ✓ DENTRO, en negro sobre blanco; el vacío es solo un aro. La casilla
+confirmada lleva el borde y el texto en blanco; la pendiente, en gris.
+
+El ✓ se **dibuja** (no es el glifo: "✓" no existe en todas las fuentes y sale
+como caja vacía) y el círculo se llena en el instante en que el item se
+confirma: `hecho` puede ser `true`/`false` o el segundo en que se confirma (el
+✓ se dibuja entonces, en 0,28 s). `items[{texto, hecho}]`, `kicker?` (el guion
+de arriba), `y?` (dónde va el panel; por defecto, el fondo de la zona segura),
+`at{item0..n}` (la entrada de cada casilla).
+
+El texto de la casilla es el rol `secundario` de la escala (32 px) y **no se
+encoge**: si el copy no cabe en dos líneas lo que se acorta es el copy, no la
+letra (queda anotado en `RECORTES`).
 ## Qué escena para qué dato
 
 Elegir la escena por la forma del dato y por lo que el plano deja leer, no por

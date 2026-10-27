@@ -626,6 +626,7 @@ def aplicar_globales(plan):
     NUMEROS.update(LOCALES.get(v, LOCALES["en"]) if isinstance(v, str) else
                    {k: str(v.get(k, NUMEROS[k])) for k in ("miles", "decimal")})
     _preparar_camara(plan)
+    _preparar_deplecion(plan)
 
 
 # ---- CAMARA DE LA PIEZA (una trayectoria, no una por escena) -------------
@@ -681,6 +682,109 @@ def _escala_camara(t):
     t0,t1=_CAMARA["t0"],_CAMARA["t1"]
     p=clamp01((t-t0)/max(1e-6,t1-t0))
     return z0+(z1-z0)*p
+
+
+# ---- LA BARRA DE DEPLECION (el reel de "cara") ---------------------------
+#
+# En el reel de referencia hay una barra roja de 5 px PEGADA al borde
+# superior del lienzo que se DEPLETA: empieza al ancho completo y se estrecha
+# hasta cero en el ultimo segundo de la pieza.
+#
+# MEDIDO sobre De8KNkdDT68 (55,300 s, 1080x1920), leyendo el ancho de la
+# franja roja en la fila 0 (prediccion = 1080*(1 - t/55,3)):
+#     t= 0,2 s -> 1076 px  (predice 1076)
+#     t= 5,0 s ->  982 px  (predice  982)
+#     t=11,0 s ->  866 px  (predice  865)
+#     t=17,0 s ->  748 px  (predice  748)
+#     t=23,0 s ->  632 px  (predice  631)
+#     t=29,0 s ->  514 px  (predice  514)
+#     t=35,0 s ->  398 px  (predice  396)
+#     t=41,0 s ->  280 px  (predice  279)
+#     t=47,0 s ->  162 px  (predice  162)
+#     t=52,0 s ->   64 px  (predice   64)
+#     t=55,0 s ->    0 px  (predice    0)
+# o sea: ancho = W * (1 - t/duracion). Lineal y anclada a la IZQUIERDA.
+#
+# Vive en el PLAN y no en una escena porque es de la PIEZA entera: las escenas
+# van y vienen, la barra no. Si fuera una escena, la pieza tendria que gastar
+# una escena entera en la barra y el plan diria una cosa falsa (que la pieza
+# tiene una escena mas de las que tiene).
+#
+#     "deplecion": {"y": 0, "alto": 5, "color": "acento"}
+#
+_DEPLECION={"activa":False,"y":0,"alto":5,"color":None,"ancho":None,
+             "t0":0.0,"t1":None}
+
+def _color_de_deplecion(valor):
+    """El color de la barra: un token del pack ("acento", "blanco", "gris",
+    "negro") o un hex ("#BD1700"). Sin esto, el color seria el acento del
+    paquete en cada pieza y la barra no se podria individuar."""
+    if valor is None:
+        return ACENTO
+    if isinstance(valor,(list,tuple)) and len(valor)>=3:
+        rgb=tuple(int(v) for v in valor[:3])
+        return rgb+(int(valor[3]) if len(valor)>3 else 255,)
+    tokens={"acento":ACENTO,"acento_oscuro":ACENTO_OSC,"blanco":BLANCO,
+            "gris":GRIS,"negro":NEGRO}
+    if isinstance(valor,str):
+        v=valor.strip().lower()
+        if v in tokens:
+            return tokens[v]
+        if v.startswith("#") or all(c in "0123456789abcdefABCDEF" for c in v.lstrip("#")):
+            from _comun import hex_a_rgb
+            return hex_a_rgb(v)+(255,)
+    return ACENTO
+
+
+def _preparar_deplecion(plan):
+    """Deja la barra de deplecion lista (o la apaga si el plan no la pide)."""
+    _DEPLECION.update({"activa":False,"y":0,"alto":5,"color":None,
+                        "ancho":None,"t0":0.0,"t1":None})
+    cfg=plan.get("deplecion")
+    if cfg is None:
+        return
+    if cfg is True:
+        cfg={}
+    if not isinstance(cfg,dict):
+        return
+    try:
+        y=int(cfg.get("y",0)); alto=int(cfg.get("alto",5))
+    except (TypeError,ValueError):
+        return
+    if alto<=0:
+        return
+    ancho=cfg.get("ancho")
+    try:
+        ancho=int(ancho) if ancho is not None else None
+    except (TypeError,ValueError):
+        ancho=None
+    _DEPLECION.update({"activa":True,"y":y,"alto":alto,
+                        "color":_color_de_deplecion(cfg.get("color")),
+                        "ancho":ancho,"t0":0.0,"t1":None})
+
+
+def ancho_de_deplecion(t,dur):
+    """El ancho de la barra en el instante t: se estrecha linealmente hasta
+    cero al final de la pieza y se queda en cero antes de empezar."""
+    if not _DEPLECION["activa"]:
+        return 0.0
+    t1=_DEPLECION["t1"] if _DEPLECION["t1"] is not None else max(dur,1e-6)
+    t0=_DEPLECION["t0"]
+    p=clamp01((t-t0)/max(1e-6,t1-t0))
+    ancho=_DEPLECION["ancho"] or W
+    return max(0.0,ancho*(1.0-p))
+
+
+def dibuja_deplecion(d,t,dur):
+    """Pinta la barra de deplecion. Se dibuja ENCIMA de la escena (es el
+    borde del lienzo, no una escena mas)."""
+    if not _DEPLECION["activa"]:
+        return
+    w=ancho_de_deplecion(t,dur)
+    if w<=0:
+        return
+    y=_DEPLECION["y"]; alto=_DEPLECION["alto"]
+    d.rectangle([0,y,w,y+alto],fill=_DEPLECION["color"])
 
 
 def separar(txt, miles=None, decimal=None):
@@ -2738,6 +2842,174 @@ def sc_frase(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def _lineas_de_casilla(texto, fnt, ancho, max_lineas=2):
+    """Las lineas del texto de una casilla.
+
+    La letra NO se encoge: el piso de letra legible es del QA (26 px) y el rol
+    `secundario` esta en 32. Si el copy no cabe en `max_lineas` lo que se
+    acorta es el COPY, no la letra (references/copy.md). Lo que se acorta
+    queda anotado en RECORTES: un copy que pierde palabras sin aviso es un
+    defecto que no se ve hasta que alguien lee la pieza.
+    """
+    lineas = linewrap(texto, fnt, ancho)
+    if len(lineas) > max_lineas:
+        RECORTES.append(dict(texto=texto, ancho_max=int(ancho)))
+        palabras = texto.split()
+        while len(palabras) > 1:
+            palabras = palabras[:-1]
+            lineas = linewrap(" ".join(palabras), fnt, ancho)
+            if len(lineas) <= max_lineas:
+                break
+    # una palabra suelta mas ANCHA que la casilla no se parte (el word-wrap
+    # no parte palabras): se recorta con puntos, o se sale de la caja
+    salida = []
+    for ln in lineas[:max_lineas]:
+        if largo(ln, fnt) > ancho:
+            ln = recorta_para(ln, fnt, ancho)
+        salida.append(ln)
+    return salida
+
+
+def sc_constancia(ctx, e, t):
+    """El acta de la pieza: N casillas, cada una con su marca (✓ lo que ya esta
+    confirmado, ○ lo que queda pendiente) y su texto en versalitas.
+
+    Es la escena del reel de "cara" (De8KNkdDT68): un panel con el guion de
+    arriba y, dentro, las casillas de lo que cada parte confirma.
+
+    MEDIDO sobre ese reel (1080x1920, leyendo los pixeles):
+      · el panel va de x=60 a x=1019 (960 de ancho) con el borde a 1 px;
+      · la raya del kicker mide 40x6 px y el kicker va en monoespaciada;
+      · las casillas miden 425 px con 37 de separacion;
+      · el circulo lleno mide 64 px de diametro y lleva el ✓ DENTRO, en negro
+        sobre blanco; el vacio es solo un aro, sin relleno;
+      · la casilla confirmada tiene el borde BLANCO y el texto en blanco; la
+        pendiente, el borde gris y el texto en gris.
+    El ✓ se DIBUJA (no es el glifo: "✓" no existe en todas las fuentes y sale
+    como caja vacia) y el circulo se llena en el instante en que el item se
+    confirma: `hecho` puede ser `true`/`false` o el segundo en que se
+    confirma (el ✓ se dibuja entonces).
+
+    Params: `items[{texto, hecho}]`, `kicker?`, `y?`, `at{item0..n}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    items = e.get("items") or []
+    if not items:
+        return capa_salida(layer, t, e["to"])
+
+    at = e.get("at") or {}
+    x0, _, x1, y1 = caja_segura()
+    n = len(items)
+    cols = 1 if n == 1 else 2          # el reel: dos casillas en fila
+    filas = (n + cols - 1) // cols
+
+    PANEL_PAD = 26
+    GAP = 24
+    KICKER_ALTO = 30
+    CIRCULO_D = 64
+    TILE_PAD = 16
+    RADIO = 18
+
+    pan_w = x1 - x0
+    inner = pan_w - 2 * PANEL_PAD
+    tile_w = (inner - GAP * (cols - 1)) // cols
+    ancho_txt = tile_w - 2 * TILE_PAD
+
+    # el texto de la casilla: versalitas del display en itálica (el del reel).
+    # El rol es `secundario` (la escala ya lo define como "titulos de item").
+    fab = ctx.fTi if FJI else ctx.fT
+    tam = ESCALA["secundario"]
+    alto_linea = int(tam * 1.16)
+    alto_txt = 0
+    for it in items:
+        _l = _lineas_de_casilla(str(it.get("texto", "")).upper(),
+                                fab(tam, 800), ancho_txt)
+        alto_txt = max(alto_txt, len(_l) * alto_linea)
+    tile_h = TILE_PAD + CIRCULO_D + 18 + max(1, alto_txt) + TILE_PAD
+    panel_h = PANEL_PAD * 2 + (KICKER_ALTO + 26 if e.get("kicker") else 0) \
+        + filas * tile_h + (filas - 1) * GAP
+
+    try:
+        y_panel = int(e.get("y", y1 - panel_h))
+    except (TypeError, ValueError):
+        y_panel = int(y1 - panel_h)
+    y_panel = max(0, min(y_panel, H - panel_h))
+
+    # el panel entra con la primera casilla (nada aparece de golpe)
+    k_panel = entra(t, at.get("item0", e["from"] + 0.3), "bloque")
+    sub_p, dp = grupo()
+    dp.rounded_rectangle([x0, y_panel, x1, y_panel + panel_h], radius=RADIO,
+                         fill=PANEL + (255,), outline=(70, 70, 70, 255), width=2)
+
+    # el kicker: la raya de acento y el guion en monoespaciada
+    y_k = y_panel + PANEL_PAD
+    if e.get("kicker"):
+        dp.rectangle([x0 + PANEL_PAD, y_k + 10, x0 + PANEL_PAD + 40, y_k + 16],
+                     fill=ACENTO + (255,))
+        fnt_k = ctx.fM(ESCALA["nota"], 700)
+        dp.text((x0 + PANEL_PAD + 56, y_k + 13), str(e["kicker"]).upper(),
+                font=fnt_k, fill=GRIS + (255,), anchor="lm")
+    fundir(layer, sub_p, k_panel)
+
+    y_tiles = y_k + (KICKER_ALTO + 26 if e.get("kicker") else 0)
+    for i, it in enumerate(items):
+        fila, col = divmod(i, cols)
+        tx = x0 + PANEL_PAD + col * (tile_w + GAP)
+        ty = y_tiles + fila * (tile_h + GAP)
+        t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
+        k = entra(t, t_in, "elemento")
+        if k <= 0:
+            continue
+        sub, ds = grupo()      # la casilla entera entra fundida
+        hecho = it.get("hecho", False)
+        # `hecho` puede ser un booleano (confirmada desde el principio o
+        # nunca) o el SEGUNDO en que se confirma (el ✓ se dibuja entonces).
+        if isinstance(hecho, bool):
+            kc = 1.0 if hecho else 0.0
+        else:
+            kc = clamp01((t - float(hecho)) / 0.28)
+        cx = tx + tile_w / 2
+        cy = ty + TILE_PAD + CIRCULO_D / 2
+        texto = str(it.get("texto", "")).upper()
+        lineas = _lineas_de_casilla(texto, fab(tam, 800), ancho_txt)
+        y_txt = ty + TILE_PAD + CIRCULO_D + 18
+        # la casilla se dibuja PENDIENTE (aro vacio, borde gris, texto gris)
+        ds.rounded_rectangle([tx, ty, tx + tile_w, ty + tile_h], radius=RADIO,
+                             fill=PANEL2 + (255,), outline=(92, 92, 92, 255), width=2)
+        ds.ellipse([cx - CIRCULO_D / 2, cy - CIRCULO_D / 2,
+                    cx + CIRCULO_D / 2, cy + CIRCULO_D / 2],
+                   outline=(92, 92, 92, 255), width=3)
+        for li, ln in enumerate(lineas):
+            ds.text((cx, y_txt + li * alto_linea), ln, font=fab(tam, 800),
+                    fill=GRIS + (255,), anchor="ma")
+        # y, cuando se CONFIRMA, la version confirmada se funde encima (fondo
+        # negro, borde blanco, circulo lleno con el ✓ y el texto en blanco).
+        # Fundida y no de golpe: un bloque que cambia en UN frame es un pop
+        # (medido: confirmar en t=1,5 s daba un pop de 1,5 px).
+        if kc > 0:
+            ox, oy = int(tx) - 2, int(ty) - 2
+            conf = Image.new("RGBA", (int(tile_w) + 4, int(tile_h) + 4),
+                             (0, 0, 0, 0))
+            dc = ImageDraw.Draw(conf)
+            dc.rounded_rectangle([2, 2, tile_w + 2, tile_h + 2], radius=RADIO,
+                                 fill=NEGRO + (255,), outline=BLANCO + (255,), width=2)
+            r = CIRCULO_D / 2
+            dc.ellipse([cx - ox - r, cy - oy - r, cx - ox + r, cy - oy + r],
+                       fill=BLANCO + (255,))
+            # el ✓ tiene que CABER dentro del circulo: su punto mas lejano
+            # esta a 1,255·s del centro (mas el grosor del trazo)
+            s_check = int((CIRCULO_D / 2 - 5) / 1.255)
+            check(dc, cx - ox, cy - oy, s_check, NEGRO, max(4, int(s_check * 0.32)))
+            for li, ln in enumerate(lineas):
+                dc.text((cx - ox, y_txt - oy + li * alto_linea), ln,
+                        font=fab(tam, 800), fill=BLANCO + (255,), anchor="ma")
+            if kc < 1:
+                conf.putalpha(conf.split()[3].point(lambda v: int(v * kc)))
+            sub.alpha_composite(conf, (ox, oy))
+        fundir(layer, sub, k)
+    return capa_salida(layer, t, e["to"])
+
+
 def sc_kenburns(ctx, e, t):
     """Ken Burns sobre una imagen: zoom + paneo progresivo. Ideal para
     galerías, openings sobre foto, documentales.
@@ -4206,6 +4478,8 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "typewriter":sc_typewriter,"kenburns":sc_kenburns,"pasos":sc_pasos,
         # Ronda 12: la frase cinetica (el copy que se lee palabra a palabra)
         "frase":sc_frase,
+        # Ronda 12: el acta de lo confirmado (el panel de casillas del reel)
+        "constancia":sc_constancia,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,
@@ -4433,6 +4707,7 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)
+    dibuja_deplecion(ImageDraw.Draw(bg),t,dur)   # el borde del lienzo, ENCIMA de la escena
     if dur-t<0.8:   # fundido al cierre con ease-IN (x²): arranca suave y llega a negro en el
         k=clamp01((0.8-(dur-t))/0.8)**2   # último frame (smoothstep se quedaba 0.25 s en negro: black_frame)
         if ALFA:   # un overlay se va por transparencia, no a negro

@@ -111,6 +111,36 @@ mide la profundidad de verdad (detras de la letra desenfocado, fuera de la
 letra nitido): si alguien vuelve a escribir la mascara en 0-1, el test
 falla.
 
+#### El layout ENMARCADO (`--marco`): el clip en una caja
+
+A sangre (por defecto) el video ocupa el cuadro y la tipografia va encima.
+El otro layout del reel de "cara" es el contrario: el video entra en una
+**CAJA con esquinas redondeadas** sobre el lienzo negro y la tipografia va
+ENCIMA de todo (el clip arriba, el copy debajo, en su propia zona).
+
+```bash
+python scripts/ffmpeg_tools/componer.py base.mp4 capa.mov \
+    --marco "60,250,960,947" --fps 24 -o final.mp4
+```
+
+Los cuatro numeros son `x,y,ancho,alto` en px, sobre el lienzo del kit
+(1080x1920). Que significa cada parte:
+
+- el **lienzo** es el del kit (1080x1920), no el del video: el video entra
+  escalado en la caja y la capa de tipografia se escala al lienzo (asi el
+  `--marco` significa lo mismo siempre);
+- las **esquinas redondeadas** se cortan con una mascara (un PNG generado con
+  PIL, no con `geq`: `geq` reevalua pixel a pixel y sobre un video plano deja
+  el clip en negro);
+- el **velo va DENTRO de la caja**, no sobre el lienzo: el velo pertenece a la
+  imagen, y puesto sobre el lienzo ennegrece el negro de los bordes;
+- el **desenfoque se recorta a la caja**: la mascara de la letra se recorta
+  con las coordenadas de la caja, para que el desenfoque del fondo no se coma
+  la esquina.
+
+Un marco que no cabe en el lienzo **avisa antes de renderizar** (y el render
+falla: ffmpeg no recorta una caja fuera del cuadro sin avisar).
+
 ### Overlays con alfa (entregar capas al editor)
 
 Cuando el footage lo edita otra persona (o vive en OBS), el gráfico se entrega

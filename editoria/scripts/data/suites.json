@@ -33,6 +33,7 @@
   "test_libass.py",
   "test_lint_copy.py",
   "test_marca_fondo.py",
+  "test_marco_y_deplecion.py",
   "test_medir_contraste.py",
   "test_mezclar_audio.py",
   "test_movimiento.py",

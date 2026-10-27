@@ -25,6 +25,14 @@ QUE RESUELVE
   · la capa tiene que LLEVAR ALFA (un `.mp4` no lo lleva: el texto sale con
     fondo negro en vez de desvanecido).
 
+  Y tiene DOS layouts:
+  · A SANGRE (por defecto): el video ocupa el cuadro y la tipografia va encima;
+  · ENMARCADO (`--marco x,y,w,h`): el video entra en una CAJA con esquinas
+    redondeadas sobre el lienzo negro y la tipografia va ENCIMA de todo. Es el
+    layout del reel de "cara": el clip enmarcado arriba y el copy debajo, en
+    su propia zona (la zona segura de las plataformas NO llega al borde: el
+    texto del reel vive en la franja baja, que es zona de UI de Instagram).
+
 LO QUE NO HACE (y lo dice)
   · NO inventa la tipografia: la capa sale de `render_plan.py`.
   · NO decide el arte: el velo es una herramienta (fuerte arriba y abajo por
@@ -34,6 +42,7 @@ LO QUE NO HACE (y lo dice)
 Uso:
     python3 scripts/ffmpeg_tools/componer.py base.mp4 capa.mov -o final.mp4
     python3 scripts/ffmpeg_tools/componer.py base.mp4 capa.mov --audio mezcla.mp4 -o final.mp4
+    python3 scripts/ffmpeg_tools/componer.py base.mp4 capa.mov --marco "60,250,960,947" -o final.mp4
 """
 import argparse
 import os
@@ -50,6 +59,8 @@ from _comun import (add_common, apply_common, die, emit, ffmpeg_base, info,
 #: de la receta documentada (references/modos-produccion.md): el radio del
 #: desenfoque de la mascara, el radio del fondo y el umbral que decide que
 #: pixel cuenta como letra.
+W=1080
+H=1920
 RADIO_MASCARA = 45
 RADIO_FONDO = 24
 UMBRAL = 28
@@ -123,11 +134,14 @@ def velo_png(destino, ancho=1080, alto=1920, fuerza=1.0):
     return destino
 
 
-def _verifica_entradas(base, capa, fps_esperado=None):
+def _verifica_entradas(base, capa, fps_esperado=None, marco=None):
     """Los errores que ROMPEN la pieza se dicen ANTES de renderizar.
 
     · las tasas distintas: el medidor de movimiento lo cuenta como tirones;
-    · una capa sin alfa: el texto sale con fondo negro en vez de desvanecido.
+    · una capa sin alfa: el texto sale con fondo negro en vez de desvanecido;
+    · un marco fuera del lienzo: el clip se sale del cuadro (ffmpeg recorta y
+      avisa por su cuenta, pero el aviso explica cuál de los cuatro números
+      es el que no cuadra).
     """
     avisos = []
     fps_b, w_b, h_b = _fps_de(base)
@@ -144,9 +158,18 @@ def _verifica_entradas(base, capa, fps_esperado=None):
         avisos.append(f"la capa {os.path.basename(capa)} NO lleva canal alfa: "
                       f"el texto saldra con fondo negro en vez de desvanecido. "
                       f"Renderiza la capa a .mov (ProRes 4444) o .webm.")
-    if w_b and w_c and (w_b, h_b) != (w_c, h_c):
+    if w_b and w_c and (w_b, h_b) != (w_c, h_c) and not marco:
+        # con marco NO es un problema: el video entra escalado en la caja y
+        # la capa se escala al lienzo del kit
         avisos.append(f"el fondo es {w_b}x{h_b} y la capa {w_c}x{h_c}: "
                       f"se componen desajustados.")
+    if marco:
+        mx, my, mw, mh = (int(v) for v in marco)
+        # el lienzo del layout enmarcado es el del KIT (no el del video: el
+        # video entra en una caja DENTRO del lienzo)
+        if mx < 0 or my < 0 or mx + mw > W or my + mh > H:
+            avisos.append(f"el marco {mx},{my},{mw},{mh} no cabe en el lienzo "
+                          f"de {W}x{H}: el clip se sale del cuadro.")
     return avisos
 
 
@@ -173,18 +196,40 @@ def cadena_mascara():
             f"min(255,(val-{UMBRAL})*255/130),0)'[mk];")
 
 
+def marco_mascara(destino, ancho, alto, radio):
+    """La mascara del marco: un rectángulo de esquinas redondeadas (blanco).
+
+    Se genera con PIL en vez de con `geq`: `geq` reevalua la imagen pixel a
+    pixel (lento) y sobre un video con color plano deja el clip en NEGRO
+    (medido). Aqui solo se necesita la forma.
+    """
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return None
+    img = Image.new("L", (ancho, alto), 0)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([0, 0, ancho - 1, alto - 1], radius=int(radio), fill=255)
+    img.save(destino)
+    return destino
+
+
 def componer(base, capa, salida, audio=None, velo="auto", fps=24,
-             duracion=None, crf=19, preset="slow"):
+             duracion=None, crf=19, preset="slow", marco=None):
     """Compone la capa sobre el fondo y devuelve (avisos, comando).
 
     `velo` puede ser: "auto" (generar el velo por defecto), "0"/None (sin
     velo), 0.0..1.0 (la fuerza del velo generado) o una ruta a un PNG.
 
+    `marco` es "x,y,w,h": el video entra en una CAJA con esquinas
+    redondeadas sobre el lienzo negro y la tipografia va ENCIMA (el layout
+    del reel de "cara": el clip enmarcado arriba, el copy debajo).
+
     Los avisos se AVISAN ANTES de correr ffmpeg: si la composicion falla, el
     motivo suele estar en uno de ellos (unas tasas que no casan, una capa sin
     alfa) y un aviso que sale despues del fallo no explica nada.
     """
-    avisos = _verifica_entradas(base, capa, fps_esperado=fps)
+    avisos = _verifica_entradas(base, capa, fps_esperado=fps, marco=marco)
 
     velo_ruta = None
     temporal = None
@@ -203,32 +248,102 @@ def componer(base, capa, salida, audio=None, velo="auto", fps=24,
             if velo_ruta is None:
                 avisos.append("Pillow no esta: se compone sin velo")
 
+    # la mascara del marco: un rectangulo de esquinas redondeadas (blanco)
+    mx = my = mw = mh = 0
+    mascara = None
+    if marco:
+        mx, my, mw, mh = (int(v) for v in marco)
+        radio = int(min(mw, mh) * 0.031)          # las esquinas del marco
+        if temporal is None:
+            temporal = tempfile.mkdtemp(prefix="componer_marco_")
+        mascara = marco_mascara(os.path.join(temporal, "marco.png"), mw, mh, radio)
+        if mascara is None:
+            avisos.append("Pillow no esta: el clip va SIN esquinas redondeadas")
+            mascara = None
+
     for a in avisos:
         info(f"AVISO: {a}")
 
-    # el fondo se divide: una copia nitida y otra desenfocada y desaturada.
-    # la mascara sale del ALFA de la capa; el fondo vuelve donde NO hay letra.
-    fc = ("[0:v]split=2[sh][fb];"
-          f"[fb]boxblur=luma_radius={RADIO_FONDO}:luma_power=2,"
-          "eq=saturation=0.40:brightness=-0.20:contrast=0.9[bl];"
-          "[1:v]split=2[ov][ovs];"
-          "[ovs]format=rgba,alphaextract,format=gray[al];"
-          f"[al]boxblur=luma_radius={RADIO_MASCARA}:luma_power=2[ab];"
-          + cadena_mascara() +
-          "[sh][bl][mk]maskedmerge[mm];"
-          "[mm][ov]overlay=0:0:format=auto[ov2]")
-
+    # ---- las entradas, con su indice CONOCIDO -----------------------------
+    # 0=base, 1=capa, y despues las imagenes de apoyo y el audio. El indice
+    # se lleva la cuenta: antes se escribia a mano y un dia el audio quedo
+    # descolocado (el "-map 2:a" apuntaba a la mascara).
     entradas = ["-i", base, "-i", capa]
+    n_entradas = 2
+    i_velo = i_mascara = None
     if velo_ruta:
-        fc += ";[ov2][2:v]overlay=0:0:format=auto,format=yuv420p[v]"
+        i_velo = n_entradas
         entradas += ["-i", velo_ruta]
+        n_entradas += 1
+    if mascara:
+        i_mascara = n_entradas
+        entradas += ["-i", mascara]
+        n_entradas += 1
+
+    if marco:
+        # EL CLIP ENMARCADO. El lienzo es el del KIT (1080x1920) y el clip
+        # entra en una caja dentro de el; la capa de tipografia va sobre ese
+        # lienzo (si no mide eso, se escala: la mascara del desenfoque se
+        # recorta a la caja y una capa de otro tamaño no se puede recortar).
+        #
+        # El orden importa:
+        #   1. la capa va al lienzo;
+        #   2. el video se recorta al tamaño de la caja;
+        #   3. la mascara de la LETRA se recorta a la caja, para que el
+        #      desenfoque de profundidad solo afecte al video (y no a la
+        #      esquina, donde el desenfoque del negro se comeria el borde);
+        #   4. el velo se escala a la caja: el velo pertenece a la IMAGEN,
+        #      no al lienzo (puesto sobre el lienzo ennegrece el negro);
+        #   5. `alphamerge` mete la mascara de esquinas: el clip sale con las
+        #      esquinas redondeadas y el resto del lienzo queda en negro.
+        fc = (f"[1:v]scale={W}:{H}[ov0];"
+              "[ov0]split=2[ov][ovs];"
+              "[ovs]format=rgba,alphaextract,format=gray[al];"
+              f"[al]boxblur=luma_radius={RADIO_MASCARA}:luma_power=2[ab];"
+              + cadena_mascara() +
+              f"[mk]crop={mw}:{mh}:{mx}:{my}[mkc];"
+              f"[0:v]scale={mw}:{mh}:force_original_aspect_ratio=increase,"
+              f"crop={mw}:{mh}[rec];"
+              "[rec]split=2[shc][fbc];"
+              f"[fbc]boxblur=luma_radius={RADIO_FONDO}:luma_power=2,"
+              "eq=saturation=0.40:brightness=-0.20:contrast=0.9[blc];"
+              "[shc][blc][mkc]maskedmerge[clip];")
+        if i_velo is not None:
+            fc += f"[{i_velo}:v]scale={mw}:{mh}[vl];"
+            fc += "[clip][vl]overlay=0:0:format=auto[clipv];"
+            base_clip = "clipv"
+        else:
+            base_clip = "clip"
+        if i_mascara is not None:
+            fc += (f"[{base_clip}][{i_mascara}:v]alphamerge[recortado];"
+                   f"color=c=black:s={W}x{H}:r={fps}:d=1[negro];"
+                   f"[negro][recortado]overlay={mx}:{my}:format=auto[campo];")
+        else:
+            fc += (f"color=c=black:s={W}x{H}:r={fps}:d=1[negro];"
+                   f"[negro][{base_clip}]overlay={mx}:{my}:format=auto[campo];")
+        fc += "[campo][ov]overlay=0:0:format=auto[ov2];"
+        fc += "[ov2]format=yuv420p[v]"
     else:
-        fc += ";[ov2]format=yuv420p[v]"
+        # A SANGRE: el video ocupa el cuadro y la tipografia va encima.
+        fc = ("[0:v]split=2[sh][fb];"
+              f"[fb]boxblur=luma_radius={RADIO_FONDO}:luma_power=2,"
+              "eq=saturation=0.40:brightness=-0.20:contrast=0.9[bl];"
+              "[1:v]split=2[ov][ovs];"
+              "[ovs]format=rgba,alphaextract,format=gray[al];"
+              f"[al]boxblur=luma_radius={RADIO_MASCARA}:luma_power=2[ab];"
+              + cadena_mascara() +
+              "[sh][bl][mk]maskedmerge[mm];"
+              "[mm][ov]overlay=0:0:format=auto[ov2]")
+        if i_velo is not None:
+            fc += f";[ov2][{i_velo}:v]overlay=0:0:format=auto,format=yuv420p[v]"
+        else:
+            fc += ";[ov2]format=yuv420p[v]"
 
     mapa = ["-map", "[v]"]
     if audio:
+        i_audio = n_entradas
         entradas += ["-i", audio]
-        mapa += ["-map", f"{3 if velo_ruta else 2}:a"]
+        mapa += ["-map", f"{i_audio}:a"]
     else:
         mapa += ["-an"]
 
@@ -248,7 +363,7 @@ def componer(base, capa, salida, audio=None, velo="auto", fps=24,
     try:
         run(cmd)
     finally:
-        # el velo generado es de trabajo: no se queda junto a la pieza
+        # el velo generado y la mascara son de trabajo: no se quedan junto a la pieza
         if temporal:
             shutil.rmtree(temporal, ignore_errors=True)
     return avisos, cmd
@@ -266,6 +381,11 @@ def main():
     ap.add_argument("--velo", default="auto",
                     help="'auto' (velo por defecto), '0' (sin velo), un numero "
                          "0-1 (la fuerza) o la ruta de un PNG")
+    ap.add_argument("--marco", default=None,
+                    help="'x,y,w,h': el video entra en una CAJA con esquinas "
+                         "redondeadas y el resto del lienzo queda en negro (el "
+                         "layout del reel de 'cara': el clip enmarcado arriba y "
+                         "la tipografia abajo, en su propia zona)")
     ap.add_argument("--fps", type=int, default=24, help="la tasa de la pieza (24 nativo)")
     ap.add_argument("--duracion", type=float, default=None,
                     help="cortar la pieza a estos segundos")
@@ -283,9 +403,18 @@ def main():
     if args.audio and not os.path.isfile(args.audio):
         die(f"no existe: {args.audio}")
 
+    marco = None
+    if args.marco:
+        try:
+            vals = [int(v) for v in str(args.marco).replace(" ", "").split(",")]
+        except ValueError:
+            die("--marco quiere 'x,y,w,h' (cuatro numeros)")
+        if len(vals) != 4 or vals[2] <= 0 or vals[3] <= 0:
+            die("--marco quiere 'x,y,w,h' con ancho y alto positivos")
+        marco = vals
     avisos, cmd = componer(args.base, args.capa, args.output, audio=args.audio,
                            velo=args.velo, fps=args.fps, duracion=args.duracion,
-                           crf=args.crf, preset=args.preset)
+                           crf=args.crf, preset=args.preset, marco=marco)
     for a in avisos:
         info(f"AVISO: {a}")
     if not os.path.isfile(args.output):

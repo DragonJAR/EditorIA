@@ -865,6 +865,26 @@
     "rotulo": 0.2,
     "fuente": 3.8
    }
+  },
+  "constancia": {
+   "from": 0,
+   "to": 5,
+   "kicker": "Cliente + equipo",
+   "items": [
+    {
+     "texto": "La propuesta ya está enviada",
+     "hecho": true
+    },
+    {
+     "texto": "Falta la firma del responsable",
+     "hecho": false
+    }
+   ],
+   "fuente": "Datos de ejemplo",
+   "at": {
+    "item0": 0.3,
+    "item1": 0.8
+   }
   }
  }
 }

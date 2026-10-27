@@ -123,6 +123,14 @@ que se LEE (un reel de copy, un dato que se explica), no del titular que
 golpea. `typewriter` es el otro: caracter a caracter, con cursor, para una
 cita o una transcripcion.
 
+### "Quiero dejar constancia de lo que quedo confirmado y lo que quedo pendiente"
+`constancia` — el acta de la pieza: un panel con el guion de arriba y N
+casillas, cada una con su marca (✓ lo confirmado, ○ lo pendiente) y su texto
+en versalitas. Es la escena del reel de "cara" (`De8KNkdDT68`). Sirve para
+acordar con el cliente: lo que ya se hizo, lo que esta en juego y lo que
+queda por delante. `listo` es el caso de UN solo estado (una sola explosion);
+`constancia` es la lista.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
@@ -145,7 +153,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 | cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave` |
 | comparacion | `versus`, `bars`, `ranking` |
 | demostracion | `demo`, `callout`, `buscador` |
-| estado | `listo`, `pago`, `recupera`, `notificacion` |
+| estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |
 | imagen-texto | `kenburns`, `typewriter`, `rotulo_inferior`, `quote` |
 | estructura | `index`, `canales`, `medianoche` |
 

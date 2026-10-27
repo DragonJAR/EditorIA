@@ -133,6 +133,15 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   campo que la escena no lee, con la sugerencia más parecida (`pasos` →
   `items`, `titulo` → `rotulo`): una escena que saldría vacía EN SILENCIO. El
   esquema sale del propio código de cada escena. Comentarios: campos `_algo`.
+- **Barra de depleción**: `"deplecion": {"y": 0, "alto": 5, "color": "acento"}`
+  (opcional) dibuja una barra pegada al borde superior del lienzo que se
+  DEPLETA: empieza al ancho completo y se estrecha hasta cero en el último
+  segundo de la pieza (ancho = `W · (1 − t/duración)`, lineal y anclada a la
+  izquierda). Es de la PIEZA entera, no de una escena: por eso la declara el
+  plan y no una escena (si fuera una escena, la pieza gastaría una escena
+  entera en la barra). `color` admite un token (`"acento"`, `"blanco"`,
+  `"gris"`, `"negro"`) o un hex (`"#BD1700"`); `y` y `alto` son px. Sin el
+  campo, no hay barra: es opt-in y no cambia las piezas existentes.
 - `"respira": false` = apaga la respiración de cámara común (push-in lento +
   flotación) en esa escena; útil para una escena que debe quedar clavada
   (un dato que se lee quieto). Sin ese campo toda escena asentada respira.
@@ -230,13 +239,14 @@ python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mo
 - El plan resuelto de cada fila queda junto a su video (`*.plan.json`).
 - Una variante por variable: en tests A/B, la tabla cambia UNA columna.
 
-## Tipos de escena (40)
+## Tipos de escena (41)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·
 `listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final` · `bars` ·
 `gauge` · `ranking` · `stats` · `timeline` · `quote` · `versus` · `confetti` ·
 `typewriter` · `kenburns` · `pasos` · `countdown` · `oferta` · `demo` ·
 `rotulo_inferior` · `hero` · `bento` · `buscador` · `notificacion` · `comentario` ·
-`pie` · `orbita` · `audiowave` · `index` · `callout` · `orbOpen` · `frase`
+`pie` · `orbita` · `audiowave` · `index` · `callout` · `orbOpen` · `frase` ·
+`constancia`
 
 Ver `references/escenas.md` para los parámetros de cada una.
 Ver `scripts/render_plan.py` para el renderizador de referencia.

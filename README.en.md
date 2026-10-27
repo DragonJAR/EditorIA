@@ -14,9 +14,9 @@
 
 EditorIA turns an agent into a complete video editor. It can:
 
-- **Plan-driven render** (`plan.json` → `mp4`) with **40 scene types** — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen` and `frase`.
+- **Plan-driven render** (`plan.json` → `mp4`) with **41 scene types** — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen`, `frase` and `constancia`.
 - **Visual composition**: scene with `--datos` (CSV), scene on template × table, audiograms, word-level karaoke, exact BT.709 color, alpha overlays and rotation.
-- **Animation craft**: fluidity motor (springs, live background, anticipated exits), 180° shutter motion blur on delivery (`--blur 5`), **20 DRY primitives** (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) that compose all 40 scenes.
+- **Animation craft**: fluidity motor (springs, live background, anticipated exits), 180° shutter motion blur on delivery (`--blur 5`), **20 DRY primitives** (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) that compose all 41 scenes.
 - **Voice-over and music with AI**: ElevenLabs TTS with content-addressed cache, music with sidechain ducking, word-level alignment (`alinear.py`) on local Whisper (whisper.cpp / faster-whisper / openai-whisper cascade).
 - **White-label brand packs**: identity lives in `brand/*.json` (DragonJAR included as example). Without a pack, free mode with pure cinematic criteria. Identity NEVER hardcoded in the code.
 - **Automated QA**: machine (`auto_qa.py` detects black frames, frozen, flashes, audio) + agent visual review on contact sheet. 8-axis award rubric (none below 4/5).
@@ -172,8 +172,8 @@ Result: 3 shorts at 1080x1920 @30fps, with karaoke subtitles.
 
 | Capability | Description |
 |---|---|
-| Declarative plan | `plan.json` with 40 scene types, absolute times, `at` per element, `voz` per scene |
-| Unified catalog | \d+ scenes composed with 20 DRY primitives (zero duplicated logic) |
+| Declarative plan | `plan.json` with 41 scene types, absolute times, `at` per element, `voz` per scene |
+| Unified catalog | 41 scenes composed with 20 DRY primitives (zero duplicated logic) |
 | `--blur 5` | 180° shutter motion blur on final delivery |
 | `--force` | Re-render everything (without it resumes where it left off) |
 | `--datos` | CSV-driven (auto-fit font, wrap, line break) |
@@ -244,7 +244,7 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 49 root + 20 in ffmpeg_tools/ + 49 in _tests/ = 118 scripts
+│   ├── scripts/                       # 49 root + 20 in ffmpeg_tools/ + 50 in _tests/ = 119 scripts
 │   │   ├── render_plan.py             # Main plan renderer \(40 scenes\)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
@@ -274,13 +274,13 @@ EditorIA/
 │   │   ├── film_marca.py              # Cinematic brand film v1
 │   │   ├── film_marca_v2.py           # Cinematic brand film v2
 │   │   ├── _film.py                   # Shared film utilities
-│   │   ├── galeria.py                 # Visual suite for all \d+ scenes
+│   │   ├── galeria.py                 # Visual suite for all 41 scenes
 │   │   ├── validate_skill.py          # Deterministic skill validator
 │   │   ├── _guard_entorno.py          # Does the suite give the same verdict without a repo?
 │   │   ├── compilar_reel.py           # Compile N videos into one reel (measures and cuts)
 │   │   ├── _cerrar_tip.py             # Closes a tip: measures, compares, one-line verdict
 │   │   ├── demo_plan.json             # Sample plan
-│   │   ├── escenas_muestra.json       # Canonical samples for all \d+ scenes
+│   │   ├── escenas_muestra.json       # Canonical samples for all 41 scenes
 │   │   ├── _tests/                    # Unit test suite (unittest)
 │   │   │   ├── test_chapters.py
 │   │   │   ├── test_core_and_scenes.py
@@ -312,7 +312,7 @@ EditorIA/
 │   │       └── _plataforma.py         # OS abstractions
 │   ├── references/                    # 63 references in kebab-case.md
 │   │   ├── instalacion.md             # Per OS (Win/macOS/Linux)
-│   │   ├── escenas.md                 # Catalog of 40 scenes
+│   │   ├── escenas.md                 # Catalog of 41 scenes
 │   │   ├── escenas-extendidas.md      # Portable concepts
 │   │   ├── plan-video.md              # plan.json schema
 │   │   ├── shorts-plan-schema.md      # shorts-plan.json schema
