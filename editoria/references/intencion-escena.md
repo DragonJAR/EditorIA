@@ -131,6 +131,14 @@ acordar con el cliente: lo que ya se hizo, lo que esta en juego y lo que
 queda por delante. `listo` es el caso de UN solo estado (una sola explosion);
 `constancia` es la lista.
 
+### "Quiero una cadena de pasos unidos, uno detras de otro"
+`cadena` — N nodos con icono de linea, unidos por un conector punteado, cada
+uno con su etiqueta. Es la escena del reel de "cara" (`De8KNkdDT68`): lo que
+vio cada quien, en fila. A diferencia de `pasos` (que es una lista vertical),
+aqui los nodos se ENCADENAN: el punteado dice que es una secuencia. Los
+iconos son trazos dibujados (`codigo`, `globo`, `alerta`, `lupa`, `reloj`),
+no glifos: un glifo depende de que la fuente lo tenga.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
@@ -148,7 +156,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 |---|---|
 | gancho | `apertura`, `hero`, `countdown`, `buscador`, `pildoras`, `orbOpen` |
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
-| proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy` |
+| proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena` |
 | social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
 | cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave` |
 | comparacion | `versus`, `bars`, `ranking` |

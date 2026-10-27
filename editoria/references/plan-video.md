@@ -239,14 +239,14 @@ python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mo
 - El plan resuelto de cada fila queda junto a su video (`*.plan.json`).
 - Una variante por variable: en tests A/B, la tabla cambia UNA columna.
 
-## Tipos de escena (41)
+## Tipos de escena (42)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·
 `listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final` · `bars` ·
 `gauge` · `ranking` · `stats` · `timeline` · `quote` · `versus` · `confetti` ·
 `typewriter` · `kenburns` · `pasos` · `countdown` · `oferta` · `demo` ·
 `rotulo_inferior` · `hero` · `bento` · `buscador` · `notificacion` · `comentario` ·
 `pie` · `orbita` · `audiowave` · `index` · `callout` · `orbOpen` · `frase` ·
-`constancia`
+`constancia` · `cadena`
 
 Ver `references/escenas.md` para los parámetros de cada una.
 Ver `scripts/render_plan.py` para el renderizador de referencia.

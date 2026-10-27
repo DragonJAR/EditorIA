@@ -8,6 +8,7 @@
   "test_beat_secciones.py",
   "test_cabecera_commit.py",
   "test_cache_fantasma.py",
+  "test_cadena_e_iconos.py",
   "test_caption_hablantes.py",
   "test_censo_clis.py",
   "test_cerrar_tip.py",

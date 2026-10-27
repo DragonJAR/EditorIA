@@ -348,6 +348,29 @@ de arriba), `y?` (dónde va el panel; por defecto, el fondo de la zona segura),
 El texto de la casilla es el rol `secundario` de la escala (32 px) y **no se
 encoge**: si el copy no cabe en dos líneas lo que se acorta es el copy, no la
 letra (queda anotado en `RECORTES`).
+
+**`cadena`** — La **cadena de estados**: N nodos con icono de línea, unidos
+por un conector punteado, cada uno con su etiqueta. Es la escena del reel
+de "cara" (`De8KNkdDT68`): lo que vio cada quien, en fila. A diferencia de
+`constancia` (una lista de casillas con ✓), aquí los nodos se **encadenan**:
+el punteado dice que es una secuencia.
+
+MEDIDO sobre ese reel: el nodo es una caja de 149×140 con las esquinas
+redondeadas (radio 21) y el borde de 2 px (blanco el activo, gris el que no);
+el icono de línea mide 69 px y va centrado; la etiqueta va debajo (el nombre
+en negrita y debajo una línea en monoespaciada); el conector son guiones de
+10 px con 12 de hueco, que arrancan a 16 px del borde del nodo (unen, no
+pegan).
+
+`items[{icono, titulo, sub?, activo?}]`, `kicker?` (el guion de arriba),
+`y?`, `at{item0..n}`.
+
+Los iconos son **trazos dibujados**, no glifos (un glifo depende de que la
+fuente lo tenga: "✓" sale como caja vacía en muchas). Los que hay:
+`codigo` (`</>`), `globo` (círculo con elipse vertical y ecuador), `alerta`
+(triángulo con el signo), `lupa` (círculo con mango) y `reloj` (círculo con
+agujas). Un icono que no existe se dibuja como el borde de una ficha: se ve
+que falta, y no es un hole silencioso en la pieza.
 ## Qué escena para qué dato
 
 Elegir la escena por la forma del dato y por lo que el plano deja leer, no por

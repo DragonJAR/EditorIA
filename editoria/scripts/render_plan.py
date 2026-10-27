@@ -1155,6 +1155,81 @@ def smoothstep(p):
     return p * p * (3 - 2 * p)
 
 
+def icono_linea(d, nombre, cx, cy, s, color, grosor=None):
+    """Un icono de LINEA: el trazo, no el dibujo.
+
+    MEDIDO sobre el reel De8KNkdDT68 (1080x1920):
+      · el GLOBO: circulo de 69 px (radio 34) con una elipse vertical de 20 de
+        ancho y la linea del ecuador; el trazo es de 7 px;
+      · la ALERTA: triangulo de 66 de base y 60 de alto, con el signo de
+        exclamacion (barra + punto) centrado en el centroide;
+      · la LUPA: circulo con el mango en 45 grados;
+      · el RELOJ: circulo con dos agujas;
+      · el CODIGO: `</>` con tres trazos.
+
+    `s` es el radio del icono (la mitad de su caja) y el trazo sale de `s` si
+    no se dice (el 20 % del radio: con el radio de 34 son 7 px, los del reel).
+    El color se pasa como RGBA.
+    """
+    g = grosor or max(2, int(s * 0.20))
+    c = color
+    n = (nombre or "").strip().lower()
+    if n in ("globo", "globe", "mundo", "web"):
+        d.ellipse([cx - s, cy - s, cx + s, cy + s], outline=c, width=g)
+        d.ellipse([cx - s * 0.29, cy - s, cx + s * 0.29, cy + s], outline=c, width=g)
+        d.line([cx - s, cy, cx + s, cy], fill=c, width=g)
+    elif n in ("alerta", "aviso", "warning", "alarma"):
+        d.line([cx, cy - s * 0.88, cx - s * 0.97, cy + s * 0.88], fill=c, width=g)
+        d.line([cx, cy - s * 0.88, cx + s * 0.97, cy + s * 0.88], fill=c, width=g)
+        d.line([cx - s * 0.97, cy + s * 0.88, cx + s * 0.97, cy + s * 0.88],
+               fill=c, width=g)
+        # el signo, en el centroide (mas abajo que el centro de la caja)
+        d.line([cx, cy - s * 0.15, cx, cy + s * 0.25], fill=c, width=max(2, int(g * 0.9)))
+        d.ellipse([cx - s * 0.11, cy + s * 0.38, cx + s * 0.11, cy + s * 0.60],
+                  fill=c)
+    elif n in ("lupa", "buscador", "busqueda", "search"):
+        r = s * 0.62
+        ccx, ccy = cx - s * 0.12, cy - s * 0.12
+        d.ellipse([ccx - r, ccy - r, ccx + r, ccy + r], outline=c, width=g)
+        d.line([ccx + r * 0.72, ccy + r * 0.72, cx + s * 0.92, cy + s * 0.92],
+               fill=c, width=g)
+    elif n in ("reloj", "clock", "tiempo"):
+        d.ellipse([cx - s, cy - s, cx + s, cy + s], outline=c, width=g)
+        d.line([cx, cy, cx, cy - s * 0.62], fill=c, width=g)
+        d.line([cx, cy, cx + s * 0.44, cy + s * 0.20], fill=c, width=g)
+    elif n in ("codigo", "code", "terminal"):
+        d.line([cx - s * 0.30, cy - s * 0.52, cx - s * 0.72, cy], fill=c, width=g)
+        d.line([cx - s * 0.72, cy, cx - s * 0.30, cy + s * 0.52], fill=c, width=g)
+        d.line([cx + s * 0.30, cy - s * 0.52, cx + s * 0.72, cy], fill=c, width=g)
+        d.line([cx + s * 0.72, cy, cx + s * 0.30, cy + s * 0.52], fill=c, width=g)
+        d.line([cx + s * 0.16, cy - s * 0.66, cx - s * 0.16, cy + s * 0.66],
+               fill=c, width=g)
+    else:
+        # un icono desconocido: el borde de una ficha, para que se vea que
+        # falta (y no un holes silencioso en la pieza)
+        d.rounded_rectangle([cx - s * 0.7, cy - s * 0.7, cx + s * 0.7, cy + s * 0.7],
+                            radius=int(s * 0.25), outline=c, width=g)
+
+
+def linea_discontinua(d, x0, x1, y, color, grosor=3, largo=10, hueco=12):
+    """Una linea de TRAZOS: el conector de la cadena de estados.
+
+    MEDIDO sobre el reel De8KNkdDT68: los guiones miden 10 px y el hueco
+    12 (el paso es de 22), y la linea arranca a 16 px del borde del nodo y
+    termina a 10 px del siguiente (no toca los bordes: el conector une, no
+    pega).
+    """
+    if x1 <= x0:
+        return
+    x = x0
+    while x < x1:
+        xe = min(x1, x + largo)
+        # el trazo va de x a xe-1: `largo` es la TINTA, no los puntos (PIL
+        # dibuja el extremo final incluido: con 10 y 11 sale un px de mas)
+        d.line([x, y, xe - 1, y], fill=color, width=grosor)
+        x = xe + hueco
+
+
 def cursor(d, x, y, escala=1.0, color=None, alpha=255):
     """Flecha de puntero con la punta en (x, y). DRY: `pago`, `demo`.
     `alpha`: el cursor entra fundido (aparecer de la nada es un pop)."""
@@ -3010,6 +3085,116 @@ def sc_constancia(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def sc_cadena(ctx, e, t):
+    """La cadena de estados: N nodos con icono de linea, unidos por una linea
+    discontinua, cada uno con su etiqueta.
+
+    Es la escena del reel de "cara" (De8KNkdDT68): lo que vio cada quien, en
+    fila y con el paso marcado. A diferencia de `constancia` (que es una LISTA
+    de casillas con ✓), aqui los nodos se ENCADENAN: el conector punteado
+    dice que es una secuencia.
+
+    MEDIDO sobre ese reel (1080x1920):
+      · el nodo es una caja de 149x140 con las esquinas redondeadas (radio
+        21) y el borde de 2 px (blanco el que esta activo, gris el que no);
+      · el icono de linea mide 69 px y va centrado en el nodo;
+      · la etiqueta va DEBAJO: el nombre en negrita y debajo una linea en
+        monoespaciada, mas pequena y en gris;
+      · el conector son guiones de 10 px con 12 de hueco, en la linea media
+        de los nodos.
+
+    Params: `items[{icono, titulo, sub?, activo?}]`, `kicker?`, `y?`,
+    `at{item0..n}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    items = e.get("items") or []
+    if not items:
+        return capa_salida(layer, t, e["to"])
+
+    at = e.get("at") or {}
+    x0, _, x1, y1 = caja_segura()
+    n = len(items)
+    PANEL_PAD = 26
+    KICKER_ALTO = 30
+    GAP = 24
+    RADIO = 21
+    NODE = 140
+    ICONO_R = 34
+    TAM_ICONO = int(ICONO_R * 2 * 0.46)      # la caja del icono: 31 px de texto
+
+    pan_w = x1 - x0
+    inner = pan_w - 2 * PANEL_PAD
+    paso = inner // n
+    node = min(NODE, paso - 30)
+    alto_txt = int(ESCALA["secundario"] * 1.16)
+    alto_sub = int(ESCALA["nota"] * 1.16)
+    sub_h = alto_sub if any(it.get("sub") for it in items) else 0
+    panel_h = PANEL_PAD * 2 + (KICKER_ALTO + 26 if e.get("kicker") else 0) \
+        + node + 10 + alto_txt + (6 + sub_h if sub_h else 0)
+
+    try:
+        y_panel = int(e.get("y", y1 - panel_h))
+    except (TypeError, ValueError):
+        y_panel = int(y1 - panel_h)
+    y_panel = max(0, min(y_panel, H - panel_h))
+
+    # el panel entra con el primer nodo (nada aparece de golpe)
+    k_panel = entra(t, at.get("item0", e["from"] + 0.3), "bloque")
+    sub_p, dp = grupo()
+    dp.rounded_rectangle([x0, y_panel, x1, y_panel + panel_h], radius=RADIO,
+                         fill=PANEL + (255,), outline=(70, 70, 70, 255), width=2)
+    y_k = y_panel + PANEL_PAD
+    if e.get("kicker"):
+        dp.rectangle([x0 + PANEL_PAD, y_k + 10, x0 + PANEL_PAD + 40, y_k + 16],
+                     fill=ACENTO + (255,))
+        fnt_k = ctx.fM(ESCALA["nota"], 700)
+        dp.text((x0 + PANEL_PAD + 56, y_k + 13), str(e["kicker"]).upper(),
+                font=fnt_k, fill=GRIS + (255,), anchor="lm")
+    fundir(layer, sub_p, k_panel)
+
+    y_nodos = y_k + (KICKER_ALTO + 26 if e.get("kicker") else 0)
+    centro = y_nodos + node / 2
+    for i, it in enumerate(items):
+        xc = x0 + PANEL_PAD + paso * (i + 0.5)
+        tx = xc - node / 2
+        ty = y_nodos
+        t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
+        k = entra(t, t_in, "elemento")
+        if k <= 0:
+            continue
+        sub, ds = grupo()
+        # el conector va ANTES del nodo (y 16 px despues del anterior: une,
+        # no pega). Se dibuja en la misma capa que el nodo, asi que entra
+        # con el.
+        if i > 0:
+            x_prev = x0 + PANEL_PAD + paso * (i - 0.5) + node / 2
+            linea_discontinua(ds, x_prev + 16, tx - 10, centro,
+                              (120, 120, 120, 255), grosor=3, largo=10, hueco=12)
+        activo = bool(it.get("activo", True))
+        borde = BLANCO + (255,) if activo else (92, 92, 92, 255)
+        relleno = NEGRO + (255,) if activo else PANEL2 + (255,)
+        ds.rounded_rectangle([tx, ty, tx + node, ty + node], radius=RADIO,
+                             fill=relleno, outline=borde, width=2)
+        icono_linea(ds, it.get("icono", ""), xc, centro, ICONO_R,
+                    BLANCO + (255,) if activo else (110, 110, 110, 255))
+        y_txt = ty + node + 10
+        # el titulo va en su propia caja (el reel NO lo pone en versalitas:
+        # solo el sub-rótulo va en monoespaciada mayúscula)
+        titulo = str(it.get("titulo", ""))
+        fnt_t = fuente_que_cabe(ctx.fT, titulo, ESCALA["secundario"], paso - 16,
+                                800, minimo=ESCALA["secundario"])
+        ds.text((xc, y_txt), titulo, font=fnt_t,
+                fill=BLANCO + (255,) if activo else GRIS + (255,), anchor="ma")
+        if it.get("sub"):
+            fnt_s = fuente_que_cabe(ctx.fM, str(it.get("sub", "")).upper(),
+                                    ESCALA["nota"], paso - 16, 700,
+                                    minimo=ESCALA["nota"])
+            ds.text((xc, y_txt + alto_txt + 6), str(it.get("sub", "")).upper(),
+                    font=fnt_s, fill=GRIS + (255,), anchor="ma")
+        fundir(layer, sub, k)
+    return capa_salida(layer, t, e["to"])
+
+
 def sc_kenburns(ctx, e, t):
     """Ken Burns sobre una imagen: zoom + paneo progresivo. Ideal para
     galerías, openings sobre foto, documentales.
@@ -4480,6 +4665,8 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "frase":sc_frase,
         # Ronda 12: el acta de lo confirmado (el panel de casillas del reel)
         "constancia":sc_constancia,
+        # Ronda 13: la cadena de estados (los nodos unidos del reel)
+        "cadena":sc_cadena,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,

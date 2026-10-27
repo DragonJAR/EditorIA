@@ -885,6 +885,36 @@
     "item0": 0.3,
     "item1": 0.8
    }
+  },
+  "cadena": {
+   "from": 0,
+   "to": 5,
+   "kicker": "Lo que vio el equipo",
+   "items": [
+    {
+     "icono": "codigo",
+     "titulo": "Notepad++",
+     "sub": "El editor",
+     "activo": true
+    },
+    {
+     "icono": "globo",
+     "titulo": "Actualizacion",
+     "sub": "Automatica",
+     "activo": true
+    },
+    {
+     "icono": "alerta",
+     "titulo": "Atascado",
+     "sub": "Desde Asia",
+     "activo": false
+    }
+   ],
+   "at": {
+    "item0": 0.3,
+    "item1": 0.7,
+    "item2": 1.1
+   }
   }
  }
 }
