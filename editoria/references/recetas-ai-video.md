@@ -157,7 +157,47 @@ Remotion o el motor Python), checklist mínimo:
    si la música tiene golpes que sincronizar.
 6. Plan de revisión: contact sheet pre-render
    (`scripts/contact_sheet.py`) + loop cerrado (`references/auto-qa.md`).
+7. Si el look es un estilo MG nombrado: fila en
+   `references/estilos-codigo.md` + Familia 7 en
+   `references/prompt-motion-graphics.md`.
+
+## 7. Jurado independiente de fidelidad de estilo (films one-shot)
+
+Cuándo: un film corto anclado a un estilo de `estilos-codigo.md` (Familia
+7). No sustituye la rúbrica de 8 ejes ni `qa_entrega.py`: es una pasada
+**antes** de puntuar, para que alguien que no escribió el film diga si la
+firma se lee.
+
+Método (dos turnos; el segundo puede ser el mismo agente con el brief de
+jurado, nunca el mismo hilo que «ya está bien»):
+
+1. **Mirar de verdad**: contact sheet cada 0.5 s, filmstrips en los
+   movimientos más rápidos y en el hero, 5–8 stills a resolución plena
+   (`scripts/contact_sheet.py`, `poster_frame.py`).
+2. **Spec**: duración exacta, fps, audio presente, LUFS ≈ −14 (±1), TP
+   según delivery, sin negros accidentales, hits visuales en onsets.
+3. **Puntuar 1–10** (5 = alumno competente; 7 = profesional sólido; 9 =
+   shortlist). No inflar. Dimensiones:
+   - `style_fidelity` — un experto nombra el estilo en un segundo; cada
+     signature feature de la fila está y está bien
+   - `concept_wow` — idea, hook en los primeros 0.5 s, hero, cierre
+   - `motion_craft` — easing, overlap, arcs, blur; nada muerto ni jitter
+   - `design_typography` — jerarquía, grid, aire, type setting
+   - `finish_texture` — grano/glow/luz propios del estilo; sin banding
+   - `sound_sync` — género, sync, master
+   - `technical` — spec, fuentes, sin glitches
+4. **5–10 fixes** ordenados por impacto: timecode, qué se ve mal, por qué
+   importa, cómo (curva, frames, px, color). Al menos un fix sube el wow,
+   no solo el pulido. Críticos: look genérico/AI-template, tofu, fallo de
+   spec.
+5. **Revisar**: guardar versión N, aplicar críticos y high-impact, no
+   regresar fortalezas, re-render, re-spec, luego `qa_entrega.py` +
+   `puntuar.py`.
+
+Calibración con EditorIA: un 8/10 en este jurado no exime un eje bajo 4
+en `rubrica-premios.md`. El jurado cuida la **firma**; la rúbrica cuida
+el **listón de entrega**.
 
 ---
 
-→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/prompt-motion-graphics.md`, `references/modos-produccion.md`, `references/modos-rapidos.md`
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/prompt-motion-graphics.md`, `references/estilos-codigo.md`, `references/modos-produccion.md`, `references/modos-rapidos.md`

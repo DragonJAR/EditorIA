@@ -78,6 +78,9 @@ contradigan.
 - **"sin marca"** → `paleta.md` (se elige una paleta según el brief) → `principios.md`.
 - **"un video hecho con IA"** → `recetas-ai-video.md` → `prompt-motion-graphics.md` →
   `modos-produccion.md` → `qa-entrega.md`.
+- **"hazlo en estilo X" / film MG de una toma** → `estilos-codigo.md` (la firma) →
+  `prompt-motion-graphics.md` Familia 7 → `recetas-ai-video.md` §7 (jurado de
+  estilo) → `qa-entrega.md`.
 - **"se me descuadra el tiempo"** → `ritmo.md` → `sonido.md` (el timing de la voz) →
   `audio.md` (el beat grid).
 
