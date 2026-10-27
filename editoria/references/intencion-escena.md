@@ -139,6 +139,30 @@ aqui los nodos se ENCADENAN: el punteado dice que es una secuencia. Los
 iconos son trazos dibujados (`codigo`, `globo`, `alerta`, `lupa`, `reloj`),
 no glifos: un glifo depende de que la fuente lo tenga.
 
+### "Quiero que la marca firme la pieza y decir de donde sale el material"
+`cabecera` — la banda de arriba: el logo del pack a la izquierda y un chip con
+la FUENTE a la derecha. Es el elemento que el reel de "cara" lleva en todos
+sus fotogramas.
+
+OJO CON EL PAPEL DEL CHIP: el chip es la fuente (de donde sale el material),
+NO la accion. El boton es la accion y va en otra parte: si el chip dice
+"hablamos" y el boton dice "míralo en YouTube", la pieza promete dos cosas y
+no cumple ninguna.
+
+### "Quiero decir algo en un cartel, con una palabra resaltada"
+`cartel` — el panel con el rótulo de arriba, un icono de línea GRANDE en el
+acento y la afirmación al lado. Es el cartel del reel de "cara": "¿QUÉ ESTÁ
+PASANDO CON NOTEPAD++?" con la lupa al lado, y "LO VIO DIEGO DESDE / 0 OCT"
+con el reloj.
+
+La palabra que sostiene el dato va en un BLOQUE de color (rojo con el texto
+blanco), y el bloque acaba donde acaba la palabra: "~NOTEPAD++~?" deja la
+interrogación fuera. El markup es el del kit: `*clave*` la pone en el
+acento, `~caja~` en un bloque rojo y `^caja^` en un bloque blanco.
+
+Es la version ESTATICA de `frase` (que escribe palabra a palabra): para una
+afirmación que ya esta escrita, el cartel.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
@@ -158,7 +182,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
 | proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena` |
 | social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
-| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave` |
+| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera` |
 | comparacion | `versus`, `bars`, `ranking` |
 | demostracion | `demo`, `callout`, `buscador` |
 | estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |

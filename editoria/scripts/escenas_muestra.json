@@ -914,6 +914,18 @@
     "item1": 0.7,
     "item2": 1.1
    }
+  },
+  "cartel": {
+   "from": 0,
+   "to": 5,
+   "kicker": "Todo noviembre",
+   "icono": "lupa",
+   "texto": "¿Qué está pasando con ~Notepad++~?",
+   "at": {
+    "panel": 0.2,
+    "icono": 0.5,
+    "texto": 0.8
+   }
   }
  }
 }

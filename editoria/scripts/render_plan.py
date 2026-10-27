@@ -627,6 +627,7 @@ def aplicar_globales(plan):
                    {k: str(v.get(k, NUMEROS[k])) for k in ("miles", "decimal")})
     _preparar_camara(plan)
     _preparar_deplecion(plan)
+    _preparar_cabecera(plan)
 
 
 # ---- CAMARA DE LA PIEZA (una trayectoria, no una por escena) -------------
@@ -761,6 +762,89 @@ def _preparar_deplecion(plan):
     _DEPLECION.update({"activa":True,"y":y,"alto":alto,
                         "color":_color_de_deplecion(cfg.get("color")),
                         "ancho":ancho,"t0":0.0,"t1":None})
+
+
+# ---- LA CABECERA DE MARCA (el rack que firma la pieza) --------------------
+#
+# En el reel de "cara" hay una banda arriba en TODOS los fotogramas: el logo
+# de la marca a la izquierda y un chip con la FUENTE a la derecha.
+#
+# MEDIDO sobre De8KNkdDT68 (1080x1920): el logo ocupa de x=71 a x=290 y el
+# chip va de x=300 a x=977, en la banda y=138..180 (a 7 % del alto, por
+# encima de la zona segura, como la UI de la plataforma); el chip es un
+# rectangulo de esquinas redondeadas (radio ~12) con el borde de 1 px en
+# gris y el texto en monoespaciada.
+#
+# OJO CON EL PAPEL DEL CHIP: el chip es la FUENTE (de donde sale el
+# material), NO la accion. El boton es la accion y va en otra parte: si el
+# chip dice "hablamos" y el boton dice "miralo en YouTube", la pieza
+# promete dos cosas y no cumple ninguna.
+#
+# Es un GLOBAL del plan y no una escena por una razon medida: la banda
+# esta en todos los fotogramas, mientras que una escena ocupa una ventana
+# (y las escenas no se solapan). Ademas, una escena estatica la declara la
+# puerta CONGELADA ("ningun hold congelado"): el rack no se mueve, asi que
+# como escena no tendria nada que hacer en su propia ventana.
+#
+#     "cabecera": {"chip": "CHARLA COMPLETA - youtu.be/...", "marca": "..."}
+#
+_CABECERA={"activa":False,"chip":"","marca":"","y":132,"alto":44}
+
+
+def _preparar_cabecera(plan):
+    """Deja la cabecera lista (o la apaga si el plan no la pide)."""
+    _CABECERA.update({"activa":False,"chip":"","marca":"","y":132,"alto":44})
+    cfg=plan.get("cabecera")
+    if cfg is None:
+        return
+    if cfg is True:
+        cfg={}
+    if not isinstance(cfg,dict):
+        return
+    try:
+        y=int(cfg.get("y",132)); alto=int(cfg.get("alto",44))
+    except (TypeError,ValueError):
+        return
+    if alto<=0:
+        return
+    _CABECERA.update({"activa":True,"chip":str(cfg.get("chip","")).strip(),
+                       "marca":str(cfg.get("marca","")).strip(),"y":y,"alto":alto})
+
+
+def dibuja_cabecera(ctx,layer,t,dur):
+    """Pinta la banda de la cabecera: el logo del pack y el chip con la fuente.
+
+    El logo solo sale si la pieza declara `marca` y esa marca es la del pack:
+    un logo nunca acompaña a otro nombre."""
+    if not _CABECERA["activa"]:
+        return
+    d=ImageDraw.Draw(layer)
+    y=int(_CABECERA["y"]); alto=int(_CABECERA["alto"])
+    x_izq=int(W*0.066)          # 71 px en el reel: el margen del logo
+    x_der=int(W*0.906)          # 977 px: el borde derecho del chip
+    # el logo (a la izquierda): el wordmark si el pack lo trae, y si no el
+    # isotipo. SOLO con la marca del pack.
+    if _CABECERA["marca"] and es_marca_del_pack(_CABECERA["marca"]):
+        lg=ctx.logo or ctx.iso          # el wordmark si el pack lo trae, si no el isotipo
+        if lg is not None:
+            lh=int(alto*0.92)
+            lw=max(1,int(lh*lg.width/lg.height))
+            img=lg.resize((lw,lh),Image.LANCZOS)
+            k=clamp01(t/0.4)          # entra con la pieza
+            if k<1:
+                img.putalpha(img.split()[3].point(lambda v:int(v*k)))
+            layer.alpha_composite(img,(x_izq,int(y+(alto-lh)/2)))
+    # el chip con la fuente (a la derecha)
+    texto=_CABECERA["chip"]
+    if texto:
+        fnt=font(MONO,28,700)
+        ancho=int(d.textlength(texto,font=fnt))+44
+        x0=x_der-ancho
+        k=clamp01(t/0.6)
+        d.rounded_rectangle([x0,y,x0+ancho,y+alto],radius=12,
+                            outline=(92,92,92,255),width=1)
+        d.text((x0+22,y+alto/2),texto,font=fnt,
+               fill=(200,200,200,int(255*k)),anchor="lm")
 
 
 def ancho_de_deplecion(t,dur):
@@ -3228,6 +3312,153 @@ def sc_cadena(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def sc_cartel(ctx, e, t):
+    """El cartel: el rótulo de arriba, un icono de línea GRANDE en el acento
+    y la afirmación al lado.
+
+    Es el cartel del reel de "cara": "¿QUÉ ESTÁ PASANDO CON NOTEPAD++?" con
+    la lupa al lado, y "LO VIO DIEGO DESDE / 0 OCT" con el reloj.
+
+    MEDIDO sobre De8KNkdDT68 (1080x1920): el panel va de x=60 a x=1019 con
+    el borde de 1 px; la raya del rótulo mide 40x6 px; el icono de línea
+    mide ~100 px y va en el acento; la afirmación es el display en negrita y
+    la palabra que sostiene el dato va en un BLOQUE ROJO (texto blanco).
+
+    El texto usa el markup del kit: `*clave*` la pone en el acento,
+    `~caja~` en un bloque rojo (texto blanco) y `^caja^` en un bloque
+    blanco (texto oscuro).
+
+    Params: `texto` (la afirmación), `kicker?` (el rótulo de arriba),
+    `icono?` (lupa, reloj, alerta, globo, codigo), `tam?`, `y?`,
+    `at{panel, icono, texto}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at") or {}
+    x0, _, x1, y1 = caja_segura()
+    PANEL_PAD = 26
+    RADIO = 20
+    ICONO_R = 50
+    GAP_ICONO = 34
+    tam = int(e.get("tam", 52))
+    fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fT
+    fnt = fab(tam, 500)
+    fnt_b = fab(tam, 800)
+
+    # las palabras del texto y su resalte (el markup del kit, POR CARACTER:
+    # "~NOTEPAD++~?" pone el bloque solo en NOTEPAD++ y deja la interrogacion
+    # fuera, como en el reel)
+    palabras = []
+    for w in str(e.get("texto", "")).split():
+        segs, buf, tipo, clave, dentro = [], "", None, False, False
+        for ch in w:
+            if ch in "*~^":
+                if buf:
+                    segs.append((buf, tipo if dentro else None,
+                                 clave if dentro else False))
+                buf = ""
+                if dentro:            # el marcador de CIERRA el bloque
+                    tipo, clave, dentro = None, False, False
+                else:                # el de apertura lo ENTIERRA
+                    tipo = {"~": "roja", "^": "blanca"}.get(ch)
+                    clave = (ch == "*")
+                    dentro = True
+            else:
+                buf += ch
+        if buf:
+            segs.append((buf, tipo if dentro else None, clave if dentro else False))
+        if segs:
+            palabras.append(segs)
+    if not palabras:
+        return capa_salida(layer, t, e["to"])
+
+    # el reparto en lineas: el texto va a la derecha del icono
+    ancho_ico = ICONO_R * 2 if e.get("icono") else 0
+    x_txt = x0 + PANEL_PAD + ancho_ico + (GAP_ICONO if ancho_ico else 0)
+    ancho_txt = x1 - PANEL_PAD - x_txt
+    lineas, linea, ancho_linea = [], [], 0
+    for segs in palabras:
+        w_ = sum(ctx.tmp.textlength(s[0], font=fnt_b if s[2] else fnt) for s in segs)
+        if linea and ancho_linea + w_ > ancho_txt:
+            lineas.append(linea)
+            linea, ancho_linea = [], 0
+        linea.append(segs)
+        ancho_linea += w_ + ctx.tmp.textlength(" ", font=fnt)
+    if linea:
+        lineas.append(linea)
+    alto_linea = int(tam * 1.18)
+    alto_texto = len(lineas) * alto_linea
+
+    alto_kicker = 30 if e.get("kicker") else 0
+    alto_panel = PANEL_PAD * 2 + alto_kicker + 20 + max(alto_texto, ICONO_R * 2)
+    try:
+        y_panel = int(e.get("y", y1 - alto_panel))
+    except (TypeError, ValueError):
+        y_panel = int(y1 - alto_panel)
+    y_panel = max(0, min(y_panel, H - alto_panel))
+
+    # el panel (entra con la pieza)
+    k_panel = entra(t, at.get("panel", e["from"] + 0.2), "bloque")
+    sub_p, dp = grupo()
+    dp.rounded_rectangle([x0, y_panel, x1, y_panel + alto_panel], radius=RADIO,
+                         fill=PANEL + (255,), outline=(70, 70, 70, 255), width=2)
+    y_k = y_panel + PANEL_PAD
+    if e.get("kicker"):
+        dp.rectangle([x0 + PANEL_PAD, y_k + 10, x0 + PANEL_PAD + 40, y_k + 16],
+                     fill=ACENTO + (255,))
+        fnt_k = ctx.fM(ESCALA["nota"], 700)
+        dp.text((x0 + PANEL_PAD + 56, y_k + 13), str(e["kicker"]).upper(),
+                font=fnt_k, fill=GRIS + (255,), anchor="lm")
+    fundir(layer, sub_p, k_panel)
+
+    y_cont = y_k + alto_kicker + 20
+
+    # el icono grande, en el acento
+    if e.get("icono"):
+        cx = x0 + PANEL_PAD + ICONO_R
+        cy = y_cont + max(alto_texto, ICONO_R * 2) / 2
+        k_ico = entra(t, at.get("icono", e["from"] + 0.4), "bloque")
+        if k_ico > 0:
+            sub_i, di = grupo()
+            icono_linea(di, e["icono"], cx, cy, ICONO_R, ACENTO + (255,))
+            if k_ico < 1:
+                sub_i.putalpha(sub_i.split()[3].point(lambda v: int(v * k_ico)))
+            layer.alpha_composite(sub_i)
+
+    # la afirmación, con la palabra en su bloque
+    k_txt = entra(t, at.get("texto", e["from"] + 0.6), "bloque")
+    if k_txt > 0:
+        sub_t, dt = grupo()
+        y_linea = y_cont
+        for ln in lineas:
+            x_linea = x_txt
+            for segs in ln:
+                for txt_w, tipo, clave in segs:
+                    f_ = fnt_b if clave else fnt
+                    w_ = dt.textlength(txt_w, font=f_)
+                    if tipo == "roja":
+                        dt.rectangle([x_linea - 6, y_linea - 4, x_linea + w_ + 6,
+                                      y_linea + alto_linea - 8], fill=ACENTO + (255,))
+                        dt.text((x_linea, y_linea), txt_w, font=f_,
+                                fill=BLANCO + (255,), anchor="la")
+                    elif tipo == "blanca":
+                        dt.rectangle([x_linea - 6, y_linea - 4, x_linea + w_ + 6,
+                                      y_linea + alto_linea - 8], fill=BLANCO + (255,))
+                        dt.text((x_linea, y_linea), txt_w, font=f_,
+                                fill=NEGRO + (255,), anchor="la")
+                    else:
+                        dt.text((x_linea, y_linea), txt_w, font=f_,
+                                fill=ACENTO + (255,) if clave else BLANCO + (255,),
+                                anchor="la")
+                    x_linea += w_
+                x_linea += dt.textlength(" ", font=fnt)
+            y_linea += alto_linea
+        if k_txt < 1:
+            sub_t.putalpha(sub_t.split()[3].point(lambda v: int(v * k_txt)))
+        layer.alpha_composite(sub_t)
+    return capa_salida(layer, t, e["to"])
+
+
 def sc_kenburns(ctx, e, t):
     """Ken Burns sobre una imagen: zoom + paneo progresivo. Ideal para
     galerías, openings sobre foto, documentales.
@@ -4700,6 +4931,8 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "constancia":sc_constancia,
         # Ronda 13: la cadena de estados (los nodos unidos del reel)
         "cadena":sc_cadena,
+        # Ronda 14: el cartel (el panel con el icono grande y la afirmacion)
+        "cartel":sc_cartel,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,
@@ -4928,6 +5161,7 @@ def componer(ctx,escenas,dur,t,manchas_ok):
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)
     dibuja_deplecion(ImageDraw.Draw(bg),t,dur)   # el borde del lienzo, ENCIMA de la escena
+    dibuja_cabecera(ctx,bg,t,dur)                 # la banda que firma la pieza
     if dur-t<0.8:   # fundido al cierre con ease-IN (x²): arranca suave y llega a negro en el
         k=clamp01((0.8-(dur-t))/0.8)**2   # último frame (smoothstep se quedaba 0.25 s en negro: black_frame)
         if ALFA:   # un overlay se va por transparencia, no a negro
