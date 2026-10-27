@@ -1063,7 +1063,11 @@ def load_brand(path: Optional[str]) -> Dict[str, Any]:
             brand[k].update(v)
         else:
             brand[k] = v
-    for key in ("font_file",):
+    for key in ("font_file", "fonts_dir"):
+        # las rutas del pack son relativas a la carpeta del JSON
+        # (references/brand-packs.md): si fonts_dir viajaba tal cual, el
+        # quemado solo encontraba las fuentes corriendo desde esa carpeta
+        # y desde cualquier otra libass caia a una fuente de sistema
         if brand.get(key) and not os.path.isabs(brand[key]):
             brand[key] = str(base / brand[key])
     return brand

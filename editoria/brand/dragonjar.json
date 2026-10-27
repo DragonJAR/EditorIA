@@ -1,11 +1,11 @@
 {
  "_nota": "Brand pack de ejemplo para EditorIA v1.0.0 (marca DragonJAR). Las claves de primer nivel en inglés (colors, font, fonts_dir, caption) las leen los scripts vía load_brand; las secciones en español (colores, tipografías, logos, voces, reglas) las lee el agente. Ver references/brand-packs.md. Rutas de archivos relativas a la carpeta de este JSON.",
  "caption": {
-  "_nota": "Banda central, nunca abajo donde pisa la UI. Karaoke: la palabra activa se resalta en el acento.",
+  "_nota": "Banda inferior sobre la zona segura (la que reserva el motor con subtitulos:true), nunca en el centro: las escenas componen su texto en el centro y el karaoke central se pisa con cada plano. Karaoke: la palabra activa se resalta en el acento.",
   "bold": true,
   "karaoke": true,
   "outline": 2,
-  "position": "center",
+  "position": "bottom",
   "size": 28
  },
  "colores": {

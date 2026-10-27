@@ -116,17 +116,53 @@ def _fps(video):
         return 30
 
 
-def _defectos_composicion(letra, zona, solapes):
-    """Los fallos de composicion, con su motivo. Puro: sin video ni plan."""
+def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None):
+    """Los fallos de composicion, con su motivo Y su dueno. Puro: sin video ni plan.
+
+    Un «2 textos se pisan» sin escena ni instante no es accionable: obligaba
+    a correr medir_animacion aparte (minutos) para saber QUE se pisa. El
+    detalle ya lo trae la medicion (`escena@t: «a»/«b»`, letra por escena):
+    la puerta lo transporta al veredicto, no lo resume a un conteo.
+    """
     fallos = []
     if letra and letra < LETRA_MIN:
-        fallos.append(f"letra mínima {letra} px (< {LETRA_MIN}: no se lee en un teléfono)")
+        f = f"letra mínima {letra} px (< {LETRA_MIN}: no se lee en un teléfono)"
+        if culpables_letra:
+            f += " — " + "; ".join(
+                f"escena {d['escena']} «{d['texto']}» {d['letra_px']} px"
+                for d in culpables_letra[:3])
+        fallos.append(f)
     if zona <= ZONA_MIN:
-        fallos.append(f"la escena tocó el piso de la zona segura (x{zona:.3f}): "
-                      "el texto sale debajo de la UI")
+        f = (f"la escena tocó el piso de la zona segura (x{zona:.3f}): "
+             "el texto sale debajo de la UI")
+        if culpables_zona:
+            f += " — " + "; ".join(
+                f"escena {d['escena']} x{d['zona']:.3f}" for d in culpables_zona[:3])
+        fallos.append(f)
     if solapes:
-        fallos.append(f"{len(solapes)} textos se pisan")
+        fallos.append(f"{len(solapes)} textos se pisan: " +
+                        "; ".join(str(s) for s in solapes[:4]) +
+                        ("; …" if len(solapes) > 4 else ""))
     return fallos
+
+
+def _defecto_plan_desincronizado(ruta_plan, ruta_video):
+    """El plan es posterior al video: el MP4 no puede contener ese plan.
+
+    Puro en tiempos (mtime). La puerta mide la composicion SOBRE EL PLAN:
+    si el plan se edito despues del render (una fuente retirada, un copy
+    acortado) y no se volvio a renderizar, la puerta aprueba un plan que
+    no es el video entregado. Eso paso: el video llevaba una fuente que
+    el plan ya no tenia, pisada con un hito, y la puerta dijo 0 solapes.
+    """
+    try:
+        if os.path.getmtime(ruta_plan) > os.path.getmtime(ruta_video) + 1:
+            return ("el plan es posterior al video: el MP4 no se renderizo "
+                    "desde este plan (edicion sin re-render); vuelve a "
+                    "renderizar y a quemar subtitulos desde el plan actual")
+    except OSError:
+        return None
+    return None
 
 
 PLATAFORMAS_SOCIALES = ("reels", "tiktok", "shorts")
@@ -206,17 +242,14 @@ def _paso_composicion(plan, video):
         letra = min((r.get("letra_min") or 0) for r in res)
         zona = min(float(r.get("zona", 1.0)) for r in res)
         solapes = [x for r in res for x in (r.get("solapes") or [])]
-        fallos = _defectos_composicion(letra, zona, solapes)
-        if letra and letra < LETRA_MIN:
-            # La pasada con alcance necesita la ESCENA culpable, no solo la
-            # cifra global: medir_animacion ya la trae por escena.
-            culpables = [d for r in res for d in (r.get("letra_por_escena") or [])
-                         if d.get("letra_px", 999) < LETRA_MIN]
-            if culpables:
-                fallos = [f + " — " + "; ".join(
-                    f"escena {d['escena']} «{d['texto']}» {d['letra_px']} px"
-                    for d in culpables[:3]) if f.startswith("letra mínima") else f
-                    for f in fallos]
+        # La pasada con alcance necesita la ESCENA culpable, no solo la
+        # cifra global: medir_animacion ya la trae por escena y por solape.
+        culpables_letra = [d for r in res for d in (r.get("letra_por_escena") or [])
+                           if d.get("letra_px", 999) < LETRA_MIN]
+        culpables_zona = [{"escena": r.get("escena", "?"), "zona": float(r.get("zona", 1.0))}
+                          for r in res if float(r.get("zona", 1.0)) <= ZONA_MIN]
+        fallos = _defectos_composicion(letra, zona, solapes,
+                                       culpables_letra, culpables_zona)
         detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
         if fallos:
             detalle = "; ".join(fallos)
@@ -279,6 +312,10 @@ def main():
     if args.plan:
         pasos.append(_ejecutar("plan", lambda: _paso_plan(args.plan, [])))
         pasos.append(_ejecutar("copy", lambda: _paso_copy(args.plan, [])))
+        desync = _defecto_plan_desincronizado(args.plan, args.video)
+        pasos.append({"nombre": "plan-vs-video", "ok": desync is None,
+                      "detalle": desync or "el plan no es posterior al video",
+                      "segundos": 0.0})
     pasos.append(_ejecutar("auto_qa", lambda: _paso_autoqa(args.video, args.ignorar_inicio, args.ignorar_fin)))
     pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma)))
     if args.plan:

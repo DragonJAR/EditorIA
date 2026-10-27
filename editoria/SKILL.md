@@ -189,10 +189,10 @@ python scripts/mezclar_audio.py plan.json --video out.mp4 \
 python scripts/ffmpeg_tools/loudness.py mezclado.mp4 -o final.mp4 -I -14 --tp -1.5
 python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3
 # subtitulos de la pieza narrada (reels/tiktok/shorts): karaoke desde las palabras reales
-python scripts/ffmpeg_tools/caption.py final.mp4 --palabras voz.palabras.json --karaoke --animate pop -o final_sub.mp4
+python scripts/ffmpeg_tools/caption.py final.mp4 --palabras voz.palabras.json --karaoke --animate pop --plan plan.json -o final_sub.mp4
 ```
 
-For a narrated social piece the captions are part of the piece: burn them from the aligned words (`caption.py --palabras ... --karaoke`) and declare `"subtitulos": true` in the plan — the delivery gate asks for that declaration on reels/tiktok/shorts. Without an API key the music bed is procedural and free (`musica.py cama`; details in `references/sonido.md`).
+For a narrated social piece the captions are part of the piece: burn them from the aligned words (`caption.py --palabras ... --karaoke --plan plan.json`: cues stay within scene cuts, in the reserved bottom band) and declare `"subtitulos": true` in the plan — the delivery gate asks for that declaration on reels/tiktok/shorts. Without an API key the music bed is procedural and free (`musica.py cama`; details in `references/sonido.md`).
 
 **The loudness step is part of the mix, not an extra**: the mixer sums voices, music and cues but does not normalize, so `loudness.py` closes the pipeline — run it before the gate, not after.
 

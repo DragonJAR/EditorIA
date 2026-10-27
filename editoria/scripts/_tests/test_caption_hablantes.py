@@ -73,6 +73,54 @@ class TestHablantes(unittest.TestCase):
         self.assertIn("&H0000D4FF", txt)
 
 
+class TestMargenesYFuentes(unittest.TestCase):
+    """La banda vertical no estrecha el texto; las fuentes son del pack."""
+
+    def test_el_margen_vertical_no_se_come_los_laterales(self):
+        args = SimpleNamespace(size=28, margin=70, max_lines=2, fonts_dir=None,
+                               font="DejaVu Sans", min_size=14, karaoke=False,
+                               highlight_color="E8480C", color="FFFFFF",
+                               outline_color="000000", bold=False, box=False,
+                               outline=2.0, shadow=0.0, position="bottom",
+                               animate="none", karaoke_timing="even",
+                               colores_hablantes=None)
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "x.ass")
+            cap.write_ass([(0, 2, "una frase de prueba razonable", None, None)],
+                          p, args, 1080, 1920)
+            with open(p, encoding="utf-8-sig") as fh:
+                estilo = next(ln for ln in fh if ln.startswith("Style: Default"))
+        campos = estilo.rstrip("\n").split(",")
+        # MarginL, MarginR, MarginV: laterales de 30 (seguro), vertical 70
+        self.assertEqual(campos[-4:-1], ["200", "200", "467"])
+
+    def test_el_fit_no_entrega_un_cue_de_mas_lineas(self):
+        # al piso nominal (93) este cue no cabe en 2 lineas de 680 px:
+        # entregarlo a ese tamano lo dejaba en 3 lineas sobre la escena
+        fuente = os.path.join(os.path.dirname(HERE), "..", "assets", "fonts",
+                              "PlusJakartaSans-wght.ttf")
+        if not os.path.exists(fuente):
+            self.skipTest("sin la fuente empaquetada")
+        texto = "Windows reinstalado sistema limpio Todo parece"
+        tam, encogido = cap._fit_cue_size(texto, 187, 93, 2, 680, fuente)
+        self.assertTrue(encogido)
+        self.assertLess(tam, 93)
+        self.assertGreaterEqual(tam, cap.PISO_FIT_ABSOLUTO)
+        fnt = cap._cargar_fuente_medida(fuente, tam)
+        self.assertLessEqual(len(cap._envolver(texto, fnt, 680)), 2)
+
+    def test_el_pack_resuelve_sus_fuentes_desde_su_carpeta(self):
+        import json
+        import _comun
+        with tempfile.TemporaryDirectory() as d:
+            os.makedirs(os.path.join(d, "fonts"))
+            pack = os.path.join(d, "brand.json")
+            with open(pack, "w", encoding="utf-8") as fh:
+                json.dump({"fonts_dir": "fonts"}, fh)
+            marca = _comun.load_brand(pack)
+        self.assertEqual(marca["fonts_dir"], os.path.join(d, "fonts"))
+
+
 class TestAgrupacion(unittest.TestCase):
     def test_negacion_va_con_su_verbo(self):
         # el candidato "eso ya no" terminaría en negación: "no" abre el siguiente
@@ -87,6 +135,17 @@ class TestAgrupacion(unittest.TestCase):
         # "no." cierra la oración: no se arrastra al caption siguiente
         cues = cap.agrupar_palabras(palabras("claro que no. Mira esto"), max_words=3)
         self.assertEqual(cues[0][2], "claro que no")
+
+    def test_ningun_cue_cruza_un_corte_de_escena(self):
+        # un cue a caballo entre dos escenas anticipa la voz del plano
+        # siguiente sobre el anterior ("…sigue ahi / Windows" sobre la
+        # cuenta atras): con los cortes del plan, cada escena su cue
+        ws = palabras("uno dos tres cuatro cinco seis", t0=0.0, paso=0.5)
+        cues = cap.agrupar_palabras(ws, max_words=6, cortes=(1.6,))
+        self.assertEqual([c[2] for c in cues],
+                         ["uno dos tres cuatro", "cinco seis"])
+        for c in cues:
+            self.assertTrue(c[0] < 1.6 <= c[1] or c[1] <= 1.6 or c[0] >= 1.6)
 
     def test_phrase_aware_conserva_hablante(self):
         cues = cap.phrase_aware([(0, 2, "uno dos tres cuatro", None, "ANA")], max_words=2)

@@ -46,7 +46,8 @@ pide una marca sin pack, pedir el pack o los assets antes de producir.
     "ancla": [512, 480]
   },
   "voces": {"es": "Fernanda Sanmiguel", "en": "Brian"},
-  "caption": {"position": "center", "size": 28, "bold": true, "karaoke": true},
+  "caption": {"position": "bottom", "size": 28, "bold": true, "karaoke": true},
+  "_nota_caption": "En piezas de escenas del motor (render_plan.py), position=center pisa el texto que las escenas componen en el centro: quema en la banda inferior reservada (caption.py --plan) aunque el pack diga otra cosa para video real.",
   "reglas": {
     "transiciones": "corte_seco | crossfade | libre",
     "rejillas_decorativas": false,

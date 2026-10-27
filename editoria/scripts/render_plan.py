@@ -762,11 +762,14 @@ def pie_fuente(ctx, d, e, t, t_def):
     if e.get("fuente") and t >= t0:
         x0, _, x1, y1 = caja_segura()
         txt = f"Fuente: {e['fuente']}"
-        fnt = fuente_que_cabe(ctx.fX, txt, ESCALA["nota"], x1 - x0, 400, minimo=26)
+        # el piso de la fuente es el rol `nota` de la escala, no el minimo
+        # legible del QA: a 26 px la pieza nacia justo en el piso y la
+        # rubrica la penalizaba por construccion; si no cabe, parte en dos
+        fnt = fuente_que_cabe(ctx.fX, txt, ESCALA["nota"], x1 - x0, 400, minimo=ESCALA["nota"])
         al = int(255 * prog(t, t0, t0 + 0.3, smoothstep))   # entra fundida, no de golpe
         lineas = partir_segs([(txt, False)], fnt, x1 - x0)   # una fuente larga: dos líneas
         for i, ln in enumerate(reversed(lineas)):            # de abajo hacia arriba
-            d.text((W / 2, y1 - 24 - i * 34), "".join(t_ for t_, _ in ln).strip(), font=fnt,
+            d.text((W / 2, y1 - 24 - i * (fnt.size * 1.2)), "".join(t_ for t_, _ in ln).strip(), font=fnt,
                    fill=GRIS + (al,), anchor="mb")
 
 
@@ -1518,7 +1521,16 @@ def sc_listo(ctx,e,t):
         r=110*k; al=int(255*clamp01(k*1.5))
         d.ellipse([W/2-r,cy-r,W/2+r,cy+r],fill=ACENTO+(al,))
         if k>0.35: check(d,W/2,cy,58*min(1,k),BLANCO+(al,),max(4,int(22*min(1,k))))
-        d.text((W/2,cy+190+(1-min(1,k))*ELEV),e["texto"],font=ctx.fT(ESCALA["titular"],800),fill=BLANCO+(al,),anchor="ma")
+        # el texto cabe en la zona segura o no sale: encoge y parte en dos
+        # lineas con su enfasis (antes salia a titular fijo, en una linea,
+        # con los *asteriscos* literales y desbordado por ambos lados)
+        sg=segs(e["texto"]); zx0,_,zx1,_=caja_segura(); ancho=(zx1-zx0)-20
+        tam=ESCALA["titular"]; fnt=ctx.fT(tam,800)
+        while tam>MIN_LETRA and max(seg_width(ln,fnt) for ln in partir_segs(sg,fnt,ancho))>ancho:
+            tam-=4; fnt=ctx.fT(tam,800)
+        for i,ln in enumerate(partir_segs(sg,fnt,ancho)):
+            draw_seg(d,(W/2,cy+190+(1-min(1,k))*ELEV+i*tam*1.18),ln,fnt,
+                     BLANCO+(al,),ACENTO+(al,),anchor="ma")
     return capa_salida(layer,t,e["to"])
 
 def sc_pildoras(ctx,e,t):
@@ -1715,7 +1727,11 @@ def sc_bars(ctx, e, t):
     gap = 36
     bw = min(260, (ancho_total - gap * (n - 1)) // n)   # barras, no losas: grupo centrado
     zx0 = (W - (bw * n + gap * (n - 1))) / 2
-    base_y = zy1 - 130            # debajo: etiquetas y la fuente, dentro de la zona segura
+    # si alguna etiqueta parte en dos lineas, las barras suben ese alto:
+    # la segunda linea no puede caer sobre el pie de fuente
+    alto_et = max((len(texto_que_cabe(ctx.fX, b.get("etiqueta", ""), ESCALA["nota"], bw, 600,
+                                      max_lineas=2)[1]) for b in barras), default=1)
+    base_y = zy1 - 130 - (alto_et - 1) * int(ESCALA["nota"] * 1.2)
     max_h = base_y - (rotulo_y() + 140)   # arriba: rótulo + cifra de la barra más alta
     for i, b in enumerate(barras):
         t_in = at.get(f"bar{i}", e["from"] + 0.2 + i * 0.1)
@@ -1740,13 +1756,15 @@ def sc_bars(ctx, e, t):
         fill_h = max_h * fraccion * g_
         if fill_h >= 1:   # el radio nunca supera la mitad del alto: nace de 0, no como píldora
             d.rounded_rectangle([x0, base_y - fill_h, x0 + bw, base_y], radius=min(18, fill_h / 2), fill=col)
-        # etiqueta abajo: tamano FIJO de la escala + recorte con "…". Antes
-        # era un auto-fit (30 px que bajaba hasta 18 segun el ancho de la
-        # barra): con muchas barras el copy no podia controlarlo y la etiqueta
-        # quedaba ilegible.
-        fnt = ctx.fX(ESCALA["nota"], 600)
-        d.text((x0 + bw / 2, base_y + 22), recorta_para(b.get("etiqueta", ""), fnt, bw, ctx.tmp),
-               font=fnt, fill=BLANCO + (int(255 * ki),), anchor="mt")
+        # etiqueta abajo: tamano FIJO de la escala, partida en dos lineas
+        # antes de recortar. El recorte con "…" perdia copy ("Sistema
+        # opera…") en la pieza entregada sin que ninguna puerta lo viera;
+        # partir conserva el texto entero al mismo tamano legible.
+        fnt, lineas_et = texto_que_cabe(ctx.fX, b.get("etiqueta", ""), ESCALA["nota"], bw, 600,
+                                        max_lineas=2)
+        for li, ln in enumerate(lineas_et):
+            d.text((x0 + bw / 2, base_y + 22 + li * (fnt.size * 1.2)), ln,
+                   font=fnt, fill=BLANCO + (int(255 * ki),), anchor="mt")
         # valor arriba de la barra (tamaño fijado por el valor final)
         val = cuenta_up(0, b.get("valor", 0), t, t_in, progreso=g_)   # la cifra dice lo que mide la barra
         # piso 26: una cifra que se encoge por debajo del piso ilegible no es
@@ -2014,10 +2032,16 @@ def sc_quote(ctx, e, t):
         lineas.append(ln)
     n = len(lineas)
     lh = fnt.size * 1.25
+    # el rol cabe DENTRO de la tarjeta: se parte en dos lineas como mucho
+    # (antes salia en una linea centrada sin ajustar y se cortaba por los
+    # dos lados de la tarjeta y del cuadro)
+    fnt_rol, lineas_rol = (texto_que_cabe(ctx.fX, e["rol"], ESCALA["nota"], cw - 80, 500,
+                                          max_lineas=2) if e.get("rol") else (None, []))
     # pila vertical medida: comilla · texto · estrellas · autor · rol (nunca se pisan)
     h_com, h_txt = U * 0.13, n * lh
     h_est = U * 0.075 if e.get("estrellas") is not None else 0
-    h_aut = (U * 0.06 if e.get("autor") else 0) + (U * 0.04 if e.get("rol") else 0)
+    h_aut = (U * 0.06 if e.get("autor") else 0) + (len(lineas_rol) * fnt_rol.size * 1.25
+                                                  if lineas_rol else 0)
     ch = h_com + h_txt + h_est + h_aut + U * 0.10
     cy = max(zy0 + 70, (zy0 + zy1) / 2 - ch / 2 + 30)
     ac = int(255 * clamp01(k * 1.4))   # la tarjeta y su comilla entran fundidas, no de golpe
@@ -2060,10 +2084,11 @@ def sc_quote(ctx, e, t):
         ka = entra(t, t_au, "suave")
         al = int(255 * clamp01(ka * 1.4)); dy = (1 - min(1, ka)) * 20
         d.text((cx + cw / 2, y_sig + U * 0.04 + dy), e["autor"],
-               font=ctx.fX(ESCALA["dato"], 800), fill=BLANCO + (al,), anchor="mm")
-        if e.get("rol"):
-            d.text((cx + cw / 2, y_sig + U * 0.093 + dy), e["rol"],
-                   font=ctx.fX(ESCALA["nota"], 500), fill=GRIS + (al,), anchor="mm")
+               font=fuente_que_cabe(ctx.fX, e["autor"], ESCALA["dato"], cw - 80, 800),
+               fill=BLANCO + (al,), anchor="mm")
+        for li, ln in enumerate(lineas_rol):
+            d.text((cx + cw / 2, y_sig + U * 0.075 + li * (fnt_rol.size * 1.25) + dy), ln,
+                   font=fnt_rol, fill=GRIS + (al,), anchor="mt")
     if e.get("fuente") and t >= at.get("fuente", t_au + 0.2):
         pie_fuente(ctx, d, e, t, t_au + 0.2)
     return capa_salida(layer, t, e["to"])
@@ -3429,7 +3454,9 @@ def sc_audiowave(ctx, e, t):
     if trans:
         t_tr = at.get("texto", t_onda + 0.6)
         dur_tr = max(0.5, len(trans) * 0.04)
-        fnt_tr = fuente_que_cabe(ctx.fX, trans, 26, wc - 72, 400)
+        # la transcripcion es un `nota` de la escala (28): a 26 nacia justo
+        # en el piso legible y la rubrica penalizaba la pieza por diseno
+        fnt_tr = fuente_que_cabe(ctx.fX, trans, ESCALA["nota"], wc - 72, 400)
         text_reveal(d, trans, fnt_tr, xc + 36, prog_y + 18, t, t_tr, dur_tr, GRIS)
         
     return capa_salida(layer, t, e["to"])

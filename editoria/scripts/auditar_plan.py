@@ -515,6 +515,24 @@ def auditar_tells(plan, anteriores=None):
                 add("cadencia-uniforme", 0.0, f"las {len(durs)} escenas duran casi lo mismo (CV {cv:.2f} < {CV_MIN_CADENCIA}): se lee como metrónomo (ritmo.md); varía las duraciones o decláralo en \"tells_ok\": [\"cadencia-uniforme\"] si es deliberado")
     return out
 
+def _aviso_caption_central(plan, caption_position):
+    """AVISO si el pack pide subtitulos en el centro y el plan quema
+    subtitulos sobre escenas del motor: las escenas componen su texto en
+    el centro, asi que el karaoke central se pisa con cada plano (medido:
+    ningun frame con caption era legible del todo).
+    La banda del motor es la inferior reservada; caption.py --plan la usa.
+    Puro: recibe la posicion ya leida del pack."""
+    if not isinstance(plan, dict) or not plan.get("subtitulos"):
+        return None
+    if str(caption_position or "").strip().lower() != "center":
+        return None
+    return {"nivel": "AVISO", "t": 0.0,
+            "msg": "el brand pack pide caption en el centro (position=center) y el plan "
+                   "quema subtitulos sobre escenas del motor, que componen en el centro: "
+                   "el karaoke pisara cada escena. Quema con caption.py --plan "
+                   "(banda inferior reservada) o cambia el caption del pack a bottom"}
+
+
 def main():
     ap = argparse.ArgumentParser(
         description="Audita un plan.json: solapes, duraciones, escenas vacías, voz vacía, orden temporal y tells de pieza generada.")
@@ -550,6 +568,18 @@ def main():
         sys.exit(msg)
 
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
+    if isinstance(plan, dict) and isinstance(plan.get("brand"), str):
+        ruta_brand = plan["brand"]
+        if not os.path.isabs(ruta_brand):
+            ruta_brand = os.path.join(os.path.dirname(os.path.abspath(a.plan)), ruta_brand)
+        try:
+            with open(ruta_brand, encoding="utf-8") as fh:
+                pack = json.load(fh)
+            aviso = _aviso_caption_central(plan, (pack.get("caption") or {}).get("position"))
+            if aviso:
+                hallazgos.append(aviso)
+        except (OSError, ValueError):
+            pass   # un pack ilegible lo reporta el render; aqui no se inventa
     if not a.sin_tells:
         anteriores = []
         for ruta in a.anterior:
