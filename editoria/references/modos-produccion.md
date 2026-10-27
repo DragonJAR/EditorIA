@@ -141,6 +141,85 @@ Los cuatro numeros son `x,y,ancho,alto` en px, sobre el lienzo del kit
 Un marco que no cabe en el lienzo **avisa antes de renderizar** (y el render
 falla: ffmpeg no recorta una caja fuera del cuadro sin avisar).
 
+#### La RECETA del reel de "cara": el clip enmarcado, la depleción y el acta
+
+Tener las piezas no es lo mismo que saber hacer la pieza. El estilo del reel
+de "cara" (`De8KNkdDT68`) es la COMPOSICION de tres cosas que ya existen,
+con su montaje medido: **el clip dentro de su caja, la línea que se depleta
+y el acta debajo**. El orden y las zonas son la receta.
+
+**Cómo se monta (el orden de las herramientas):**
+
+1. El plan se renderiza como **CAPA con alfa**, **a la tasa del clip**:
+   `render_plan.py plan.json --fps 24 -o capa.mov` (ProRes 4444) o `-o
+   capa.webm` (VP9 con alfa). La tasa tiene que casar con la del clip: si no,
+   el compositor avisa "la pieza sale con tirones" (y el medidor de movimiento
+   los cuenta).
+2. El clip entra **por debajo**: `componer.py clip.mp4 capa.mov --marco
+   "60,250,960,947" --fps 24 -o final.mp4`. El `--marco` pone el clip en su
+   caja y deja la capa ENCIMA: por eso la tipografía puede caer sobre la
+   imagen y el panel del acta debajo, sin pelearse por el sitio.
+3. La depleción la dibuja el propio render del plan (es un global del plan,
+   no una escena): va ENCIMA de la escena, en el borde del lienzo.
+
+**Lo que avisa el render (y por qué no hay que asustarse):** la depleción va
+en el borde (`y: 0`), así que el gráfico invade el 5 % exterior (title-safe) y
+el render lo avisa. Es a propósito: es una BARRA de progreso, no texto, y es
+justo lo que se ve en el reel medido. El aviso que sí hay que mirar es el de
+las tasas.
+
+**El plan (el del reel, medido):**
+
+```json
+{
+  "duracion": 7,
+  "plataforma": "reels",
+  "brand": "editoria/brand/dragonjar.json",
+  "deplecion": {"y": 0, "alto": 5, "color": "acento"},
+  "escenas": [
+    {"tipo": "constancia", "from": 0.0, "to": 7.0,
+     "kicker": "DIEGO + KEVIN",
+     "items": [{"texto": "Comparten investigaciones", "hecho": 2.4},
+               {"texto": "Posiblemente es Notepad++", "hecho": false}],
+     "at": {"item0": 0.4, "item1": 0.9}}
+  ]
+}
+```
+
+**Qué hace cada cosa y dónde:**
+
+- **la caja** (`--marco`): el clip entra en una caja de esquinas redondeadas
+  sobre el lienzo negro. Es el clip el que manda en el tamaño: la caja es lo
+  que le deja sitio a la capa.
+- **la depleción**: el global del plan. Es de la PIEZA entera, no de un
+  plano: como escena, la pieza gastaría una escena entera en la barra. Su
+  ancho es `W · (1 − t/duración)`, lineal y anclada a la izquierda.
+- **el acta**: el panel con el kicker y N casillas, DEBAJO del clip. Cada ítem
+  se **confirma** en el segundo que dice `hecho` (o `true`/`false`), y la
+  confirmación FUNDE: un bloque que cambia en un frame es un pop (medido:
+  confirmar en t=1,5 s daba un pop de 1,5 px). El ✓ se DIBUJA, no es el
+  glifo ("✓" no existe en todas las fuentes y sale como caja vacía).
+
+**Las tres reglas que hacen que sea una composición y no un montón de
+overlays:**
+
+- **El acta NO es un plano de cierre**: ocupa TODA la pieza (`from` 0 al
+  `to` final) y sus ítems se van confirmando MIENTRAS el clip avanza. Un
+  acta que aparece al final cuenta otra cosa: es un resumen, no el acta.
+- **El copy va donde la pieza lo necesita, y el clip puede traérselo.** En el
+  reel medido, el copy ("Lo encontramos antes que nadie", con la palabra
+  clave marcada) está DENTRO de la caja: el clip es una pieza ya renderizada
+  con su propia tipografía, y el reel la encuadra. Si el clip es una
+  grabación cruda, el copy que se LEE va en la CAPA, con la escena `frase`
+  (`frase`, `cps`, `seleccion`, `y`, `ventana`): entra palabra a palabra y
+  la palabra clave se marca.
+- **No se inventa nada**: el copy es el que se dijo, las cifras son las
+  reales, y los ítems del acta son lo que confirmó cada parte.
+
+Las medidas de cada pieza viven con la pieza (el panel de `constancia`, el
+nodo de `cadena`, la caja del `--marco`): aquí no se repiten a propósito,
+para que un cambio en un sitio no deje una copia vieja en otro.
+
 ### Overlays con alfa (entregar capas al editor)
 
 Cuando el footage lo edita otra persona (o vive en OBS), el gráfico se entrega
