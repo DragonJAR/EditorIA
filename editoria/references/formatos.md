@@ -144,40 +144,50 @@ motor de escenas).
 
 ## Charla vertical con gráficas kinetic (estilo DragonJAR / referente Notepad++)
 
-Pieza vertical (9:16) donde **la tipografía carga el argumento** y el
-footage del orador, si existe, es una ventana: no el plano entero. El
-referente típico (`El hackeo a Notepad++`) es un stage HTML 720×1280 con
-ventana de talking-head, karaoke con cajas y paneles inferiores; al
-entregar, se escala a 1080×1920 salvo que el brief pida otra cosa.
+Pieza vertical (9:16) donde **varios sistemas viven a la vez** en un mismo
+stage: header (logo + pill), ventana (footage o placa de marca), karaoke
+itálico con cajas roja/blanca, paneles inferiores, sellos y end card. El
+referente canónico (`El hackeo a Notepad++`) es un HTML 720×1280 con
+`window.renderAt(t)` determinista; al entregar, se escala a 1080×1920.
 
-**Sistemas del referente → qué ya sabe la skill (no reinventar):**
+### Camino correcto (no aproximar)
 
-| Sistema del referente | Dónde vive en EditorIA |
+**Si el brief pide “como este referente” / ese look:** recrear el **stage**
+(HTML + CSS + JS con el mismo vocabulario de motion: `life`, `eo`, `eob`,
+cajas `|r`/`|b`, paneles, sello, end). Render cuadro a cuadro con Chrome
+(`renderAt`) o HyperFrames (`references/hyperframes.md` /
+`references/canvas.md`) y montar con FFmpeg. **No** sustituirlo por un
+plan secuencial de escenas (`apertura`→`hoy`→`versus`→`frase`→`final`):
+ese camino reutiliza primitivas, pero **no mantiene el estilo** (pierde
+la composición multi-zona, el ritmo de paneles y el hook apilado).
+
+Medido (2026-10-27): un promo de servicios hecho solo con el motor de
+plan pasó `qa_entrega` y falló la lectura humana del estilo; el mismo
+brief recreado como stage HTML del referente sí se leyó como la pieza.
+
+### Primitivas del kit que sí sirven (como piezas, no como sustituto)
+
+| Sistema del referente | En EditorIA |
 |---|---|
-| Palabra a palabra + caja roja/blanca (`\|r`/`\|b`) | Escena `frase` y titulares (`apertura`/`remate`/`pildoras`) con `~clave~` / `^clave^` (`segmentos_resalte`) |
-| Subrayado de la palabra activa | `frase` (barra de acento bajo la activa) |
-| Lower-third (barra roja + nombre + rol) | `rotulo_inferior` |
-| Hook apilado (kicker mono + titular + caja) | `apertura` / `frase` / `pildoras` con el markup de cajas |
-| Panel inferior (kicker + tarjetas / nodos) | `hoy`, `bento`, `versus`, `pildoras`, `canales` |
-| Sello a sangre («SIN CONTRATO») | `frase` o titular con `~SELLO~` a pantalla; hold corto |
-| Cierre CTA (título + caja + botón) | `final` (+ `boton`); el lema puede llevar `*…*` |
-| Tipografía sobre footage con profundidad | `scripts/ffmpeg_tools/componer.py` (`references/modos-produccion.md`) |
-| Karaoke quemado sobre el corte | `caption.py --karaoke` (resalte de color; las cajas de bloque son de `frase`/titular) |
+| Cajas `~roja~` / `^blanca^` / `|r`/`|b` | `segmentos_resalte` → `frase` y `titular` |
+| Lower-third | `rotulo_inferior` |
+| Tipografía sobre footage | `componer.py` |
+| Karaoke quemado | `caption.py --karaoke` |
 
-**Reglas al clonar este estilo:**
+### Reglas
 
-1. **Leer el pack antes que el referente.** Si `reglas.rejillas_decorativas`
-   es `false` (DragonJAR), el fondo de puntos del referente **no** se copia:
-   el pack manda (`references/brand-packs.md`).
-2. **Sin footage del orador** → motor de plan solo-texto (dirección
-   `solo_texto`): `frase` + paneles + `final`. No inventar un talking-head.
-3. **Con footage** → híbrido: ventana/`pip` + overlays con alfa
-   (`rotulo_inferior`, sellos) + `frase` o captions; ensamblar con
-   `componer.py` / `montaje.py` (`references/modos-produccion.md`).
-4. **No inventar claims.** Servicios y cifras solo si constan en el pack,
-   el brief o una fuente citada; si no, declarar el supuesto en
-   `BRIEF.md` / `no_aplica`.
-5. Rotar repertorio frente a la pieza anterior
+1. **El estilo del referente manda sobre la comodidad del motor.** Si el
+   zip trae HTML+`renderAt`, ese es el material a clonar; el plan es
+   respaldo declarado, no el default.
+2. **Pack vs. look del referente:** si el pack prohíbe
+   `rejillas_decorativas` pero el referente las usa como firma, y el
+   usuario pide “ese estilo”, se conserva la firma y se declara la
+   tensión en `BRIEF.md` / `TRATAMIENTO.md`.
+3. **Sin footage:** placa de marca en la ventana (isotipo + lower-third),
+   no inventar un talking-head.
+4. **No inventar claims.** Servicios/cifras solo con fuente o supuesto
+   declarado.
+5. Rotar repertorio si además hay plan
    (`repertorio.py sugerir --anterior`).
 
 ## Combinar formatos
