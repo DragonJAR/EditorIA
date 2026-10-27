@@ -143,6 +143,18 @@ class TestComunYDelivery(unittest.TestCase):
             [("Videos con ", False), ("física real", True), (" hoy", False)],
         )
 
+    def test_segmentos_resalte_cajas_y_acento(self):
+        """El markup del reel de referencia vive UNA vez: * ~ ^."""
+        self.assertEqual(
+            C.segmentos_resalte("EL HACKEO A ~NOTEPAD++~ y *más*"),
+            [("EL HACKEO A ", ""), ("NOTEPAD++", "roja"),
+             (" y ", ""), ("más", "acento")],
+        )
+        self.assertEqual(
+            C.segmentos_resalte("lo ^blanco^ manda"),
+            [("lo ", ""), ("blanco", "blanca"), (" manda", "")],
+        )
+
     def test_parse_and_fmt_time(self):
         self.assertAlmostEqual(C.parse_time("01:30.5"), 90.5)
         self.assertEqual(C.fmt_srt_time(90.5), "00:01:30,500")

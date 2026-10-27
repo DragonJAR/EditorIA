@@ -142,6 +142,44 @@ motor de escenas).
   jerarquía visual, y la apertura y el cierre juzgados por separado.
 - Material de terceros solo con permiso; las referencias se estudian.
 
+## Charla vertical con gráficas kinetic (estilo DragonJAR / referente Notepad++)
+
+Pieza vertical (9:16) donde **la tipografía carga el argumento** y el
+footage del orador, si existe, es una ventana: no el plano entero. El
+referente típico (`El hackeo a Notepad++`) es un stage HTML 720×1280 con
+ventana de talking-head, karaoke con cajas y paneles inferiores; al
+entregar, se escala a 1080×1920 salvo que el brief pida otra cosa.
+
+**Sistemas del referente → qué ya sabe la skill (no reinventar):**
+
+| Sistema del referente | Dónde vive en EditorIA |
+|---|---|
+| Palabra a palabra + caja roja/blanca (`\|r`/`\|b`) | Escena `frase` y titulares (`apertura`/`remate`/`pildoras`) con `~clave~` / `^clave^` (`segmentos_resalte`) |
+| Subrayado de la palabra activa | `frase` (barra de acento bajo la activa) |
+| Lower-third (barra roja + nombre + rol) | `rotulo_inferior` |
+| Hook apilado (kicker mono + titular + caja) | `apertura` / `frase` / `pildoras` con el markup de cajas |
+| Panel inferior (kicker + tarjetas / nodos) | `hoy`, `bento`, `versus`, `pildoras`, `canales` |
+| Sello a sangre («SIN CONTRATO») | `frase` o titular con `~SELLO~` a pantalla; hold corto |
+| Cierre CTA (título + caja + botón) | `final` (+ `boton`); el lema puede llevar `*…*` |
+| Tipografía sobre footage con profundidad | `scripts/ffmpeg_tools/componer.py` (`references/modos-produccion.md`) |
+| Karaoke quemado sobre el corte | `caption.py --karaoke` (resalte de color; las cajas de bloque son de `frase`/titular) |
+
+**Reglas al clonar este estilo:**
+
+1. **Leer el pack antes que el referente.** Si `reglas.rejillas_decorativas`
+   es `false` (DragonJAR), el fondo de puntos del referente **no** se copia:
+   el pack manda (`references/brand-packs.md`).
+2. **Sin footage del orador** → motor de plan solo-texto (dirección
+   `solo_texto`): `frase` + paneles + `final`. No inventar un talking-head.
+3. **Con footage** → híbrido: ventana/`pip` + overlays con alfa
+   (`rotulo_inferior`, sellos) + `frase` o captions; ensamblar con
+   `componer.py` / `montaje.py` (`references/modos-produccion.md`).
+4. **No inventar claims.** Servicios y cifras solo si constan en el pack,
+   el brief o una fuente citada; si no, declarar el supuesto en
+   `BRIEF.md` / `no_aplica`.
+5. Rotar repertorio frente a la pieza anterior
+   (`repertorio.py sugerir --anterior`).
+
 ## Combinar formatos
 
 Un UGC puede cargar un ranking; un podcast, una revelación de entrevista;
