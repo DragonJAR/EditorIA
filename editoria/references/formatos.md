@@ -142,6 +142,54 @@ motor de escenas).
   jerarquía visual, y la apertura y el cierre juzgados por separado.
 - Material de terceros solo con permiso; las referencias se estudian.
 
+## Charla vertical con gráficas kinetic (estilo DragonJAR / referente Notepad++)
+
+Pieza vertical (9:16) donde **varios sistemas viven a la vez** en un mismo
+stage: header (logo + pill), ventana (footage o placa de marca), karaoke
+itálico con cajas roja/blanca, paneles inferiores, sellos y end card. El
+referente canónico (`El hackeo a Notepad++`) es un HTML 720×1280 con
+`window.renderAt(t)` determinista; al entregar, se escala a 1080×1920.
+
+### Camino correcto (no aproximar)
+
+**Si el brief pide “como este referente” / ese look:** recrear el **stage**
+(HTML + CSS + JS con el mismo vocabulario de motion: `life`, `eo`, `eob`,
+cajas `|r`/`|b`, paneles, sello, end). Render cuadro a cuadro con Chrome
+(`renderAt`) o HyperFrames (`references/hyperframes.md` /
+`references/canvas.md`) y montar con FFmpeg. **No** sustituirlo por un
+plan secuencial de escenas (`apertura`→`hoy`→`versus`→`frase`→`final`):
+ese camino reutiliza primitivas, pero **no mantiene el estilo** (pierde
+la composición multi-zona, el ritmo de paneles y el hook apilado).
+
+Medido (2026-10-27): un promo de servicios hecho solo con el motor de
+plan pasó `qa_entrega` y falló la lectura humana del estilo; el mismo
+brief recreado como stage HTML del referente sí se leyó como la pieza.
+
+### Primitivas del kit que sí sirven (como piezas, no como sustituto)
+
+| Sistema del referente | En EditorIA |
+|---|---|
+| Cajas `~roja~` / `^blanca^` / `|r`/`|b` | `segmentos_resalte` → `frase` y `titular` |
+| Lower-third | `rotulo_inferior` |
+| Tipografía sobre footage | `componer.py` |
+| Karaoke quemado | `caption.py --karaoke` |
+
+### Reglas
+
+1. **El estilo del referente manda sobre la comodidad del motor.** Si el
+   zip trae HTML+`renderAt`, ese es el material a clonar; el plan es
+   respaldo declarado, no el default.
+2. **Pack vs. look del referente:** si el pack prohíbe
+   `rejillas_decorativas` pero el referente las usa como firma, y el
+   usuario pide “ese estilo”, se conserva la firma y se declara la
+   tensión en `BRIEF.md` / `TRATAMIENTO.md`.
+3. **Sin footage:** placa de marca en la ventana (isotipo + lower-third),
+   no inventar un talking-head.
+4. **No inventar claims.** Servicios/cifras solo con fuente o supuesto
+   declarado.
+5. Rotar repertorio si además hay plan
+   (`repertorio.py sugerir --anterior`).
+
 ## Combinar formatos
 
 Un UGC puede cargar un ranking; un podcast, una revelación de entrevista;

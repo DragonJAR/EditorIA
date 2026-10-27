@@ -179,7 +179,9 @@ El ESTADO DE CADA PALABRA (el sistema del reel de referencia):
   · la ACTIVA (la ultima alcanzada): blanca, con el SUBRAYADO ROJO debajo.
 El resalte de una palabra: `*clave*` la pone en blanco y en negrita sobre
 el gris; `~clave~` la mete en una CAJA ROJA (texto blanco) y `^clave^` en una
-CAJA BLANCA (texto oscuro); `seleccion` le pone el recuadro azul.
+CAJA BLANCA (texto oscuro); `seleccion` le pone el recuadro azul. El mismo
+markup (`segmentos_resalte` en `_comun`) lo leen también los titulares
+cinéticos (`apertura`, `remate`, `pildoras`…): no hay un parser por escena.
 
 Params: `frase`, `clave?`, `seleccion?`, `cps?` (palabras por segundo, 1.6),
 `tam?`, `y?` (fraccion del alto donde queda la ultima palabra), `ventana?`
