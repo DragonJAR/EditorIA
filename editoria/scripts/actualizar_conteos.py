@@ -98,11 +98,22 @@ def _sustituye(texto, patron, nuevo, etiqueta, cambios, todas=False):
         # solo es un CAMBIO si la CIFRA difiere: el texto encontrado puede
         # ser ya correcto y reportarlo como desfasado haria que el --check
         # se quejara de algo que esta bien (y el bucle no tendria salida)
-        numeros = {int(m.group(1)) for m in re.finditer(patron, texto)
-                   if m.groups() and m.group(1).isdigit()}
+        #
+        # La cifra se saca del TEXTO QUE ENCONTRO, no de un grupo: los
+        # patrones de esta lista ("40 escenas compuestas", "Catálogo de 40
+        # escenas") no tienen grupo de captura, y buscarlo hacia que el
+        # conjunto saliera VACIO: la herramienta no sustituia NADA y
+        # reportaba "desfasado en: nada" mientras el guard seguia diciendo
+        # que el numero estaba viejo (medido en la ronda 12: el catalogo
+        # paso de 40 a 41 escenas y las tres prosa se quedaron en 40).
+        numeros = set()
+        for m in re.finditer(patron, texto):
+            dm = re.search(r"\d+", m.group(0))
+            if dm:
+                numeros.add(int(dm.group(0)))
         if not numeros or numeros == {int(nuevo_re)}:
             return texto
-        for numero in numeros:
+        for numero in sorted(numeros):
             cambios.append((etiqueta, str(numero), str(nuevo_re)))
         return re.sub(patron, lambda _m: nuevo, texto)
     if mt.group(0) == nuevo:
@@ -123,10 +134,27 @@ _FORMAS_DE_ESCENAS = (r"\d+ escenas compuestas", r"\d+ scenes composed",
                       r"Catálogo de \d+ escenas", r"Catalog of \d+ scenes",
                       r"componen las \d+ escenas", r"compose all \d+ scenes",
                       r"\d+ tipos de escena", r"\d+ scene types",
+                      r"\d+ tipos del plan", r"\d+ plan scene types",
+                      r"Tipos de escena \(\d+\)", r"Scene types \(\d+\)",
                       r"\d+ tipos —", r"\d+ types —",
                       r"motor principal de render por plan \(\d+ escenas\)",
                       r"main render engine by plan \(\d+ scenes\)",
-                      r"\(\d+ escenas\)", r"\(\d+ scenes\)")
+                      r"\(\d+ escenas\)", r"\(\d+ scenes\)",
+                      r"\d+/\d+ escenas render", r"\d+/\d+ scenes render")
+
+
+#: Los MISMOS sitios, pero escritos como PLACEHOLDER ("\d+ escenas"): el
+#: patron de arriba no los pilla (busca DIGITOS, no el texto del patron) y el
+#: README leia "\d+ escenas compuestas" al que lo abria (medido en la ronda
+#: 12: cuatro sitios con el placeholder a la vista, en los dos README).
+_PLACEHOLDERS_DE_ESCENAS = (
+    (r"\\d\+ escenas compuestas", "{} escenas compuestas"),
+    (r"\\d\+ scenes composed", "{} scenes composed"),
+    (r"Suite visual de las \\d\+ escenas", "Suite visual de las {} escenas"),
+    (r"Visual suite for all \\d\+ scenes", "Visual suite for all {} scenes"),
+    (r"Muestras canónicas de las \\d\+ escenas", "Muestras canónicas de las {} escenas"),
+    (r"Canonical samples for all \\d\+ scenes", "Canonical samples for all {} scenes"),
+)
 
 
 def _transforma_escenas(texto, escenas, etiqueta, cambios):
@@ -134,7 +162,71 @@ def _transforma_escenas(texto, escenas, etiqueta, cambios):
     for patron in _FORMAS_DE_ESCENAS:
         texto = _sustituye(texto, patron, patron.replace(r"\d+", str(escenas)),
                            etiqueta, cambios, todas=True)
+    for patron, plantilla in _PLACEHOLDERS_DE_ESCENAS:
+        if not re.search(patron, texto):
+            continue
+        nuevo = plantilla.format(escenas)
+        texto = re.sub(patron, lambda _m: nuevo, texto)
+        cambios.append((etiqueta, "PLACEHOLDER (\\d+)", nuevo))
     return texto
+
+
+#: La lista de escenas que enuncia la prosa (los README): el guard la compara
+#: por CONJUNTO contra el catalogo del motor, no por el numero.
+LISTA_DE_ESCENAS = re.compile(
+    r"(?:\*)*(\d+)(?:\*)*\s+(?:tipos(?:\s+de\s+escena)?|scene\s+types|scenes)"
+    r"(?:\*)*\s*[—-]\s*(.+?)(?=\n\s*[-*]\s|\n\s*\n|\Z)", re.M | re.S)
+
+
+def _transforma_lista_de_escenas(texto, catalogo, etiqueta, cambios):
+    """La lista de escenas que enuncia la prosa: se ESCRIBE desde el motor.
+
+    El guard la compara por CONJUNTO contra las claves de `SCENES`: una lista
+    puede tener la cifra correcta y faltar una escena (asi se quedaron
+    `callout`, `index` y `orbOpen` fuera del README en espanol, con el
+    numero bien puesto). Aqui la lista sale del motor, asi que no se puede
+    quedar vieja: lo que falta se anade al final y lo que sobra (una escena
+    que ya no existe) se quita.
+
+    El orden curado de la prosa se respeta: solo se anade al final lo que
+    falta, y el conector ("y" / "and") es el que ya usa el texto.
+    """
+    if not catalogo:
+        return texto
+
+    def _uno(mt):
+        cuerpo = mt.group(2)
+        cola = ""
+        mc = re.search(r"([.!?])\s*$", cuerpo)
+        if mc:
+            cola = mc.group(1)
+            cuerpo = cuerpo[:mc.start()]
+        nombres = re.findall(r"`([^`]+)`", cuerpo)
+        if not nombres:
+            return mt.group(0)
+        conect = "and" if re.search(r"\band\s+`[^`]+`\s*$", cuerpo) else "y"
+        faltan = [n for n in catalogo if n not in nombres]
+        sobran = [n for n in nombres if n not in catalogo]
+        if not faltan and not sobran:
+            return mt.group(0)
+        orden = [n for n in nombres if n in catalogo] + faltan
+        nueva = ", ".join(f"`{n}`" for n in orden[:-1])
+        nueva += f" {conect} `{orden[-1]}`" + cola
+        cambios.append((etiqueta, f"{len(nombres)} escenas listadas",
+                         f"{len(orden)} escenas listadas"))
+        ini = mt.start(2) - mt.start(0)
+        fin = mt.end(2) - mt.start(0)
+        return mt.group(0)[:ini] + nueva + mt.group(0)[fin:]
+
+    return LISTA_DE_ESCENAS.sub(_uno, texto)
+
+
+def catalogo_de_escenas():
+    """Los NOMBRES del catalogo (las claves de `SCENES`), no solo la cuenta."""
+    render = os.path.join(BASE, "scripts", "render_plan.py")
+    if not os.path.isfile(render):
+        return []
+    return sorted(AM._claves_de_escenas(render))
 
 
 def _transforma_mapa(texto, refs, root, fft, suites, cambios):
@@ -230,7 +322,8 @@ def _transforma_frase_de_suites(texto, suites, cambios):
     return texto[:mt.start()] + mt.group(1) + lista + mt.group(3) + texto[mt.end():]
 
 
-def _transforma_readme(texto, refs, root, fft, suites, archivos, escenas, etiqueta, cambios):
+def _transforma_readme(texto, refs, root, fft, suites, archivos, escenas, etiqueta, cambios,
+                       catalogo=None):
     total = root + fft + archivos
     texto = _sustituye(
         texto, r"# \d+ motores raíz \+ \d+ en ffmpeg_tools/ \+ \d+ en _tests/ = \d+ scripts",
@@ -249,6 +342,8 @@ def _transforma_readme(texto, refs, root, fft, suites, archivos, escenas, etique
     # la senalaba como conteo obsoleto: no habia forma de arreglarlo con la
     # herramienta, que es justo lo que la herramienta debe evitar)
     texto = _transforma_escenas(texto, escenas, etiqueta, cambios)
+    # y la LISTA de escenas: se escribe desde el motor (no es una copia)
+    texto = _transforma_lista_de_escenas(texto, catalogo or [], etiqueta, cambios)
     return texto
 
 
@@ -277,6 +372,7 @@ def main():
     args = ap.parse_args()
 
     refs, root, fft, suites, archivos, escenas = cuentas()
+    catalogo = catalogo_de_escenas()
     total = root + fft + archivos
     print(f"referencias {refs} · scripts raiz {root} · ffmpeg_tools {fft} · "
           f"suites {suites} · archivos en _tests/ {archivos} · scripts en total {total}")
@@ -302,7 +398,8 @@ def main():
         with tempfile.TemporaryDirectory() as tmp:
             copia = os.path.join(tmp, "editoria")
             shutil.copytree(BASE, copia, ignore=shutil.ignore_patterns("__pycache__"))
-            _aplica(copia, None, refs, root, fft, suites, archivos, escenas, cambios)
+            _aplica(copia, None, refs, root, fft, suites, archivos, escenas, cambios,
+                     catalogo)
             if raiz_repo:
                 for nombre in ("README.md", "README.en.md"):
                     origen = os.path.join(raiz_repo, nombre)
@@ -312,11 +409,12 @@ def main():
                         # no tenerlo (y el test lo vigila)
                         texto = open(origen, encoding="utf-8").read()
                         _transforma_readme(texto, refs, root, fft, suites, archivos,
-                                           escenas, nombre, cambios)
+                                           escenas, nombre, cambios, catalogo)
         _informe(cambios)
         return 0
 
-    _aplica(BASE, raiz_repo, refs, root, fft, suites, archivos, escenas, cambios)
+    _aplica(BASE, raiz_repo, refs, root, fft, suites, archivos, escenas, cambios,
+             catalogo)
     _informe(cambios)
     return 0
 
@@ -389,7 +487,8 @@ def _transforma_cli_contract(texto, cumplen, total, cambios):
     return texto[:mt.start()] + nuevo + texto[mt.end():]
 
 
-def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, cambios):
+def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, cambios,
+           catalogo=None):
     """Aplica los cambios a la copia de la skill indicada."""
     nombres = AM._suites_publicadas()
     # el canonico primero: si el SKILL.md dice cuantas suites hay, ese numero
@@ -420,13 +519,15 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, c
         for nombre in ("README.md", "README.en.md"):
             origen = os.path.join(dest_repo, nombre)
             if os.path.exists(origen):
-                _aplica_readme(origen, refs, root, fft, suites, archivos, escenas, cambios)
+                _aplica_readme(origen, refs, root, fft, suites, archivos, escenas,
+                               cambios, catalogo)
 
 
-def _aplica_readme(ruta, refs, root, fft, suites, archivos, escenas, cambios):
+def _aplica_readme(ruta, refs, root, fft, suites, archivos, escenas, cambios,
+                  catalogo=None):
     texto = open(ruta, encoding="utf-8").read()
     nuevo = _transforma_readme(texto, refs, root, fft, suites, archivos, escenas,
-                                os.path.basename(ruta), cambios)
+                                os.path.basename(ruta), cambios, catalogo)
     if nuevo != texto:
         open(ruta, "w", encoding="utf-8").write(nuevo)
 

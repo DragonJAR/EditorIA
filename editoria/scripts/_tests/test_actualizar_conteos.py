@@ -34,6 +34,8 @@ SCRIPTS = os.path.dirname(HERE)
 BASE = os.path.dirname(SCRIPTS)
 HERRAMIENTA = os.path.join(SCRIPTS, "actualizar_conteos.py")
 AUDITAR = os.path.join(SCRIPTS, "auditar_mapa.py")
+if SCRIPTS not in sys.path:
+    sys.path.insert(0, SCRIPTS)   # para importar la herramienta y probarla
 
 
 def _copia_skill(destino):
@@ -283,6 +285,84 @@ class TestActualizarConteos(unittest.TestCase):
         self.assertEqual(r.returncode, 0, f"sin README la herramienta fallo:\n{r.stderr}")
         rc, out = _audita(skill)
         self.assertEqual(rc, 0, f"el guard no acepta lo que escribe la herramienta:\n{out}")
+
+
+class TestCifrasDelCatalogo(unittest.TestCase):
+    """Las cifras del catalogo de escenas, y la lista que las nombra.
+
+    La herramienta reescribia el numero del catalogo en la prosa, pero la
+    cifra se sacaba de un grupo de captura que los patrones NO tienen: el
+    conjunto salia vacio y la herramienta no sustituia NADA mientras decia
+    "desfasado en: nada" (medido en la ronda 12: el catalogo paso de 40 a 41
+    escenas y las tres prosa se quedaron en 40, con el guard diciendo que
+    estaban viejas). Una herramienta que miente es peor que una que no
+    existe: el bucle "corre la herramienta y vuelve a fallar" no tiene salida.
+    """
+
+    """La herramienta que escribe los numeros tiene que escribirLOS."""
+
+    def test_reescribe_la_cifra_de_las_escenas(self):
+        """La cifra se saca del TEXTO encontrado.
+
+        Antes se sacaba de un grupo de captura que los patrones no tienen
+        ("40 escenas compuestas" no tiene grupo): el conjunto salia vacio y
+        la herramienta no sustituia NADA mientras decia "desfasado en: nada"
+        (medido: el catalogo paso de 40 a 41 y las tres prosa se quedaron
+        en 40; el guard seguia senalandolo).
+        """
+        import actualizar_conteos as AC
+        cambios = []
+        nuevo = AC._transforma_escenas("Suite visual de las 40 escenas", 41,
+                                       "prueba", cambios)
+        self.assertEqual(nuevo, "Suite visual de las 41 escenas",
+                         "la herramienta tiene que reescribir la cifra")
+        self.assertTrue(cambios, "y tiene que decir que lo cambio")
+
+    def test_reescribe_todas_las_apariciones(self):
+        import actualizar_conteos as AC
+        texto = "con 40 tipos de escena y un Catálogo de 40 escenas"
+        cambios = []
+        nuevo = AC._transforma_escenas(texto, 41, "prueba", cambios)
+        self.assertNotIn("40", nuevo, "ninguna aparicion se puede quedar vieja")
+        self.assertIn("41 tipos de escena", nuevo)
+        self.assertIn("Catálogo de 41 escenas", nuevo)
+
+    def test_escribe_la_lista_de_escenas(self):
+        """La lista se escribe desde el motor: no puede faltar una escena."""
+        import actualizar_conteos as AC
+        texto = ("- **Renderizar** con 40 tipos — `apertura`, `canales` y `final`.\n")
+        cambios = []
+        nuevo = AC._transforma_lista_de_escenas(
+            texto, ["apertura", "canales", "final", "constancia"], "prueba", cambios)
+        self.assertIn("`constancia`", nuevo,
+                      "la escena que falta tiene que aparecer en la lista")
+        self.assertTrue(cambios)
+
+    def test_la_lista_que_ya_esta_bien_no_se_toca(self):
+        import actualizar_conteos as AC
+        texto = ("- **Renderizar** con 3 tipos — `a`, `b` y `c`.\n")
+        cambios = []
+        nuevo = AC._transforma_lista_de_escenas(
+            texto, ["a", "b", "c"], "prueba", cambios)
+        self.assertEqual(nuevo, texto, "una lista correcta no se toca")
+        self.assertEqual(cambios, [])
+
+    def test_rellena_los_placeholders_de_la_prosa(self):
+        """El README mostraba "\\d+ escenas compuestas" al que lo abria.
+
+        El patron de las cifras busca DIGITOS, no el texto del patron: un
+        placeholder se le escapa a todos y se queda a la vista (medido: cuatro
+        sitios, en los dos README).
+        """
+        import actualizar_conteos as AC
+        texto = ("| Catálogo unificado | \\d+ escenas compuestas con 20 primitivas |\n"
+                 "│   ├── galeria.py  # Suite visual de las \\d+ escenas\n")
+        cambios = []
+        nuevo = AC._transforma_escenas(texto, 41, "prueba", cambios)
+        self.assertNotIn("\\d+", nuevo, "un placeholder sin rellenar es ruido")
+        self.assertIn("41 escenas compuestas", nuevo)
+        self.assertIn("Suite visual de las 41 escenas", nuevo)
+        self.assertTrue(cambios)
 
 
 if __name__ == "__main__":
