@@ -31,6 +31,21 @@ def _plan(**extra):
     return plan
 
 
+class TestCaptionCentral(unittest.TestCase):
+    """Karaoke central sobre escenas del motor = pisada en cada plano."""
+
+    def test_caption_central_con_subtitulos_avisa(self):
+        aviso = AP._aviso_caption_central(_plan(subtitulos=True), "center")
+        self.assertIsNotNone(aviso)
+        self.assertIn("caption.py --plan", aviso["msg"])
+
+    def test_caption_abajo_no_avisa(self):
+        self.assertIsNone(AP._aviso_caption_central(_plan(subtitulos=True), "bottom"))
+
+    def test_sin_subtitulos_no_avisa(self):
+        self.assertIsNone(AP._aviso_caption_central(_plan(), "center"))
+
+
 class TestCadenciaYRepertorio(unittest.TestCase):
     """La cadencia narrada se declara; el poco repertorio se avisa."""
 

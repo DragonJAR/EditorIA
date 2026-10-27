@@ -95,7 +95,9 @@ def _puntuar_composicion(plan_m):
         s = min(s, 3.5)
     return max(1.0, round(s, 1)), (
         f"{solapes} solapes · zona segura x{zona} · letra minima {letra or '?'} px"
-        + (" (bajo el piso de 26)" if letra and letra < LETRA_OK else ""))
+        + (" (bajo el piso de 26)" if letra and letra < LETRA_OK else "")
+        + (": " + "; ".join(str(x) for x in (plan_m.get("solapes") or [])[:3])
+           if solapes else ""))
 
 
 def _puntuar_sonido(filas):

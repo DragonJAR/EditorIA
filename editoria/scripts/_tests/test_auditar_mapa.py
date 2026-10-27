@@ -1139,20 +1139,20 @@ class TestCifrasDelCodigo(unittest.TestCase):
         self.assertIn("rubrica descuadrada", out)
 
     def test_detecta_un_numero_de_comprobaciones_obsoleto(self):
-        # la puerta corre 3 comprobaciones sin plan y 7 con plan. el numero
+        # la puerta corre 3 comprobaciones sin plan y 8 con plan. el numero
         # que dice la prosa tiene que ser ese.
         raiz = _copia_completa(os.path.join(self.dir, "skill_puerta"))
         m = os.path.join(raiz, "references", "mapa.md")
         with open(m, encoding="utf-8") as f:
             txt = f.read()
-        self.assertIn("siete comprobaciones", txt, "el fixture tiene que traer la cifra buena")
+        self.assertIn("ocho comprobaciones", txt, "el fixture tiene que traer la cifra buena")
         with open(m, "w", encoding="utf-8") as f:
-            f.write(txt.replace("siete comprobaciones", "cinco comprobaciones"))
+            f.write(txt.replace("ocho comprobaciones", "cinco comprobaciones"))
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"el numero obsoleto no se detecto:\n{out}")
         self.assertIn("cifra falsa", out)
         self.assertIn("comprobaciones", out)
-        self.assertIn("7 con plan", out, "el fallo tiene que decir cuantos corre la puerta")
+        self.assertIn("8 con plan", out, "el fallo tiene que decir cuantos corre la puerta")
 
     def test_el_guard_cuenta_los_pasos_de_la_puerta_de_verdad(self):
         # el contador leia montage.py en vez de qa_entrega.py: contaba 0
@@ -1169,7 +1169,7 @@ class TestCifrasDelCodigo(unittest.TestCase):
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"anadir un paso a la puerta no se vio:\n{out}")
         self.assertIn("cifra falsa", out)
-        self.assertIn("8 con plan", out,
+        self.assertIn("9 con plan", out,
                       "el guard tiene que leer qa_entrega.py, no otro archivo")
 
     def test_detecta_un_eje_renombrado_en_la_rubrica(self):

@@ -150,6 +150,166 @@ class TestDefectosComposicion(unittest.TestCase):
         self.assertEqual(len(fallos), 1)
         self.assertIn("2 textos se pisan", fallos[0])
 
+    def test_los_solapes_dicen_que_textos_y_donde(self):
+        # un conteo sin dueno obligaba a correr medir_animacion aparte:
+        # el veredicto tiene que traer escena, instante y los dos textos
+        fallos = QA._defectos_composicion(
+            40, 1.0, ["timeline@25.7s: «04»/«Fuente: Cadena»"])
+        self.assertIn("timeline@25.7s", fallos[0])
+        self.assertIn("«04»", fallos[0])
+        self.assertIn("«Fuente: Cadena»", fallos[0])
+
+    def test_la_letra_dice_su_escena(self):
+        fallos = QA._defectos_composicion(
+            21, 1.0, [], culpables_letra=[
+                {"escena": "3:gauge", "texto": "Fuente: El firmware", "letra_px": 21}])
+        self.assertIn("3:gauge", fallos[0])
+        self.assertIn("Fuente: El firmware", fallos[0])
+
+    def test_la_zona_dice_su_escena(self):
+        fallos = QA._defectos_composicion(
+            40, 0.70, [], culpables_zona=[{"escena": "2:listo", "zona": 0.72}])
+        self.assertIn("2:listo", fallos[0])
+
+
+class TestPlanDesincronizado(unittest.TestCase):
+    """El plan editado despues del render no puede aprobar el video viejo."""
+
+    def test_plan_posterior_al_video_falla(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            plan, video = os.path.join(d, "p.json"), os.path.join(d, "v.mp4")
+            open(plan, "w").close(); open(video, "w").close()
+            os.utime(video, (1_000_000, 1_000_000))
+            os.utime(plan, (1_000_100, 1_000_100))
+            self.assertIsNotNone(QA._defecto_plan_desincronizado(plan, video))
+
+    def test_video_posterior_al_plan_pasa(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            plan, video = os.path.join(d, "p.json"), os.path.join(d, "v.mp4")
+            open(plan, "w").close(); open(video, "w").close()
+            os.utime(plan, (1_000_000, 1_000_000))
+            os.utime(video, (1_000_100, 1_000_100))
+            self.assertIsNone(QA._defecto_plan_desincronizado(plan, video))
+
+
+class TestProgresoAlMedir(unittest.TestCase):
+    """Medir un plan tarda minutos: sin progreso parece un cuelgue."""
+
+    def test_medir_anuncia_los_trabajos(self):
+        with open(MA.__file__, encoding="utf-8") as f:
+            src = f.read()
+        self.assertIn("imap_unordered", src)
+        self.assertIn("componiendo", src)
+
+
+class TestEscenasNoDesbordan(unittest.TestCase):
+    """Las escenas del reel DragonJAR, con su copy real, dentro de la zona."""
+
+    def _capturar(self, pintar):
+        import render_plan as R
+        from PIL import ImageDraw
+        R.formato(1080, 1920)
+        ctx = R.Ctx()
+        vistos = []
+        original = ImageDraw.ImageDraw.text
+
+        def espia(self, xy, text, fill=None, font=None, *a, **k):
+            if font is not None and str(text).strip():
+                vistos.append((str(text), font, xy, k.get("anchor", "la")))
+            return original(self, xy, text, fill, font, *a, **k)
+
+        ImageDraw.ImageDraw.text = espia
+        try:
+            pintar(R, ctx)
+        finally:
+            ImageDraw.ImageDraw.text = original
+        return R, vistos
+
+    def test_listo_cabe_y_sin_asteriscos(self):
+        def pintar(R, ctx):
+            e = R.completar_escena({"tipo": "listo", "from": 0, "to": 6,
+                                    "texto": "Formateo *completado*",
+                                    "at": {"listo": 0.4}})
+            R.sc_listo(ctx, e, 3.0)
+        R, vistos = self._capturar(pintar)
+        textos = " ".join(t for t, _, _, _ in vistos)
+        self.assertNotIn("*", textos)
+        x0, _, x1, _ = R.caja_segura()
+        for texto, fnt, (x, y), anchor in vistos:
+            ancho = R.largo(texto, fnt)
+            if anchor.startswith("m"):
+                self.assertGreaterEqual(x - ancho / 2, x0 - 2, texto)
+                self.assertLessEqual(x + ancho / 2, x1 + 2, texto)
+            else:   # draw_seg dibuja caracter a caracter desde la izquierda
+                self.assertGreaterEqual(x, x0 - 2, texto)
+                self.assertLessEqual(x + ancho, x1 + 2, texto)
+
+    def test_quote_el_rol_cabe_en_la_tarjeta(self):
+        def pintar(R, ctx):
+            e = R.completar_escena({"tipo": "quote", "from": 0, "to": 7,
+                                    "texto": "Borras lo que *ves*. No lo que vive en tu *hardware*.",
+                                    "autor": "DragonJAR",
+                                    "rol": "Hackeamos tu empresa antes que un delincuente",
+                                    "at": {"card": 0.2, "texto": 0.6, "autor": 3.0}})
+            R.sc_quote(ctx, e, 5.0)
+        R, vistos = self._capturar(pintar)
+        x0, _, x1, _ = R.caja_segura()
+        rol = [(t, f, xy, a) for t, f, xy, a in vistos if "delincuente" in t
+               or "Hackeamos" in t]
+        self.assertTrue(rol, "el rol tiene que dibujarse")
+        for texto, fnt, (x, y), anchor in rol:
+            ancho = R.largo(texto, fnt)
+            self.assertGreaterEqual(x - ancho / 2, x0, texto)
+            self.assertLessEqual(x + ancho / 2, x1, texto)
+
+    def test_bars_la_etiqueta_no_se_recorta(self):
+        def pintar(R, ctx):
+            e = R.completar_escena({"tipo": "bars", "from": 0, "to": 8,
+                                    "titulo": "Qué borra *formatear*",
+                                    "barras": [{"etiqueta": "Sistema operativo", "valor": 100, "max": 100},
+                                               {"etiqueta": "Tus archivos", "valor": 100, "max": 100},
+                                               {"etiqueta": "El firmware", "valor": 0, "max": 100, "acento": True}],
+                                    "at": {"rotulo": 0.2, "bar0": 0.8, "bar1": 1.1, "bar2": 1.4}})
+            R.sc_bars(ctx, e, 6.0)
+        R, vistos = self._capturar(pintar)
+        textos = [t for t, _, _, _ in vistos]
+        self.assertNotIn("Sistema opera…", textos)
+        self.assertTrue(any("Sistema" in t for t in textos))
+        self.assertTrue(any("operativo" in t for t in textos))
+
+    def test_audiowave_la_transcripcion_no_nace_en_el_piso(self):
+        def pintar(R, ctx):
+            e = R.completar_escena({"tipo": "audiowave", "from": 0, "to": 8,
+                                    "rotulo": "¿Tu empresa lo *detectaría?*",
+                                    "hablante": "DragonJAR",
+                                    "transcripcion": "¿Qué revisarías primero?",
+                                    "at": {"rotulo": 0.2, "tarjeta": 0.6, "onda": 1.0,
+                                           "texto": 1.6}})
+            R.sc_audiowave(ctx, e, 6.0)
+        R, vistos = self._capturar(pintar)
+        # text_reveal dibuja la transcripcion caracter a caracter: se
+        # juzgan los tamanos de todo el texto de la escena
+        tamanos = [f.size for t, f, _, _ in vistos if any(c.isalnum() for c in t)]
+        self.assertTrue(tamanos)
+        self.assertGreaterEqual(min(tamanos), R.ESCALA["nota"])
+
+    def test_la_fuente_no_nace_en_el_piso(self):
+        def pintar(R, ctx):
+            e = R.completar_escena({"tipo": "gauge", "from": 0, "to": 9,
+                                    "titulo": "Lo que el formateo *no toca*",
+                                    "valor": 0, "max": 100, "etiqueta": "del firmware",
+                                    "fuente": "El firmware vive fuera del sistema de archivos",
+                                    "at": {"rotulo": 0.2, "gauge": 0.7, "etiqueta": 2.0,
+                                           "fuente": 2.5}})
+            R.sc_gauge(ctx, e, 6.0)
+        R, vistos = self._capturar(pintar)
+        fuentes = [(t, f) for t, f, _, _ in vistos if t.startswith("Fuente:")]
+        self.assertTrue(fuentes)
+        for t, f in fuentes:
+            self.assertGreaterEqual(f.size, R.ESCALA["nota"], t)
+
     def test_los_tres_fallos_juntos(self):
         fallos = QA._defectos_composicion(18, 0.70, ["a"])
         self.assertEqual(len(fallos), 3)

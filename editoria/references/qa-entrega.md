@@ -51,13 +51,14 @@ Tambien acepta `--ignorar-inicio` para un fade-in intencional.
 | `auto_qa` | frames negros, congelados, flashes, fotosensibilidad, audio | el copy, el movimiento fino |
 | `delivery_check` | el spec de la plataforma: resolucion, fps, duracion, bitrate, sonoridad, true peak | la composicion |
 | `medir_animacion` | coherencia de movimiento: pops, tirones, arranques, densidad | el copy, la narrativa |
-| `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan | el copy, el movimiento fino |
+| `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan (cada solape con su escena, su instante y los dos textos) | el copy, el movimiento fino |
+| `plan-vs-video` | que el plan no sea posterior al MP4: un plan editado despues del render (una fuente retirada, un copy acortado) deja a la puerta aprobando un plan que no es el video entregado | el contenido, si el render es posterior |
 | `subtitulos` | en una pieza **narrada** para reels/tiktok/shorts, que los subtitulos esten declarados (`"subtitulos": true` o la ruta en el plan, o `--subtitulos archivo`) | si el quemado se ve bien (eso se mira en los frames) |
 
 Quemar subtitulos deja pixeles indistinguibles del resto de la imagen, asi
 que este paso no puede VERLOS: lo que impide es el silencio. Sin
 declaracion, la puerta falla con el comando para generarlos
-(`alinear.py` → `caption.py --palabras voz.palabras.json --karaoke`).
+(`alinear.py` → `caption.py --palabras voz.palabras.json --karaoke --plan plan.json`: ningun cue cruza un corte de escena y el karaoke cae en la banda inferior que el motor reservo, nunca en el centro que componen las escenas).
 Con plan, cada hallazgo de composicion trae su **escena y su texto**
 («escena 6:versus "…" 21 px»): la pasada con alcance corrige ahi, sin
 inspeccionar la pieza frame a frame.

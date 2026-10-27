@@ -216,6 +216,8 @@ def medir(job):
     n = i1 - i0
     try:
         for i in range(i0, i1):
+            if n >= 100 and i % max(1, n // 4) == 0:
+                print(f"  componiendo {nombre} ({f}): frame {i - i0}/{n}", flush=True)
             ti = i / fps
             en_hold[0] = any(s_["from"] + (s_["to"] - s_["from"]) * 0.5 <= ti <= s_["to"] - 0.6
                              for s_ in escenas)
@@ -591,8 +593,17 @@ def main():
         else:
             jobs = [(n, f, [dict(e, tipo=n)], e["to"], a.fps) for f in fmts for n, e in muestras.items()
                     if not solo or n in solo]
+        # progreso visible: componer minutos de frames sin una sola linea
+        # parece un cuelgue y mata corridas sanas por timeout. Se anuncia
+        # cada trabajo al lanzarlo y al cerrarlo (imap_unordered + contador).
+        print(f"midiendo {len(jobs)} trabajo(s) "
+              f"({', '.join(sorted({j[1] for j in jobs}))})…", flush=True)
+        res = []
         with Pool(a.jobs, initializer=_init) as pool:
-            res = pool.map(medir, jobs, chunksize=1)
+            for r in pool.imap_unordered(medir, jobs, chunksize=1):
+                res.append(r)
+                print(f"  medido {len(res)}/{len(jobs)}: {r['escena']} ({r['formato']})",
+                      flush=True)
         for r in res:
             if a.cortes:   # en una ventana de 2.5 s la densidad no dice nada: se juzgan pops, saltos y quietud
                 r["densidad"] = 1.0

@@ -186,16 +186,25 @@ def phrase_aware(cues, max_words=6):
     return [c[:3] + ((None, c[4]) if c[4] else ()) for c in agrupar_palabras(words, max_words)]
 
 
-def agrupar_palabras(words, max_words=6):
+def agrupar_palabras(words, max_words=6, cortes=()):
     """[[palabra, inicio, fin, hablante?]] -> cues frase-conscientes (inicio,
     fin, texto, duraciones_cs, hablante): ningun cue termina en una palabra
-    que abre frase (_abre_frase), nunca mezcla hablantes, y los tiempos
+    que abre frase (_abre_frase), nunca mezcla hablantes, nunca cruza un
+    corte de escena de `cortes` (un cue a caballo entre dos escenas se lee
+    sobre el plano equivocado y anticipa la voz siguiente), y los tiempos
     quedan monotonos. duraciones_cs = tiempo de cada palabra hasta la
     siguiente (el \\kf del karaoke), asi el resaltado cae en la silaba real."""
     hab = [w[3] if len(w) > 3 else None for w in words]
     chunks, i, n = [], 0, len(words)
     while i < n:
         j = min(i + max_words, n)
+        for c in cortes:                   # un corte de escena = un cue nuevo
+            if words[i][1] < c:
+                for k in range(i + 1, j):
+                    if words[k][1] >= c:
+                        j = k
+                        break
+                break
         for k in range(i + 1, j):          # otro hablante = otro caption
             if hab[k] != hab[i]:
                 j = k
@@ -215,7 +224,7 @@ def agrupar_palabras(words, max_words=6):
     return out
 
 
-def cues_desde_palabras(path, max_words=6):
+def cues_desde_palabras(path, max_words=6, cortes=()):
     """Tiempos REALES por palabra (cualquier formato de _comun.leer_palabras:
     alinear.py, Whisper/WhisperX, con hablante opcional) -> cues con karaoke
     exacto. Nunca se reparte un cue a partes iguales si hay tiempos reales."""
@@ -223,7 +232,7 @@ def cues_desde_palabras(path, max_words=6):
              if clean_word(p["texto"]).strip(PUNCT)]
     if not words:
         die(f"{path}: no trae palabras con inicio/fin")
-    return agrupar_palabras(words, max_words)
+    return agrupar_palabras(words, max_words, cortes)
 
 
 def parse_text_cues(path, auto_seconds, gap, fps=None):
@@ -367,16 +376,27 @@ def _cargar_fuente_medida(font_file, size):
     return _FontEst(size)
 
 
+PISO_FIT_ABSOLUTO = 44   # px de PlayRes: por debajo, ni quemado se lee
+
+
 def _fit_cue_size(text, base_size, min_size, max_lines, avail_w, font_file):
     """Tamano para que el cue quepa en avail_w px y en max_lines lineas.
 
     Nunca reescribe ni acorta el texto: solo encoge la fuente (cero
     confabulacion). Devuelve (tamano, encogido). Si no hay PIL, usa el
     estimador proporcional _FontEst para conservar el ajuste determinista.
+
+    `min_size` es el piso OBJETIVO: si ni ahi el cue cabe en max_lines,
+    seguir a ese tamano entrega un cue de 3+ lineas que crece sobre la
+    escena (medido: el karaoke pisaba las etiquetas de la escena que
+    debia proteger). En ese caso se sigue encogiendo hasta el piso
+    absoluto legible y el cue cabe en sus lineas; el aviso de cues
+    encogidos lo cuenta igual.
     """
     plain = re.sub(r"\{[^}]*\}", "", text).replace("\\N", "\n")
     size = base_size
-    while size > min_size:
+    suelo = PISO_FIT_ABSOLUTO
+    while size > suelo:
         font = _cargar_fuente_medida(font_file, size)
         # líneas REALES (las mismas que fijará _partir_fijo), no ancho/área
         needed = sum(len(_envolver(ln, font, avail_w)) for ln in (plain.split("\n") or [""]))
@@ -411,6 +431,12 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
     scale = play_h / 288.0
     size = int(round(args.size * scale))
     margin = int(round(args.margin * scale))
+    # --margin es el margen VERTICAL (la banda): los laterales son el
+    # margen seguro de siempre (30). Reusar el vertical tambien como
+    # lateral dejaba el texto en una columna de 146 px en cuanto la
+    # banda pedia un margen grande, y el cue crecia hacia arriba
+    # pisando la escena que debia proteger.
+    margin_lat = int(round(min(args.margin, 30) * scale))
     # fit-size: encoger por cue hasta que quepa en el ancho seguro.
     # Nunca reescribe el texto; si no se puede medir, no se encoge.
     font_file = None
@@ -435,7 +461,7 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
                 font_file = resolver_fuente(args.font)
             except Exception:
                 font_file = None
-    avail_w = max(50, play_w - 2 * margin)
+    avail_w = max(50, play_w - 2 * margin_lat)
     fit_min = int(round(args.min_size * scale))
     fit_reducidos = 0
     primary = ass_color(args.highlight_color if args.karaoke else args.color)
@@ -452,7 +478,7 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
         f"Style: Default,{args.font},{size},{primary},{secondary},{outline},{back},"
         f"{-1 if args.bold else 0},0,0,0,100,100,0,0,{3 if args.box else 1},"
         f"{args.outline * scale:.1f},{args.shadow * scale:.1f},{ALIGN[args.position]},"
-        f"{margin},{margin},{margin},1",
+        f"{margin_lat},{margin_lat},{margin},1",
     ]
     # un estilo por hablante: el color del hablante es SU acento — el texto
     # entero sin karaoke; con karaoke, la palabra dicha (la base sigue neutra)
@@ -473,8 +499,12 @@ def write_ass(cues, path, args, play_w, play_h, video=None):
         estilo = estilos_hab.get(((cue[4] if len(cue) > 4 else None) or "").upper(), "Default")
         cue_size = size
         if font_file:
+            # libass dibuja en negrita si el estilo la pide y la medida de
+            # PIL es en regular: sin este margen, el cue medido a 2 lineas
+            # salia a 3 en el quemado
+            avail_fit = avail_w * (0.92 if args.bold else 1.0)
             cue_size, encogido = _fit_cue_size(
-                text, size, fit_min, args.max_lines, avail_w, font_file)
+                text, size, fit_min, args.max_lines, avail_fit, font_file)
             if encogido:
                 fit_reducidos += 1
         fijo = False
@@ -559,6 +589,10 @@ def main():
     src.add_argument("--text", help="archivo de texto con cues (o el texto mismo entre comillas; \\n separa cues) para convertir a SRT (formato arriba)")
     src.add_argument("--palabras", help="JSON de tiempos por palabra (scripts/alinear.py): "
                      "cues frase-conscientes y karaoke con el tiempo REAL de cada palabra")
+    src.add_argument("--plan", help="plan.json de la pieza (render_plan.py): ningun cue cruza "
+                     "un corte de escena y, si el plan declara subtitulos, se quema en la "
+                     "banda inferior que el motor reservo (nunca en el centro, donde las "
+                     "escenas componen su texto), salvo --position explicita")
     src.add_argument("--transcribe", action="store_true",
                      help="genera el SRT desde el audio con un motor local de voz-a-texto si hay uno "
                           "instalado (whisper-cli / whisper / faster-whisper); nunca es requerido")
@@ -596,7 +630,9 @@ def main():
                      help="maximo de lineas por cue: si un cue no cabe, se encoge "
                      "la fuente (nunca se reescribe el texto); 0 = sin limite")
     sty.add_argument("--min-size", type=int, default=14,
-                     help="tamano minimo al encoger un cue para que quepa (default 14)")
+                     help="tamano objetivo al encoger un cue para que quepa (default 14); "
+                     "si ni ahi cabe en --max-lines, sigue hasta el piso legible de 44 px "
+                     "de PlayRes antes que entregar un cue de mas lineas")
     anim = ap.add_argument_group("animacion (genera ASS; requiere --text o --srt)")
     anim.add_argument("--animate", choices=["none", "fade", "pop", "slide"], default=None,
                       help="animacion de entrada por cue (default none)")
@@ -627,6 +663,29 @@ def main():
     add_common(ap)
     args = ap.parse_args()
     apply_common(args)
+
+    # el plan manda sobre la posicion: el motor ya reservo su banda abajo
+    cortes_escena = ()
+    if getattr(args, "plan", None):
+        import json as _json
+        try:
+            with open(args.plan, encoding="utf-8") as fh:
+                _plan = _json.load(fh)
+        except (OSError, ValueError) as ex:
+            die(f"--plan: no se pudo leer {args.plan}: {ex}")
+        cortes_escena = tuple(sorted(
+            float(e["from"]) for e in _plan.get("escenas") or []
+            if isinstance(e, dict) and isinstance(e.get("from"), (int, float))
+            and float(e["from"]) > 0.05))
+        if _plan.get("subtitulos") and not args.position:
+            info("con --plan: los subtitulos van en la banda inferior que el "
+                 "motor reservo (el centro lo componen las escenas); "
+                 "usa --position para forzar otra")
+            args.position = "bottom"
+            if args.margin == 30 and not str(_plan.get("tamano", "")).startswith("1920"):
+                # la banda reservada (12 % sobre la zona segura vertical):
+                # el margen por defecto (30) dejaria el texto bajo la UI
+                args.margin = 70
 
     brand = load_brand(args.brand)
     bc, bcap = brand["colors"], brand["caption"]
@@ -690,7 +749,7 @@ def main():
         args.text = None
     if args.text or args.palabras:
         if args.palabras:
-            cues = cues_desde_palabras(args.palabras, args.phrase_words)
+            cues = cues_desde_palabras(args.palabras, args.phrase_words, cortes_escena)
             info(f"{len(cues)} cues desde tiempos reales por palabra")
         else:
             cues = parse_text_cues(args.text, args.auto_seconds, args.gap, fps_for_tc)
