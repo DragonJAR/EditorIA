@@ -914,6 +914,47 @@
     "item1": 0.7,
     "item2": 1.1
    }
+  },
+  "cartel": {
+   "from": 0,
+   "to": 5,
+   "kicker": "Todo noviembre",
+   "icono": "lupa",
+   "texto": "¿Qué está pasando con ~Notepad++~?",
+   "at": {
+    "panel": 0.2,
+    "icono": 0.5,
+    "texto": 0.8
+   }
+  },
+  "camino": {
+   "from": 0,
+   "to": 6,
+   "ruta": "recta",
+   "estaciones": [
+    {
+     "titulo": "Lecciones",
+     "icono": "1"
+    },
+    {
+     "titulo": "Racha",
+     "icono": "2"
+    },
+    {
+     "titulo": "Liga",
+     "icono": "3"
+    },
+    {
+     "titulo": "Hablar",
+     "icono": "4"
+    }
+   ],
+   "at": {
+    "estacion0": 0.2,
+    "estacion1": 0.8,
+    "estacion2": 1.4,
+    "estacion3": 2.0
+   }
   }
  }
 }

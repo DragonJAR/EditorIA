@@ -76,8 +76,8 @@ class TestCamaraCoherente(unittest.TestCase):
         saliente = {"tipo": "titular", "from": 0.0, "to": 4.0}
         entrante = {"tipo": "titular", "from": 4.0, "to": 8.0}
         for t_corte in (4.0,):
-            fs, dy_s = R.respiracion(saliente, t_corte)
-            fe, dy_e = R.respiracion(entrante, t_corte)
+            fs, dy_s, dx_s = R.respiracion(saliente, t_corte)
+            fe, dy_e, dx_e = R.respiracion(entrante, t_corte)
             self.assertAlmostEqual(fs, fe, places=9,
                                    msg="la escala salta en el corte")
             self.assertAlmostEqual(dy_s, dy_e, places=9,
@@ -95,8 +95,8 @@ class TestCamaraCoherente(unittest.TestCase):
         R.aplicar_globales(self._plan())
         saliente = {"tipo": "titular", "from": 0.0, "to": 4.0}
         entrante = {"tipo": "titular", "from": 4.0, "to": 8.0}
-        fs, _ = R.respiracion(saliente, 4.0)
-        fe, _ = R.respiracion(entrante, 4.0)
+        fs, _, _ = R.respiracion(saliente, 4.0)
+        fe, _, _ = R.respiracion(entrante, 4.0)
         self.assertNotAlmostEqual(fs, fe, places=3,
                                   msg="el reloj por escena ya no Salta: "
                                       "el defecto de partida cambio")

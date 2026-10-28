@@ -99,7 +99,7 @@ renderizados en código** (óleo al thick, acuarela, ukiyo-e, briefing de
 satélite, desmontaje de producto, documental de archivo…), con Node y
 Three.js, y su propio flujo de dirección.
 
-Lo que aporta aquí es un **vocabulario de LOOKS**: el motor tiene 42 tipos de
+Lo que aporta aquí es un **vocabulario de LOOKS**: el motor tiene 44 tipos de
 escena, que no son estilos de película. Sirve para tres cosas, y ninguna es
 duplicar el motor:
 

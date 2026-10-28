@@ -24,6 +24,7 @@ nunca se sustituye en silencio por otra que "se parece".
 | Un objeto, producto o escena 3D como material | 3D como capa con alfa sobre el motor que componga la pieza | El objeto entra renderizado con alfa; el motor de la pieza no cambia | `references/3d.md` |
 | Animar sobre video real (rótulos, gráficas, PiP que siguen a la acción) | Híbrido: el footage manda y la animación complementa | La capa animada se ancla a palabras o instantes del footage, no a segundos sueltos | `references/modos-produccion.md` |
 | Un diagrama que se dibuja a sí mismo | HTML+SVG con la marca de la pieza | Un solo fichero autocontenido; el trazo se anima por longitud de path | `references/diagramas.md` |
+| Una pieza que sea UN recorrido (una idea, muchas funciones) y no una tanda de planos | El camino: una línea de luz que corre, la cámara vuela con la cabeza y cada estación se enciende al paso | La escena `camino` del catálogo: las estaciones van en `estaciones` y el trazo lo dibuja UNA función | `references/escenas.md` → `references/plan-video.md` |
 
 Regla de cierre de la elección: la técnica se verifica como el resto de la
 pieza — preview de instantes antes de pagar el render, y la puerta al final
@@ -167,6 +168,20 @@ El movimiento de cámara convierte un layout plano en un espacio.
   exponencial. Nunca continuo.
 - **Un movimiento por plano** (`direccion.md`): push-in *o* paneo *o*
   paralaje, no los tres.
+- **Vuelo continuo (una pieza, un solo recorrido)**: la cámara no salta de
+  plano en plano: viaja. En 2D eso es un **dolly con paneo**: el mundo se
+  escala y se desliza mientras la cámara se queda con el punto de interés
+  (la cabeza del trazo). Es lo que hace que una pieza se lea como una sola
+  idea y no como una tanda de planos, y es lo que mantiene los cuadros
+  VIVOS: un trazo que se arrastra despacio cambia tan pocos píxeles que el
+  medidor lo lee como cuadro congelado (medido: 37 % de la pieza "muerta"
+  con la cámara quieta; 0 % con la cámara volando). La escena `camino` lo
+  hace de serie.
+- **Un solo trazo para todo**: cuando un elemento hace de muchas cosas
+  (una línea que revela el logotipo, llena la barra, se enrosca, baja bajo
+  el lema...), se dibuja con UNA función compartida (`trazado`) y cada uso
+  cambia solo sus puntos. Un trazo dibujado de cinco maneras son cinco
+  trazos que se desincronizan.
 
 ## 6. Tipografía en movimiento
 

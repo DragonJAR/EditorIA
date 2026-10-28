@@ -139,6 +139,38 @@ aqui los nodos se ENCADENAN: el punteado dice que es una secuencia. Los
 iconos son trazos dibujados (`codigo`, `globo`, `alerta`, `lupa`, `reloj`),
 no glifos: un glifo depende de que la fuente lo tenga.
 
+### "Quiero que la marca firme la pieza y decir de donde sale el material"
+`cabecera` — la banda de arriba: el logo del pack a la izquierda y un chip con
+la FUENTE a la derecha. Es el elemento que el reel de "cara" lleva en todos
+sus fotogramas.
+
+OJO CON EL PAPEL DEL CHIP: el chip es la fuente (de donde sale el material),
+NO la accion. El boton es la accion y va en otra parte: si el chip dice
+"hablamos" y el boton dice "míralo en YouTube", la pieza promete dos cosas y
+no cumple ninguna.
+
+### "Quiero decir algo en un cartel, con una palabra resaltada"
+`cartel` — el panel con el rótulo de arriba, un icono de línea GRANDE en el
+acento y la afirmación al lado. Es el cartel del reel de "cara": "¿QUÉ ESTÁ
+PASANDO CON NOTEPAD++?" con la lupa al lado, y "LO VIO DIEGO DESDE / 0 OCT"
+con el reloj.
+
+La palabra que sostiene el dato va en un BLOQUE de color (rojo con el texto
+blanco), y el bloque acaba donde acaba la palabra: "~NOTEPAD++~?" deja la
+interrogación fuera. El markup es el del kit: `*clave*` la pone en el
+acento, `~caja~` en un bloque rojo y `^caja^` en un bloque blanco.
+
+Es la version ESTATICA de `frase` (que escribe palabra a palabra): para una
+afirmación que ya esta escrita, el cartel.
+
+### "Quiero que la pieza sea UN recorrido, no una lista de planos"
+`camino` — una linea de luz que corre por la pieza y va encendiendo las
+estaciones que pasa. La camara vuela con la cabeza (el mundo se escala y se
+desliza) y cada estacion es un nodo 3D.
+
+Es la idea que hace que una pieza se lea como una sola idea y no como una
+tanda de planos: todo esta en el mismo camino.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
@@ -147,7 +179,7 @@ no glifos: un glifo depende de que la fuente lo tenga.
 
 Este indice da UNA escena por intencion, y esa es la trampa: si cada pieza
 resuelve «dato» con `stats` y «cierre» con `final`, todas las piezas se
-parecen aunque el catalogo tenga 42 tipos. La escena se elige por el
+parecen aunque el catalogo tenga 44 tipos. La escena se elige por el
 argumento, y dentro de la misma intencion hay familia para rotar. La tabla
 de abajo ES `scripts/data/repertorio.json` (la única fuente; si difieren,
 manda el JSON y `repertorio.py validar` lo dice):
@@ -156,9 +188,9 @@ manda el JSON y `repertorio.py validar` lo dice):
 |---|---|
 | gancho | `apertura`, `hero`, `countdown`, `buscador`, `pildoras`, `orbOpen` |
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
-| proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena` |
+| proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena`, `camino` |
 | social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
-| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave` |
+| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera` |
 | comparacion | `versus`, `bars`, `ranking` |
 | demostracion | `demo`, `callout`, `buscador` |
 | estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |
@@ -166,7 +198,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 | estructura | `index`, `canales`, `medianoche` |
 
 Una escena puede servir a varias intenciones (`bars` da un dato y también
-compara): por eso las 42 escenas del motor quedan alcanzables, incluidas
+compara): por eso las 44 escenas del motor quedan alcanzables, incluidas
 las que la antigua tabla dejaba fuera (`versus`, `demo`, `callout`,
 `kenburns`, `typewriter`, `listo`, `pago`, `recupera`, `index`, `canales`,
 `medianoche`, `orbOpen`, `rotulo_inferior`).

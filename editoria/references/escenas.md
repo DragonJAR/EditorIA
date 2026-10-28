@@ -1,4 +1,4 @@
-# Catálogo de escenas (42 tipos del plan)
+# Catálogo de escenas (44 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -99,9 +99,9 @@ alfa creciente (`smoothstep`). Es el corte más neutro del catálogo: no pide
 atención como la `mancha` ni deja formas orgánicas en el encuadre. Se declara
 en la escena entrante: `"transicion": "dissolve"`.
 
-## Catálogo unificado de escenas (42 tipos del plan)
+## Catálogo unificado de escenas (44 tipos del plan)
 
-El catálogo integra las 13 escenas originales más 29 escenas de
+El catálogo integra las 13 escenas originales más 31 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
 `references/scene-patterns-from-internet.md`). Cada escena nueva se compone
 con las primitivas DRY de `render_plan.py` (lista al final de este archivo).
@@ -350,6 +350,53 @@ de arriba), `y?` (dónde va el panel; por defecto, el fondo de la zona segura),
 El texto de la casilla es el rol `secundario` de la escala (32 px) y **no se
 encoge**: si el copy no cabe en dos líneas lo que se acorta es el copy, no la
 letra (queda anotado en `RECORTES`).
+
+**`cartel`** — El **cartel**: el rótulo de arriba, un icono de línea GRANDE
+en el acento y la afirmación al lado. Es el cartel del reel de "cara"
+(`De8KNkdDT68`): "¿QUÉ ESTÁ PASANDO CON NOTEPAD++?" con la lupa al lado, y
+"LO VIO DIEGO DESDE / 0 OCT" con el reloj.
+
+MEDIDO sobre ese reel: el panel va de x=60 a x=1019 con el borde de 1 px;
+la raya del rótulo mide 40×6 px; el icono de línea mide ~100 px y va en el
+acento; la afirmación es el display en negrita y la palabra que sostiene el
+dato va en un **bloque rojo** (texto blanco).
+
+El bloque acaba donde acaba la palabra: el markup es **por carácter**, así
+que `~NOTEPAD++~?` deja la interrogación fuera del bloque (medido: con el
+markup por palabra, la interrogación se quedaba dentro). `*clave*` pone la
+palabra en el acento, `~caja~` en un bloque rojo y `^caja^` en un bloque
+blanco.
+
+Es la versión **estática** de `frase` (que escribe palabra a palabra): para
+una afirmación que ya está escrita, el cartel.
+
+**`camino`** — El **camino**: una línea de luz que corre por la pieza y va
+encendiendo las estaciones que pasa. La cámara vuela con la cabeza (el mundo
+se escala y se desliza) y cada estación es un nodo 3D.
+
+Es la pieza que se lee como UNA idea y no como una tanda de planos: todo
+está en el mismo camino. La línea la dibuja **una sola función** (`trazado`),
+que es la misma que sirve para un barra, un subrayado o una onda: el trazo
+es un elemento de la casa, no un adorno de esta escena.
+
+MEDIDO sobre el reel de referencia: el nodo mide ~100 px de lado con el
+labio oscuro debajo (el botón 3D), la línea pasa por el CENTRO de los nodos
+(es la línea la que los revela, no un adorno al lado) y las estaciones se
+encienden cuando la cabeza las pasa.
+
+`estaciones[{titulo, icono?}]`, `ruta?` (recta, s), `y?`, `x0?`, `x1?`,
+`grosor?`, `color?`, `colores?` (la línea se divide en ramas de colores),
+`at{estacion0..n}`.
+
+**El vuelo es de la pieza, no de la escena**: es el global `camara` (su
+paneo `x0`→`x1`) el que hace que la cámara viaje y el mundo se deslice. Si
+la escena volara por su cuenta, la zona segura mediría un mundo saliéndose
+del cuadro y la escena se encogería sola (medido: 0,72). Con la cámara
+global, el mundo se escapa del encuadre porque la cámara se ha ido, que es
+lo que pasa de verdad.
+
+`texto` (la afirmación), `kicker?` (el rótulo de arriba), `icono?` (lupa,
+reloj, alerta, globo, codigo), `tam?`, `y?`, `at{panel, icono, texto}`.
 
 **`cadena`** — La **cadena de estados**: N nodos con icono de línea, unidos
 por un conector punteado, cada uno con su etiqueta. Es la escena del reel

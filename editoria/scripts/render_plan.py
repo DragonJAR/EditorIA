@@ -655,6 +655,7 @@ def aplicar_globales(plan):
                    {k: str(v.get(k, NUMEROS[k])) for k in ("miles", "decimal")})
     _preparar_camara(plan)
     _preparar_deplecion(plan)
+    _preparar_cabecera(plan)
 
 
 # ---- CAMARA DE LA PIEZA (una trayectoria, no una por escena) -------------
@@ -681,7 +682,8 @@ _CAMARA={"z0":None,"z1":None,"flota":6,"t0":0.0,"t1":1.0,"activa":False}
 
 def _preparar_camara(plan):
     """Deja la trayectoria de cámara lista (o la apaga si el plan no la pide)."""
-    _CAMARA.update({"z0":None,"z1":None,"flota":FLOTA_CAM,"t0":0.0,"t1":1.0,"activa":False})
+    _CAMARA.update({"z0":None,"z1":None,"flota":FLOTA_CAM,"t0":0.0,"t1":1.0,
+                    "activa":False,"x0":0.0,"x1":0.0,"y0":0.0,"y1":0.0})
     if "camara" not in plan:
         return                      # el plan no la pide: la camara se comporta como antes
     cam=plan.get("camara") or {}
@@ -698,8 +700,17 @@ def _preparar_camara(plan):
     t1=float(max((e.get("to",t0) for e in esc), default=t0+1.0))
     if t1<=t0:
         t1=t0+1.0
+    # el RECORRIDO de la camara: de donde sale a donde llega (en px). Con
+    # esto la camara tambien VIAJA de lado, no solo se acerca: un vuelo
+    # continuo (una pieza, un solo recorrido) es un paneo + un zoom.
+    try:
+        x0=float(cam.get("x0",0.0)); x1=float(cam.get("x1",x0))
+        y0=float(cam.get("y0",0.0)); y1=float(cam.get("y1",y0))
+    except (TypeError,ValueError):
+        x0=x1=y0=y1=0.0
     _CAMARA.update({"z0":z0,"z1":z1,"flota":float(cam.get("flota",FLOTA_CAM)),
-                    "t0":t0,"t1":t1,"activa":True})
+                    "t0":t0,"t1":t1,"activa":True,
+                    "x0":x0,"x1":x1,"y0":y0,"y1":y1})
 
 
 def _escala_camara(t):
@@ -710,6 +721,22 @@ def _escala_camara(t):
     t0,t1=_CAMARA["t0"],_CAMARA["t1"]
     p=clamp01((t-t0)/max(1e-6,t1-t0))
     return z0+(z1-z0)*p
+
+
+def _offset_camara(t):
+    """El RECORRIDO de la camara (px): de donde sale a donde llega.
+
+    Es lo que hace que la camara VIAJE de lado y no solo se acerque: con
+    esto una pieza puede ser un solo recorrido continuo en vez de una tanda
+    de planos."""
+    if not _CAMARA["activa"]:
+        return 0.0, 0.0
+    t0,t1=_CAMARA["t0"],_CAMARA["t1"]
+    p=clamp01((t-t0)/max(1e-6,t1-t0))
+    p=smoothstep(p)
+    dx=_CAMARA["x0"]+(_CAMARA["x1"]-_CAMARA["x0"])*p
+    dy=_CAMARA["y0"]+(_CAMARA["y1"]-_CAMARA["y0"])*p
+    return dx, dy
 
 
 # ---- LA BARRA DE DEPLECION (el reel de "cara") ---------------------------
@@ -789,6 +816,89 @@ def _preparar_deplecion(plan):
     _DEPLECION.update({"activa":True,"y":y,"alto":alto,
                         "color":_color_de_deplecion(cfg.get("color")),
                         "ancho":ancho,"t0":0.0,"t1":None})
+
+
+# ---- LA CABECERA DE MARCA (el rack que firma la pieza) --------------------
+#
+# En el reel de "cara" hay una banda arriba en TODOS los fotogramas: el logo
+# de la marca a la izquierda y un chip con la FUENTE a la derecha.
+#
+# MEDIDO sobre De8KNkdDT68 (1080x1920): el logo ocupa de x=71 a x=290 y el
+# chip va de x=300 a x=977, en la banda y=138..180 (a 7 % del alto, por
+# encima de la zona segura, como la UI de la plataforma); el chip es un
+# rectangulo de esquinas redondeadas (radio ~12) con el borde de 1 px en
+# gris y el texto en monoespaciada.
+#
+# OJO CON EL PAPEL DEL CHIP: el chip es la FUENTE (de donde sale el
+# material), NO la accion. El boton es la accion y va en otra parte: si el
+# chip dice "hablamos" y el boton dice "miralo en YouTube", la pieza
+# promete dos cosas y no cumple ninguna.
+#
+# Es un GLOBAL del plan y no una escena por una razon medida: la banda
+# esta en todos los fotogramas, mientras que una escena ocupa una ventana
+# (y las escenas no se solapan). Ademas, una escena estatica la declara la
+# puerta CONGELADA ("ningun hold congelado"): el rack no se mueve, asi que
+# como escena no tendria nada que hacer en su propia ventana.
+#
+#     "cabecera": {"chip": "CHARLA COMPLETA - youtu.be/...", "marca": "..."}
+#
+_CABECERA={"activa":False,"chip":"","marca":"","y":132,"alto":44}
+
+
+def _preparar_cabecera(plan):
+    """Deja la cabecera lista (o la apaga si el plan no la pide)."""
+    _CABECERA.update({"activa":False,"chip":"","marca":"","y":132,"alto":44})
+    cfg=plan.get("cabecera")
+    if cfg is None:
+        return
+    if cfg is True:
+        cfg={}
+    if not isinstance(cfg,dict):
+        return
+    try:
+        y=int(cfg.get("y",132)); alto=int(cfg.get("alto",44))
+    except (TypeError,ValueError):
+        return
+    if alto<=0:
+        return
+    _CABECERA.update({"activa":True,"chip":str(cfg.get("chip","")).strip(),
+                       "marca":str(cfg.get("marca","")).strip(),"y":y,"alto":alto})
+
+
+def dibuja_cabecera(ctx,layer,t,dur):
+    """Pinta la banda de la cabecera: el logo del pack y el chip con la fuente.
+
+    El logo solo sale si la pieza declara `marca` y esa marca es la del pack:
+    un logo nunca acompaña a otro nombre."""
+    if not _CABECERA["activa"]:
+        return
+    d=ImageDraw.Draw(layer)
+    y=int(_CABECERA["y"]); alto=int(_CABECERA["alto"])
+    x_izq=int(W*0.066)          # 71 px en el reel: el margen del logo
+    x_der=int(W*0.906)          # 977 px: el borde derecho del chip
+    # el logo (a la izquierda): el wordmark si el pack lo trae, y si no el
+    # isotipo. SOLO con la marca del pack.
+    if _CABECERA["marca"] and es_marca_del_pack(_CABECERA["marca"]):
+        lg=ctx.logo or ctx.iso          # el wordmark si el pack lo trae, si no el isotipo
+        if lg is not None:
+            lh=int(alto*0.92)
+            lw=max(1,int(lh*lg.width/lg.height))
+            img=lg.resize((lw,lh),Image.LANCZOS)
+            k=clamp01(t/0.4)          # entra con la pieza
+            if k<1:
+                img.putalpha(img.split()[3].point(lambda v:int(v*k)))
+            layer.alpha_composite(img,(x_izq,int(y+(alto-lh)/2)))
+    # el chip con la fuente (a la derecha)
+    texto=_CABECERA["chip"]
+    if texto:
+        fnt=font(MONO,28,700)
+        ancho=int(d.textlength(texto,font=fnt))+44
+        x0=x_der-ancho
+        k=clamp01(t/0.6)
+        d.rounded_rectangle([x0,y,x0+ancho,y+alto],radius=12,
+                            outline=(92,92,92,255),width=1)
+        d.text((x0+22,y+alto/2),texto,font=fnt,
+               fill=(200,200,200,int(255*k)),anchor="lm")
 
 
 def ancho_de_deplecion(t,dur):
@@ -1256,6 +1366,121 @@ def linea_discontinua(d, x0, x1, y, color, grosor=3, largo=10, hueco=12):
         # dibuja el extremo final incluido: con 10 y 11 sale un px de mas)
         d.line([x, y, xe - 1, y], fill=color, width=grosor)
         x = xe + hueco
+
+
+def trazado(layer, puntos, color, grosor=6, progreso=1.0, desvanecer=0.25,
+            alpha=255, brillo=True, cola=None):
+    """Un TRAZADO de luz: la linea que lo ata todo.
+
+    LA PRIMITIVA DRY DE LA PIEZA. El prompt del reel de referencia ("The
+    Path", spec de Duolingo) pide expressly que "la linea la dibuje UNA sola
+    funcion" y la usa para SEIS cosas distintas: revelar el logotipo, la
+    barra de progreso, la llama, la onda de voz, la linea bajo el lema y el
+    camino de estaciones. Aqui es lo mismo: un unico `trazado` y cada escena
+    lo llama con sus puntos. La forma del trazado la decide quien lo llama
+    (una recta, una S, una onda), no esta funcion.
+
+    `puntos`: [(x, y), ...] la polilinea.
+    `progreso`: 0..1, que parte del trazado esta escrita (la linea "corre").
+    `desvanecer`: la cola se apaga (0 = la cola no se apaga nunca).
+    `cola`: el ALFABETO de colores por los que va pasando la linea (la linea
+    se divide en ramas de colores: el camino que se abre en cuatro).
+    `brillo`: el halo ancho debajo del nucleo (un glow, nunca neon).
+    `alpha`: la opacidad global.
+
+    Se dibuja sobre una CAPA propia y se compone (no se dibuja con alfa
+    encima): con ImageDraw el alfa REEMPLAZA el pixel, y una cola que se
+    apaga borraria lo que hubiera debajo.
+    """
+    if not puntos or len(puntos) < 2:
+        return
+    sub = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+    ds = ImageDraw.Draw(sub)
+    # la longitud acumulada de cada tramo (para saber cuanto se ha escrito)
+    largos = [0.0]
+    for i in range(1, len(puntos)):
+        dx = puntos[i][0] - puntos[i - 1][0]
+        dy = puntos[i][1] - puntos[i - 1][1]
+        largos.append(largos[-1] + math.hypot(dx, dy))
+    total = largos[-1] or 1.0
+    hasta = clamp01(progreso) * total
+    if hasta <= 0:
+        return
+    cola_t = clamp01(desvanecer) * total
+    # el trazo se recorre en pasos FINOS: la cola que se apaga y el degradado
+    # de color son por PUNTO, no por tramo (con un tramo solo —una recta—
+    # la cola entera se apagaba o no se apagaba nunca)
+    paso = max(2.0, float(grosor))
+    for i in range(1, len(puntos)):
+        x0, y0 = puntos[i - 1]
+        x1, y1 = puntos[i]
+        seg = math.hypot(x1 - x0, y1 - y0)
+        if seg <= 0:
+            continue
+        n_sub = max(1, int(seg / paso))
+        for k in range(n_sub):
+            u0, u1 = k / n_sub, (k + 1) / n_sub
+            ax, ay = x0 + (x1 - x0) * u0, y0 + (y1 - y0) * u0
+            bx, by = x0 + (x1 - x0) * u1, y0 + (y1 - y0) * u1
+            pos = largos[i - 1] + seg * u0
+            if pos > hasta:
+                continue
+            a = alpha
+            if cola_t > 0:
+                a = alpha if pos < hasta - cola_t else \
+                    int(alpha * clamp01((hasta - pos) / cola_t))
+            if a <= 0:
+                continue
+            col = color
+            if cola:
+                # el color va cambiando a lo largo del trazado (las ramas):
+                # el primer color ocupa el primer `1/n` del camino, el
+                # segundo el siguiente, y asi hasta el final
+                idx = int((pos / total) * len(cola))
+                col = cola[max(0, min(len(cola) - 1, idx))]
+            rgb = tuple(int(c) for c in col[:3])     # el alfa lo pone el trazo
+            if brillo:
+                ds.line([ax, ay, bx, by], fill=rgb + (int(a * 0.18),),
+                        width=int(grosor * 3.2))
+            ds.line([ax, ay, bx, by], fill=rgb + (a,), width=int(grosor))
+    layer.alpha_composite(sub)
+
+
+def puntos_de_ruta(x0, y0, x1, y1, forma="recta", n=48, amp=0.18):
+    """Los puntos de un trazado, segun la forma: `recta`, `s` (la S que
+    recorre el camino de estaciones), `onda` (la voz) o `arco`.
+
+    La FORMA la decide quien llama; `trazado` solo sabe dibujar. Es la
+    misma idea que las primitivas de la casa: una funcion, muchas formas.
+    """
+    pts = []
+    if forma == "s":
+        # la amplitud es del RECORRIDO, no de la altura: si la linea es
+        # horizontal (y0 == y1) la S se aplana y no hay S
+        amp_px = amp * abs(x1 - x0) * 0.12
+        for i in range(n + 1):
+            p = i / n
+            x = x0 + (x1 - x0) * p
+            y = y0 + (y1 - y0) * p + math.sin(p * math.pi) * amp_px
+            pts.append((x, y))
+    elif forma == "onda":
+        for i in range(n + 1):
+            p = i / n
+            x = x0 + (x1 - x0) * p
+            y = y0 + math.sin(p * math.pi * 2) * (y1 - y0) * amp
+            pts.append((x, y))
+    elif forma == "arco":
+        for i in range(n + 1):
+            p = i / n
+            ang = math.pi * (1 - p)
+            cx, cy = (x0 + x1) / 2, (y1 + (x1 - x0) * 0.5) / 2
+            r = (x1 - x0) / 2
+            pts.append((cx + r * math.cos(ang) * -1, cy - r * math.sin(ang)))
+    else:
+        for i in range(n + 1):
+            p = i / n
+            pts.append((x0 + (x1 - x0) * p, y0 + (y1 - y0) * p))
+    return pts
 
 
 def cursor(d, x, y, escala=1.0, color=None, alpha=255):
@@ -2699,7 +2924,7 @@ def y_de_pantalla(e, t, y_destino):
     saca el texto del cuadro (medido: con la camara a 1,85 la linea de la
     frase caia 10 px por encima del borde superior).
     """
-    fr, dy = respiracion(e, t)
+    fr, dy, dx = respiracion(e, t)
     if abs(fr - 1.0) < 1e-6:
         return y_destino
     cx, cy = W / 2, H * 0.45
@@ -2727,7 +2952,7 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     # capa, asi que el tamano en la capa se divide por el factor de camara.
     # (si no, el texto crecia y menguaba con el zoom, y las lineas se
     # rozaban: un texto pisa a otro)
-    fr_cam, _dy_cam = respiracion(e, t)
+    fr_cam, _dy_cam, _dx_cam = respiracion(e, t)
     tam = max(18, int(round(tam_pantalla / max(0.2, fr_cam))))
     # el AUTO-FIT: la frase se encoge hasta que cabe en la zona segura (en
     # ANCHO y en ALTO). Sin esto, un copy largo se sale del cuadro y la
@@ -3254,6 +3479,234 @@ def sc_cadena(ctx, e, t):
             ds.text((xc, y_txt + alto_txt + 6), sub_txt,
                     font=fnt_s, fill=GRIS + (255,), anchor="ma")
         fundir(layer, sub, k)
+    return capa_salida(layer, t, e["to"])
+
+
+def sc_cartel(ctx, e, t):
+    """El cartel: el rótulo de arriba, un icono de línea GRANDE en el acento
+    y la afirmación al lado.
+
+    Es el cartel del reel de "cara": "¿QUÉ ESTÁ PASANDO CON NOTEPAD++?" con
+    la lupa al lado, y "LO VIO DIEGO DESDE / 0 OCT" con el reloj.
+
+    MEDIDO sobre De8KNkdDT68 (1080x1920): el panel va de x=60 a x=1019 con
+    el borde de 1 px; la raya del rótulo mide 40x6 px; el icono de línea
+    mide ~100 px y va en el acento; la afirmación es el display en negrita y
+    la palabra que sostiene el dato va en un BLOQUE ROJO (texto blanco).
+
+    El texto usa el markup del kit: `*clave*` la pone en el acento,
+    `~caja~` en un bloque rojo (texto blanco) y `^caja^` en un bloque
+    blanco (texto oscuro).
+
+    Params: `texto` (la afirmación), `kicker?` (el rótulo de arriba),
+    `icono?` (lupa, reloj, alerta, globo, codigo), `tam?`, `y?`,
+    `at{panel, icono, texto}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    at = e.get("at") or {}
+    x0, _, x1, y1 = caja_segura()
+    PANEL_PAD = 26
+    RADIO = 20
+    ICONO_R = 50
+    GAP_ICONO = 34
+    tam = int(e.get("tam", 52))
+    fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fT
+    fnt = fab(tam, 500)
+    fnt_b = fab(tam, 800)
+
+    # las palabras del texto y su resalte (el markup del kit, POR CARACTER:
+    # "~NOTEPAD++~?" pone el bloque solo en NOTEPAD++ y deja la interrogacion
+    # fuera, como en el reel)
+    palabras = []
+    for w in str(e.get("texto", "")).split():
+        segs, buf, tipo, clave, dentro = [], "", None, False, False
+        for ch in w:
+            if ch in "*~^":
+                if buf:
+                    segs.append((buf, tipo if dentro else None,
+                                 clave if dentro else False))
+                buf = ""
+                if dentro:            # el marcador de CIERRA el bloque
+                    tipo, clave, dentro = None, False, False
+                else:                # el de apertura lo ENTIERRA
+                    tipo = {"~": "roja", "^": "blanca"}.get(ch)
+                    clave = (ch == "*")
+                    dentro = True
+            else:
+                buf += ch
+        if buf:
+            segs.append((buf, tipo if dentro else None, clave if dentro else False))
+        if segs:
+            palabras.append(segs)
+    if not palabras:
+        return capa_salida(layer, t, e["to"])
+
+    # el reparto en lineas: el texto va a la derecha del icono
+    ancho_ico = ICONO_R * 2 if e.get("icono") else 0
+    x_txt = x0 + PANEL_PAD + ancho_ico + (GAP_ICONO if ancho_ico else 0)
+    ancho_txt = x1 - PANEL_PAD - x_txt
+    lineas, linea, ancho_linea = [], [], 0
+    for segs in palabras:
+        w_ = sum(ctx.tmp.textlength(s[0], font=fnt_b if s[2] else fnt) for s in segs)
+        if linea and ancho_linea + w_ > ancho_txt:
+            lineas.append(linea)
+            linea, ancho_linea = [], 0
+        linea.append(segs)
+        ancho_linea += w_ + ctx.tmp.textlength(" ", font=fnt)
+    if linea:
+        lineas.append(linea)
+    alto_linea = int(tam * 1.18)
+    alto_texto = len(lineas) * alto_linea
+
+    alto_kicker = 30 if e.get("kicker") else 0
+    alto_panel = PANEL_PAD * 2 + alto_kicker + 20 + max(alto_texto, ICONO_R * 2)
+    try:
+        y_panel = int(e.get("y", y1 - alto_panel))
+    except (TypeError, ValueError):
+        y_panel = int(y1 - alto_panel)
+    y_panel = max(0, min(y_panel, H - alto_panel))
+
+    # el panel (entra con la pieza)
+    k_panel = entra(t, at.get("panel", e["from"] + 0.2), "bloque")
+    sub_p, dp = grupo()
+    dp.rounded_rectangle([x0, y_panel, x1, y_panel + alto_panel], radius=RADIO,
+                         fill=PANEL + (255,), outline=(70, 70, 70, 255), width=2)
+    y_k = y_panel + PANEL_PAD
+    if e.get("kicker"):
+        dp.rectangle([x0 + PANEL_PAD, y_k + 10, x0 + PANEL_PAD + 40, y_k + 16],
+                     fill=ACENTO + (255,))
+        fnt_k = ctx.fM(ESCALA["nota"], 700)
+        dp.text((x0 + PANEL_PAD + 56, y_k + 13), str(e["kicker"]).upper(),
+                font=fnt_k, fill=GRIS + (255,), anchor="lm")
+    fundir(layer, sub_p, k_panel)
+
+    y_cont = y_k + alto_kicker + 20
+
+    # el icono grande, en el acento
+    if e.get("icono"):
+        cx = x0 + PANEL_PAD + ICONO_R
+        cy = y_cont + max(alto_texto, ICONO_R * 2) / 2
+        k_ico = entra(t, at.get("icono", e["from"] + 0.4), "bloque")
+        if k_ico > 0:
+            sub_i, di = grupo()
+            icono_linea(di, e["icono"], cx, cy, ICONO_R, ACENTO + (255,))
+            if k_ico < 1:
+                sub_i.putalpha(sub_i.split()[3].point(lambda v: int(v * k_ico)))
+            layer.alpha_composite(sub_i)
+
+    # la afirmación, con la palabra en su bloque
+    k_txt = entra(t, at.get("texto", e["from"] + 0.6), "bloque")
+    if k_txt > 0:
+        sub_t, dt = grupo()
+        y_linea = y_cont
+        for ln in lineas:
+            x_linea = x_txt
+            for segs in ln:
+                for txt_w, tipo, clave in segs:
+                    f_ = fnt_b if clave else fnt
+                    w_ = dt.textlength(txt_w, font=f_)
+                    if tipo == "roja":
+                        dt.rectangle([x_linea - 6, y_linea - 4, x_linea + w_ + 6,
+                                      y_linea + alto_linea - 8], fill=ACENTO + (255,))
+                        dt.text((x_linea, y_linea), txt_w, font=f_,
+                                fill=BLANCO + (255,), anchor="la")
+                    elif tipo == "blanca":
+                        dt.rectangle([x_linea - 6, y_linea - 4, x_linea + w_ + 6,
+                                      y_linea + alto_linea - 8], fill=BLANCO + (255,))
+                        dt.text((x_linea, y_linea), txt_w, font=f_,
+                                fill=NEGRO + (255,), anchor="la")
+                    else:
+                        dt.text((x_linea, y_linea), txt_w, font=f_,
+                                fill=ACENTO + (255,) if clave else BLANCO + (255,),
+                                anchor="la")
+                    x_linea += w_
+                x_linea += dt.textlength(" ", font=fnt)
+            y_linea += alto_linea
+        if k_txt < 1:
+            sub_t.putalpha(sub_t.split()[3].point(lambda v: int(v * k_txt)))
+        layer.alpha_composite(sub_t)
+    return capa_salida(layer, t, e["to"])
+
+
+def sc_camino(ctx, e, t):
+    """El camino: una linea de luz que corre por la pieza y va encendiendo
+    las estaciones que pasa.
+
+    Es la idea del reel de referencia ("The Path"): una sola linea de luz
+    hace de todo (revela el logotipo, llena la barra, se enrosca en la llama,
+    es la onda de la voz, baja bajo el lema) y CADA FUNCION DE LA PIEZA es
+    una estacion en el camino. Aqui la linea se dibuja con UNA funcion
+    (`trazado`) y las estaciones son las insignias 3D que la casa ya tiene
+    (`insignia_3d`).
+
+    MEDIDO sobre el reel (1080x1920): el nodo mide ~100 px de lado con el
+    labio oscuro debajo (el boton 3D de Duolingo), el borde se redondea con
+    radio ~30 y la linea pasa por el CENTRO de los nodos (es la linea la
+    que los revela, no un adorno al lado).
+
+    Params: `estaciones[{titulo, icono?, hecha?}]`, `ruta?` (recta, s),
+    `y?`, `ancho?`, `at{estacion0..n}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    estaciones = e.get("estaciones") or []
+    if not estaciones:
+        return capa_salida(layer, t, e["to"])
+    at = e.get("at") or {}
+    zx0, _, zx1, _ = caja_segura()
+    y = int(e.get("y", H * 0.46))
+    x0 = int(e.get("x0", zx0))
+    x1 = int(e.get("x1", zx1))
+    R = 50
+    col_linea = e.get("color") or ACENTO
+    n = len(estaciones)
+
+    # el MUNDO: la linea y las estaciones, en coordenadas de mundo
+    mundo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    pts = puntos_de_ruta(x0, y, x1, y, e.get("ruta", "recta"))
+    p0 = 0.5 / n
+    p1 = 1.0 - 0.5 / n
+    prog = clamp01((t - e["from"]) / max(1e-6, e["to"] - e["from"]))
+    cabeza = p0 + (p1 - p0) * prog
+    # la linea: la MISMA funcion para todos (DRY)
+    trazado(mundo, pts, col_linea, grosor=int(e.get("grosor", 7)),
+            progreso=cabeza, desvanecer=0.22, cola=e.get("colores"))
+
+    # las estaciones: se encienden cuando la cabeza las pasa. Cada una va en
+    # el CENTRO de su hueco (no en el borde): asi su etiqueta cabe dentro de
+    # la zona segura (en el borde, la etiqueta de la ultima se salia: medido,
+    # la escena se encogia sola a 0,98).
+    for i, est in enumerate(estaciones):
+        pos = (i + 0.5) / n
+        idx = int(pos * (len(pts) - 1))
+        cx, cy = pts[idx]
+        t_in = at.get(f"estacion{i}", e["from"])
+        k = entra(t, t_in, "elemento")
+        if k <= 0:
+            continue
+        encendida = cabeza >= pos - 0.02
+        col = col_linea if encendida else (110, 110, 110)
+        a = int(255 * k) if encendida else int(150 * k)
+        sub_n, dn = grupo()
+        insignia_3d(dn, cx, cy, R, est.get("icono"), ctx.fT(30, 800),
+                     color=col, alpha=a, t=t)
+        # el nombre de la estacion, debajo
+        fnt = fuente_que_cabe(ctx.fT, str(est.get("titulo", "")).upper(),
+                               ESCALA["secundario"],
+                               (x1 - x0) / max(1, n) - 12, 800)
+        dn.text((cx, cy + R + 18), str(est.get("titulo", "")).upper(), font=fnt,
+                fill=(BLANCO if encendida else GRIS) + (a,), anchor="ma")
+        if k < 1:
+            sub_n.putalpha(sub_n.split()[3].point(lambda v: int(v * clamp01(k * 1.4))))
+        mundo.alpha_composite(sub_n)
+
+    # EL VUELO DE LA CAMARA NO ES DE LA ESCENA: es de la PIEZA (el global
+    # `camara`, que ademas ya trae el paneo). Si la escena volara por su
+    # cuenta, el factor de la zona segura mediria un mundo que se sale del
+    # cuadro y la escena se encogeria sola (medido: 0,72). Con la camara
+    # global, el mundo se escapa del encuadre porque la camara se ha ido,
+    # que es lo que pasa de verdad.
+    fundir(layer, mundo, 1.0)
     return capa_salida(layer, t, e["to"])
 
 
@@ -4729,6 +5182,10 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "constancia":sc_constancia,
         # Ronda 13: la cadena de estados (los nodos unidos del reel)
         "cadena":sc_cadena,
+        # Ronda 14: el cartel (el panel con el icono grande y la afirmacion)
+        "cartel":sc_cartel,
+        # Ronda 15: el camino (la linea de luz y las estaciones que enciende)
+        "camino":sc_camino,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,
@@ -4889,19 +5346,21 @@ def respiracion(e,t):
     por escena y la flotación también. La capacidad es opt-in y no cambia las
     piezas ya hechas.
     """
-    if ALFA or e["tipo"] in CAMARA_PROPIA or not e.get("respira",True): return 1.0,0.0
+    if ALFA or e["tipo"] in CAMARA_PROPIA or not e.get("respira",True): return 1.0,0.0,0.0
     if _CAMARA["activa"]:
         # trayectoria global: continua por construcción (mismo t -> misma escala)
-        return _escala_camara(t), _CAMARA["flota"]*math.sin(2*math.pi*0.3*t)
+        dx,_dy_rec=_offset_camara(t)
+        return (_escala_camara(t), _CAMARA["flota"]*math.sin(2*math.pi*0.3*t), dx)
     dt=max(0.0,t-e["from"])
-    return 1+min(RESPIRA_MAX,RESPIRA*dt), FLOTA_CAM*math.sin(2*math.pi*0.3*dt)
+    return 1+min(RESPIRA_MAX,RESPIRA*dt), FLOTA_CAM*math.sin(2*math.pi*0.3*dt), 0.0
 
-def encajar(layer,f,dy=0.0):
-    """Escala la capa alrededor de (W/2, 0.45H) y la desplaza dy px, con
+def encajar(layer,f,dy=0.0,dx=0.0):
+    """Escala la capa alrededor de (W/2, 0.45H) y la desplaza dx/dy px, con
     precisión sub-píxel (afín: sin escalones de 1 px en un movimiento lento)."""
-    if abs(f-1)<0.0005 and abs(dy)<0.01: return layer
+    if abs(f-1)<0.0005 and abs(dy)<0.01 and abs(dx)<0.01: return layer
     cx,cy=W/2,H*0.45
-    return layer.transform((W,H),Image.AFFINE,(1/f,0,cx-cx/f,0,1/f,cy-(cy+dy)/f),
+    return layer.transform((W,H),Image.AFFINE,
+                           (1/f,0,cx-cx/f+dx,0,1/f,cy-(cy+dy)/f),
                            resample=Image.BICUBIC)
 
 def componer(ctx,escenas,dur,t,manchas_ok):
@@ -4914,13 +5373,13 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     # un solo mundo continuo para todo el video (con una semilla por escena el
     # fondo saltaba de lugar en cada corte)
     bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=1)
-    fr,dy=respiracion(s,t)
-    layer=encajar(pintar(ctx,s,t).copy(),escala_segura(ctx,s,si)*fr,dy)
+    fr,dy,dx=respiracion(s,t)
+    layer=encajar(pintar(ctx,s,t).copy(),escala_segura(ctx,s,si)*fr,dy,dx)
     if s.get("transicion")=="iris" and si>0 and t-s["from"]<0.9:
         # IRIS: la escena nueva se abre en circulo desde un punto (la cara)
         ep=escenas[si-1]
-        fp,dyp=respiracion(ep,t)
-        prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp)
+        fp,dyp,dxp=respiracion(ep,t)
+        prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp,dxp)
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.38)
         mask=iris_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -4932,16 +5391,16 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         # creciente (un corte suave, sin mancha). Es la transicion mas neutra:
         # no pide atencion como la mancha ni ensucia con formas.
         ep=escenas[si-1]
-        fp,dyp=respiracion(ep,t)
-        bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp))
+        fp,dyp,dxp=respiracion(ep,t)
+        bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp,dxp))
         kd=smoothstep(clamp01((t-s["from"])/SOLAPE_DISSOLVE))
         layer=layer.copy()
         layer.putalpha(layer.split()[3].point(lambda v:int(v*kd)))
         bg.alpha_composite(layer)
     elif si in manchas_ok and t-s["from"]<0.9:
         ep=escenas[si-1]
-        fp,dyp=respiracion(ep,t)
-        prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp)
+        fp,dyp,dxp=respiracion(ep,t)
+        prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp,dxp)
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.45)
         mask=mancha_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -4951,12 +5410,13 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     else:
         if si>0 and t-s["from"]<SOLAPE:   # la anterior termina de irse DEBAJO de la nueva
             ep=escenas[si-1]
-            fp,dyp=respiracion(ep,t)
-            bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp))
+            fp,dyp,dxp=respiracion(ep,t)
+            bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp,dxp))
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)
     dibuja_deplecion(ImageDraw.Draw(bg),t,dur)   # el borde del lienzo, ENCIMA de la escena
+    dibuja_cabecera(ctx,bg,t,dur)                 # la banda que firma la pieza
     if dur-t<0.8:   # fundido al cierre con ease-IN (x²): arranca suave y llega a negro en el
         k=clamp01((0.8-(dur-t))/0.8)**2   # último frame (smoothstep se quedaba 0.25 s en negro: black_frame)
         if ALFA:   # un overlay se va por transparencia, no a negro
