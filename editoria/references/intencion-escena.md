@@ -171,6 +171,15 @@ desliza) y cada estacion es un nodo 3D.
 Es la idea que hace que una pieza se lea como una sola idea y no como una
 tanda de planos: todo esta en el mismo camino.
 
+### "Quiero que el lema se apoye en una linea de luz"
+`subrayado` — el texto con su linea de luz DEBAJO: la linea es la linea base
+y se puede partir en varios colores (los de los cursos, en el reel de
+referencia). La linea la dibuja la MISMA funcion que el camino y que
+cualquier otro trazo: lo que cambia son los puntos y los colores.
+
+Es el cierre de marca con cuerpo: `final` y `remate` son el lockup y el
+golpe final; `subrayado` es la frase de la casa apoyada en su linea.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
@@ -179,7 +188,7 @@ tanda de planos: todo esta en el mismo camino.
 
 Este indice da UNA escena por intencion, y esa es la trampa: si cada pieza
 resuelve «dato» con `stats` y «cierre» con `final`, todas las piezas se
-parecen aunque el catalogo tenga 44 tipos. La escena se elige por el
+parecen aunque el catalogo tenga 45 tipos. La escena se elige por el
 argumento, y dentro de la misma intencion hay familia para rotar. La tabla
 de abajo ES `scripts/data/repertorio.json` (la única fuente; si difieren,
 manda el JSON y `repertorio.py validar` lo dice):
@@ -190,7 +199,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
 | proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena`, `camino` |
 | social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
-| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera` |
+| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera`, `subrayado` |
 | comparacion | `versus`, `bars`, `ranking` |
 | demostracion | `demo`, `callout`, `buscador` |
 | estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |
@@ -198,7 +207,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 | estructura | `index`, `canales`, `medianoche` |
 
 Una escena puede servir a varias intenciones (`bars` da un dato y también
-compara): por eso las 44 escenas del motor quedan alcanzables, incluidas
+compara): por eso las 45 escenas del motor quedan alcanzables, incluidas
 las que la antigua tabla dejaba fuera (`versus`, `demo`, `callout`,
 `kenburns`, `typewriter`, `listo`, `pago`, `recupera`, `index`, `canales`,
 `medianoche`, `orbOpen`, `rotulo_inferior`).

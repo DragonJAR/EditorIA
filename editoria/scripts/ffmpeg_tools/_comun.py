@@ -65,6 +65,47 @@ def leer_json(ruta: str, que: str = "el archivo") -> Any:
         sys.exit(f"ERROR: {que} no es JSON válido ({ruta}, línea {exc.lineno}, columna {exc.colno}): {exc.msg}")
 
 
+_GRAIN_CACHE = {}
+
+
+def aplicar_grano(img, W, H, frame_idx=0, amp=3):
+    """Grano cinematográfico determinista y barato: 12 máscaras pre-generadas
+    por (W, H, amp) con seed fija 42, ciclando con frame_idx. Reemplaza el
+    ruido per-pixel nuevo por cuadro (entropía única que destruía la
+    compresión H.264) por un patrón cíclico que el codec predice. amp<=0
+    devuelve la imagen intacta.
+
+    DRY: vive aquí y lo usan los films de marca (`_film.py`) Y el motor de
+    planes (`render_plan.py`). Antes el grano solo existia en el motor de
+    films: la misma técnica, dos implementaciones, y el plan salia sin grano
+    mientras el film salia con él.
+
+    El canal ALFA no se toca: con alfa, el grano va al RGB y el alfa se queda
+    (si no, los bordes salen rugosos y el canal alfa se ensucia).
+    """
+    if amp <= 0:
+        return img
+    from PIL import Image
+    key = (W, H, amp)
+    if key not in _GRAIN_CACHE:
+        import numpy as np
+        rng = np.random.default_rng(42)
+        _GRAIN_CACHE[key] = [
+            rng.integers(-amp, amp + 1, size=(H, W, 1), dtype=np.int16)
+            for _ in range(12)
+        ]
+    gr = _GRAIN_CACHE[key][frame_idx % len(_GRAIN_CACHE[key])]
+    import numpy as np
+    a = np.asarray(img)
+    if a.ndim == 3 and a.shape[2] == 4:
+        # con alfa: el grano va al RGB y el alfa se queda (si no, los bordes
+        # salen rugosos y el canal alfa se ensucia)
+        rgb = np.clip(a[:, :, :3].astype(np.int16) + gr, 0, 255).astype(np.uint8)
+        return Image.fromarray(np.dstack([rgb, a[:, :, 3]]))
+    arr = a.astype(np.int16) + gr
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+
 def die(msg: str, code: int = 1, kind: str = "error") -> "None":
     """Imprime el error en stderr y sale con codigo distinto de 0.
 
