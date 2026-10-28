@@ -40,6 +40,7 @@ if SCRIPTS not in sys.path:
     sys.path.insert(0, SCRIPTS)
 
 import auditar_mapa as AM  # noqa: E402  una sola fuente de verdad para contar
+import repertorio as REP  # noqa: E402  tabla §2b = repertorio.json
 
 #: El CANONICO de las suites: la lista que el guard compara con el arbol.
 #:
@@ -573,6 +574,20 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, c
             nuevo = _reescribe_catalogo(nuevo, escenas, f"references/{nombre}", cambios)
             nuevo = _transforma_lista_de_escenas(nuevo, catalogo or [],
                                                  f"references/{nombre}", cambios)
+            if nombre == "intencion-escena.md":
+                # la tabla §2b sale de repertorio.json (no se copia a mano)
+                ruta_rep = os.path.join(dest_skill, "scripts", "data",
+                                        "repertorio.json")
+                datos_rep = REP.cargar(ruta_rep) if os.path.exists(ruta_rep) \
+                    else REP.cargar()
+                sincronizada = REP.reescribir_tabla_prosa(nuevo, datos_rep)
+                if sincronizada != nuevo:
+                    cambios.append((
+                        "references/intencion-escena.md",
+                        "tabla §2b desfasada respecto a repertorio.json",
+                        "tabla §2b reescrita desde repertorio.json",
+                    ))
+                    nuevo = sincronizada
             if nuevo != texto:
                 open(ruta, "w", encoding="utf-8").write(nuevo)
     if dest_repo:

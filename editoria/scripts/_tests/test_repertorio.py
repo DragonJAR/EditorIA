@@ -55,6 +55,32 @@ class TestFuenteUnica(unittest.TestCase):
         self.assertIn("comparacion", REP.intencion_de("bars"))
         self.assertIn("dato", REP.intencion_de("bars"))
 
+    def test_tabla_prosa_es_el_json(self):
+        """La tabla §2b de intencion-escena.md no se copia a mano.
+
+        Medido: listaba `cabecera` (global, no escena) y omitía `copy`.
+        """
+        ruta = os.path.join(os.path.dirname(SCRIPTS), "references",
+                            "intencion-escena.md")
+        with open(ruta, encoding="utf-8") as fh:
+            texto = fh.read()
+        self.assertEqual(REP.diff_tabla_prosa(texto), [])
+        # y un fantasma DENTRO de la tabla marcada se detecta
+        ini = texto.index(REP.MARCA_TABLA_INI)
+        fin = texto.index(REP.MARCA_TABLA_FIN)
+        bloque = texto[ini:fin].replace(
+            "`subrayado`", "`cabecera`, `subrayado`", 1)
+        roto = texto[:ini] + bloque + texto[fin:]
+        malos = REP.diff_tabla_prosa(roto)
+        self.assertTrue(malos, "un fantasma en la tabla tiene que fallar")
+        self.assertTrue(any("cabecera" in m or "cierre" in m for m in malos))
+
+    def test_cabecera_no_es_escena_del_repertorio(self):
+        """cabecera es global del plan: no puede colarse en una familia."""
+        self.assertNotIn("cabecera", REP.catalogo())
+        for inten, fam in REP.familias().items():
+            self.assertNotIn("cabecera", fam, inten)
+
 
 class TestElegir(unittest.TestCase):
     def test_determinista(self):

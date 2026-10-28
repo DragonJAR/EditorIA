@@ -140,9 +140,12 @@ iconos son trazos dibujados (`codigo`, `globo`, `alerta`, `lupa`, `reloj`),
 no glifos: un glifo depende de que la fuente lo tenga.
 
 ### "Quiero que la marca firme la pieza y decir de donde sale el material"
-`cabecera` — la banda de arriba: el logo del pack a la izquierda y un chip con
-la FUENTE a la derecha. Es el elemento que el reel de "cara" lleva en todos
-sus fotogramas.
+**No es una escena del catálogo.** Es el global del plan
+`"cabecera": {"chip": "...", "marca": "..."}` (`references/plan-video.md`):
+el logo del pack a la izquierda y un chip con la FUENTE a la derecha, en
+TODOS los fotogramas. Por eso no está en `SCENES` ni en `repertorio.json`
+(una escena ocupa una ventana; esta banda no, y una escena quieta la
+declara la puerta "congelada").
 
 OJO CON EL PAPEL DEL CHIP: el chip es la fuente (de donde sale el material),
 NO la accion. El boton es la accion y va en otra parte: si el chip dice
@@ -190,21 +193,25 @@ Este indice da UNA escena por intencion, y esa es la trampa: si cada pieza
 resuelve «dato» con `stats` y «cierre» con `final`, todas las piezas se
 parecen aunque el catalogo tenga 45 tipos. La escena se elige por el
 argumento, y dentro de la misma intencion hay familia para rotar. La tabla
-de abajo ES `scripts/data/repertorio.json` (la única fuente; si difieren,
-manda el JSON y `repertorio.py validar` lo dice):
+de abajo SE ESCRIBE desde `scripts/data/repertorio.json` (única fuente:
+`actualizar_conteos.py` la reescribe; `auditar_mapa.py` falla si difieren;
+`repertorio.py validar` vigila huérfanas/fantasmas del motor):
 
+<!-- REPERTORIO_TABLA_INI -->
 | intencion | familia (rota segun el argumento y la pieza anterior) |
 |---|---|
 | gancho | `apertura`, `hero`, `countdown`, `buscador`, `pildoras`, `orbOpen` |
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
+| copy | `frase`, `typewriter`, `quote`, `cartel` |
 | proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena`, `camino` |
-| social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
-| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera`, `subrayado` |
+| social | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
+| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `subrayado` |
 | comparacion | `versus`, `bars`, `ranking` |
 | demostracion | `demo`, `callout`, `buscador` |
 | estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |
 | imagen-texto | `kenburns`, `typewriter`, `rotulo_inferior`, `quote` |
 | estructura | `index`, `canales`, `medianoche` |
+<!-- REPERTORIO_TABLA_FIN -->
 
 Una escena puede servir a varias intenciones (`bars` da un dato y también
 compara): por eso las 45 escenas del motor quedan alcanzables, incluidas
@@ -237,6 +244,35 @@ porqué de las que descarta (`"intenciones": [...]`,
 SIN DECLARAR, y el auditor avisa (`intencion-sin-escena`,
 `intencion-olvidada`) cuando el plan declara y no cumple.
 
+## 2c. Cómo adaptar una escena (sin inventar otra)
+
+Una escena del catálogo ya es la navaja: se **parametriza**, no se reescribe
+el motor. Orden:
+
+1. **Elige por intención**, no por nombre vistoso: `repertorio.py sugerir`
+   reparte la mano; el argumento ajusta dentro de la familia (§2b).
+2. **Copia la muestra** de `scripts/escenas_muestra.json` del tipo elegido y
+   sustituye copy, cifras, capturas y `at`. El schema canónico de cada tipo
+   está en `references/escenas.md` (Params). Si el linter avisa (emoji,
+   quinta tarjeta de `bento`, subtítulo de 3 líneas en `hero`), acorta el
+   copy: no bajes la letra por debajo del piso.
+3. **Gesto**: usa un rol de `MOVIMIENTO` (`titular`, `bloque`, `elemento`,
+   `suave`, `pop`, `lento` — `references/animacion.md` §3b). No inventes
+   stiffness/damping. Un trazo que se dibuja va por tiempo, no por resorte.
+4. **Look**: color y tipografía salen del brand pack / `direccion_arte.py`,
+   no de hex sueltos en el plan. Markup de énfasis: `*clave*`, `~caja~`,
+   `^caja^` (el mismo parser en titulares y `frase`/`cartel`).
+5. **Globales ≠ escenas**: `cabecera`, `grano`, `camara` (y depleción) van
+   en la raíz del plan; no entran en el repertorio. Ver
+   `references/plan-video.md`.
+6. **Si ninguna escena del catálogo sirve**: no fuerces una. Abre el
+   selector de técnica (`references/animacion.md` §0: canvas, HandDraw,
+   Remotion, HyperFrames, 3D, híbrido, diagramas) y declara la capacidad
+   si falta (`references/capacidades.md`).
+7. **Verifica barato**: `render_plan.py plan.json --preview t1,t2,t3` y
+   `auditar_plan.py` antes del render completo; mide movimiento con
+   `medir_animacion.py` si hay pop/tirón.
+
 ## 3. Receta de movimiento por escena
 
 Los resortes del motor, con el **overshoot medido** (el valor de la
@@ -257,7 +293,11 @@ animacion se pasa de su objetivo y vuelve):
 | `bento` | 130, 15 / 130, 16 | 6,4 % / 4,5 % | cascada de tarjetas |
 | `chat` | 120,14 / 140,15 / 160,16 | 7,4 / 7,6 / 7,7 % | burbujas que empujan |
 | `notificacion` | 120, 15 | 5,2 % | push-down con resorte |
-| `pasos` `bars` `ranking` `stats` `timeline` `pie` `leads` `confetti` `versus` `hero` `buscador` `medianoche` `canales` `handoff` `pago` `recupera` `hoy` | 110-140, 13-16 | 4-10 % | la banda media del catalogo |
+| `pasos` `bars` `ranking` `stats` `timeline` `pie` `leads` `confetti` `versus` `hero` `buscador` `medianoche` `canales` `handoff` `pago` `recupera` `hoy` `index` `callout` `orbOpen` `pildoras` `gauge` `frase` `typewriter` `cartel` `cadena` `camino` `constancia` `subrayado` `kenburns` `rotulo_inferior` | roles `MOVIMIENTO` (`elemento`/`bloque`/`suave`/`titular`) | 4-10 % | la banda media: no se inventa un resorte; se elige el rol (`references/animacion.md` §3b) |
+
+Los parámetros de cada escena (campos del plan, `at`, límites) viven en
+`references/escenas.md` y en la muestra de `scripts/escenas_muestra.json`:
+esta tabla solo dice **cómo se siente** el gesto, no duplica el schema.
 
 Sobre el techo de overshoot: `references/fluidez.md` fija un 8 % general. Los
 valores de 14-20 % de `oferta`, `remate`, `listo` y `countdown` **no lo

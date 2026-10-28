@@ -32,6 +32,24 @@ pieza — preview de instantes antes de pagar el render, y la puerta al final
 (`scripts/medir_animacion.py`): un movimiento que no se puede medir es un
 movimiento que no se puede corregir.
 
+### 0b. Catálogo de planes: cuándo, cómo pedir, cómo adaptar
+
+Para las escenas del motor de planes (el camino por defecto):
+
+| Paso | Dónde | Qué hace el agente |
+|---|---|---|
+| Intención → familia | `scripts/data/repertorio.json` vía `repertorio.py sugerir` | Una escena por intención, rotando y evitando la pieza anterior |
+| Pedido vago → escena | `references/intencion-escena.md` §2 | El cliente habla; el índice nombra el tipo |
+| Params y límites | `references/escenas.md` + `scripts/escenas_muestra.json` | Schema y muestra realista; no hay una segunda lista |
+| Adaptar copy/tiempos/look | `intencion-escena.md` §2c | Parametriza la muestra; gesto = rol `MOVIMIENTO`; look = pack |
+| Cobertura / no olvidar | `repertorio.py cobertura` + `auditar_plan.py` | Lo no usado se declara `no_aplica` |
+| Verificar | `render_plan.py --preview` · `medir_animacion.py` | Preview barato antes del render caro |
+
+Globales del plan (`cabecera`, `grano`, `camara`) no son tipos de `SCENES`:
+no aparecen en el repertorio. Si la pieza pide otro oficio (trazo a mano,
+HTML determinista, React, 3D), vuelve a la tabla §0 — no estires una escena
+plana hasta que parezca otra técnica.
+
 ## 1. Los 12 principios, traducidos a motion graphics
 
 Cada principio con su regla aplicable y su valor por defecto. Un render que

@@ -1809,6 +1809,39 @@ def _chequear_texto_fijo_sobre_acento(problemas):
                            f"lee. usa texto_sobre(acento)"})
 
 
+def _chequear_tabla_repertorio(problemas):
+    """Que la tabla §2b de intencion-escena.md sea EXACTAMENTE repertorio.json.
+
+    Medido: la prosa decía que la tabla ERA el JSON y aun asi listaba
+    `cabecera` (global del plan, no escena) en cierre y omitía la intención
+    `copy`. El agente leía la tabla y repartía mal. Una sola fuente:
+    `scripts/data/repertorio.json`; la tabla se reescribe con
+    `actualizar_conteos.py` y este guard falla si difieren.
+    """
+    idx = os.path.join(REFS, "intencion-escena.md")
+    ruta_rep = os.path.join(BASE, "scripts", "data", "repertorio.json")
+    if not (os.path.exists(idx) and os.path.exists(ruta_rep)):
+        return
+    scripts = os.path.join(BASE, "scripts")
+    # El modulo puede vivir en el arbol de trabajo; los DATOS tienen que
+    # salir del BASE de esta pasada (HEAD exportado o working tree).
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    try:
+        import repertorio as REP
+    except ImportError:
+        return
+    with open(idx, encoding="utf-8") as fh:
+        texto = fh.read()
+    datos = REP.cargar(ruta_rep)
+    for msg in REP.diff_tabla_prosa(texto, datos):
+        problemas.append({
+            "tipo": "tabla repertorio desfasada",
+            "archivo": "references/intencion-escena.md",
+            "msg": msg + " -> corre `python scripts/actualizar_conteos.py`",
+        })
+
+
 def _chequear_indice_inverso(problemas):
     """Que TODA escena del motor se encuentre en el indice inverso.
 
@@ -2300,6 +2333,9 @@ def _todos_los_checks(problemas, mds, notas=None):
 
     # ---- 15b. toda escena se encuentra en el indice inverso ------------
     _chequear_indice_inverso(problemas)
+
+    # ---- 15b1. la tabla §2b es exactamente repertorio.json ------------
+    _chequear_tabla_repertorio(problemas)
 
     # ---- 15c. ningun texto fijo sobre una caja de acento -------------
     _chequear_texto_fijo_sobre_acento(problemas)

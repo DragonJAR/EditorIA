@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Repertorio: la única fuente intención→escena, su rotación y su cobertura.
 
-El catálogo tiene 39 escenas, pero el flujo normal llegaba siempre a las
+El catálogo del motor (claves de SCENES en render_plan.py) es alcanzable
+entero desde las intenciones, pero el flujo normal llegaba siempre a las
 mismas 6-8: el índice por intención daba UNA escena por intención, el
 ejemplo del SKILL y demo_plan.json anclaban el resto, y las familias para
-rotar vivían solo en clonar_video.py (con un nombre fantasma y 13 escenas
+rotar vivían solo en clonar_video.py (con un nombre fantasma y escenas
 fuera). Este módulo es el mecanismo único que faltaba:
 
   listar     las intenciones y sus familias (y con --todo, el resto de
@@ -154,6 +155,82 @@ def resumen(planes, datos=None):
             for i in fams if i not in cubiertas],
         "escenas_sin_usar": sorted(catalogo() - set(usados)),
     }
+
+
+#: La tabla §2b de intencion-escena.md se DERIVA de repertorio.json.
+#: Marcadores estables para que actualizar_conteos.py la reescriba y
+#: auditar_mapa.py falle si alguien la edita a mano y se desfase.
+MARCA_TABLA_INI = "<!-- REPERTORIO_TABLA_INI -->"
+MARCA_TABLA_FIN = "<!-- REPERTORIO_TABLA_FIN -->"
+
+
+def tabla_markdown(datos=None):
+    """La tabla §2b: una fila por intención, en el orden del JSON."""
+    datos = datos or cargar()
+    lineas = [
+        "| intencion | familia (rota segun el argumento y la pieza anterior) |",
+        "|---|---|",
+    ]
+    for i in datos["intenciones"]:
+        fam = ", ".join(f"`{e}`" for e in i["escenas"])
+        lineas.append(f"| {i['id']} | {fam} |")
+    return "\n".join(lineas) + "\n"
+
+
+def parsear_tabla_prosa(texto):
+    """{id: [escenas]} de la tabla marcada en intencion-escena.md, o {}."""
+    if MARCA_TABLA_INI not in texto or MARCA_TABLA_FIN not in texto:
+        return {}
+    bloque = texto.split(MARCA_TABLA_INI, 1)[1].split(MARCA_TABLA_FIN, 1)[0]
+    out = {}
+    for fila in bloque.splitlines():
+        fila = fila.strip()
+        if not fila.startswith("|"):
+            continue
+        celdas = [c.strip() for c in fila.strip("|").split("|")]
+        if len(celdas) < 2:
+            continue
+        inten, fam = celdas[0], celdas[1]
+        if inten.startswith("-") or inten.lower().startswith("intencion"):
+            continue
+        # id canónico = lo que hay antes de "/" (social/testimonio → social)
+        inten = inten.split("/", 1)[0].strip()
+        escenas = re.findall(r"`([^`]+)`", fam)
+        if inten and escenas:
+            out[inten] = escenas
+    return out
+
+
+def diff_tabla_prosa(texto, datos=None):
+    """Problemas si la prosa §2b no coincide con repertorio.json."""
+    datos = datos or cargar()
+    esperada = {i["id"]: list(i["escenas"]) for i in datos["intenciones"]}
+    if MARCA_TABLA_INI not in texto or MARCA_TABLA_FIN not in texto:
+        return ["references/intencion-escena.md: faltan los marcadores "
+                f"{MARCA_TABLA_INI} / {MARCA_TABLA_FIN} alrededor de la tabla §2b"]
+    hallada = parsear_tabla_prosa(texto)
+    malos = []
+    for k in sorted(set(esperada) - set(hallada)):
+        malos.append(f"tabla §2b: falta la intención '{k}' "
+                     f"(familia: {', '.join(esperada[k])})")
+    for k in sorted(set(hallada) - set(esperada)):
+        malos.append(f"tabla §2b: intención '{k}' no está en repertorio.json "
+                     f"(¿fantasma? cabecera es global del plan, no escena)")
+    for k in sorted(set(esperada) & set(hallada)):
+        if hallada[k] != esperada[k]:
+            malos.append(
+                f"tabla §2b '{k}': prosa={hallada[k]} json={esperada[k]}")
+    return malos
+
+
+def reescribir_tabla_prosa(texto, datos=None):
+    """Sustituye el bloque marcado por la tabla derivada del JSON."""
+    if MARCA_TABLA_INI not in texto or MARCA_TABLA_FIN not in texto:
+        return texto
+    tabla = tabla_markdown(datos)
+    pre, resto = texto.split(MARCA_TABLA_INI, 1)
+    _, post = resto.split(MARCA_TABLA_FIN, 1)
+    return pre + MARCA_TABLA_INI + "\n" + tabla + MARCA_TABLA_FIN + post
 
 
 def _leer_plan(ruta):
