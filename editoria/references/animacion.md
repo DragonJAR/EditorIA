@@ -193,6 +193,10 @@ El movimiento de cámara convierte un layout plano en un espacio.
   y se cierran a su valor final: elegancia sin coste.
 - **Revelado por máscara**: el texto sube desde detrás de una línea
   invisible (clip), no aparece por fade. Es la firma de los títulos de cine.
+  En el motor lo hace UN helper, `_revela_clip`, con el resorte del rol que
+  entra (sin curva nueva): lo usan `titular` (palabra a palabra) y `rotulo`
+  (línea a línea). La línea de clip es la base de la línea (base +
+  descendente) y el fundido que queda es corto: solo quita el borde duro.
 - **Pesos variables**: con fuentes variables (las empaquetadas en
   `assets/fonts/` lo son) el peso puede animar 400→800 en la palabra clave.
 - **Kerning y ortografía**: revisar pares problemáticos en tamaños

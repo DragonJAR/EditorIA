@@ -405,7 +405,6 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
     de acento; `~clave~` caja roja (texto blanco); `^clave^` caja blanca
     (texto oscuro). Es el sistema del reel de referencia — una sola fuente.
     """
-    d=ImageDraw.Draw(layer)
     zx0,_,zx1,_=caja_segura()
     maxw=maxw or (zx1-zx0)*0.96   # cabe en la zona SEGURA (W-2*MARGEN es más ancho en 9:16)
     def palabras(ln):
@@ -440,24 +439,31 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
             k=entra(t, at, "titular")
             if k>0:
                 sc=1+0.16*(1-k)
-                al=int(255*clamp01(k*1.5))
                 f2=ctx.fT(tam*sc,800) if abs(sc-1)>0.004 else fnt
                 ww2=ctx.tmp.textlength(w_,font=f2)
-                yy=y+tam+(1-min(1,k))*ELEV
+                yy=y+tam   # línea base FINAL: la palabra sube desde detrás de ella
+                asc,desc=f2.getmetrics()
+                pad2 = f2.size * 0.16 if kind in ("roja", "blanca") else 0.0
+                # la caja de la palabra (con aire arriba para el overshoot); su
+                # borde de abajo es la línea de clip
+                bx0=int(x-pad2)-4; by0=int(yy-asc-f2.size*0.12)
+                by1=int(math.ceil(yy+max(desc,f2.size*0.25)))+2
+                tile=Image.new("RGBA",(int(math.ceil(ww2+2*pad2))+8,by1-by0),(0,0,0,0))
+                dt_=ImageDraw.Draw(tile)
                 if kind in ("roja", "blanca"):
-                    pad2 = f2.size * 0.16
-                    caja=[x - pad2, yy - f2.size * 0.85,
-                          x + ww2 + pad2, yy + f2.size * 0.25]
+                    caja=[x - pad2 - bx0, yy - f2.size * 0.85 - by0,
+                          x + ww2 + pad2 - bx0, yy + f2.size * 0.25 - by0]
                     relleno = ACENTO if kind == "roja" else BLANCO
-                    d.rounded_rectangle(caja, radius=int(f2.size * 0.12),
-                                        fill=relleno + (al,))
+                    dt_.rounded_rectangle(caja, radius=int(f2.size * 0.12),
+                                          fill=relleno + (255,))
                     col = BLANCO if kind == "roja" else NEGRO
                 elif kind == "acento":
                     col = ACENTO
                 else:
                     col = BLANCO
-                d.text((x+ww2/2,yy),w_,font=f2,
-                       fill=col+(al,),anchor="ms")
+                dt_.text((x+ww2/2-bx0,yy-by0),w_,font=f2,
+                         fill=col+(255,),anchor="ms")
+                _revela_clip(layer,tile,(bx0,by0),k)
             x+=ww+gap+2*pad
     return tam
 
@@ -467,20 +473,24 @@ def rotulo_y():
     return vy(0.20) if H > W else vy(0.16)
 
 def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=44):
-    """Rótulo con entrada real: fade + elevación ELEV px con resorte (nunca de golpe)."""
+    """Rótulo con entrada real: cada línea sube desde detrás de su línea base
+    (revelado por máscara, `_revela_clip`) con el resorte del rol (nunca de golpe)."""
     color=color or BLANCO
     if not texto or t<at: return 0   # sin rótulo en el plan: no se dibuja
     k=entra(t, at, "bloque")
-    al=int(255*clamp01(k*1.5))
-    d=ImageDraw.Draw(layer)
     sg=segs(texto); fnt=ctx.fX(tam,700)
     zx0,_,zx1,_=caja_segura()   # el rótulo cabe en la zona segura: encoge, nunca se sale
     ancho=(zx1-zx0)-20
     while tam>TAM_MIN_ROTULO and seg_width(sg,fnt)>ancho:
         tam-=2; fnt=ctx.fX(tam,700)
-    yy=(rotulo_y() if y is None else y)+(1-min(1,k))*ELEV
+    yy=rotulo_y() if y is None else y
+    asc,desc=fnt.getmetrics(); aire=int(tam*0.12)   # aire arriba para el overshoot
     for i,ln in enumerate(partir_segs(sg,fnt,ancho)):   # si ni a 30 px cabe: dos líneas
-        draw_seg(d,(W/2,yy+i*tam*1.2),ln,fnt,color+(al,),ACENTO+(al,),anchor="ma")
+        y_ln=yy+i*tam*1.2
+        bx0=int(W/2-seg_width(ln,fnt)/2)-4; by0=int(y_ln)-aire
+        tile=Image.new("RGBA",(int(seg_width(ln,fnt))+10,aire+asc+desc+2),(0,0,0,0))
+        draw_seg(ImageDraw.Draw(tile),(W/2-bx0,y_ln-by0),ln,fnt,color+(255,),ACENTO+(255,),anchor="ma")
+        _revela_clip(layer,tile,(bx0,by0),k)
     return k
 
 def partir_segs(sg,fnt,ancho):
@@ -1563,6 +1573,30 @@ def fundir(layer, sub, k, dy=24):
         sub = sub.crop((0, -oy, W, H))
         oy = 0
     layer.alpha_composite(sub, (0, oy))
+
+
+def _revela_clip(layer, tile, xy, k):
+    """Revelado por máscara (animacion.md §6): `tile` es el texto dibujado en
+    su sitio FINAL y su borde inferior es la línea de clip. Con el resorte k
+    del rol que entra, el texto sube desde detrás de esa línea: va (1-k)·alto
+    más abajo y lo que cae fuera de la caja no se ve. Sin curva nueva: el
+    gesto es el de `entra`. Afín sub-píxel, así que es función pura de t (el
+    blur por sub-frames lo necesita). El fundido es corto: solo quita el
+    borde duro del primer frame, no es la entrada."""
+    if k <= 0:
+        return
+    oy = (1 - k) * tile.height   # k > 1 (overshoot): asoma un poco; el tile trae aire arriba
+    if abs(oy) > 0.01:
+        tile = tile.transform(tile.size, Image.AFFINE, (1, 0, 0, 0, 1, -oy),
+                              resample=Image.BICUBIC)
+    a = clamp01(k * 3)
+    if a < 1:
+        tile.putalpha(tile.split()[3].point(lambda v: int(v * a)))
+    x, y = int(xy[0]), int(xy[1])
+    if x < 0 or y < 0:   # alpha_composite no acepta destinos negativos: recortar
+        tile = tile.crop((max(0, -x), max(0, -y), tile.width, tile.height))
+        x, y = max(0, x), max(0, y)
+    layer.alpha_composite(tile, (x, y))
 
 
 def check(d, cx, cy, s, color, grosor=None):

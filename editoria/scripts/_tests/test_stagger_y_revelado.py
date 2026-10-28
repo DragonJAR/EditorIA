@@ -112,5 +112,85 @@ class TestStagger(unittest.TestCase):
         self.assertEqual(crudos, [], f"cascadas a mano: {crudos[:3]}")
 
 
+def _tinta(img, umbral=8):
+    """bbox de lo dibujado (alfa > umbral) o None."""
+    return img.split()[3].point(lambda v: 255 if v > umbral else 0).getbbox()
+
+
+class TestRevelaClip(unittest.TestCase):
+    """El texto sube desde detras de su linea base: no aparece por fundido."""
+
+    def setUp(self):
+        import render_plan as R
+        from PIL import Image, ImageDraw
+        R.formato(1080, 1920)
+        self.R, self.Image, self.ImageDraw = R, Image, ImageDraw
+        self.ctx = R.Ctx()
+
+    def _capa(self):
+        return self.Image.new("RGBA", (self.R.W, self.R.H), (0, 0, 0, 0))
+
+    def _titular(self, t):
+        capa = self._capa()
+        tam = self.R.titular(self.ctx, capa, t, ["HOLA"], [1.0], tam=120, cy=900)
+        return capa, tam
+
+    def _rotulo(self, t):
+        capa = self._capa()
+        self.R.rotulo(self.ctx, capa, t, "Rotulo de prueba", 1.0, y=400)
+        return capa
+
+    def _revela(self, pintar):
+        final = _tinta(pintar(4.0))
+        pronto = _tinta(pintar(1.10))
+        self.assertIsNotNone(final)
+        self.assertIsNotNone(pronto, "a los 100 ms ya tiene que asomar algo")
+        alto = final[3] - final[1]
+        # la linea de clip es la base de la linea (base + descendente): lo
+        # dibujado nunca baja de ella...
+        self.assertLessEqual(pronto[3], final[3] + 0.4 * alto,
+                             "el texto se ve por debajo de su linea base: no hay clip")
+        # ...lo que asoma es una TAJADA del texto, no el texto entero fundido...
+        self.assertLess(pronto[3] - pronto[1], 0.6 * alto,
+                        "a los 100 ms se ve el texto entero: es un fundido, no un revelado")
+        # ...y la parte de arriba sigue vacia (el texto aun esta subiendo)
+        self.assertGreater(pronto[1], final[1] + 0.25 * alto,
+                           "arriba de la linea ya hay tinta: es un fundido, no un revelado")
+
+    def test_el_titular_se_revela_desde_su_linea_base(self):
+        self._revela(lambda t: self._titular(t)[0])
+
+    def test_el_rotulo_se_revela_desde_su_linea_base(self):
+        self._revela(self._rotulo)
+
+    def test_asentado_es_el_mismo_texto_de_siempre(self):
+        """Al asentarse, el titular es el texto dibujado en su sitio, sin mas."""
+        import numpy as np
+        R = self.R
+        capa, tam = self._titular(4.0)
+        ref = self._capa()
+        fnt = self.ctx.fT(tam, 800)
+        ancho = self.ctx.tmp.textlength("HOLA", font=fnt)
+        y0 = 900   # una linea: y0 = cy
+        self.ImageDraw.Draw(ref).text(((R.W - ancho) / 2 + ancho / 2, y0 + tam), "HOLA",
+                                      font=fnt, fill=R.BLANCO + (255,), anchor="ms")
+        a = np.asarray(capa, dtype=np.float32)[..., 3]
+        b = np.asarray(ref, dtype=np.float32)[..., 3]
+        self.assertLess(np.abs(a - b).mean(), 0.5, "asentado, el titular cambio de forma")
+
+    def test_el_revelado_es_funcion_pura_del_tiempo(self):
+        """Mismo t, mismos pixeles (el blur por sub-frames depende de eso)."""
+        a = self._titular(1.0731)[0].tobytes()
+        b = self._titular(1.0731)[0].tobytes()
+        self.assertEqual(a, b)
+
+    def test_un_solo_helper_de_revelado(self):
+        src = open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8").read()
+        self.assertEqual(len(re.findall(r"^def _revela_clip\(", src, re.M)), 1)
+        for fn in ("titular", "rotulo"):
+            cuerpo = src.split(f"\ndef {fn}(", 1)[1].split("\ndef ", 1)[0]
+            self.assertIn("_revela_clip(", cuerpo, f"{fn} no usa el revelado por mascara")
+
+
 if __name__ == "__main__":
     unittest.main()
