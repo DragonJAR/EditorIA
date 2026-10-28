@@ -49,6 +49,8 @@ RECORTES=[]
 W,H=1080,1920
 MARGEN=151   # margen lateral seguro simétrico (unión Reels/TikTok/Shorts, ver _delivery.py)
 SAFE={"top":192,"bottom":422,"left":151,"right":151}   # zona segura en px (se recalcula en main)
+CENTRO_Y=0.45   # ancla vertical (fracción de H) de la escala y la cámara: el centro
+                # de la zona segura de 9:16 cae ahí ((192 + 1498) / 2 = 0.44·H)
 
 # ESCALA TIPOGRÁFICA — una sola fuente de verdad para todo el catálogo.
 # Antes cada escena fijaba sus propios tamaños a mano y el mismo rol (un
@@ -2117,22 +2119,24 @@ def sc_hoy(ctx,e,t):
     cols=2 if vertical else min(n, 3 if n <= 3 else 4)
     filas_=(n+cols-1)//cols
     y0=rotulo_y()+270 if vertical else rotulo_y()+210
-    for i,(x,yb,cw,_) in enumerate(cuadricula(zx0,y0,zx1-zx0,filas_*184,cols,n)):
+    ALTO_TJ=196   # la tarjeta lleva el titulo en `dato` y el detalle en `secundario`:
+                  # a 32/28 px el cuerpo no se leia en un movil
+    for i,(x,yb,cw,_) in enumerate(cuadricula(zx0,y0,zx1-zx0,filas_*(ALTO_TJ+24),cols,n)):
         tj=tarjetas[i]
         k=entra(t, escalonado(at, "tarjeta", i, e["from"]+0.6), "elemento")
         if k<=0: continue
         sub,ds=grupo()   # la tarjeta entera (borde, insignia, textos) entra junta
         yy=yb
-        tarjeta(ctx,sub,x,yy,cw,160)
+        tarjeta(ctx,sub,x,yy,cw,ALTO_TJ)
         if tj.get("alerta"):
-            ds.rounded_rectangle([x,yy,x+cw,yy+160],radius=28,outline=ACENTO+(255,),width=4)
+            ds.rounded_rectangle([x,yy,x+cw,yy+ALTO_TJ],radius=28,outline=ACENTO+(255,),width=4)
         ancho_txt=cw-(110 if tj.get("n") else 50)
-        ds.text((x+30,yy+28),tj["titulo"],font=fuente_que_cabe(ctx.fX,tj["titulo"],ESCALA["secundario"],ancho_txt,800),fill=BLANCO)
+        ds.text((x+30,yy+28),tj["titulo"],font=fuente_que_cabe(ctx.fX,tj["titulo"],ESCALA["dato"],ancho_txt,800),fill=BLANCO)
         # el detalle se PARTE (hasta 2 lineas) antes de encogerse: conserva el
         # tamaño de la escala y no se sale de la tarjeta (references/copy.md)
-        _fdet,_ldet=texto_que_cabe(ctx.fX,tj["detalle"],ESCALA["nota"],ancho_txt,400,max_lineas=2)
+        _fdet,_ldet=texto_que_cabe(ctx.fX,tj["detalle"],ESCALA["secundario"],ancho_txt,400,max_lineas=2)
         for _li,_lt in enumerate(_ldet):
-            ds.text((x+30,yy+70+_li*32),_lt,font=_fdet,fill=GRIS)
+            ds.text((x+30,yy+82+_li*int(_fdet.size*1.25)),_lt,font=_fdet,fill=GRIS)
         if tj.get("n"):
             ds.ellipse([x+cw-90,yy+28,x+cw-30,yy+88],fill=ACENTO+(255,))
             ds.text((x+cw-60,yy+58),str(tj["n"]),font=ctx.fT(ESCALA["secundario"],800),fill=BLANCO,anchor="mm")
@@ -2496,14 +2500,14 @@ def sc_ranking(ctx, e, t):
         return capa_salida(layer, t, e["to"])
     zx0, _, zx1, zy1 = caja_segura()
     y0 = rotulo_y() + 90
-    fila_h = min(130, (zy1 - 80 - y0) / n)
+    fila_h = min(160, (zy1 - 80 - y0) / n)
     y0 += ((zy1 - 80 - y0) - fila_h * n) / 2          # bloque centrado en su hueco
     hi = fila_h * 0.6
     # los dos tamanos se calculan con la altura de la fila, pero con PISO: un
     # tamaño calculado puede caer por debajo del piso legible sin que el copy
     # lo controle (con muchas filas, la fila se encoge y la letra con ella)
-    fnt = ctx.fX(int(max(ESCALA["nota"], min(44, fila_h * 0.38))), 700)
-    fnt_v = ctx.fX(int(max(ESCALA["nota"], min(48, fila_h * 0.42))), 800)
+    fnt = ctx.fX(int(max(ESCALA["nota"], min(52, fila_h * 0.36))), 700)
+    fnt_v = ctx.fX(int(max(ESCALA["nota"], min(58, fila_h * 0.40))), 800)
     finales = [cuenta_up(0, it.get("valor", 0), 1e9, 0) for it in items]
     max_w_lab = int((zx1 - zx0) * 0.38)
     w_lab = min(max_w_lab, max(d.textlength(it.get("etiqueta", ""), font=fnt) for it in items) + 28)
@@ -2573,7 +2577,7 @@ def sc_stats(ctx, e, t):
                                 tabular=True)
         cifra(d, (cx + cw / 2, cy + ch * 0.42), val, fnt_v, col, anchor="mm")
         # etiqueta
-        fnt_l = fuente_que_cabe(ctx.fX, c.get("etiqueta", ""), min(ch * 0.13, 44), cw * 0.86, 600)
+        fnt_l = fuente_que_cabe(ctx.fX, c.get("etiqueta", ""), min(ch * 0.15, 52), cw * 0.86, 600)
         d.text((cx + cw / 2, cy + ch * 0.78), c.get("etiqueta", ""), font=fnt_l, fill=GRIS + (al,), anchor="mm")
     pie_fuente(ctx, d, e, t, e["from"] + 2.0)
     return capa_salida(layer, t, e["to"])
@@ -2981,7 +2985,7 @@ def y_de_pantalla(e, t, y_destino):
     fr, dy, dx = respiracion(e, t)
     if abs(fr - 1.0) < 1e-6:
         return y_destino
-    cx, cy = W / 2, H * 0.45
+    cx, cy = W / 2, CENTRO_Y * H
     return cy + (y_destino - cy - dy) / fr
 
 
@@ -3564,7 +3568,7 @@ def sc_cartel(ctx, e, t):
     RADIO = 20
     ICONO_R = 50
     GAP_ICONO = 34
-    tam = int(e.get("tam", 52))
+    tam = int(e.get("tam", 60))   # 52 px se quedaba en una franja chica del 9:16
     fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fT
     fnt = fab(tam, 500)
     fnt_b = fab(tam, 800)
@@ -5431,7 +5435,7 @@ def escala_segura(ctx,e,idx):
     """
     if idx in _ESCALA: return _ESCALA[idx]
     if e["tipo"] in A_SANGRE: _ESCALA[idx]=1.0; return 1.0   # fondo a sangre; el texto ya va en la zona segura
-    cx,cy=W/2,H*0.45
+    cx,cy=W/2,CENTRO_Y*H
     zona=e.get("zona")
     if isinstance(zona,(list,tuple)) and len(zona)==4:
         try:
@@ -5453,7 +5457,7 @@ def escala_segura(ctx,e,idx):
         bb=pintar(ctx,e,t).split()[3].point(lambda v:255 if v>110 else 0).getbbox()
         if bb:
             xs0=min(xs0,bb[0]); ys0=min(ys0,bb[1]); xs1=max(xs1,bb[2]); ys1=max(ys1,bb[3])
-    cx,cy=W/2,H*0.45
+    cx,cy=W/2,CENTRO_Y*H
     f=1.0
     if xs1>xs0:
         f=min(f,(cx-SAFE["left"])/max(1,cx-xs0),(W-SAFE["right"]-cx)/max(1,xs1-cx),
@@ -5461,12 +5465,42 @@ def escala_segura(ctx,e,idx):
     f=max(0.70,min(1.0,f))
     if f<0.995: print(f"  zona segura: escena {idx} ({e['tipo']}) escalada x{f:.3f}",flush=True)
     _ESCALA[idx]=f if f<0.995 else 1.0
+    _ESCALA[("llena",idx)]=_crecer(e,(xs0,ys0,xs1,ys1)) if _ESCALA[idx]==1.0 and xs1>xs0 else (1.0,0.0)
     return _ESCALA[idx]
+
+# LLENAR EL LIENZO: la misma medición, en el otro sentido. Una escena cuyo
+# contenido ocupa una franja chica de la zona segura (un titular corto, unas
+# píldoras) crece hasta llenarla, con tope, y se centra en vertical en la
+# zona segura. El crecimiento deja sitio al push-in de la cámara (EMPUJE):
+# crecida y empujada, sigue dentro de la zona segura (la que mide el QA).
+LLENA_MAX=1.35   # tope: más allá el raster ampliado empieza a ablandar la letra
+LLENA_MIN=1.02   # por debajo no compensa mover la escena (sería un salto sin ganancia)
+NO_CRECEN=A_SANGRE|{"final","kenburns","demo","rotulo_inferior"}   # a sangre u overlay: su sitio es el diseño
+
+def _crecer(e,bb):
+    """(factor, dy) para que el bbox `bb` llene la zona segura: crece alrededor
+    de (W/2, CENTRO_Y·H) y dy lleva su centro al centro vertical de la zona.
+    Sin crecimiento: (1.0, 0.0). Con zona declarada o trayectoria global de
+    cámara no crece (las dos fijan el sitio del contenido entre escenas)."""
+    if ALFA or e["tipo"] in NO_CRECEN or e.get("zona") or _CAMARA["activa"]: return (1.0,0.0)
+    x0,y0,x1,y1=bb; cx,cy=W/2,CENTRO_Y*H
+    zx0,zy0,zx1,zy1=caja_segura()
+    g=min(LLENA_MAX,(cx-zx0)/max(1,cx-x0),(zx1-cx)/max(1,x1-cx),(zy1-zy0)/max(1,y1-y0))
+    g/=1+EMPUJE   # el push-in de la cámara cabe dentro
+    if g<LLENA_MIN: return (1.0,0.0)
+    # encajar: Y = cy + dy + g·(y - cy); el centro del bbox cae en el de la zona
+    return (g,(zy0+zy1)/2-cy-g*((y0+y1)/2-cy))
+
+def llenado(ctx,e,idx):
+    """(factor, dy) de crecimiento de la escena idx (se mide con escala_segura)."""
+    escala_segura(ctx,e,idx)
+    return _ESCALA.get(("llena",idx),(1.0,0.0))
 
 # Respiración de cámara: push-in lento y constante en toda escena que no mueve
 # su propia cámara. Un plano asentado nunca queda congelado (fluidez.md) y el
 # movimiento es uno solo para todo el catálogo, no una flotación por escena.
 RESPIRA=0.01; RESPIRA_MAX=0.05   # 1 %/s (como un Ken Burns lento), tope 5 %
+EMPUJE=RESPIRA_MAX   # lo que la cámara empuja como mucho: el crecimiento le deja ese sitio
 CAMARA_PROPIA={"final","kenburns","demo","rotulo_inferior"}   # ya se mueven o son overlay
 QUIETAS={"rotulo_inferior"}   # quieta POR DISEÑO mientras se lee (lower third / overlay)
 
@@ -5495,13 +5529,21 @@ def respiracion(e,t):
     return 1+min(RESPIRA_MAX,RESPIRA*dt), FLOTA_CAM*math.sin(2*math.pi*0.3*dt), 0.0
 
 def encajar(layer,f,dy=0.0,dx=0.0):
-    """Escala la capa alrededor de (W/2, 0.45H) y la desplaza dx/dy px, con
+    """Escala la capa alrededor de (W/2, CENTRO_Y·H) y la desplaza dx/dy px, con
     precisión sub-píxel (afín: sin escalones de 1 px en un movimiento lento)."""
     if abs(f-1)<0.0005 and abs(dy)<0.01 and abs(dx)<0.01: return layer
-    cx,cy=W/2,H*0.45
+    cx,cy=W/2,CENTRO_Y*H
     return layer.transform((W,H),Image.AFFINE,
                            (1/f,0,cx-cx/f+dx,0,1/f,cy-(cy+dy)/f),
                            resample=Image.BICUBIC)
+
+def encuadrar(ctx,e,idx,t,capa):
+    """La capa de la escena con su encuadre: la red de la zona segura (encoge),
+    el llenado (crece y centra) y la cámara (push-in y flotación), en UNA
+    transformación afín."""
+    fr,dy,dx=respiracion(e,t)
+    g,dyl=llenado(ctx,e,idx)
+    return encajar(capa,escala_segura(ctx,e,idx)*g*fr,dy+dyl,dx)
 
 def componer(ctx,escenas,dur,t,manchas_ok):
     """Compone el frame en el instante t (puede ser sub-frame, para el blur)."""
@@ -5513,13 +5555,11 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     # un solo mundo continuo para todo el video (con una semilla por escena el
     # fondo saltaba de lugar en cada corte)
     bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=1)
-    fr,dy,dx=respiracion(s,t)
-    layer=encajar(pintar(ctx,s,t).copy(),escala_segura(ctx,s,si)*fr,dy,dx)
+    layer=encuadrar(ctx,s,si,t,pintar(ctx,s,t).copy())
     if s.get("transicion")=="iris" and si>0 and t-s["from"]<0.9:
         # IRIS: la escena nueva se abre en circulo desde un punto (la cara)
         ep=escenas[si-1]
-        fp,dyp,dxp=respiracion(ep,t)
-        prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp,dxp)
+        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t))
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.38)
         mask=iris_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -5531,16 +5571,14 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         # creciente (un corte suave, sin mancha). Es la transicion mas neutra:
         # no pide atencion como la mancha ni ensucia con formas.
         ep=escenas[si-1]
-        fp,dyp,dxp=respiracion(ep,t)
-        bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp,dxp))
+        bg.alpha_composite(encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t).copy()))
         kd=smoothstep(clamp01((t-s["from"])/SOLAPE_DISSOLVE))
         layer=layer.copy()
         layer.putalpha(layer.split()[3].point(lambda v:int(v*kd)))
         bg.alpha_composite(layer)
     elif si in manchas_ok and t-s["from"]<0.9:
         ep=escenas[si-1]
-        fp,dyp,dxp=respiracion(ep,t)
-        prev=encajar(pintar(ctx,ep,t),escala_segura(ctx,ep,si-1)*fp,dyp,dxp)
+        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t))
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.45)
         mask=mancha_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -5550,8 +5588,7 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     else:
         if si>0 and t-s["from"]<SOLAPE:   # la anterior termina de irse DEBAJO de la nueva
             ep=escenas[si-1]
-            fp,dyp,dxp=respiracion(ep,t)
-            bg.alpha_composite(encajar(pintar(ctx,ep,t).copy(),escala_segura(ctx,ep,si-1)*fp,dyp,dxp))
+            bg.alpha_composite(encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t).copy()))
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)

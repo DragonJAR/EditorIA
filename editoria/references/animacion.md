@@ -172,6 +172,12 @@ El movimiento de cámara convierte un layout plano en un espacio.
   exponencial. Nunca continuo.
 - **Un movimiento por plano** (`direccion.md`): push-in *o* paneo *o*
   paralaje, no los tres.
+- **El lienzo se llena**: la medición de `escala_segura` también hace
+  crecer una escena chica (tope `LLENA_MAX` = 1.35, dejando sitio al
+  push-in) y la centra en la zona segura (`llenado`). No crecen las
+  escenas a sangre, los overlays, las de zona declarada ni las de
+  trayectoria global de cámara. El crecimiento amplía el raster: la letra
+  legible se gana subiendo la escala de la escena, no solo creciendo.
 - **Vuelo continuo (una pieza, un solo recorrido)**: la cámara no salta de
   plano en plano: viaja. En 2D eso es un **dolly con paneo**: el mundo se
   escala y se desliza mientras la cámara se queda con el punto de interés
