@@ -48,10 +48,10 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | "Use the whole catalog, don't repeat last piece's route" | **Repertoire**: `scripts/repertorio.py sugerir/cobertura/validar` (the single intent→scene source: `scripts/data/repertorio.json`; rotation that avoids previous pieces, coverage with what was not used declared, no orphan scenes) |
 | Write or check the on-screen copy | **Copy**: `references/copy.md` + `scripts/lint_copy.py` (the copy is authored before the plan and checked against the engine's own auto-fit) |
 | Check the piece before delivering | **Gate**: `scripts/qa_entrega.py` (plan, copy, render, spec and motion in one verdict; `references/qa-entrega.md`) |
-| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (43 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
+| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (44 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
 | Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles from `references/estilos.md`, then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline with its own scripts (`references/pipeline-resumen.md`) is legacy |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
-| See what the engine can draw (the 43 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
+| See what the engine can draw (the 44 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the prose publishes; `--check` only reports) |
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable, the published tree and the working tree agree) |
@@ -126,11 +126,11 @@ Run it before writing the plan and again whenever the brief changes. It never ov
 
 Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "video de ciberseguridad" --sector ciberseguridad --tono demo --modo explicar --tiene capturas` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (a style pack usable with `--brand`). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
 
-Then author the plan: write `plan.json` following `references/plan-video.md` (43 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
+Then author the plan: write `plan.json` following `references/plan-video.md` (44 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
 
 Before writing the scenes, write the argument: one claim per scene with the proof that carries it, in plain text (`references/copy.md` §1). The order of that list is the order of the video, and it is what keeps a piece from falling into the stock sequence.
 
-Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?* The catalog has 43 scene types; `scripts/demo_plan.json` is one worked example, not the template. The single intent→scene source is `scripts/data/repertorio.json`, consumed by `scripts/repertorio.py` — do not pick from memory or from the example: deal the hand first, then let the argument adjust it.
+Then pick the scenes by **intent, not by name**: `references/intencion-escena.md` is the reverse index of the catalog (what the client asks for → which scene → which motion recipe), and it opens with the question every moving element must answer: *what is this movement for?* The catalog has 44 scene types; `scripts/demo_plan.json` is one worked example, not the template. The single intent→scene source is `scripts/data/repertorio.json`, consumed by `scripts/repertorio.py` — do not pick from memory or from the example: deal the hand first, then let the argument adjust it.
 
 ```bash
 python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre --anterior ../previous-piece/plan.json
@@ -275,7 +275,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (43/43 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (53 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (44/44 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (54 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

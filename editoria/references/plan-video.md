@@ -134,6 +134,7 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   `items`, `titulo` → `rotulo`): una escena que saldría vacía EN SILENCIO. El
   esquema sale del propio código de cada escena. Comentarios: campos `_algo`.
 - **Cabecera de marca**: `"cabecera": {"chip": "CHARLA COMPLETA - youtu.be/...", "marca": "..."}` (opcional) pone el rack arriba del todo: el logo del pack a la izquierda y un chip con la FUENTE a la derecha. Es un global y no una escena porque la banda va en TODOS los fotogramas mientras que una escena ocupa una ventana (y las escenas no se solapan); además, una escena quieta la declara la puerta "congelada". El chip es la **fuente** (de dónde sale el material), **no** la acción: el botón es la acción y va en otra parte. El logo solo sale si la pieza declara `marca` y esa marca es la del pack.
+- **Cámara (trayectoria de la pieza)**: `"camara": {"z0": 1.00, "z1": 1.18, "x0": 260, "x1": -260, "flota": 6}` (opcional) declara el recorrido de la cámara de TODA la pieza: la escala (`z0`→`z1`) y el **paneo** (`x0`→`x1`, `y0`→`y1`, en px). El reloj es global: la cámara no se reinicia en cada corte, así que la pieza se lee como una toma continua y no como un montaje.
 - **Barra de depleción**: `"deplecion": {"y": 0, "alto": 5, "color": "acento"}`
   (opcional) dibuja una barra pegada al borde superior del lienzo que se
   DEPLETA: empieza al ancho completo y se estrecha hasta cero en el último
@@ -240,14 +241,14 @@ python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mo
 - El plan resuelto de cada fila queda junto a su video (`*.plan.json`).
 - Una variante por variable: en tests A/B, la tabla cambia UNA columna.
 
-## Tipos de escena (43)
+## Tipos de escena (44)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·
 `listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final` · `bars` ·
 `gauge` · `ranking` · `stats` · `timeline` · `quote` · `versus` · `confetti` ·
 `typewriter` · `kenburns` · `pasos` · `countdown` · `oferta` · `demo` ·
 `rotulo_inferior` · `hero` · `bento` · `buscador` · `notificacion` · `comentario` ·
 `pie` · `orbita` · `audiowave` · `index` · `callout` · `orbOpen` · `frase` ·
-`constancia` · `cadena` · `cartel`
+`constancia` · `cadena` · `cartel` · `camino`
 
 Ver `references/escenas.md` para los parámetros de cada una.
 Ver `scripts/render_plan.py` para el renderizador de referencia.

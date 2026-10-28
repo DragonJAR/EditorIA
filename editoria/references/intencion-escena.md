@@ -163,6 +163,14 @@ acento, `~caja~` en un bloque rojo y `^caja^` en un bloque blanco.
 Es la version ESTATICA de `frase` (que escribe palabra a palabra): para una
 afirmación que ya esta escrita, el cartel.
 
+### "Quiero que la pieza sea UN recorrido, no una lista de planos"
+`camino` — una linea de luz que corre por la pieza y va encendiendo las
+estaciones que pasa. La camara vuela con la cabeza (el mundo se escala y se
+desliza) y cada estacion es un nodo 3D.
+
+Es la idea que hace que una pieza se lea como una sola idea y no como una
+tanda de planos: todo esta en el mismo camino.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
@@ -180,7 +188,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 |---|---|
 | gancho | `apertura`, `hero`, `countdown`, `buscador`, `pildoras`, `orbOpen` |
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
-| proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena` |
+| proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena`, `camino` |
 | social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
 | cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera` |
 | comparacion | `versus`, `bars`, `ranking` |
