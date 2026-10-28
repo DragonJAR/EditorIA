@@ -25,6 +25,7 @@ nunca se sustituye en silencio por otra que "se parece".
 | Animar sobre video real (rótulos, gráficas, PiP que siguen a la acción) | Híbrido: el footage manda y la animación complementa | La capa animada se ancla a palabras o instantes del footage, no a segundos sueltos | `references/modos-produccion.md` |
 | Un diagrama que se dibuja a sí mismo | HTML+SVG con la marca de la pieza | Un solo fichero autocontenido; el trazo se anima por longitud de path | `references/diagramas.md` |
 | Una pieza que sea UN recorrido (una idea, muchas funciones) y no una tanda de planos | El camino: una línea de luz que corre, la cámara vuela con la cabeza y cada estación se enciende al paso | La escena `camino` del catálogo: las estaciones van en `estaciones` y el trazo lo dibuja UNA función | `references/escenas.md` → `references/plan-video.md` |
+| Sensación de producto / sitio / app (cascada suave, morph de cards, máscara, parallax, zoom continuo) | Repertorio Motion UI (8 técnicas) | Se elige **una** técnica dominante por empleo (atención, mood, guía, profundidad) y se mapea al motor | `references/motion-ui.md` (fuente: motion.zajno.com; no copia demos) |
 
 Regla de cierre de la elección: la técnica se verifica como el resto de la
 pieza — preview de instantes antes de pagar el render, y la puerta al final
@@ -260,4 +261,4 @@ frenada— y **el contacto se conserva hasta su liberación planesada**.
 
 ---
 
-→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/fluidez.md`, `references/reglas-tecnicas.md`, `references/intencion-escena.md`
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/fluidez.md`, `references/reglas-tecnicas.md`, `references/intencion-escena.md`, `references/motion-ui.md`

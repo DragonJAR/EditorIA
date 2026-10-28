@@ -62,7 +62,9 @@ copy, la marca y el arco salen del brief y del pack; aquí solo vive la firma.
    (`references/recetas-ai-video.md`) antes de la rúbrica final.
 
 No sustituye al catálogo de escenas del motor Python: complementa cuando el brief pide
-«hazlo flat vector / Bauhaus / pixel / HUD cyberpunk» como look global.
+«hazlo flat vector / Bauhaus / pixel / HUD cyberpunk» como look global. Si lo que pide
+es el **gesto de interfaz** (cascada, morph, máscara, parallax) y no un look de
+película, la puerta es `references/motion-ui.md`, no esta tabla.
 
 ## Reglas que evitan basura
 
@@ -94,4 +96,4 @@ No sustituye al catálogo de escenas del motor Python: complementa cuando el bri
 
 ---
 
-→ Canónico: `references/estilos-codigo.md` · Dominio: estructura · Vecinos: `references/estilos.md`, `references/canvas.md`, `references/prompt-motion-graphics.md`
+→ Canónico: `references/estilos-codigo.md` · Dominio: estructura · Vecinos: `references/estilos.md`, `references/canvas.md`, `references/prompt-motion-graphics.md`, `references/motion-ui.md`

@@ -269,7 +269,11 @@ el motor. Orden:
    selector de técnica (`references/animacion.md` §0: canvas, HandDraw,
    Remotion, HyperFrames, 3D, híbrido, diagramas) y declara la capacidad
    si falta (`references/capacidades.md`).
-7. **Verifica barato**: `render_plan.py plan.json --preview t1,t2,t3` y
+7. **Si lo que pide es el gesto de producto/sitio** (cascada, morph,
+   máscara, parallax, zoom continuo): no inventes una escena nueva; aplica
+   una técnica de `references/motion-ui.md` sobre la escena ya elegida o
+   cambia de motor si la fila lo exige (morph/mask foto → HyperFrames).
+8. **Verifica barato**: `render_plan.py plan.json --preview t1,t2,t3` y
    `auditar_plan.py` antes del render completo; mide movimiento con
    `medir_animacion.py` si hay pop/tirón.
 

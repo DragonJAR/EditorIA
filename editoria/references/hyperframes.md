@@ -104,4 +104,4 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/recetas-ai-video.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/recetas-ai-video.md`, `references/motion-ui.md`
