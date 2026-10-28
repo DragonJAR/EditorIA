@@ -46,7 +46,7 @@ Aplicar a cada escena antes de entregar.
   la puerta. Ahora todos pasan por la escala (el más pequeño, `nota` = 28), y
   el único por debajo es un **glifo** (el "✓" de verificado, dentro de un
   badge de 18 px): un símbolo no es una letra. La puerta `validate_skill.py`
-  lo vigila sobre las 39 escenas en los dos formatos, y
+  lo vigila sobre las 45 escenas en los dos formatos, y
   `scripts/_tests/test_piso_legible.py` lo vigila en el código.
 - **El texto de un solo renglón que no cabe se RECORTA, no se encoge**:
   `recorta_para` deja el tamaño de la escala y acorta el texto con "…"
@@ -82,7 +82,7 @@ Aplicar a cada escena antes de entregar.
   pieza. Si necesitas otro estado (el "Pagado" de un comprobante), es un
   estado **del mismo** botón, no otro botón.
 - **Una sola retícula**: el rótulo de la escena cae en `y = H*0.20` en las
-  39 escenas y mide lo que dice la escala (`rotulo`, 44 px). Un rótulo que
+  45 escenas y mide lo que dice la escala (`rotulo`, 44 px). Un rótulo que
   salta de altura entre escenas rompe el ritmo, aunque no se pise nada.
 - **Un solo fondo**: un mundo continuo para todo el video (semilla fija,
   viñeta común). El ambiente no salta de lugar en cada corte.

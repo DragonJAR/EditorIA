@@ -198,7 +198,7 @@ completo: un frame por instante, no los 600 del video. Sin `-o` no hace
 falta.
 
 **Tamaño**: `"tamano": "1920x1080"` en el plan (o `--tamano`) para 16:9; la
-zona segura pasa a la de YouTube. Default 1080×1920. Las 40 escenas se
+zona segura pasa a la de YouTube. Default 1080×1920. Las 45 escenas se
 componen en los dos formatos (validadas en 9:16 y 16:9 por `validate_skill.py`
 y `galeria.py`): los tamaños de letra van en `unidad()` (lado corto), las
 pilas se miden con `pila()` y las escenas de lectura en columna (`chat`,

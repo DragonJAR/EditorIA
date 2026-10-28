@@ -673,6 +673,254 @@ def _tipos_de_escena():
     return set(re.findall(r'"(\w+)":\s*sc_\w+', texto))
 
 
+# ============================================================================
+# EL TAMAÑO DEL CATALOGO DE ESCENAS AFIRMADO POR LA PROSA
+# ============================================================================
+#
+# UNA IDEA, UN CANONICO: la tabla de aqui la usan el guard (que COMPRUEBA) y
+# la herramienta (que REESCRIBE). Si las dos tuvieran su propia lista, el
+# bucle "corrige y vuelve a fallar" no tendria salida: una forma que el guard
+# ve y la herramienta no puede arreglar es un numero viejo que se aginga en
+# silencio, y eso es exactamente lo que paso.
+#
+# POR QUE UNA REGLA Y NO UNA LISTA DE FRASES: la prosa dice el tamaño del
+# catalogo de muchas maneras ("el catalogo de 39 tipos de escena", "las 39
+# escenas planas", "el motor tiene 39 tipos de\nescena", "39 escenas
+# (references/escenas.md)", "Suite visual de las 39 escenas", "42 tipos —").
+# Una lista de frases literales solo vigila las que alguien penso: MEDIDO, la
+# puerta daba verde con 18 cifras falsas en 12 ficheros (la prosa decia 39 y
+# 40 con un motor de 41 escenas). La regla ("cifra + vocabulario del
+# catalogo") aguanta las frases que todavia no estan escritas; las
+# EXCLUSIONES son las unicas excepciones, y cada una dice POR QUE existe.
+
+#: El vocabulario del catalogo. La cifra va DELANTE (las formas con la cifra
+#: detras, como "Tipos de escena (43)", tienen su propia forma). El
+#: lookbehind descarta la segunda mitad de un rango ("2-3 tipos de escena") y
+#: la primera cifra de un par ("43/43 escenas render"): el rango y el par se
+#: comprueban con su propia forma, no como una cifra suelta.
+FORMAS_CATALOGO = (
+    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+escenas\b", "escenas del catalogo"),
+    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+scenes\b", "escenas del catalogo"),
+    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+scene\s+types\b", "escenas del catalogo"),
+    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+tipos\s+de\s+escena\b", "escenas del catalogo"),
+    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+tipos\s+del\s+plan\b", "escenas del catalogo"),
+    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+tipos\s+[—-]", "escenas del catalogo"),
+    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+types\s+[—-]", "escenas del catalogo"),
+    (r"Tipos\s+de\s+escena\s*\((\d+)\)", "escenas del catalogo"),
+    (r"cat[áa]logo\s+tenga\s+([0-9]+)\s+tipos\b", "escenas del catalogo"),
+)
+
+#: La forma con la cifra DETRAS: "## Tipos de escena (43)".
+FORMA_CATALOGO_DETRAS = re.compile(r"Tipos\s+de\s+escena\s*\((\d+)\)")
+
+#: El PAR "43/43 escenas render": las DOS cifras son el total.
+FORMA_CATALOGO_PAR = re.compile(
+    r"(?<![0-9\-‐‑‒–—―])([0-9]+)\s*/\s*([0-9]+)\s+(?:escenas|scenes)\s+render\b")
+
+#: La DESCOMPOSICION: "las 13 escenas originales mas 23 escenas de ...". Las dos
+#: cifras NO son el total: su SUMA lo es (13 + 23 = 36). Se comprueba
+#: aritmeticamente, no por igualdad.
+RE_DESCOMPOSICION = re.compile(
+    r"las\s+([0-9]+)\s+escenas\s+originales\s+m[áa]s\s+([0-9]+)\s+escenas",
+    re.IGNORECASE)
+
+#: Las EXCLUSIONES: los contextos en los que la cifra NO afirma el tamaño del
+#: catalogo. Cada una dice por que existe: una exclusion sin motivo es un
+#: agujero con otra forma.
+EXCLUSIONES_CATALOGO = (
+    ("despues", r"\boriginales\b",
+     "es una parte historica del catalogo (las escenas originales)"),
+    ("despues", r"\bdel\s+plan\b",
+     "son las escenas de UN plan, no las del catalogo"),
+    ("antes", r"\bdemo\s+de\s*$",
+     "es el plan de ejemplo"),
+    ("antes", r"\bplan(?:\.json)?\s+(?:con|with)\s*$",
+     "son las escenas de UN plan, no las del catalogo"),
+    ("despues", r"\bdel\s+cat[áa]logo\s+extendido\b",
+     "es un subconjunto (el catalogo extendido de otro proyecto)"),
+    ("despues", r"\bde\s+la\s+ronda\s+[0-9]",
+     "es un subconjunto (una ronda concreta)"),
+    ("despues", r"\bRemotion\b",
+     "es el catalogo de un proyecto externo"),
+    ("antes", r"\bremotion-scenes\b",
+     "es el catalogo de un proyecto externo"),
+    ("antes", r"\bto\s+$",
+     "es un rango ('in 4 to 5 scenes')"),
+    ("despues", r"\ben\s+total\b[^.]{0,40}PIL/ffmpeg",
+     "es el resumen de un catalogo externo"),
+    ("ambos", r"\bsistema\s+original\b",
+     "es el sistema original (lo heredado), no el catalogo de hoy"),
+)
+
+#: Las SECCIONES que declaran historia: sus cifras son de otro tiempo.
+#: OJO con el limite de palabra: sin el, "CoHERENCIA visual" casa con
+#: "herencia" y la seccion entera (con sus cifras VIGENTES) se queda fuera.
+SECCION_HISTORICA = re.compile(r"\bherencia\b|\bhist[óo]ric|\bsistema\s+original\b",
+                                re.IGNORECASE)
+
+#: Frontera de frase: lo que separa una afirmacion de la siguiente. Sin esto,
+#: el contexto de una cifra se comia la frase vecina y una exclusion se
+#: disparaba por una palabra que estaba al otro lado de un punto.
+FIN_FRASE = re.compile(r"[.!?:;]\s|\n\s*\n")
+
+#: Un titulo de seccion (para saber si la cifra cae en una seccion de
+#: historia).
+RE_TITULO = re.compile(r"(?m)^#{1,6}\s+.*$")
+
+
+def _rangos_de_log(texto):
+    """Los tramos de las ENTRADAS DE LOG fechadas: son registros, no reglas.
+
+    La prosa tiene dos clases de texto: la que dice lo que hay que hacer HOY y
+    la que registra lo que se decidio en su dia. Una cifra de la segunda
+    clase no se compara con el motor (el log ya tiene su fecha). El guard
+    quita esas entradas con `_prosa`; aqui se quitan por POSICION, para que la
+    herramienta pueda reescribir el resto sin pisar el log.
+    """
+    rangos = []
+    pos = 0
+    saltando = False
+    ini_bloque = 0
+    for ln in texto.splitlines(keepends=True):
+        if LOG_FECHA.match(ln):
+            if not saltando:
+                ini_bloque = pos
+                saltando = True
+        elif saltando:
+            if not (not ln.strip() or ln.startswith((" ", "\t"))):
+                rangos.append((ini_bloque, pos))
+                saltando = False
+        pos += len(ln)
+    if saltando:
+        rangos.append((ini_bloque, pos))
+    return rangos
+
+
+def _frase_alrededor(texto, ini, fin):
+    """(antes, despues): el texto de la MISMA frase que rodea a la cifra."""
+    antes = texto[:ini]
+    despues = texto[fin:]
+    ultimo = None
+    for m in FIN_FRASE.finditer(antes):
+        ultimo = m
+    ini_antes = ultimo.end() if ultimo else 0
+    primero = FIN_FRASE.search(despues)
+    fin_despues = fin + (primero.start() if primero else len(despues))
+    return antes[ini_antes:], texto[fin:fin_despues]
+
+
+def _titulo_previo(titulos, ini):
+    """El titulo de seccion mas cercano antes de `ini` (o "")."""
+    elegido = ""
+    for pos, titulo in titulos:
+        if pos > ini:
+            break
+        elegido = titulo
+    return elegido
+
+
+def _exclusion_de(antes, despues):
+    """El motivo por el que esta cifra NO afirma el total (o None)."""
+    for donde, patron, motivo in EXCLUSIONES_CATALOGO:
+        texto = {"antes": antes, "despues": despues, "ambos": antes + " " + despues}[donde]
+        if re.search(patron, texto, re.IGNORECASE):
+            return motivo
+    return None
+
+
+def _cifras_del_catalogo(texto):
+    """Las afirmaciones del tamaño del catalogo que hay en un texto.
+
+    Devuelve una lista de dictos con:
+      · "cifra":    el numero afirmado
+      · "ini"/"fin": donde esta ese numero en el texto (para reescribirlo)
+      · "fragmento": lo que se ve (para el informe)
+      · "exclusion": el motivo si la cifra NO afirma el total (o None)
+      · "forma":    el patron que la cogio
+    """
+    if not texto:
+        return []
+    logs = _rangos_de_log(texto)
+    titulos = [(m.start(), m.group(0)) for m in RE_TITULO.finditer(texto)]
+
+    def _en_log(pos):
+        return any(a <= pos < b for a, b in logs)
+
+    # los tramos que NO son afirmaciones del total: el par "43/43" y la
+    # descomposicion "13 + 23" se comprueban con su propia regla
+    spans_reservados = []
+    for m in FORMA_CATALOGO_PAR.finditer(texto):
+        spans_reservados.append((m.start(), m.end()))
+    for m in RE_DESCOMPOSICION.finditer(texto):
+        spans_reservados.append((m.start(), m.end()))
+
+    hallazgos = []
+    vistos = set()
+    for patron, etiqueta in FORMAS_CATALOGO:
+        for m in re.finditer(patron, texto, re.IGNORECASE):
+            if any(a <= m.start(1) < b for a, b in spans_reservados):
+                continue
+            if (m.start(1), m.end(1)) in vistos:
+                continue
+            vistos.add((m.start(1), m.end(1)))
+            if _en_log(m.start(1)):
+                continue
+            titulo = _titulo_previo(titulos, m.start(1))
+            if titulo and SECCION_HISTORICA.search(titulo):
+                continue
+            antes, despues = _frase_alrededor(texto, m.start(), m.end())
+            hallazgos.append({
+                "cifra": int(m.group(1)),
+                "ini": m.start(1),
+                "fin": m.end(1),
+                "fragmento": m.group(0).strip(),
+                "exclusion": _exclusion_de(antes, despues),
+                "forma": etiqueta,
+            })
+    return hallazgos
+
+
+def _descomposiciones_del_catalogo(texto):
+    """Las descomposiciones del catalogo ("las 13 originales mas 23 escenas").
+
+    El total es la SUMA de las dos cifras: se comprueba aritmeticamente y se
+    reescribe la segunda (la primera es una parte historica que no cambia).
+    """
+    if not texto:
+        return []
+    logs = _rangos_de_log(texto)
+    salida = []
+    for m in RE_DESCOMPOSICION.finditer(texto):
+        if any(a <= m.start(2) < b for a, b in logs):
+            continue
+        salida.append({
+            "primera": int(m.group(1)),
+            "segunda": int(m.group(2)),
+            "ini": m.start(2),
+            "fin": m.end(2),
+            "fragmento": m.group(0).strip(),
+        })
+    return salida
+
+
+def _pares_del_catalogo(texto):
+    """Los pares "43/43 escenas render": las dos cifras son el total."""
+    if not texto:
+        return []
+    salida = []
+    for m in FORMA_CATALOGO_PAR.finditer(texto):
+        salida.append({
+            "primera": int(m.group(1)),
+            "segunda": int(m.group(2)),
+            "ini": m.start(1),
+            "fin": m.end(1),
+            "ini2": m.start(2),
+            "fin2": m.end(2),
+            "fragmento": m.group(0).strip(),
+        })
+    return salida
+
+
 def _chequear_escenas(problemas):
     """Que el catalogo documentado sea el catalogo del motor, POR NOMBRE.
 
@@ -832,30 +1080,11 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_archivos_tests):
         # es una cifra historica ("la ronda 4 aporto 3 primitivas DRY")
         (r"(\d+)\s+referencias\s+en\s+kebab-case", n_refs, "referencias"),
         (r"(\d+)\s+references\s+in\s+kebab-case", n_refs, "referencias"),
-        # el tamaño del CATALOGO, no un ejemplo de plan ("plan demo de 6
-        # escenas" ni "las 13 escenas originales"): solo las formas que SI
-        # son una afirmacion del tamaño del catalogo
-        (r"(\d+)\s+escenas\s+compuestas", n_escenas, "escenas del catalogo"),
-        (r"(\d+)\s+scenes\s+composed", n_escenas, "escenas del catalogo"),
-        (r"\((\d+)\s+escenas\)", n_escenas, "escenas del catalogo"),
-        (r"\((\d+)\s+scenes\)", n_escenas, "escenas del catalogo"),
-        (r"catálogo\s+de\s+(\d+)\s+escenas", n_escenas, "escenas del catalogo"),
-        (r"[Cc]atalog of\s+(\d+)\s+scenes", n_escenas, "escenas del catalogo"),
-        (r"componen\s+las\s+(\d+)\s+escenas", n_escenas, "escenas del catalogo"),
-        (r"compose\s+all\s+(\d+)\s+scenes", n_escenas, "escenas del catalogo"),
-        (r"Suite visual de las\s+(\d+)\s+escenas", n_escenas, "escenas del catalogo"),
-        (r"Visual suite for all\s+(\d+)\s+scenes", n_escenas, "escenas del catalogo"),
-        (r"Muestras canónicas de las\s+(\d+)\s+escenas", n_escenas, "escenas del catalogo"),
-        (r"Canonical samples for all\s+(\d+)\s+scenes", n_escenas, "escenas del catalogo"),
-        (r"(\d+)\s+scene\s+types", n_escenas, "escenas del catalogo"),
-        # "13 tipos de escena" en arquitectura.md es historico (el sistema
-        # original tenia 13): el patron del total es "con N tipos" / "con N tipos
-        # de escena" en el README
-        (r"con\s+(\d+)\s+tipos\s+de\s+escena", n_escenas, "escenas del catalogo"),
-        (r"con\s+(\d+)\s+tipos\s+—", n_escenas, "escenas del catalogo"),
-        (r"with\s+(\d+)\s+types\s+—", n_escenas, "escenas del catalogo"),
-        (r"with\s+(\d+)\s+scene\s+types", n_escenas, "escenas del catalogo"),
-        (r"(\d+)/(\d+)\s+scenes\s+render", n_escenas, "escenas del catalogo"),
+        # el tamaño del CATALOGO NO se vigila con una lista de frases: lo
+        # vigila la REGLA de mas abajo (FORMAS_CATALOGO), que es la misma que
+        # usa la herramienta para reescribirlo. Una lista de frases literales
+        # solo cubria las frases que alguien penso: MEDIDO, la puerta daba
+        # verde con 18 cifras falsas en 12 ficheros.
         (r"(\d+)\s+m[óo]dulos\s+de\s+post-producci[óo]n", n_fft, "modulos de post-produccion"),
         # los scripts raiz, contados de tres formas distintas: el desglose
         # en ingles, el desglose en espanol y la forma corta del encabezado
@@ -909,6 +1138,34 @@ def _chequear_conteos_readme(problemas, n_refs, n_fft, n_archivos_tests):
                             "tipo": "conteo obsoleto", "archivo": etiqueta,
                             "msg": f"dice {que} {g} y hay {real}"})
                         break
+        # el tamaño del CATALOGO, con la REGLA (no con una lista de frases):
+        # misma tabla para el guard y para la herramienta, asi que toda cifra
+        # que el guard senala la herramienta sabe arreglarla.
+        for h in _cifras_del_catalogo(texto):
+            if h["exclusion"] or h["cifra"] == n_escenas:
+                continue
+            problemas.append({
+                "tipo": "conteo obsoleto", "archivo": etiqueta,
+                "msg": f"dice {h['cifra']} escenas del catalogo y hay {n_escenas} "
+                       f"({h['fragmento'][:40]}) -> corre "
+                       f"`python scripts/actualizar_conteos.py`"})
+        for d in _descomposiciones_del_catalogo(texto):
+            suma = d["primera"] + d["segunda"]
+            if suma == n_escenas:
+                continue
+            problemas.append({
+                "tipo": "conteo obsoleto", "archivo": etiqueta,
+                "msg": f"dice {d['primera']}+{d['segunda']}={suma} escenas del "
+                       f"catalogo y hay {n_escenas} -> corre "
+                       f"`python scripts/actualizar_conteos.py`"})
+        for p in _pares_del_catalogo(texto):
+            if p["primera"] == n_escenas and p["segunda"] == n_escenas:
+                continue
+            problemas.append({
+                "tipo": "conteo obsoleto", "archivo": etiqueta,
+                "msg": f"dice {p['primera']}/{p['segunda']} escenas del catalogo y "
+                       f"hay {n_escenas} -> corre "
+                       f"`python scripts/actualizar_conteos.py`"})
         # el desglose de scripts: "N root + N in ffmpeg_tools/ + N in _tests/ = N scripts"
         # y su forma en espanol ("N motores raiz + N en ffmpeg_tools/ + N en _tests/")
         for mt in re.finditer(r"(\d+)\s+(?:root|motores\s+ra[ií]z)\s*\+\s*(\d+)\s+"

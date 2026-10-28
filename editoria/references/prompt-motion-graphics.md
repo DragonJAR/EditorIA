@@ -295,7 +295,7 @@ signature features no se editan: son el criterio con el que un jurado
 independiente puntúa fidelidad de estilo (`recetas-ai-video.md` §7).
 
 Cuándo: showreel de estilo, explainer «en el look de X», prueba de
-dirección de arte antes del plan largo. Cuándo no: piezas con 39 escenas
+dirección de arte antes del plan largo. Cuándo no: piezas con 45 escenas
 del motor Python ya tipadas — ahí manda `escenas.md` + `estilos.md`.
 
 ## Cómo se pide un estilo canónico (no con adjetivos)

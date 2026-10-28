@@ -28,7 +28,7 @@ un parametro del plan, esta es su definicion.
 
 | termino | que es | donde |
 |---|---|---|
-| `tipo` | cual de las 39 escenas es (ver `references/escenas.md`) | `references/escenas.md` |
+| `tipo` | cual de las 45 escenas es (ver `references/escenas.md`) | `references/escenas.md` |
 | `rotulo` | el titulo de la escena, con enfasis `*...*` en el color de acento | `references/plan-video.md` |
 | `kicker` / `badge` | la etiqueta pequena sobre el titulo (categoria o dato) | `references/plan-video.md` |
 | `pie` | la linea al pie (la fuente del dato, la firma) | `references/plan-video.md` |

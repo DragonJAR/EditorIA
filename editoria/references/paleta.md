@@ -29,7 +29,7 @@ la pieza, para quién es y si es urgente o Informativo. Elegirlo a ciegas
    llegar a **4.5:1**. Todas las paletas del catálogo lo cumplen (verificado
    en `scripts/_tests/test_paleta.py`); si añades una, compruébalo.
 5. **La paleta es de la pieza, no de la escena.** La misma paleta en las
-   39 escenas: si el acento cambia a mitad de video, no es una paleta, es
+   45 escenas: si el acento cambia a mitad de video, no es una paleta, es
    un descuido.
 6. **El tono de acento se deriva del acento** (×0,65) para las sombras y
    bordes: nunca un segundo color libre.

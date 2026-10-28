@@ -1,6 +1,6 @@
 # Estilos en código (catálogos externos)
 
-Los motores de la skill hacen **escenas**, no **estilos de película**: hay 39 tipos de
+Los motores de la skill hacen **escenas**, no **estilos de película**: hay 45 tipos de
 escena y ninguno es "óleo al thick" ni "ukiyo-e". Los catálogos externos de estilos
 hechos en código cubren ese hueco, y son las dos cosas a la vez: un **vocabulario de
 LOOKS** (para elegir el aire de la pieza antes de escribir el plan), **material** (un

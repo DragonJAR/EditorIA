@@ -79,17 +79,30 @@ def _fps_de(ruta):
 
 
 def _tiene_alfa(ruta):
-    """True si el fichero LLEVA canal alfa (una capa, no un video opaco)."""
+    """True si el fichero LLEVA canal alfa (una capa, no un video opaco).
+
+    OJO con el VP9 (.webm): el decoder NATIVO de ffmpeg descarta el alfa, y
+    el stream se ve como `yuv420p` aunque el contenedor lo traiga (la
+    etiqueta `alpha_mode=1`). MEDIDO: una capa .webm con alfa de verdad
+    (88 % transparente al decodificar con libvpx-vp9) salia con "NO lleva
+    canal alfa" y el clip de debajo se tapaba con un rectangulo negro. Para
+    el .webm hay que mirar la ETIQUETA, igual que hace
+    `_comun.verificar_alfa` (que si la mira).
+    """
     try:
         r = subprocess.run(
             ["ffprobe", "-v", "error", "-select_streams", "v:0",
-             "-show_entries", "stream=pix_fmt", "-of", "csv=p=0", ruta],
+             "-show_entries", "stream=pix_fmt:stream_tags=alpha_mode",
+             "-of", "default=nw=1", ruta],
             capture_output=True, text=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return None
-    pix = (r.stdout or "").strip().lower()
-    if not pix:
+    salida = (r.stdout or "").strip().lower()
+    if not salida:
         return None
+    if "alpha_mode=1" in salida:
+        return True
+    pix = salida.splitlines()[-1].strip()
     return any(m in pix for m in ("rgba", "yauva", "yuva", "argb", "abgr", "bgra"))
 
 
@@ -268,7 +281,12 @@ def componer(base, capa, salida, audio=None, velo="auto", fps=24,
     # 0=base, 1=capa, y despues las imagenes de apoyo y el audio. El indice
     # se lleva la cuenta: antes se escribia a mano y un dia el audio quedo
     # descolocado (el "-map 2:a" apuntaba a la mascara).
-    entradas = ["-i", base, "-i", capa]
+    # el VP9 (.webm) solo entrega su alfa si se le FUERZA el decoder: el
+    # nativo lo descarta y la capa llega opaca (medido: el clip de debajo
+    # salia tapado por un rectangulo negro, y el aviso decia que la capa no
+    # tenia alfa cuando si la tenia).
+    _dec_capa = ["-c:v", "libvpx-vp9"] if capa.lower().endswith(".webm") else []
+    entradas = ["-i", base, *_dec_capa, "-i", capa]
     n_entradas = 2
     i_velo = i_mascara = None
     if velo_ruta:

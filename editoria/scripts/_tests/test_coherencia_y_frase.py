@@ -247,7 +247,7 @@ class TestFraseCinetica(unittest.TestCase):
         """`~palabra~` la pone dentro de una CAJA ROJA (texto blanco)."""
         R = self.R
         e = {"tipo": "frase", "from": 0.0, "to": 8.0,
-             "frase": "esto es ~lo importante* aqui", "cps": 1.0}
+             "frase": "esto es ~importante~ aqui", "cps": 1.0}
         ac = R.ACENTO[:3]
         capa = self._pintar(e, 3.2)
         rojo = sum(1 for r, g, b, a in capa.getdata()
@@ -259,7 +259,7 @@ class TestFraseCinetica(unittest.TestCase):
         """`^palabra^` la pone en una CAJA BLANCA (texto oscuro encima)."""
         R = self.R
         e = {"tipo": "frase", "from": 0.0, "to": 8.0,
-             "frase": "esto es ^esto otro* aqui", "cps": 1.0}
+             "frase": "esto es ^clave^ aqui", "cps": 1.0}
         capa = self._pintar(e, 3.2)
         claros = sum(1 for r, g, b, a in capa.getdata()
                      if a > 200 and r > 235 and g > 235 and b > 225)

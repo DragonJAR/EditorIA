@@ -1047,20 +1047,54 @@ def fuente_marca(path_pack: Optional[str], rol: str = "titulares",
             resolver_fuente(defecto, generica=generica))
 
 
+def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:
+    """Markup de resalte del kit (UNA sola implementación).
+
+    Marcadores (sin anidar; un cierre cambia de modo):
+      *palabra*  → kind ``acento`` (tinta del acento de marca)
+      ~palabra~  → kind ``roja``   (caja del acento, texto blanco)
+      ^palabra^  → kind ``blanca`` (caja blanca, texto oscuro)
+
+    'Hola ~mundo~ y *más*' ->
+      [('Hola ', ''), ('mundo', 'roja'), (' y ', ''), ('más', 'acento')]
+
+    Lo consumen `frase` (cajas palabra a palabra) y `titular`/`rotulo`
+    (apertura, remate, pildoras…): el mismo sistema del reel de referencia
+    (cajas rojas/blancas + énfasis), no tres parsers distintos.
+    """
+    out: List[Tuple[str, str]] = []
+    buf, kind = "", ""
+    pares = {"*": "acento", "~": "roja", "^": "blanca"}
+    for ch in texto or "":
+        if ch in pares:
+            if buf:
+                out.append((buf, kind))
+            buf = ""
+            # abrir o cerrar el mismo marcador; otro marcador con uno abierto
+            # se ignora como carácter (no anida: el cierre es el mismo signo)
+            if kind == "":
+                kind = pares[ch]
+            elif kind == pares[ch]:
+                kind = ""
+            else:
+                # marcador distinto con uno abierto: se trata como texto
+                buf += ch
+            continue
+        buf += ch
+    if buf:
+        out.append((buf, kind))
+    return out
+
+
 def segmentos_enfasis(texto: str) -> List[Tuple[str, bool]]:
     """'Hola *mundo*' -> [('Hola ', False), ('mundo', True)]: la convención de
-    énfasis del kit (el énfasis va en el color de acento)."""
-    out, buf, enf = [], "", False
-    for ch in texto or "":
-        if ch == "*":
-            if buf:
-                out.append((buf, enf))
-            buf, enf = "", not enf
-        else:
-            buf += ch
-    if buf:
-        out.append((buf, enf))
-    return out
+    énfasis del kit (el énfasis va en el color de acento).
+
+    Envoltorio de `segmentos_resalte`: True = kind ``acento``. Las cajas
+    (`roja`/`blanca`) salen como False aquí — quien las necesita llama a
+    `segmentos_resalte` directo.
+    """
+    return [(t, k == "acento") for t, k in segmentos_resalte(texto)]
 
 
 def identidad_pieza(brand: Optional[str] = None, logo: Optional[str] = None,

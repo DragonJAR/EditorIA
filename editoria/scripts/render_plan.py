@@ -17,7 +17,7 @@ except ModuleNotFoundError as _e_dep:
 # Sin pack (modo libre) nada de marca: acento neutro y fuentes empaquetadas.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _plataforma import resolver_fuente
-from _comun import NEUTRO, aplicar_grano, segmentos_enfasis   # paleta neutra, grano y énfasis *...* del kit
+from _comun import NEUTRO, aplicar_grano, segmentos_enfasis, segmentos_resalte  # paleta, grano y markup * ~ ^
 ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
 FJ=resolver_fuente("Plus Jakarta Sans", generica="sans-bold")
@@ -390,15 +390,28 @@ def capa_salida(layer,t,to_):
 def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,maxw=None):
     """Titular cinético: cada palabra entra con resorte en su `at`, con escala
     real (1.16 -> 1.0, el overshoot del resorte da el asentamiento) y elevación.
-    Auto-fit sobre el ancho REAL de la línea (palabras + huecos)."""
+    Auto-fit sobre el ancho REAL de la línea (palabras + huecos).
+
+    Markup (mismo que `frase`, vía `segmentos_resalte`): `*clave*` en tinta
+    de acento; `~clave~` caja roja (texto blanco); `^clave^` caja blanca
+    (texto oscuro). Es el sistema del reel de referencia — una sola fuente.
+    """
     d=ImageDraw.Draw(layer)
     zx0,_,zx1,_=caja_segura()
     maxw=maxw or (zx1-zx0)*0.96   # cabe en la zona SEGURA (W-2*MARGEN es más ancho en 9:16)
     def palabras(ln):
-        return [(w_,em) for t_seg,em in segs(ln) for w_ in t_seg.split(" ") if w_]
+        # kind: '' | 'acento' | 'roja' | 'blanca' (segmentos_resalte)
+        return [(w_, kind) for t_seg, kind in segmentos_resalte(ln)
+                for w_ in t_seg.split(" ") if w_]
     def ancho(ln,fnt):
         ws=palabras(ln); gap=ctx.tmp.textlength(" ",font=fnt)+word_gap*0.4
-        return sum(ctx.tmp.textlength(w_,font=fnt) for w_,_ in ws)+gap*max(0,len(ws)-1)
+        # las cajas suman un poco de padding horizontal al medir
+        extra=0.0
+        for w_, kind in ws:
+            if kind in ("roja", "blanca"):
+                extra += fnt.size * 0.32
+        return (sum(ctx.tmp.textlength(w_,font=fnt) for w_,_ in ws)
+                + gap*max(0,len(ws)-1) + extra)
     while tam>40:
         fnt=ctx.fT(tam,800)
         if max(ancho(ln,fnt) for ln in lineas)<=maxw: break
@@ -411,17 +424,32 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
     for li,ln in enumerate(lineas):
         y=y0+li*tam*line_gap
         x=(W-ancho(ln,fnt))/2
-        for w_,em in palabras(ln):
+        for w_, kind in palabras(ln):
             ww=ctx.tmp.textlength(w_,font=fnt)
+            pad = tam * 0.16 if kind in ("roja", "blanca") else 0.0
             at=ats[wi] if wi < len(ats) else ats[-1]+0.12*(wi-len(ats)+1); wi+=1   # palabras de más: siguen la cadencia
             k=entra(t, at, "titular")
             if k>0:
                 sc=1+0.16*(1-k)
-                col=ACENTO if em else BLANCO
+                al=int(255*clamp01(k*1.5))
                 f2=ctx.fT(tam*sc,800) if abs(sc-1)>0.004 else fnt
-                d.text((x+ww/2,y+tam+(1-min(1,k))*ELEV),w_,font=f2,
-                       fill=col+(int(255*clamp01(k*1.5)),),anchor="ms")
-            x+=ww+gap
+                ww2=ctx.tmp.textlength(w_,font=f2)
+                yy=y+tam+(1-min(1,k))*ELEV
+                if kind in ("roja", "blanca"):
+                    pad2 = f2.size * 0.16
+                    caja=[x - pad2, yy - f2.size * 0.85,
+                          x + ww2 + pad2, yy + f2.size * 0.25]
+                    relleno = ACENTO if kind == "roja" else BLANCO
+                    d.rounded_rectangle(caja, radius=int(f2.size * 0.12),
+                                        fill=relleno + (al,))
+                    col = BLANCO if kind == "roja" else NEGRO
+                elif kind == "acento":
+                    col = ACENTO
+                else:
+                    col = BLANCO
+                d.text((x+ww2/2,yy),w_,font=f2,
+                       fill=col+(al,),anchor="ms")
+            x+=ww+gap+2*pad
     return tam
 
 def rotulo_y():
@@ -2106,7 +2134,8 @@ def sc_remate(ctx,e,t):
     # palabras de las líneas
     words=[]
     for ln in e["lineas"]:
-        words+=ln.replace("*","").split(" ")
+        # el markup * ~ ^ no cuenta como palabra (mismas reglas que titular)
+        words+=[w for t_,_k in segmentos_resalte(ln) for w in t_.split(" ") if w]
     titular(ctx,layer,t,e["lineas"],ats,tam=ESCALA["titular"],cy=H*0.36+flota(t,ats[-1]+0.5,4,0.45))
     g=e["at"]["gigante"]
     k=entra(t, g, "pop")
