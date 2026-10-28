@@ -92,5 +92,56 @@ class TestLienzo(unittest.TestCase):
         self.assertFalse('e.get("tam", 52)' in cartel, "el cartel arranca en 52 px")
 
 
+class TestCamara(unittest.TestCase):
+    def setUp(self):
+        import render_plan as R
+        R.formato(1080, 1920)
+        R.aplicar_globales({"escenas": []})
+        self.R = R
+
+    def test_el_push_in_se_nota(self):
+        R = self.R
+        e = {"tipo": "titular", "from": 2.0, "to": 6.0}
+        f_fin = R.respiracion(e, e["to"])[0]
+        self.assertGreaterEqual(f_fin, 1.05, "un push-in de menos del 5 % no se ve")
+        self.assertLessEqual(f_fin, 1 + R.EMPUJE + 1e-9)
+        self.assertAlmostEqual(R.respiracion(e, e["from"])[0], 1.0, places=6)
+        # despues del corte (la salida se solapa con la siguiente) no sigue empujando
+        self.assertAlmostEqual(R.respiracion(e, e["to"] + 0.4)[0], f_fin, places=6)
+
+    def test_el_push_in_es_monotono_y_funcion_pura_de_t(self):
+        R = self.R
+        e = {"tipo": "titular", "from": 0.0, "to": 4.0}
+        fs = [R.respiracion(e, i * 0.1)[0] for i in range(41)]
+        self.assertEqual(fs, sorted(fs), "el push-in no puede ir y volver")
+        self.assertEqual(fs, [R.respiracion(e, i * 0.1)[0] for i in range(41)])
+
+    def test_el_push_in_no_saca_una_escena_llena_de_la_zona_segura(self):
+        """Una escena que ya llena la zona segura arranca mas abierta y el
+        push-in llega a su encaje: al final sigue dentro (antes se salia
+        ~20 px por los lados en el ultimo cuadro)."""
+        R = self.R
+        R._ESCALA.clear()
+        ctx = R.Ctx()
+        e = R.completar_escena(_muestra("ranking"), 0)
+        f0 = R.respiracion(e, e["from"])[0]
+        t = e["to"] - 0.05
+        bb = R.encuadrar(ctx, e, 0, t, R.pintar(ctx, e, t).copy()).split()[3] \
+            .point(lambda v: 255 if v > 110 else 0).getbbox()
+        zx0, zy0, zx1, zy1 = R.caja_segura()
+        self.assertGreaterEqual(bb[0], zx0 - 2)
+        self.assertLessEqual(bb[2], zx1 + 2)
+        self.assertGreaterEqual(R.respiracion(e, t)[0] / f0, 1.05,
+                                "la razon del push-in tiene que seguir notandose")
+
+    def test_las_exenciones_siguen(self):
+        R = self.R
+        for tipo in sorted(R.CAMARA_PROPIA):
+            self.assertEqual(R.respiracion({"tipo": tipo, "from": 0.0, "to": 4.0}, 3.0),
+                             (1.0, 0.0, 0.0))
+        self.assertEqual(R.respiracion({"tipo": "titular", "from": 0.0, "to": 4.0,
+                                        "respira": False}, 3.0), (1.0, 0.0, 0.0))
+
+
 if __name__ == "__main__":
     unittest.main()

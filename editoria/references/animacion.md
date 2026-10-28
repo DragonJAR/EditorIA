@@ -162,7 +162,12 @@ ninguno.
 El movimiento de cámara convierte un layout plano en un espacio.
 
 - **Push-in lento** (escala 1.00→1.04–1.08 durante la escena) en planos de
-  contemplación: añade tensión sin que se note.
+  contemplación: añade tensión sin que se note. En el motor es `EMPUJE`
+  (6 %) a lo largo de toda la escena con `ease_in_out` (antes 1 %/s con
+  tope 5 %: en una escena de 3 s, un 3 % que no se veía). El push-in
+  TERMINA donde el contenido llena la zona segura: si no hay sitio, la toma
+  arranca un poco más abierta y llega a su encaje, así que nunca se sale.
+  Exentas: `CAMARA_PROPIA`, overlays y `respira: false`.
 - **Paralaje 2.5D**: separar en 3–4 capas (fondo, medio, foco, partículas
   delante). Al mover la cámara, cada capa se desplaza en proporción a su
   profundidad (fondo 0.2×, medio 0.5×, foco 1×, primer plano 1.4×).

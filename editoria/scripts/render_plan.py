@@ -5458,14 +5458,18 @@ def escala_segura(ctx,e,idx):
         if bb:
             xs0=min(xs0,bb[0]); ys0=min(ys0,bb[1]); xs1=max(xs1,bb[2]); ys1=max(ys1,bb[3])
     cx,cy=W/2,CENTRO_Y*H
-    f=1.0
+    cabe=math.inf   # cuánto podría crecer el contenido alrededor del ancla y seguir dentro
     if xs1>xs0:
-        f=min(f,(cx-SAFE["left"])/max(1,cx-xs0),(W-SAFE["right"]-cx)/max(1,xs1-cx),
-              (cy-SAFE["top"])/max(1,cy-ys0),(H-SAFE["bottom"]-cy)/max(1,ys1-cy))
-    f=max(0.70,min(1.0,f))
+        cabe=min((cx-SAFE["left"])/max(1,cx-xs0),(W-SAFE["right"]-cx)/max(1,xs1-cx),
+                 (cy-SAFE["top"])/max(1,cy-ys0),(H-SAFE["bottom"]-cy)/max(1,ys1-cy))
+    f=max(0.70,min(1.0,cabe))
     if f<0.995: print(f"  zona segura: escena {idx} ({e['tipo']}) escalada x{f:.3f}",flush=True)
     _ESCALA[idx]=f if f<0.995 else 1.0
-    _ESCALA[("llena",idx)]=_crecer(e,(xs0,ys0,xs1,ys1)) if _ESCALA[idx]==1.0 and xs1>xs0 else (1.0,0.0)
+    llena=_crecer(e,(xs0,ys0,xs1,ys1)) if _ESCALA[idx]==1.0 and xs1>xs0 else (1.0,0.0)
+    _ESCALA[("llena",idx)]=llena
+    # holgura para el push-in: la que deja el contenido ya encajado (crecida,
+    # es 1+EMPUJE por construcción)
+    _ESCALA[("holgura",idx)]=1+EMPUJE if llena[0]>1 else max(1.0,cabe/_ESCALA[idx])
     return _ESCALA[idx]
 
 # LLENAR EL LIENZO: la misma medición, en el otro sentido. Una escena cuyo
@@ -5499,16 +5503,24 @@ def llenado(ctx,e,idx):
 # Respiración de cámara: push-in lento y constante en toda escena que no mueve
 # su propia cámara. Un plano asentado nunca queda congelado (fluidez.md) y el
 # movimiento es uno solo para todo el catálogo, no una flotación por escena.
-RESPIRA=0.01; RESPIRA_MAX=0.05   # 1 %/s (como un Ken Burns lento), tope 5 %
-EMPUJE=RESPIRA_MAX   # lo que la cámara empuja como mucho: el crecimiento le deja ese sitio
+EMPUJE=0.06   # push-in a lo largo de TODA la escena (animacion.md §5: 4-8 %). Antes era
+              # 1 %/s con tope 5 %: en una escena de 3 s, 3 %, y no se veía. El
+              # crecimiento del lienzo (LLENA_MAX) le deja este sitio en la zona segura.
 CAMARA_PROPIA={"final","kenburns","demo","rotulo_inferior"}   # ya se mueven o son overlay
 QUIETAS={"rotulo_inferior"}   # quieta POR DISEÑO mientras se lee (lower third / overlay)
 
 FLOTA_CAM=6    # px de flotación vertical: mueve TODOS los bordes (el push-in casi no
                # mueve lo que está cerca de su centro)
 
+def empuja(e):
+    """¿La escena lleva el push-in por escena? (no: overlay, cámara propia,
+    `respira: false` o trayectoria global de cámara)."""
+    return not (ALFA or e["tipo"] in CAMARA_PROPIA or not e.get("respira",True)
+                or _CAMARA["activa"])
+
 def respiracion(e,t):
-    """(escala, dy) de la cámara de la escena: push-in lento + flotación suave.
+    """(escala, dy, dx) de la cámara de la escena: push-in de EMPUJE a lo largo
+    de la escena (ease_in_out) + flotación suave.
 
     El reloj es GLOBAL cuando el plan declara una trayectoria de cámara
     (`plan["camara"]`): la cámara no se reinicia en cada corte, así que la
@@ -5526,7 +5538,10 @@ def respiracion(e,t):
         dx,_dy_rec=_offset_camara(t)
         return (_escala_camara(t), _CAMARA["flota"]*math.sin(2*math.pi*0.3*t), dx)
     dt=max(0.0,t-e["from"])
-    return 1+min(RESPIRA_MAX,RESPIRA*dt), FLOTA_CAM*math.sin(2*math.pi*0.3*dt), 0.0
+    dur=max(0.5,e.get("to",e["from"]+4.0)-e["from"])
+    # ease_in_out (una curva canónica): arranca y llega sin tirón; pasado el
+    # corte (la salida se solapa con la siguiente) se queda donde llegó
+    return 1+EMPUJE*ease_in_out(dt/dur), FLOTA_CAM*math.sin(2*math.pi*0.3*dt), 0.0
 
 def encajar(layer,f,dy=0.0,dx=0.0):
     """Escala la capa alrededor de (W/2, CENTRO_Y·H) y la desplaza dx/dy px, con
@@ -5543,6 +5558,11 @@ def encuadrar(ctx,e,idx,t,capa):
     transformación afín."""
     fr,dy,dx=respiracion(e,t)
     g,dyl=llenado(ctx,e,idx)
+    if empuja(e):
+        # el push-in TERMINA donde el contenido llena la zona segura: si no hay
+        # sitio para EMPUJE, la toma arranca un poco más abierta y llega a su
+        # encaje. Se nota igual (misma razón 1+EMPUJE) y nunca se sale.
+        fr*=min(1.0,_ESCALA.get(("holgura",idx),1+EMPUJE)/(1+EMPUJE))
     return encajar(capa,escala_segura(ctx,e,idx)*g*fr,dy+dyl,dx)
 
 def componer(ctx,escenas,dur,t,manchas_ok):
