@@ -71,6 +71,15 @@ TAM_CHECK=14   # glifo "✓" de verificado, dentro de un badge de 18 px. NO es
 TAM_MIN_ROTULO=30   # hasta donde puede encogerse un rótulo para caber en la zona segura
 ELEV=30        # elevación de entrada (px) en fade+resorte: una sola cifra
                # para titular, rótulo y grupos (antes 30/24/24)
+STAGGER=0.06   # s entre items de una lista o grilla (animacion.md §4: 40-90 ms).
+               # Antes cada escena escribía su `i*0.xx` (0.08-0.40 s): una lista
+               # de cuatro filas tardaba 1.2 s en armarse y se leía lenta.
+
+def escalonado(at, clave, i, base):
+    """Instante de entrada del item `i` de una cascada: el `at` explícito del
+    plan manda (`item2`); si no, sigue a `<clave>0` (o `base`) a paso STAGGER.
+    Así un plan que solo fija cuándo empieza la lista hereda la cadencia."""
+    return at.get(f"{clave}{i}", at.get(f"{clave}0", base) + i * STAGGER)
 
 def zona_segura(plataforma):
     """Márgenes seguros en px desde la tabla canónica (_delivery.py).
@@ -427,7 +436,7 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
         for w_, kind in palabras(ln):
             ww=ctx.tmp.textlength(w_,font=fnt)
             pad = tam * 0.16 if kind in ("roja", "blanca") else 0.0
-            at=ats[wi] if wi < len(ats) else ats[-1]+0.12*(wi-len(ats)+1); wi+=1   # palabras de más: siguen la cadencia
+            at=ats[wi] if wi < len(ats) else ats[-1]+2*STAGGER*(wi-len(ats)+1); wi+=1   # palabras de más: siguen la cadencia
             k=entra(t, at, "titular")
             if k>0:
                 sc=1+0.16*(1-k)
@@ -1908,7 +1917,7 @@ def sc_leads(ctx,e,t):
             if t_.startswith(claves): return col
         return GRIS   # temperatura desconocida: neutro, nunca un KeyError
     for i,f in enumerate(e["filas"]):
-        k=entra(t, e["from"]+0.4+i*0.35, "elemento")
+        k=entra(t, escalonado({}, "fila", i, e["from"]+0.4), "elemento")
         if k<=0: continue
         sub,ds=grupo()   # la fila entera entra junta (tarjeta, avatar, textos, barra)
         yy=y0+i*128
@@ -1927,7 +1936,7 @@ def sc_leads(ctx,e,t):
         bw=(f["puntaje"]/100)*bmax
         bx=zx1-bmax-24
         ds.rounded_rectangle([bx,yy+44,bx+bmax,yy+68],radius=12,fill=(60,60,60,255))
-        g_=smoothstep(clamp01((t-(e["from"]+0.4+i*0.35))/0.8))
+        g_=smoothstep(clamp01((t-escalonado({}, "fila", i, e["from"]+0.4))/0.8))
         if bw*g_>=24:
             ds.rounded_rectangle([bx,yy+44,bx+bw*g_,yy+68],radius=12,fill=color_temp(f)+(255,))
         fundir(layer,sub,k,dy=-50)
@@ -1954,7 +1963,7 @@ def sc_handoff(ctx,e,t):
     y=y_card+270
     zx0,_,zx1,_=caja_segura()
     for i,c in enumerate(e["contexto"]):
-        kc=entra(t, at["contexto"]+i*0.4, "elemento")
+        kc=entra(t, escalonado({}, "contexto", i, at["contexto"]), "elemento")
         if kc<=0: continue
         yy=y+i*96+(1-min(1,kc))*-40
         al=int(255*clamp01(kc*1.4))
@@ -2076,7 +2085,7 @@ def sc_hoy(ctx,e,t):
     y0=rotulo_y()+270 if vertical else rotulo_y()+210
     for i,(x,yb,cw,_) in enumerate(cuadricula(zx0,y0,zx1-zx0,filas_*184,cols,n)):
         tj=tarjetas[i]
-        k=entra(t, e["from"]+0.6+i*0.3, "elemento")
+        k=entra(t, escalonado(at, "tarjeta", i, e["from"]+0.6), "elemento")
         if k<=0: continue
         sub,ds=grupo()   # la tarjeta entera (borde, insignia, textos) entra junta
         yy=yb
@@ -2235,7 +2244,7 @@ def sc_bars(ctx, e, t):
     base_y = zy1 - 130 - (alto_et - 1) * int(ESCALA["nota"] * 1.2)
     max_h = base_y - (rotulo_y() + 140)   # arriba: rótulo + cifra de la barra más alta
     for i, b in enumerate(barras):
-        t_in = at.get(f"bar{i}", e["from"] + 0.2 + i * 0.1)
+        t_in = escalonado(at, "bar", i, e["from"] + 0.2)
         k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
@@ -2469,7 +2478,7 @@ def sc_ranking(ctx, e, t):
     bw = max(100, zx1 - w_val - x_bar - 16)
     max_v = max((i.get("valor", 0) for i in items), default=1) or 1
     for i, it in enumerate(items):
-        t_in = at.get(f"item{i}", e["from"] + 0.2 + i * 0.08)
+        t_in = escalonado(at, "item", i, e["from"] + 0.2)
         k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
@@ -2512,7 +2521,7 @@ def sc_stats(ctx, e, t):
     coords = cuadricula((W - ancho) / 2, (rotulo_y() + 80) + (y1 - 90 - (rotulo_y() + 80) - alto) / 2,
                         ancho, alto, cols, n)
     for i, (cx, cy, cw, ch) in enumerate(coords):
-        t_in = at.get(f"card{i}", e["from"] + 0.2 + i * 0.08)
+        t_in = escalonado(at, "card", i, e["from"] + 0.2)
         k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
@@ -2569,7 +2578,8 @@ def sc_timeline(ctx, e, t):
         w_tramo = min(zx1 - zx0 - 160, int(W * 0.70))
         a0, a1 = (W - w_tramo) / 2, (W + w_tramo) / 2
         pos = [(a0 + (a1 - a0) * i / max(1, n - 1), cy) for i in range(n)]
-    t_ins = [at.get(f"item{i}", e["from"] + 0.2 + i * 0.4) for i in range(n)]
+    HITO = 0.4   # un hito se lee (la línea llega a cada punto): es un beat, no una cascada
+    t_ins = [at.get(f"item{i}", e["from"] + 0.2 + i * HITO) for i in range(n)]
     # la línea crece de punto en punto (llega a cada uno cuando se enciende)
     t_linea = t_ins[0] - 0.3
     tramo = 0.0
@@ -2751,7 +2761,7 @@ def sc_versus(ctx, e, t):
         al = int(255 * clamp01(k * 1.3))
         d.text((cx + dx, y_label), lado.get("etiqueta", ""), font=fnt_h, fill=col + (al,), anchor="mm")
         for i, it in enumerate(lado.get("items", [])):
-            ki = entra(t, t_in + 0.15 + i * 0.12, "bloque")
+            ki = entra(t, escalonado({}, "item", i, t_in + 0.15), "bloque")
             if ki <= 0:
                 continue
             yi = y_items + i * fila_h + fila_h / 2 + (1 - min(1, ki)) * 24
@@ -3326,7 +3336,7 @@ def sc_constancia(ctx, e, t):
         fila, col = divmod(i, cols)
         tx = x0 + PANEL_PAD + col * (tile_w + GAP)
         ty = y_tiles + fila * (tile_h + GAP)
-        t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
+        t_in = escalonado(at, "item", i, e["from"] + 0.3)
         k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
@@ -3453,7 +3463,7 @@ def sc_cadena(ctx, e, t):
         xc = x0 + PANEL_PAD + paso * (i + 0.5)
         tx = xc - node / 2
         ty = y_nodos
-        t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
+        t_in = escalonado(at, "item", i, e["from"] + 0.3)
         k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
@@ -3881,7 +3891,7 @@ def sc_pasos(ctx, e, t):
         y0 += ((zy1 - y0 - _res) - fila_h * n) / 2
         cx = W / 2
         for i, it in enumerate(items):
-            t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
+            t_in = escalonado(at, "item", i, e["from"] + 0.3)
             k = entra(t, t_in, "elemento")
             if k <= 0:
                 continue
@@ -3912,7 +3922,7 @@ def sc_pasos(ctx, e, t):
         col_w = w_disp / n
         cy = H * 0.50
         for i, it in enumerate(items):
-            t_in = at.get(f"item{i}", e["from"] + 0.3 + i * 0.2)
+            t_in = escalonado(at, "item", i, e["from"] + 0.3)
             k = entra(t, t_in, "elemento")
             if k <= 0:
                 continue
@@ -4460,7 +4470,7 @@ def sc_bento(ctx, e, t):
     cols = 1 if (H > W and n <= 3) else 2
     cajas = cuadricula(x0, int(top_grid), x1 - x0, int(bot_grid - top_grid), cols, n)
     for i, (it, (cx0, cy0, cw, ch)) in enumerate(zip(items, cajas)):
-        t_i = it.get("at", at.get(f"item{i}", e["from"] + 0.65 + i * 0.35))
+        t_i = it.get("at", escalonado(at, "item", i, e["from"] + 0.65))
         ki = entra(t, t_i, "elemento")
         if ki <= 0:
             continue
@@ -4561,7 +4571,7 @@ def sc_buscador(ctx, e, t):
         hr_item = int(unidad() * 0.08 if W > H else 88)
         gap_r = 12
         for i, res in enumerate(resultados):
-            t_res = at.get(f"res{i}", t_query + dur_q + 0.2 + i * 0.22)
+            t_res = escalonado(at, "res", i, t_query + dur_q + 0.2)
             kr = entra(t, t_res, "bloque")
             if kr <= 0:
                 continue
@@ -4610,12 +4620,13 @@ def sc_notificacion(ctx, e, t):
     gap = 18
     y_base = rotulo_y() + (90 if H > W else 70) + flota(t, e["from"] + 0.8, 5, 0.32)
     
+    LLEGA = 0.8   # cada notificación es un beat que se lee, no una cascada
     for i, it in enumerate(items):
-        t_in = at.get(f"item{i}", e["from"] + 0.4 + i * 0.8)
+        t_in = at.get(f"item{i}", e["from"] + 0.4 + i * LLEGA)
         k = entra(t, t_in, "bloque")
         if k <= 0:
             continue
-        despues = sum(min(1.0, entra(t, at.get(f"item{j}", e["from"] + 0.4 + j * 0.8), "suave"))
+        despues = sum(min(1.0, entra(t, at.get(f"item{j}", e["from"] + 0.4 + j * LLEGA), "suave"))
                       for j in range(i + 1, n))
         y_i = y_base + despues * (h_card + gap) + (1 - min(1, k)) * -50 + flota(t, t_in + 0.5, 7, 0.45 + i * 0.08)
         al = int(255 * clamp01(k * 1.4))
@@ -5146,7 +5157,7 @@ def sc_index(ctx, e, t):
     fila_h = min(int(alto / max(1, n)), 150)
     y0 = top + max(0, (alto - fila_h * n) // 2)
     for i, it in enumerate(items):
-        t_i = at.get(f"item{i}", e["from"] + 0.3 + i * 0.22)
+        t_i = escalonado(at, "item", i, e["from"] + 0.3)
         k = entra(t, t_i, "elemento")
         if k <= 0:
             continue

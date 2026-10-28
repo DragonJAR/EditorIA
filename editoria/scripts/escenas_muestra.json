@@ -321,8 +321,6 @@
    "at": {
     "rotulo": 0.2,
     "bar0": 0.8,
-    "bar1": 1.1,
-    "bar2": 1.4,
     "fuente": 2.6
    }
   },
@@ -366,9 +364,6 @@
    "at": {
     "rotulo": 0.2,
     "item0": 0.7,
-    "item1": 1.0,
-    "item2": 1.3,
-    "item3": 1.6,
     "fuente": 2.8
    }
   },
@@ -395,8 +390,6 @@
    "at": {
     "rotulo": 0.2,
     "card0": 0.7,
-    "card1": 0.95,
-    "card2": 1.2,
     "fuente": 2.8
    }
   },
@@ -654,8 +647,6 @@
    "at": {
     "rotulo": 0.15,
     "item0": 0.65,
-    "item1": 1.0,
-    "item2": 1.35,
     "pie": 2.1
    }
   },
@@ -682,9 +673,7 @@
    "at": {
     "rotulo": 0.2,
     "query": 0.6,
-    "res0": 2.2,
-    "res1": 2.6,
-    "res2": 3.0
+    "res0": 2.2
    }
   },
   "notificacion": {
@@ -836,10 +825,7 @@
    "fuente": "Voz de marca",
    "at": {
     "rotulo": 0.2,
-    "item0": 0.6,
-    "item1": 0.9,
-    "item2": 1.2,
-    "item3": 1.5
+    "item0": 0.6
    }
   },
   "orbOpen": {
@@ -910,9 +896,7 @@
     }
    ],
    "at": {
-    "item0": 0.3,
-    "item1": 0.7,
-    "item2": 1.1
+    "item0": 0.3
    }
   },
   "cartel": {

@@ -144,7 +144,11 @@ ninguno.
 
 - **Stagger** de listas y grillas: 40–90 ms entre elementos. Menos parece
   simultáneo; más, lento. Orden de lectura (izq→der, arriba→abajo) o desde
-  el foco hacia afuera.
+  el foco hacia afuera. En el motor es UNA cifra, `STAGGER` (0.06 s), y un
+  helper, `escalonado(at, "item", i, base)`: el `at` explícito del plan
+  manda, y si el plan solo fija `item0` el resto lo sigue a paso `STAGGER`.
+  Los beats que se LEEN (hitos de `timeline`, pasos, notificaciones) no son
+  cascada: llevan su propio tiempo con nombre.
 - **Titulares**: palabra por palabra anclada a la palabra que se oye; la
   palabra de acento llega con más energía (escala 1.16→1 con resorte) y las
   de apoyo con elevación suave.
