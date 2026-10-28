@@ -1,4 +1,4 @@
-# Catálogo de escenas (44 tipos del plan)
+# Catálogo de escenas (45 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -99,7 +99,7 @@ alfa creciente (`smoothstep`). Es el corte más neutro del catálogo: no pide
 atención como la `mancha` ni deja formas orgánicas en el encuadre. Se declara
 en la escena entrante: `"transicion": "dissolve"`.
 
-## Catálogo unificado de escenas (44 tipos del plan)
+## Catálogo unificado de escenas (45 tipos del plan)
 
 El catálogo integra las 13 escenas originales más 23 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
@@ -385,6 +385,18 @@ encienden cuando la cabeza las pasa.
 `estaciones[{titulo, icono?}]`, `ruta?` (recta, s), `y?`, `x0?`, `x1?`,
 `grosor?`, `color?`, `colores?` (la línea se divide en ramas de colores),
 `at{estacion0..n}`.
+
+**`subrayado`** — El **lema con su línea de luz debajo**: la línea es la
+línea base y se puede partir en varios colores. Es el cierre del reel de
+referencia: "One path," / "every skill." con la línea debajo, que se abre en
+los colores de los cursos y vuelve a juntarse.
+
+La línea la dibuja la **misma función** que el camino y que cualquier otro
+trazo (`trazado`): aquí lo que cambian son los puntos y los colores. Cinco
+trazos dibujados de cinco maneras son cinco trazos que se desincronizan.
+
+`texto` (el lema), `color?`, `colores?` (la línea se parte en estos colores),
+`y?`, `tam?`, `grosor?`, `itálica?`, `at{texto, linea}`.
 
 **El vuelo es de la pieza, no de la escena**: es el global `camara` (su
 paneo `x0`→`x1`) el que hace que la cámara viaje y el mundo se deslice. Si

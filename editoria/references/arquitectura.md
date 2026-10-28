@@ -4,7 +4,7 @@
 plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_frames ──▶ .mp4 (BT.709)
      │  (+ tabla --datos)│                              └─▶ .mov/.webm (overlay con alfa)
      │                ├── motor de fluidez (resortes, easings, transiciones según pack/tono)
-     │                ├── 44 escenas (references/escenas.md)
+     │                ├── 45 escenas (references/escenas.md)
      │                └── identidad: del brand pack (o modo libre)
      │
      └── formato en references/plan-video.md (tiempos absolutos, at:{})

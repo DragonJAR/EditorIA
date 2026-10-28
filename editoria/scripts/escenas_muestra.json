@@ -955,6 +955,41 @@
     "estacion2": 1.4,
     "estacion3": 2.0
    }
+  },
+  "subrayado": {
+   "from": 0,
+   "to": 5,
+   "texto": "Un camino, todas las habilidades",
+   "colores": [
+    [
+     193,
+     27,
+     5,
+     255
+    ],
+    [
+     28,
+     176,
+     246,
+     255
+    ],
+    [
+     206,
+     130,
+     255,
+     255
+    ],
+    [
+     255,
+     200,
+     0,
+     255
+    ]
+   ],
+   "at": {
+    "texto": 0.2,
+    "linea": 0.9
+   }
   }
  }
 }

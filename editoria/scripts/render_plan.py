@@ -17,7 +17,7 @@ except ModuleNotFoundError as _e_dep:
 # Sin pack (modo libre) nada de marca: acento neutro y fuentes empaquetadas.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _plataforma import resolver_fuente
-from _comun import NEUTRO, segmentos_enfasis   # paleta neutra y énfasis *...* únicos del kit
+from _comun import NEUTRO, aplicar_grano, segmentos_enfasis   # paleta neutra, grano y énfasis *...* del kit
 ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
 FJ=resolver_fuente("Plus Jakarta Sans", generica="sans-bold")
@@ -628,6 +628,10 @@ def aplicar_globales(plan):
     _preparar_camara(plan)
     _preparar_deplecion(plan)
     _preparar_cabecera(plan)
+    try:
+        _GRANO["amp"] = max(0, int(plan.get("grano", 0) or 0))
+    except (TypeError, ValueError):
+        _GRANO["amp"] = 0
 
 
 # ---- CAMARA DE LA PIEZA (una trayectoria, no una por escena) -------------
@@ -815,6 +819,12 @@ def _preparar_deplecion(plan):
 #     "cabecera": {"chip": "CHARLA COMPLETA - youtu.be/...", "marca": "..."}
 #
 _CABECERA={"activa":False,"chip":"","marca":"","y":132,"alto":44}
+
+#: El GRANO de pelicula: la misma tecnica que usaban los films de marca,
+#: ahora tambien en el motor de planes (una sola implementacion, en
+#: `_comun.aplicar_grano`). `amp` 0 = sin grano (por defecto: no se ve a
+#: simple vista, pero el video H.264 se ve "plano" sin el).
+_GRANO={"amp":0}
 
 
 def _preparar_cabecera(plan):
@@ -3681,6 +3691,89 @@ def sc_camino(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def sc_subrayado(ctx, e, t):
+    """El texto con su LINEA DE LUZ debajo: la linea es la linea base.
+
+    Es el cierre del reel de referencia ("The Path"): el lema se apoya en la
+    linea y la linea se parte en los colores de los cursos y vuelve a
+    juntarse.
+
+    La linea la dibuja `trazado` (la MISMA primitiva que el camino y que
+    cualquier otro trazo): aqui lo que cambia son los puntos y los colores.
+    DRY: cinco trazos dibujados de cinco maneras son cinco trazos que se
+    desincronizan.
+
+    Params: `texto` (el lema), `color?`, `colores?` (la linea se parte en
+    estos colores), `y?`, `grosor?`, `at{texto, linea}`.
+    """
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    texto = str(e.get("texto", "")).strip()
+    if not texto:
+        return capa_salida(layer, t, e["to"])
+    d = ImageDraw.Draw(layer)
+    at = e.get("at") or {}
+    zx0, _, zx1, _ = caja_segura()
+    y = int(e.get("y", H * 0.58))
+    tam = int(e.get("tam", 56))
+    fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fT
+    fnt = fab(tam, 800)
+    col = e.get("color") or ACENTO
+    colores = e.get("colores")
+
+    # el lema, centrado, en un maximo de dos lineas
+    ancho_max = int((zx1 - zx0) * 0.92)
+    palabras = texto.split()
+    lineas, linea, ancho = [], "", 0.0
+    for p in palabras:
+        w_ = ctx.tmp.textlength((linea + " " + p).strip(), font=fnt)
+        if linea and w_ > ancho_max:
+            # la palabra NO cabe: la linea se parte aqui (mirar el ancho CON
+            # la palabra, no el de antes: si no, la linea se sale de la zona
+            # segura y la escena entera se encoge)
+            lineas.append(linea)
+            linea, ancho = p, ctx.tmp.textlength(p, font=fnt)
+        else:
+            linea = (linea + " " + p).strip()
+            ancho = w_
+    if linea:
+        lineas.append(linea)
+    lineas = lineas[:2]
+    alto_linea = int(tam * 1.16)
+
+    k_txt = entra(t, at.get("texto", e["from"] + 0.2), "bloque")
+    y_linea = y + 26
+    if k_txt > 0:
+        sub_t, dt = grupo()
+        y_txt = y - len(lineas) * alto_linea
+        for i, ln in enumerate(lineas):
+            dt.text((W / 2, y_txt + i * alto_linea), ln, font=fnt,
+                    fill=BLANCO + (int(255 * k_txt),), anchor="ma")
+        if k_txt < 1:
+            sub_t.putalpha(sub_t.split()[3].point(lambda v: int(v * k_txt)))
+        # la linea va DEBAJO de la TINTA REAL del texto, no de una caja
+        # teorica: el alto de la fuente cambia con la tipografia del pack y
+        # con la caja la linea se meteia dentro del texto (medido: con el
+        # pack la tinta bajaba 78 px y la linea se comia el texto)
+        bb = sub_t.getbbox()
+        if bb:
+            y_linea = int(bb[3]) + 18
+        layer.alpha_composite(sub_t)
+
+    # la linea: la MISMA funcion de siempre, con sus puntos y sus colores
+    x0 = int(W / 2 - ctx.tmp.textlength(max(lineas, key=len), font=fnt) / 2)
+    x1 = int(W / 2 + ctx.tmp.textlength(max(lineas, key=len), font=fnt) / 2)
+    if x1 - x0 < 40:
+        x0, x1 = zx0, zx1
+    k_lin = entra(t, at.get("linea", e["from"] + 0.8), "bloque")
+    if k_lin > 0:
+        sub_l = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        pts = puntos_de_ruta(x0, y_linea, x1, y_linea, "recta")
+        trazado(sub_l, pts, col, grosor=int(e.get("grosor", 7)),
+                progreso=clamp01(k_lin * 1.2), desvanecer=0.0, cola=colores)
+        layer.alpha_composite(sub_l)
+    return capa_salida(layer, t, e["to"])
+
+
 def sc_kenburns(ctx, e, t):
     """Ken Burns sobre una imagen: zoom + paneo progresivo. Ideal para
     galerías, openings sobre foto, documentales.
@@ -5157,6 +5250,8 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "cartel":sc_cartel,
         # Ronda 15: el camino (la linea de luz y las estaciones que enciende)
         "camino":sc_camino,
+        # Ronda 16: el lema con su linea de luz debajo (la linea es la base)
+        "subrayado":sc_subrayado,
         # Ronda 3: iart-ai/motion-skills (MIT)
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,
@@ -5403,7 +5498,17 @@ def capa_entrada(layer,t,t0,dur=0.03):
 def frame_con_blur(ctx,escenas,dur,t,fps,n,obturador,manchas_ok):
     """Motion blur por submuestreo temporal: promedia n sub-frames repartidos en
     la ventana del obturador (0.5 = 180°, el look de cine). n=1 lo desactiva."""
-    if n<=1: return componer(ctx,escenas,dur,t,manchas_ok)
+    img = componer(ctx,escenas,dur,t,manchas_ok) if n<=1 else _blur_de_submuestreo(ctx,escenas,dur,t,fps,n,obturador,manchas_ok)
+    amp = _GRANO["amp"]
+    if amp > 0:
+        # el grano va DESPUES del blur: el grano es de la pelicula, no del
+        #movimiento (si no, el patron de ruido se emborrona con el blur)
+        img = aplicar_grano(img, W, H, int(round(t*fps)), amp)
+    return img
+
+
+def _blur_de_submuestreo(ctx,escenas,dur,t,fps,n,obturador,manchas_ok):
+    """El promedio de sub-frames del obturador (lo que hace el motion blur)."""
     import numpy as np
     ventana=obturador/fps
     acc=None

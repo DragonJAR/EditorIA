@@ -18,7 +18,8 @@ except ModuleNotFoundError as _e_dep:
     np = Image = ImageDraw = None
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
-from _comun import die, identidad_pieza, leer_pack, segmentos_enfasis  # noqa: E402
+from _comun import (aplicar_grano, die, identidad_pieza, leer_pack,  # noqa: E402
+                   segmentos_enfasis)
 
 LADO = 1126   # lado del lienzo cuadrado del logo en el que se escribieron las coreografías
 
@@ -38,29 +39,6 @@ def vivo(rgb, blanco=0.0):
     m = max(rgb) or 1
     base = [c * 255 / m for c in rgb]
     return tuple(int(round(c + (255 - c) * blanco)) for c in base)
-
-
-_GRAIN_CACHE = {}
-
-
-def aplicar_grano(img, W, H, frame_idx=0, amp=3):
-    """Grano cinematográfico determinista y barato: 12 máscaras pre-generadas
-    por (W, H, amp) con seed fija 42, ciclando con frame_idx. Reemplaza el
-    ruido per-pixel nuevo por cuadro (entropía única que destruía la
-    compresión H.264) por un patrón cíclico que el codec predice. amp<=0
-    devuelve la imagen intacta."""
-    if amp <= 0:
-        return img
-    key = (W, H, amp)
-    if key not in _GRAIN_CACHE:
-        rng = np.random.default_rng(42)
-        _GRAIN_CACHE[key] = [
-            rng.integers(-amp, amp + 1, size=(H, W, 1), dtype=np.int16)
-            for _ in range(12)
-        ]
-    gr = _GRAIN_CACHE[key][frame_idx % len(_GRAIN_CACHE[key])]
-    arr = np.asarray(img, dtype=np.int16) + gr
-    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
 
 
 def args_identidad(ap):

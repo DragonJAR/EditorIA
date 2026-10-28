@@ -171,6 +171,15 @@ desliza) y cada estacion es un nodo 3D.
 Es la idea que hace que una pieza se lea como una sola idea y no como una
 tanda de planos: todo esta en el mismo camino.
 
+### "Quiero que el lema se apoye en una linea de luz"
+`subrayado` — el texto con su linea de luz DEBAJO: la linea es la linea base
+y se puede partir en varios colores (los de los cursos, en el reel de
+referencia). La linea la dibuja la MISMA funcion que el camino y que
+cualquier otro trazo: lo que cambia son los puntos y los colores.
+
+Es el cierre de marca con cuerpo: `final` y `remate` son el lockup y el
+golpe final; `subrayado` es la frase de la casa apoyada en su linea.
+
 ### "Quiero el cierre de marca"
 `final` — isotipo, lema con acento y boton. Va SIEMPRE al final, y su
 `at.lema` cae despues de que el plano ya esta asentado.
@@ -190,7 +199,7 @@ manda el JSON y `repertorio.py validar` lo dice):
 | dato | `stats`, `bars`, `ranking`, `gauge`, `pie`, `bento` |
 | proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena`, `camino` |
 | social/testimonio | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
-| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera` |
+| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `cabecera`, `subrayado` |
 | comparacion | `versus`, `bars`, `ranking` |
 | demostracion | `demo`, `callout`, `buscador` |
 | estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |

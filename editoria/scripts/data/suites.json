@@ -30,6 +30,7 @@
   "test_escala_tipografica.py",
   "test_escenas_ronda6.py",
   "test_ffmpeg_tools.py",
+  "test_grano_y_subrayado.py",
   "test_guard_doctrina.py",
   "test_guard_entorno.py",
   "test_hand_draw.py",
