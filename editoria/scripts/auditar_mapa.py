@@ -702,8 +702,14 @@ FORMAS_CATALOGO = (
     (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+escenas\b", "escenas del catalogo"),
     (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+scenes\b", "escenas del catalogo"),
     (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+scene\s+types\b", "escenas del catalogo"),
-    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+tipos\s+de\s+escena\b", "escenas del catalogo"),
-    (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+tipos\s+del\s+plan\b", "escenas del catalogo"),
+    # El "los" delante marca una cifra historica ("los 13 tipos de escena" son
+    # los del sistema original, no el total). Sin esta exclusion la regla
+    # marcaba la historia como si fuera el total, y la herramienta la
+    # reescribia: medido, "los 13 tipos de escena" salia como "los 142".
+    # OJO: el "las" NO se excluye ("Suite visual de las 40 escenas" SI es el
+    # total y SI se reescribe): lo que distingue es el articulo, no el numero.
+    (r"(?<![0-9\-‐‑‒–—―/])(?<!los )([0-9]+)\s+tipos\s+de\s+escena\b", "escenas del catalogo"),
+    (r"(?<![0-9\-‐‑‒–—―/])(?<!los )([0-9]+)\s+tipos\s+del\s+plan\b", "escenas del catalogo"),
     (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+tipos\s+[—-]", "escenas del catalogo"),
     (r"(?<![0-9\-‐‑‒–—―/])([0-9]+)\s+types\s+[—-]", "escenas del catalogo"),
     (r"Tipos\s+de\s+escena\s*\((\d+)\)", "escenas del catalogo"),

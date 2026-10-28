@@ -187,13 +187,19 @@ def _reescribe_catalogo(texto, escenas, etiqueta, cambios):
 
 
 def _transforma_escenas(texto, escenas, etiqueta, cambios):
-    r"""Los PLACEHOLDERS del texto: "\d+ escenas compuestas".
+    r"""El tamaño del catalogo en el texto, con la REGLA del guard.
 
-    OJO: esto NO es la regla del tamaño del catalogo (esa vive en el guard,
-    `auditar_mapa.FORMAS_CATALOGO`, y la herramienta la usa tal cual: una
-    idea, un canonico). Aqui solo se rellenan los sitios donde la prosa
-    escribio el PATRON en vez de la cifra, que el guard no ve (no hay digito
-    que contar) y se quedaban a la vista del que leia el README."""
+    Son dos cosas y las dos son el MISMO numero:
+    1. las cifras que la prosa enuncia ("Suite visual de las 40 escenas"):
+       las reescribe la REGLA del guard (`auditar_mapa.FORMAS_CATALOGO`), la
+       misma que vigila y la misma que usa `_reescribe_catalogo`. Una idea,
+       un canonico: la herramienta NO tiene su propia lista de formas (cuando
+       la tuvo, las dos se desincronizaron en silencio).
+    2. los PLACEHOLDERS ("\d+ escenas compuestas"): sitios donde la prosa
+       escribio el PATRON en vez de la cifra. El guard no los ve (no hay
+       digito que contar) y se quedaban a la vista del que leia el README.
+    """
+    texto = _reescribe_catalogo(texto, escenas, etiqueta, cambios)
     for patron, plantilla in _PLACEHOLDERS_DE_ESCENAS:
         if not re.search(patron, texto):
             continue
