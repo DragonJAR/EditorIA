@@ -1,0 +1,902 @@
+{
+ "_que_es": "ÚNICA fuente de verdad del repertorio de efectos talking-head (face tracking + segmentación) destilado de claude-video-effects (MIT). No se vendoriza el motor ni los modelos: se clona bajo /tmp cuando la pieza lo pide. No añade tipos a SCENES. Cada efecto declara ocasión, vía preferida y cómo adaptar; si hay equivalente nativo, el agente NO inventa una escena paralela.",
+ "fuente": "https://github.com/Vibha-Ramprakash/claude-video-effects",
+ "licencia": "MIT",
+ "tecnica": "efectos-talking-head",
+ "entrada": "references/efectos-talking-head.md",
+ "clon_tmp": "git clone --depth 1 https://github.com/Vibha-Ramprakash/claude-video-effects.git /tmp/claude-video-effects",
+ "setup": "bash /tmp/claude-video-effects/scripts/setup.sh",
+ "reglas": [
+  "Nunca tapar la cara: behind/guard del motor CVE; si el check frame tapa, mover x/y o acortar texto",
+  "Ventanas cortas: 1.5–4 s por efecto",
+  "Zoom ≤ 2×",
+  "Apilar: primero cámara (locked-on, lean-in, spotlight), luego overlays",
+  "Declarar MediaPipe/OpenCV/Pillow del venv CVE en la primera respuesta si faltan",
+  "Copy, cifras y paleta salen del brief/pack — no del demo Claude",
+  "No vender como dependencia permanente ni submodule; limpiar /tmp al terminar",
+  "Si preferir=nativo o hay equivalente y NO hay talking-head con cara: usar el motor EditorIA"
+ ],
+ "conteo": 45,
+ "efectos": [
+  {
+   "n": 1,
+   "id": "noise",
+   "firma": "Reels/capturas se apilan detrás de la cabeza, una cada ~0.25 s",
+   "ocasion": "Mostrar volumen de contenido propio detrás del hablante (creator, portfolio)",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "Plan CVE con images=carpeta de covers; ventanas 1.5–4 s; never cover face",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx noise",
+   "aliases": [
+    "the-noise"
+   ],
+   "keywords": [
+    "reels",
+    "apilar",
+    "detras",
+    "contenido"
+   ]
+  },
+  {
+   "n": 2,
+   "id": "lineup",
+   "firma": "Baldosas numeradas en arco encima de la cabeza",
+   "ocasion": "Enumerar opciones/pasos breves anclados a la cara en talking-head",
+   "preferir": "ambos",
+   "nativo": "escena lineup / pasos (plan) si no hay cara que seguir",
+   "adaptar": "CVE si hay talking-head; si es gráfica pura → repertorio lineup/pasos",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx lineup",
+   "aliases": [
+    "the-lineup"
+   ],
+   "keywords": [
+    "baldosas",
+    "arco",
+    "opciones",
+    "numeradas"
+   ]
+  },
+  {
+   "n": 3,
+   "id": "locked-on",
+   "firma": "Brackets en la cara + cámara que sigue al hablante",
+   "ocasion": "Enfatizar presencia/autoridad en un beat clave del talking-head",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE locked-on; zoom≤2; poner antes que overlays en el plan apilado",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx locked-on",
+   "aliases": [],
+   "keywords": [
+    "brackets",
+    "seguir cara",
+    "lock",
+    "tracking"
+   ]
+  },
+  {
+   "n": 4,
+   "id": "orbit",
+   "firma": "Reels orbitan la cabeza (delante abajo, detrás arriba)",
+   "ocasion": "Mostrar varias piezas orbitando al creador (showreel personal)",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE orbit + carpeta images; count/speed/size; no vendorizar assets ajenos",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx orbit",
+   "aliases": [],
+   "keywords": [
+    "orbitar",
+    "circular",
+    "reels alrededor"
+   ]
+  },
+  {
+   "n": 5,
+   "id": "lean-in",
+   "firma": "Punch-in rápido en una palabra",
+   "ocasion": "Golpe de énfasis en una palabra dicha (hook verbal)",
+   "preferir": "ambos",
+   "nativo": "camara / kenburns / demo zoom en plan si no hay footage",
+   "adaptar": "CVE lean-in anclado a word-time (words.py); nativo: at de camara en el beat",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx lean-in",
+   "aliases": [],
+   "keywords": [
+    "punch-in",
+    "acercar",
+    "enfasis palabra"
+   ]
+  },
+  {
+   "n": 6,
+   "id": "backdrop-word",
+   "firma": "Palabra gigante cae detrás del hablante",
+   "ocasion": "Una sola palabra-tesis detrás de la persona (brand word, claim)",
+   "preferir": "externo",
+   "nativo": "frase / remate tipográfico en plan si no hay persona",
+   "adaptar": "CVE con segmentación (behind); color/font del pack, no del demo",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx backdrop-word",
+   "aliases": [
+    "backdrop"
+   ],
+   "keywords": [
+    "palabra detras",
+    "titular detras",
+    "backdrop"
+   ]
+  },
+  {
+   "n": 7,
+   "id": "spotlight",
+   "firma": "Apaga la sala, deja al hablante iluminado (+ palabra glow opcional)",
+   "ocasion": "Aislar al hablante en un beat de revelación o punchline",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE spotlight; look=sparkle → glitter-spotlight; push suave",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx spotlight",
+   "aliases": [],
+   "keywords": [
+    "luces",
+    "spotlight",
+    "aislar",
+    "kill the lights"
+   ]
+  },
+  {
+   "n": 8,
+   "id": "the-bill",
+   "firma": "Instrucciones tipo ticket/recibo encima de la cabeza",
+   "ocasion": "Listar reglas/pasos como ticket en talking-head tutorial",
+   "preferir": "ambos",
+   "nativo": "escena constancia / pasos / the-bill visual → plan lista",
+   "adaptar": "CVE si debe sentarse detrás/arriba de la cara; si no → constancia/pasos",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx the-bill",
+   "aliases": [
+    "bill"
+   ],
+   "keywords": [
+    "recibo",
+    "ticket",
+    "instrucciones",
+    "bill"
+   ]
+  },
+  {
+   "n": 9,
+   "id": "moody",
+   "firma": "Grade de color (moody/bw/warm/cool/pop)",
+   "ocasion": "Cambiar el look del plano sin overlays",
+   "preferir": "nativo",
+   "nativo": "scripts/ffmpeg_tools/grade.py y look.py",
+   "adaptar": "Usar grade/look de EditorIA; CVE moody solo si ya se está en pipeline CVE apilado",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx moody",
+   "aliases": [],
+   "keywords": [
+    "grade",
+    "color",
+    "moody",
+    "bw",
+    "lut"
+   ]
+  },
+  {
+   "n": 10,
+   "id": "swipe",
+   "firma": "Slider before/after barre el cuadro",
+   "ocasion": "Comparar dos looks o estados sobre el mismo talking-head",
+   "preferir": "ambos",
+   "nativo": "montaje wipe / variantes A-B si no necesita cara",
+   "adaptar": "CVE swipe+grade after; nativo: montaje o variantes de share-copy",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx swipe",
+   "aliases": [],
+   "keywords": [
+    "before after",
+    "slider",
+    "comparar",
+    "swipe"
+   ]
+  },
+  {
+   "n": 11,
+   "id": "todo",
+   "firma": "Checklist al lado de la cabeza que se tilda al hablar",
+   "ocasion": "Lista de tareas que se confirman en sync con la voz",
+   "preferir": "ambos",
+   "nativo": "escena constancia / pasos / checklist conceptual",
+   "adaptar": "CVE con ticks en segundos de palabra; nativo: constancia o pasos en plan",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx todo",
+   "aliases": [
+    "to-do",
+    "the-todo",
+    "the-to-do"
+   ],
+   "keywords": [
+    "checklist",
+    "todo",
+    "tareas",
+    "ticks"
+   ]
+  },
+  {
+   "n": 12,
+   "id": "comment-box",
+   "firma": "Barra de comentario IG que escribe y publica",
+   "ocasion": "Simular engagement/comentario en beat social",
+   "preferir": "externo",
+   "nativo": "escena chat si es hilo de mensajes genérico",
+   "adaptar": "CVE comment-box; copy real del brief; no chrome de marca ajena",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx comment-box",
+   "aliases": [
+    "comment"
+   ],
+   "keywords": [
+    "comentario",
+    "instagram",
+    "comment box"
+   ]
+  },
+  {
+   "n": 13,
+   "id": "tap",
+   "firma": "Botón Follow → Following",
+   "ocasion": "CTA de seguir en beat de perfil/creator",
+   "preferir": "externo",
+   "nativo": "boton_halo / hero CTA en plan si es gráfica",
+   "adaptar": "CVE tap con at=segundo del flip; color del pack",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx tap",
+   "aliases": [
+    "follow",
+    "the-tap"
+   ],
+   "keywords": [
+    "follow",
+    "seguir",
+    "boton"
+   ]
+  },
+  {
+   "n": 14,
+   "id": "pause-point",
+   "firma": "Congela el frame y flecha a mano señala",
+   "ocasion": "Señalar un detalle del hablante o del fondo en freeze",
+   "preferir": "ambos",
+   "nativo": "hand_draw.py + freeze (montaje) si el trazo es offline",
+   "adaptar": "CVE pause-point en talking-head; nativo: freeze + hand-draw overlay",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx pause-point",
+   "aliases": [
+    "pause",
+    "pause-and-point"
+   ],
+   "keywords": [
+    "freeze",
+    "flecha",
+    "señalar",
+    "pause"
+   ]
+  },
+  {
+   "n": 15,
+   "id": "uninstall",
+   "firma": "Barra de desinstalación glitchy que rompe el cuadro",
+   "ocasion": "Rechazo/borrar con energía glitch en un beat",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE uninstall; ventanas cortas; no abusar (un loud por pieza)",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx uninstall",
+   "aliases": [],
+   "keywords": [
+    "glitch",
+    "uninstall",
+    "borrar",
+    "romper"
+   ]
+  },
+  {
+   "n": 16,
+   "id": "reel-frame",
+   "firma": "El video se encoge a tarjeta de reel IG",
+   "ocasion": "Meta-frame: presentar el clip como reel publicado",
+   "preferir": "externo",
+   "nativo": "componer.py --marco si solo es caja tipográfica",
+   "adaptar": "CVE reel-frame + handle; nativo: marco de componer sin face-shrink",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx reel-frame",
+   "aliases": [],
+   "keywords": [
+    "marco reel",
+    "tarjeta ig",
+    "reel frame"
+   ]
+  },
+  {
+   "n": 17,
+   "id": "shortcut-rain",
+   "firma": "Teclas de atajo caen detrás de la cabeza",
+   "ocasion": "Demo de productividad/atajos en talking-head dev",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE rain con text=keys|; count moderado; detrás (behind)",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx shortcut-rain",
+   "aliases": [
+    "rain"
+   ],
+   "keywords": [
+    "teclas",
+    "atajos",
+    "shortcuts",
+    "lluvia"
+   ]
+  },
+  {
+   "n": 18,
+   "id": "reject-stamp",
+   "firma": "Sello rojo grande que golpea el cuadro",
+   "ocasion": "Rechazo/NO enfático en un beat",
+   "preferir": "ambos",
+   "nativo": "sello tipográfico en plan (reject visual) / remate",
+   "adaptar": "CVE stamp con angle; nativo: tipografía de impacto en escena remate/frase",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx reject-stamp",
+   "aliases": [
+    "stamp"
+   ],
+   "keywords": [
+    "sello",
+    "reject",
+    "no",
+    "stamp"
+   ]
+  },
+  {
+   "n": 19,
+   "id": "countdown-flip",
+   "firma": "Reloj flip 3-2-1 encima de la cabeza",
+   "ocasion": "Cuenta atrás anclada a la cara antes de un drop",
+   "preferir": "ambos",
+   "nativo": "escena countdown del catálogo",
+   "adaptar": "Si no hay talking-head → countdown nativo; si sí y debe flotar sobre cara → CVE",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx countdown-flip",
+   "aliases": [
+    "countdown"
+   ],
+   "keywords": [
+    "cuenta atras",
+    "3 2 1",
+    "flip clock"
+   ]
+  },
+  {
+   "n": 20,
+   "id": "rabbit-hole",
+   "firma": "El cuadro hace túnel/spin sobre sí mismo",
+   "ocasion": "Transición de 'entrar en el tema' o rabbit hole narrativo",
+   "preferir": "externo",
+   "nativo": "transición iris/mancha del plan si es gráfica",
+   "adaptar": "CVE rabbit-hole; ratio/speed/spin contenidos; un uso por pieza",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx rabbit-hole",
+   "aliases": [],
+   "keywords": [
+    "tunel",
+    "rabbit hole",
+    "spin",
+    "vortex"
+   ]
+  },
+  {
+   "n": 21,
+   "id": "cover-star",
+   "firma": "Portada de revista; título detrás de la cabeza",
+   "ocasion": "Hero editorial del hablante (perfil, featured)",
+   "preferir": "externo",
+   "nativo": "hero / cover tipográfico en plan si no hay persona",
+   "adaptar": "CVE cover-star; look=editorial para serif; copy del brief/pack",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx cover-star",
+   "aliases": [
+    "cover"
+   ],
+   "keywords": [
+    "revista",
+    "cover",
+    "portada",
+    "editorial"
+   ]
+  },
+  {
+   "n": 22,
+   "id": "scribble",
+   "firma": "Garabatos de marcador se dibujan alrededor",
+   "ocasion": "Anotar/enfatizar con doodle cinético sobre talking-head",
+   "preferir": "ambos",
+   "nativo": "hand-draw.md + hand_draw.py para overlay offline",
+   "adaptar": "CVE scribble con face guard; nativo: trazo suavizado → PNG → montaje",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx scribble",
+   "aliases": [],
+   "keywords": [
+    "garabato",
+    "doodle",
+    "marcador",
+    "scribble"
+   ]
+  },
+  {
+   "n": 23,
+   "id": "glass-widgets",
+   "firma": "Widgets glass esmerilados flotando alrededor de la cabeza",
+   "ocasion": "Dashboard/KPI liviano anclado al hablante (producto, métricas)",
+   "preferir": "ambos",
+   "nativo": "primitiva tarjeta_cristal + bento/hero/stats",
+   "adaptar": "CVE si debe flotar tras/alrededor de cara; nativo: bento/stats + tarjeta_cristal",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx glass-widgets",
+   "aliases": [
+    "glass",
+    "widgets"
+   ],
+   "keywords": [
+    "widgets",
+    "glass",
+    "kpi",
+    "frosted"
+   ]
+  },
+  {
+   "n": 24,
+   "id": "red-collage",
+   "firma": "Persona en B/N, palabra roja detrás, líneas cinéticas",
+   "ocasion": "Collage tipográfico agresivo de tesis en talking-head",
+   "preferir": "externo",
+   "nativo": "red-collage tipográfico en plan (frase+acento) sin cara",
+   "adaptar": "CVE; tipografía y rojo del pack (no copiar demo Claude)",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx red-collage",
+   "aliases": [
+    "collage"
+   ],
+   "keywords": [
+    "collage",
+    "bn",
+    "rojo",
+    "tesis"
+   ]
+  },
+  {
+   "n": 25,
+   "id": "split-headline",
+   "firma": "Card de titular baja y empuja al hablante abajo",
+   "ocasion": "Titular full-bleed que reencuadra al hablante a la mitad inferior",
+   "preferir": "externo",
+   "nativo": "split layout / headline en HyperFrames o plan",
+   "adaptar": "CVE split-headline; hl=palabra destacada; pill opcional",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx split-headline",
+   "aliases": [
+    "split"
+   ],
+   "keywords": [
+    "titular split",
+    "headline card",
+    "mitad"
+   ]
+  },
+  {
+   "n": 26,
+   "id": "pastel-word",
+   "firma": "Backdrop lavanda, palabra gigante, card de perfil followed",
+   "ocasion": "Look soft/creator con follow card (solo si el brief pide pastel)",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE; paleta del pack gana sobre lavanda demo; no forzar si hay marca fuerte",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx pastel-word",
+   "aliases": [
+    "pastel"
+   ],
+   "keywords": [
+    "pastel",
+    "lavanda",
+    "profile card"
+   ]
+  },
+  {
+   "n": 27,
+   "id": "check-pills",
+   "firma": "Cuaderno/grid, reels detrás, pills azules que se clickean",
+   "ocasion": "Seleccionar features/tags con gesto de cursor en talking-head",
+   "preferir": "ambos",
+   "nativo": "demo (cursor+onda_clic) + pills en plan",
+   "adaptar": "CVE con images; nativo: escena demo para el clic + chips",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx check-pills",
+   "aliases": [
+    "pills"
+   ],
+   "keywords": [
+    "pills",
+    "tags",
+    "click",
+    "grid paper"
+   ]
+  },
+  {
+   "n": 28,
+   "id": "timeline",
+   "firma": "Grade cine + timeline de edición + playhead + REC",
+   "ocasion": "Meta-edición: mostrar el oficio de editar sobre el hablante",
+   "preferir": "ambos",
+   "nativo": "escena timeline del catálogo (datos/proceso)",
+   "adaptar": "CVE para grade+UI sobre cara; nativo: timeline de datos en plan",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx timeline",
+   "aliases": [
+    "auto-edit"
+   ],
+   "keywords": [
+    "timeline",
+    "playhead",
+    "rec",
+    "edicion"
+   ]
+  },
+  {
+   "n": 29,
+   "id": "headline-box",
+   "firma": "Punch-in con titular de dos líneas (2ª en caja blanca)",
+   "ocasion": "Titular limpio con énfasis en talking-head",
+   "preferir": "ambos",
+   "nativo": "frase / headline tipográfico en plan",
+   "adaptar": "CVE con zoom; nativo: frase + placa_texto",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx headline-box",
+   "aliases": [
+    "headline"
+   ],
+   "keywords": [
+    "headline box",
+    "titular caja",
+    "punch-in titulo"
+   ]
+  },
+  {
+   "n": 30,
+   "id": "profile-wall",
+   "firma": "Grid de reels llena la pared; contador sube",
+   "ocasion": "Prueba social de volumen de contenido detrás del creador",
+   "preferir": "externo",
+   "nativo": "stats/ranking si son cifras sin grid de media",
+   "adaptar": "CVE + images + count/label; cifras reales del brief",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx profile-wall",
+   "aliases": [
+    "wall"
+   ],
+   "keywords": [
+    "profile grid",
+    "muro reels",
+    "contador"
+   ]
+  },
+  {
+   "n": 31,
+   "id": "tier-list",
+   "firma": "Tier list cae; ítem vuela a S tier",
+   "ocasion": "Ranking tipo tier list con ítem héroe",
+   "preferir": "ambos",
+   "nativo": "escena ranking / versus",
+   "adaptar": "CVE para talking-head; nativo: ranking del catálogo",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx tier-list",
+   "aliases": [
+    "tiers",
+    "tier"
+   ],
+   "keywords": [
+    "tier list",
+    "s tier",
+    "ranking"
+   ]
+  },
+  {
+   "n": 32,
+   "id": "broll-split",
+   "firma": "Split: B-roll arriba con price-tag; hablante abajo",
+   "ocasion": "Producto/precio + cara a la vez (oferta hablada)",
+   "preferir": "ambos",
+   "nativo": "escena oferta + montaje split / PiP",
+   "adaptar": "CVE broll-split; nativo: oferta + montaje pantalla partida",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx broll-split",
+   "aliases": [
+    "broll",
+    "b-roll"
+   ],
+   "keywords": [
+    "b-roll",
+    "split",
+    "precio",
+    "price tag"
+   ]
+  },
+  {
+   "n": 33,
+   "id": "phone-fan",
+   "firma": "Reels en abanico de teléfonos bajo un titular",
+   "ocasion": "Mostrar varias capturas como mano de móviles",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE phone-fan + images + text líneas|; covers propios",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx phone-fan",
+   "aliases": [
+    "fan"
+   ],
+   "keywords": [
+    "abanico",
+    "phones",
+    "fan",
+    "moviles"
+   ]
+  },
+  {
+   "n": 34,
+   "id": "dot-reveal",
+   "firma": "La imagen se construye con puntos y snap al full",
+   "ocasion": "Revelación estilizada del hablante/plano",
+   "preferir": "externo",
+   "nativo": "mask reveal / particulas en plan o HyperFrames",
+   "adaptar": "CVE dot-reveal; color del pack; cell según res",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx dot-reveal",
+   "aliases": [
+    "dots"
+   ],
+   "keywords": [
+    "puntos",
+    "dot reveal",
+    "particulas revelar"
+   ]
+  },
+  {
+   "n": 35,
+   "id": "headline-wall",
+   "firma": "Titulares propios se apilan detrás; total delante",
+   "ocasion": "Muro de headlines + cifra total (views, posts)",
+   "preferir": "externo",
+   "nativo": "stats + headline stack tipográfico",
+   "adaptar": "CVE text=headline::meta|; total/label reales",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx headline-wall",
+   "aliases": [
+    "headlines"
+   ],
+   "keywords": [
+    "muro titulares",
+    "headline wall",
+    "views"
+   ]
+  },
+  {
+   "n": 36,
+   "id": "checklist",
+   "firma": "Task list bajo la barbilla; pasos giran y tildan verde",
+   "ocasion": "Proceso Claude/agente o checklist de producto bajo el chin",
+   "preferir": "ambos",
+   "nativo": "constancia / pasos",
+   "adaptar": "CVE checklist con step::meta|; nativo: constancia o pasos",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx checklist",
+   "aliases": [
+    "tasks"
+   ],
+   "keywords": [
+    "task list",
+    "checklist",
+    "pasos verdes"
+   ]
+  },
+  {
+   "n": 37,
+   "id": "liquid-glass-graph",
+   "firma": "Card glass con gráfica que sube y número que cuenta",
+   "ocasion": "KPI animado anclado al chin (o bento detrás con look=bento)",
+   "preferir": "ambos",
+   "nativo": "gauge/bars/stats + tarjeta_cristal",
+   "adaptar": "CVE bajo chin o look=bento detrás; nativo: gauge/bars + cristal",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx liquid-glass-graph",
+   "aliases": [
+    "liquid-glass",
+    "glass-graph"
+   ],
+   "keywords": [
+    "grafica glass",
+    "kpi",
+    "cuenta up",
+    "bento"
+   ]
+  },
+  {
+   "n": 38,
+   "id": "carousel-spin",
+   "firma": "Reels en carrusel 3D alrededor; frena",
+   "ocasion": "Showreel 3D alrededor del creador",
+   "preferir": "externo",
+   "nativo": "3d.md / HyperFrames carousel si no hay cara",
+   "adaptar": "CVE carousel-spin; turns contenidos; images propias",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx carousel-spin",
+   "aliases": [
+    "carousel"
+   ],
+   "keywords": [
+    "carrusel",
+    "carousel",
+    "3d reels"
+   ]
+  },
+  {
+   "n": 39,
+   "id": "match-cut",
+   "firma": "Páginas/news cortan en una palabra, caja roja detrás",
+   "ocasion": "Match-cut tipográfico sobre una palabra dicha",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE match-cut anclado a word-time; color del pack",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx match-cut",
+   "aliases": [
+    "match"
+   ],
+   "keywords": [
+    "match cut",
+    "news",
+    "palabra caja"
+   ]
+  },
+  {
+   "n": 40,
+   "id": "apple-toggles",
+   "firma": "Card de settings iPhone; switches se encienden",
+   "ocasion": "Features que se activan una a una (producto/settings)",
+   "preferir": "ambos",
+   "nativo": "pasos / demo de toggles en UI plan o HyperFrames",
+   "adaptar": "CVE ticks por segundo; pos=below|behind; nativo: UI en HyperFrames",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx apple-toggles",
+   "aliases": [
+    "toggles"
+   ],
+   "keywords": [
+    "toggles",
+    "settings",
+    "iphone",
+    "switches"
+   ]
+  },
+  {
+   "n": 41,
+   "id": "led-sign",
+   "firma": "Luces caen; letrero LED escribe detrás",
+   "ocasion": "Claim en LED detrás del hablante (noche, launch)",
+   "preferir": "externo",
+   "nativo": "typewriter / frase con glow en plan",
+   "adaptar": "CVE led-sign; color/pack; push opcional",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx led-sign",
+   "aliases": [
+    "led"
+   ],
+   "keywords": [
+    "led",
+    "neon",
+    "letrero",
+    "sign"
+   ]
+  },
+  {
+   "n": 42,
+   "id": "slow-push",
+   "firma": "Push-in cinematográfico lento; fondo desenfoca",
+   "ocasion": "Aterrizaje emocional lento al rostro",
+   "preferir": "ambos",
+   "nativo": "camara global / kenburns en plan",
+   "adaptar": "CVE slow-push zoom≤2; nativo: camara del plan con blur de fondo vía componer",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx slow-push",
+   "aliases": [
+    "push",
+    "push-in"
+   ],
+   "keywords": [
+    "push in",
+    "lento",
+    "cinematic",
+    "rack focus"
+   ]
+  },
+  {
+   "n": 43,
+   "id": "over-the-shoulder-zoom",
+   "firma": "Push a una esquina + graph glass; luego la otra",
+   "ocasion": "Dos KPIs en esquinas con zoom OTS manteniendo la cabeza delante",
+   "preferir": "externo",
+   "nativo": "stats dual + camara si es gráfica pura",
+   "adaptar": "CVE ots; text y to con dos valores; zoom default 2",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx over-the-shoulder-zoom",
+   "aliases": [
+    "ots",
+    "shoulder-zoom",
+    "corner-zoom"
+   ],
+   "keywords": [
+    "over the shoulder",
+    "esquina",
+    "dos graficas"
+   ]
+  },
+  {
+   "n": 44,
+   "id": "messages",
+   "firma": "Notificaciones iMessage apiladas con glow",
+   "ocasion": "Ráfaga de mensajes/social proof en talking-head",
+   "preferir": "ambos",
+   "nativo": "escena chat",
+   "adaptar": "CVE messages si debe flotar sobre footage; nativo: chat del catálogo",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx messages",
+   "aliases": [
+    "imessage",
+    "texts",
+    "notifications"
+   ],
+   "keywords": [
+    "imessage",
+    "mensajes",
+    "notificaciones"
+   ]
+  },
+  {
+   "n": 45,
+   "id": "place-in-grid",
+   "firma": "Encoge al centro de grid 3×3; 8 reels + views",
+   "ocasion": "Cierre de perfil: el hablante es una celda del grid de contenido",
+   "preferir": "externo",
+   "nativo": null,
+   "adaptar": "CVE place-in-grid + images + views|; cifra 9ª = la del hablante",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx place-in-grid",
+   "aliases": [
+    "grid",
+    "profile-grid"
+   ],
+   "keywords": [
+    "grid 3x3",
+    "perfil",
+    "views",
+    "place in grid"
+   ]
+  }
+ ],
+ "looks_nombrados": [
+  {
+   "id": "glitter-spotlight",
+   "de": "spotlight",
+   "look": "sparkle",
+   "firma": "Spotlight con rayos dorados, shine y sparkles",
+   "ocasion": "Misma de spotlight con energía glitter/launch"
+  },
+  {
+   "id": "cover-star-editorial",
+   "de": "cover-star",
+   "look": "editorial",
+   "firma": "Cover-star con masthead serif y look film cálido",
+   "ocasion": "Misma de cover-star con tono magazine clásico"
+  },
+  {
+   "id": "liquid-glass-bento",
+   "de": "liquid-glass-graph",
+   "look": "bento",
+   "firma": "Graph glass detrás + tiles bento delante (donut/KPI/bars)",
+   "ocasion": "Misma de liquid-glass-graph cuando pide dashboard alrededor"
+  }
+ ],
+ "descartado_a_proposito": [
+  {
+   "que": "Vendorizar fx.py (~2.2k LOC), models/*.onnx/*.tflite, fonts del repo",
+   "por_que": "Motor externo pesado; patrón dibujado.md: se clona, no se copia. Evita deps MediaPipe en el motor plano"
+  },
+  {
+   "que": "Submodule permanente del repo CVE",
+   "por_que": "El usuario pidió carpeta temporal; la skill no depende de un checkout fijo"
+  },
+  {
+   "que": "45 tipos nuevos en SCENES / repertorio.json",
+   "por_que": "Son overlays sobre footage con cara, no escenas del motor de planes; duplicar firmas (checklist→constancia/pasos, messages→chat, countdown→countdown, moody→grade) rompería DRY"
+  },
+  {
+   "que": "SFX/captions del reel de referencia",
+   "por_que": "CVE no los trae; EditorIA ya tiene sfx.md, caption.py y sonido.md"
+  },
+  {
+   "que": "Marca/copy demo (Claude, Edited by Claude, lavanda fija)",
+   "por_que": "Regla marca-blanca: pack/brief mandan"
+  }
+ ],
+ "clone_root": "/tmp/claude-video-effects",
+ "fx_module": "fx.py",
+ "words_module": "words.py",
+ "venv_python": ".venv/bin/python"
+}

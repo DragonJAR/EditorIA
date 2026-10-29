@@ -59,7 +59,8 @@
     "transcribir",
     "delivery_check",
     "loudness",
-    "contact_sheet"
+    "contact_sheet",
+    "efectos_talking_head"
    ],
    "sin_test": {
     "scripts/ffmpeg_tools/transcribir.py": "necesita el modelo de voz (Whisper) instalado"

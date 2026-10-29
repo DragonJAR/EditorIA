@@ -67,6 +67,17 @@ El efecto óptico Liquid Glass sí se portó en Ronda 4 como
 primitiva `tarjeta_cristal` en PIL y como receta `@samasante/liquid-glass`
 para HyperFrames/Remotion.
 
+### 5. [Vibha-Ramprakash/claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects) — 45 fx talking-head
+
+Skill MIT de overlays con face-track (YuNet + MediaPipe) sobre footage
+vertical. **No se portó al motor de planes** (no son escenas `SCENES`): se
+integró como técnica externa con selector y catálogo único en
+`scripts/data/efectos_talking_head.json` + doctrina
+`references/efectos-talking-head.md`. El motor se clona en `/tmp` cuando
+hace falta; equivalentes nativos (`grade`, `chat`, `countdown`,
+`constancia`/`pasos`, `hand_draw`, `tarjeta_cristal`…) se declaran por
+fila para no duplicar firmas.
+
 ## Cómo se mapean a EditorIA (DRY)
 
 Cada escena del catálogo extendido se compone a partir de **primitivas DRY**

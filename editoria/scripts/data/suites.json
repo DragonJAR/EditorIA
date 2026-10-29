@@ -29,6 +29,7 @@
   "test_core_and_scenes.py",
   "test_datos_y_critico.py",
   "test_direccion_arte.py",
+  "test_efectos_talking_head.py",
   "test_escala_tipografica.py",
   "test_escenas_ronda6.py",
   "test_ffmpeg_tools.py",

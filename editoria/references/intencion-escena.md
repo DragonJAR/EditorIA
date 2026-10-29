@@ -267,13 +267,18 @@ el motor. Orden:
    `references/plan-video.md`.
 6. **Si ninguna escena del catálogo sirve**: no fuerces una. Abre el
    selector de técnica (`references/animacion.md` §0: canvas, HandDraw,
-   Remotion, HyperFrames, 3D, híbrido, diagramas) y declara la capacidad
-   si falta (`references/capacidades.md`).
+   Remotion, HyperFrames, 3D, híbrido, diagramas, efectos talking-head) y
+   declara la capacidad si falta (`references/capacidades.md`).
 7. **Si lo que pide es el gesto de producto/sitio** (cascada, morph,
    máscara, parallax, zoom continuo): no inventes una escena nueva; aplica
    una técnica de `references/motion-ui.md` sobre la escena ya elegida o
    cambia de motor si la fila lo exige (morph/mask foto → HyperFrames).
-8. **Verifica barato**: `render_plan.py plan.json --preview t1,t2,t3` y
+8. **Si lo que pide es un overlay que sigue la cara** en footage real
+   (orbit, spotlight, LED, glass, grid…): no inventes un tipo en `SCENES`;
+   usa `references/efectos-talking-head.md` y
+   `scripts/efectos_talking_head.py` (catálogo JSON). Si la fila marca
+   `preferir=nativo`, quédate en el motor EditorIA indicado.
+9. **Verifica barato**: `render_plan.py plan.json --preview t1,t2,t3` y
    `auditar_plan.py` antes del render completo; mide movimiento con
    `medir_animacion.py` si hay pop/tirón.
 

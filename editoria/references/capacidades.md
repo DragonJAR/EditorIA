@@ -33,6 +33,7 @@ que levantan el listón del resultado. Por eso la regla de esta tabla no es
 | Película dibujada a mano (personaje animado, rotoscopio, arena, papel desplegable) | Node 22.12+ + Chrome + el kit `hand-drawn-canvas-animation` (MIT) | **Declarar**: se clona el repo (`https://github.com/alesha-pro/tools`, carpeta `skills/hand-drawn-canvas-animation`) y se instala con `npm i --no-audit --no-fund`; mientras tanto, la pieza se entrega en el motor plano, que no tiene ese material. Ver `references/dibujado.md` |
 | Diagramas como HTML+SVG | ninguno (es metodo, no binario) | No falta nada: la guia de estilo es el brand pack (ver `references/diagramas.md`) |
 | Trazos a mano / pizarra (overlay) | `scripts/hand_draw.py` (Pillow) | Offline: suavizar y pintar PNG con alfa. Captura en vivo por cámara: declarar Node + MediaPipe (ver `references/hand-draw.md`); no entregar el overlay vacío en silencio |
+| Efectos talking-head con face-track (orbit, spotlight, glass, LED, grid…) | Clone temporal de [claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects) (MIT) + su `.venv` (OpenCV, MediaPipe, Pillow) | **Declarar**: `python scripts/efectos_talking_head.py receta --fx …` imprime clone→setup→render→rm; no se vendoriza ni se añade a `SCENES`. Si `preferir=nativo` en el JSON, usar el motor EditorIA indicado. Ver `references/efectos-talking-head.md` |
 
 **Que "declarar" quiere decir exactamente:** cuando una pieza necesita una
 capacidad que no esta, **se le dice al usuario en la primera respuesta** que
@@ -95,4 +96,4 @@ que era provisional.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`, `references/hand-draw.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`, `references/hand-draw.md`, `references/efectos-talking-head.md`

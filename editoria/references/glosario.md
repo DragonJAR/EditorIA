@@ -101,6 +101,7 @@ un parametro del plan, esta es su definicion.
 | **true peak** | el pico instantaneo. La entrega pide <= -1,0 dBTP | `scripts/ffmpeg_tools/_delivery.py` |
 | **motion blur** | el desenfoque de obturador: 180 grados. Se renderiza con sub-frames (`--blur 5`) | `references/animacion.md` |
 | **motion UI** | el repertorio de animación de interfaz (easing, delay, fade, morph, mask, dimension, parallax, zoom): una técnica dominante por pieza | `references/motion-ui.md` |
+| **efectos talking-head** | los 45 overlays con face-track sobre footage real (orbit, spotlight, glass…); catálogo JSON + selector; motor externo en `/tmp` | `references/efectos-talking-head.md` |
 | **still** | un frame suelto | `references/thumbnails.md` |
 | **contact sheet** | la hoja de contactos: la foto del video para revisarlo de un vistazo | `scripts/contact_sheet.py` |
 | **storyboard / animatic** | el plan de planos y su montaje sin pulir, para ajustar el ritmo antes de renderizar | `references/ritmo.md` |

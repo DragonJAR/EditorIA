@@ -76,6 +76,9 @@
   "scripts/direccion_arte.py": [
    "scripts/_tests/test_direccion_arte.py"
   ],
+  "scripts/efectos_talking_head.py": [
+   "scripts/_tests/test_efectos_talking_head.py"
+  ],
   "scripts/ffmpeg_tools/aplicar_edl.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
   ],

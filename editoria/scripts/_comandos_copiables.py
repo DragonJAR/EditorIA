@@ -67,6 +67,7 @@ EJECUTABLES = {
     "scripts/ffmpeg_tools/speedramp.py",
     "scripts/ffmpeg_tools/verticalizar.py",
     "scripts/hand_draw.py",
+    "scripts/efectos_talking_head.py",
     "scripts/retakes.py",
     "scripts/lint_copy.py",
     "scripts/medir_contraste.py",

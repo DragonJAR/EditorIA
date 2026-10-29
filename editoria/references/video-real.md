@@ -51,6 +51,17 @@ Cuando se parte de un video de referencia o se quiere modelar una estructura vir
 2. **Clonación de estructura y ritmo**: `python scripts/clonar_video.py analizar --video ref.mp4` descompone la pieza en `plantilla.json` y `ANALYSIS.md` (gancho, retención, clímax, CTA).
 3. **Generación de variantes**: `python scripts/clonar_video.py variar --plantilla plantilla.json --variantes 3 --tema "Acme"` genera planes listos auditando tiempos de habla con `scripts/speech_estimate.py`.
 
+## Efectos que siguen la cara
+
+Cuando el brief pide overlays anclados a la cara (orbit, spotlight, LED,
+glass widgets, grid de perfil…), la entrada es
+`references/efectos-talking-head.md` y el selector
+`scripts/efectos_talking_head.py` (catálogo único en
+`scripts/data/efectos_talking_head.json`). El motor face-track se clona en
+`/tmp` solo para esa pieza; no sustituye a `grade.py`, `caption.py` ni al
+catálogo de escenas. Si el JSON marca `preferir=nativo` (p. ej. `moody`),
+se usa la herramienta EditorIA y no se abre el clone.
+
 ## Reglas editoriales (grabación cruda)
 
 - In-points 0.2s antes del onset acústico (el ASR llega tarde).
@@ -75,4 +86,4 @@ Cuando se parte de un video de referencia o se quiere modelar una estructura vir
 
 ---
 
-→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/tecnicas-reutilizables.md`, `references/montaje.md`
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/tecnicas-reutilizables.md`, `references/montaje.md`, `references/efectos-talking-head.md`

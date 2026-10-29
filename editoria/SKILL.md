@@ -82,6 +82,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` (Familia 7) + `references/recetas-ai-video.md` (§7) |
 | Animate a scene, a logo, a title, or one element (which technique, how to ask for it) | **Animation selector**: `references/animacion.md` §0 (plan engine, canvas, Remotion, HyperFrames, 3D, hybrid, diagrams — what fits when, and how each one is requested), then the chosen technique's reference |
 | Soft UI / product-site motion (staggered reveals, morphing cards, masked photos, parallax, continuous zoom) | **UI motion repertoire**: `references/motion-ui.md` (eight techniques distilled from motion.zajno.com → which EditorIA motor serves each; one dominant technique per piece) |
+| Talking-head overlays that track the face (orbit, spotlight, glass widgets, LED sign, profile grid, iMessage stack…) | **Talking-head effects**: `references/efectos-talking-head.md` + `scripts/efectos_talking_head.py` (45 fx; catalog in `scripts/data/efectos_talking_head.json`; clone the external MIT engine under `/tmp` when needed — never vendor it, never add types to `SCENES`) |
 | Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (the pack spec plus the operational checklist: assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
 | Viralizar: prepare a piece to be discovered and shared (hook, captions, platform format, A/B variants, publish copy) | **Publish flow**: `references/share-copy.md` (the whole chain: moment, triple hook, burned captions, platform spec, hook×body variantes, poster, share copy), ending at the same gate |
 
@@ -94,7 +95,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 64 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 65 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
@@ -276,7 +277,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (45/45 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (58 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (45/45 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (59 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

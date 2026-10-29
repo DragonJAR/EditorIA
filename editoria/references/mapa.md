@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-64 referencias, 49 scripts, 20 herramientas de ffmpeg y 58 suites de tests. Este
+65 referencias, 50 scripts, 20 herramientas de ffmpeg y 59 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -21,7 +21,7 @@ contradigan.
 
 | dominio | canónico | qué resuelve | cuándo lo lees |
 |---|---|---|---|
-| **movimiento** | `animacion.md` | los 12 principios, overshoot medido, curvas, coreografía, cámara, tipografía en movimiento; el repertorio de interfaz vive en `motion-ui.md` | siempre que algo se mueva |
+| **movimiento** | `animacion.md` | los 12 principios, overshoot medido, curvas, coreografía, cámara, tipografía en movimiento; el repertorio de interfaz vive en `motion-ui.md`; los overlays con cara en `efectos-talking-head.md` | siempre que algo se mueva |
 | **estructura** | `principios.md` | la idea, el arco, la dirección, el tono, los lenguajes visuales | antes de escribir el guion |
 | **plan** | `plan-video.md` | el schema de `plan.json`, el bloque `datos`, los límites del motor | al escribir el plan |
 | **escenas** | `escenas.md` | el catálogo de 45 tipos de escena y sus parámetros | al elegir escena |
@@ -67,12 +67,17 @@ contradigan.
 - **"quiero ANIMAR una escena o un elemento"** → `animacion.md` (§0: qué
   técnica cuándo y cómo se pide) → la referencia de la técnica elegida
   (`canvas.md`, `hand-draw.md`, `remotion.md`, `hyperframes.md`, `3d.md`,
-  `modos-produccion.md`, `motion-ui.md` si pide sensación de producto/sitio)
+  `modos-produccion.md`, `motion-ui.md` si pide sensación de producto/sitio,
+  `efectos-talking-head.md` si pide overlays que siguen la cara)
   → `qa-entrega.md`.
 - **"quiero animación de interfaz / como un landing / soft UI"** →
   `motion-ui.md` (las 8 técnicas: easing, delay, fade, morph, mask,
   dimension, parallax, zoom) → el motor que indica cada fila →
   `qa-entrega.md`.
+- **"quiero un efecto sobre mi talking-head / que siga mi cara"** →
+  `efectos-talking-head.md` + `scripts/efectos_talking_head.py`
+  (catálogo de 45 fx en `scripts/data/efectos_talking_head.json`) →
+  `video-real.md` → `qa-entrega.md`.
 - **"quiero VIRALIZAR o publicar un video"** → `share-copy.md` (el flujo
   entero: momento, gancho, subtítulos, plataforma, variantes, poster y
   texto) → `scoring-shorts.md` (el momento) → `tecnicas-video.md` (hooks
@@ -130,6 +135,7 @@ escribir es un tapón).
 | `ritmo.md` | el ritmo y el encadenamiento (anti-slideshow) | movimiento |
 | `tecnicas-video.md` | el catálogo de técnicas 2025-2026 | movimiento |
 | `motion-ui.md` | repertorio de interfaz (8 técnicas, Zajno destilado) → motor | movimiento |
+| `efectos-talking-head.md` | overlays con face-track (45 fx; catálogo JSON; motor externo en `/tmp`) | movimiento |
 | `sonido.md` | voz, música y SFX | sonido |
 | `audio.md` | el ritmo musical: beat grid, anchors, compases | sonido |
 | `sfx.md` | la capa de efectos de sonido | sonido |
@@ -309,7 +315,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 64 referencias, no se estiman.
+    guard nuevo se cuentan contra las 65 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que
