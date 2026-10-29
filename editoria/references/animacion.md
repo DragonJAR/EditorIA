@@ -15,7 +15,8 @@ nunca se sustituye en silencio por otra que "se parece".
 
 | La pieza pide | Técnica | Cómo se pide | Dónde vive |
 |---|---|---|---|
-| Escenas con texto, datos, cifras, tarjetas | Motor de planes: escena del catálogo elegida por intención | Un `plan.json`: escena + `at` por elemento + gesto con nombre (§3b) | `references/intencion-escena.md` → `references/escenas.md` → `references/plan-video.md` |
+| Qué poner en cada parte (escena, overlay con cara, gesto de interfaz) | **Catálogo único** de elección | `repertorio.py sugerir` (--intenciones / --pedido) → `resolver --id`; el motor es metadato de la opción, no un menú A/B | `scripts/repertorio.py` · `references/intencion-escena.md` |
+| Escenas con texto, datos, cifras, tarjetas (opción `motor=escena`) | Motor de planes | Un `plan.json`: escena + `at` por elemento + gesto con nombre (§3b) | `references/escenas.md` → `references/plan-video.md` |
 | Animar un elemento suelto (logo, titular, cifra) dentro de una pieza de planes | El mismo motor: una escena o una pasada acotada sobre la pieza | La pasada nombra solo lo que cambia; el resto no se toca | `references/pasadas.md` |
 | Movimiento pictórico: acuarela, pincel, doodle, lyric video | Canvas (p5.js): cada frame es función pura de `t` | Un sketch con `renderAt(t)` determinista; el trazo se autora como dato, no como grabación | `references/canvas.md` |
 | Trazo a mano: pizarra, anotación dibujada, doodle cinético | Trazo suavizado horneado a overlay con alfa | Un JSON de puntos/trazos; el suavizado va antes de pintar, el PNG entra por montaje | `references/hand-draw.md` |
@@ -25,8 +26,8 @@ nunca se sustituye en silencio por otra que "se parece".
 | Animar sobre video real (rótulos, gráficas, PiP que siguen a la acción) | Híbrido: el footage manda y la animación complementa | La capa animada se ancla a palabras o instantes del footage, no a segundos sueltos | `references/modos-produccion.md` |
 | Un diagrama que se dibuja a sí mismo | HTML+SVG con la marca de la pieza | Un solo fichero autocontenido; el trazo se anima por longitud de path | `references/diagramas.md` |
 | Una pieza que sea UN recorrido (una idea, muchas funciones) y no una tanda de planos | El camino: una línea de luz que corre, la cámara vuela con la cabeza y cada estación se enciende al paso | La escena `camino` del catálogo: las estaciones van en `estaciones` y el trazo lo dibuja UNA función | `references/escenas.md` → `references/plan-video.md` |
-| Sensación de producto / sitio / app (cascada suave, morph de cards, máscara, parallax, zoom continuo) | Repertorio Motion UI (8 técnicas) | Se elige **una** técnica dominante por empleo (atención, mood, guía, profundidad) y se mapea al motor | `references/motion-ui.md` (fuente: motion.zajno.com; no copia demos) |
-| Overlays que siguen la cara en talking-head (orbit, spotlight, glass widgets, LED, grid…) | Efectos talking-head (45 fx, face-track externo) | `efectos_talking_head.py sugerir/receta`; clonar CVE en `/tmp` si `preferir` lo pide; no hinchar `SCENES` | `references/efectos-talking-head.md` · catálogo: `scripts/data/efectos_talking_head.json` |
+| Sensación de producto / sitio / app (cascada, morph, máscara, parallax, zoom) | Misma elección: opción `motor=gesto` del catálogo único | `repertorio.py sugerir --pedido "…"`; una técnica dominante; el detalle de números vive aparte | Detalle interno: `references/motion-ui.md` · `scripts/data/motion_ui.json` |
+| Overlays que siguen la cara (orbit, spotlight, glass, LED, grid…) | Misma elección: opción `motor=efecto` (o `nativo`) | `repertorio.py sugerir --pedido "…"` → `resolver` → `efectos_talking_head.py receta` si hace falta CVE en `/tmp` | Detalle interno: `references/efectos-talking-head.md` · JSON de fx |
 
 Regla de cierre de la elección: la técnica se verifica como el resto de la
 pieza — preview de instantes antes de pagar el render, y la puerta al final
@@ -34,23 +35,24 @@ pieza — preview de instantes antes de pagar el render, y la puerta al final
 (`scripts/medir_animacion.py`): un movimiento que no se puede medir es un
 movimiento que no se puede corregir.
 
-### 0b. Catálogo de planes: cuándo, cómo pedir, cómo adaptar
+### 0b. Catálogo único: cuándo, cómo pedir, cómo adaptar
 
-Para las escenas del motor de planes (el camino por defecto):
+Una sola superficie. El agente no elige «repertorio vs talking-head vs Zajno».
 
 | Paso | Dónde | Qué hace el agente |
 |---|---|---|
-| Intención → familia | `scripts/data/repertorio.json` vía `repertorio.py sugerir` | Una escena por intención, rotando y evitando la pieza anterior |
-| Pedido vago → escena | `references/intencion-escena.md` §2 | El cliente habla; el índice nombra el tipo |
-| Params y límites | `references/escenas.md` + `scripts/escenas_muestra.json` | Schema y muestra realista; no hay una segunda lista |
-| Adaptar copy/tiempos/look | `intencion-escena.md` §2c | Parametriza la muestra; gesto = rol `MOVIMIENTO`; look = pack |
+| Brief → opción | `repertorio.py sugerir` (`--intenciones` y/o `--pedido`) | Una opción por intención (o top-N del pedido); rota y evita la pieza anterior |
+| Opción → motor | `repertorio.py resolver --id …` | Metadato interno: `escena` / `efecto` / `gesto` / `nativo` + cómo producir |
+| Pedido vago → nombre | `references/intencion-escena.md` §2 | El cliente habla; el índice nombra la opción de plan |
+| Params (si `motor=escena`) | `references/escenas.md` + `scripts/escenas_muestra.json` | Schema y muestra; no hay una segunda lista |
+| Adaptar copy/tiempos/look | `intencion-escena.md` §2c | Parametriza; gesto UI = opción `gesto` o rol `MOVIMIENTO`; look = pack |
 | Cobertura / no olvidar | `repertorio.py cobertura` + `auditar_plan.py` | Lo no usado se declara `no_aplica` |
-| Verificar | `render_plan.py --preview` · `medir_animacion.py` | Preview barato antes del render caro |
+| Verificar | preview del motor elegido · `medir_animacion.py` · puerta | Preview barato antes del render caro |
 
-Globales del plan (`cabecera`, `grano`, `camara`) no son tipos de `SCENES`:
-no aparecen en el repertorio. Si la pieza pide otro oficio (trazo a mano,
-HTML determinista, React, 3D), vuelve a la tabla §0 — no estires una escena
-plana hasta que parezca otra técnica.
+Globales del plan (`cabecera`, `grano`, `camara`) no son tipos de `SCENES`.
+Si la pieza pide otro oficio (trazo a mano, HTML determinista, React, 3D),
+vuelve a la tabla §0 — no estires una escena plana hasta que parezca otra
+técnica, y no abras un «segundo catálogo».
 
 ## 1. Los 12 principios, traducidos a motion graphics
 

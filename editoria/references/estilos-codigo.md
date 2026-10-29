@@ -64,7 +64,7 @@ copy, la marca y el arco salen del brief y del pack; aquí solo vive la firma.
 No sustituye al catálogo de escenas del motor Python: complementa cuando el brief pide
 «hazlo flat vector / Bauhaus / pixel / HUD cyberpunk» como look global. Si lo que pide
 es el **gesto de interfaz** (cascada, morph, máscara, parallax) y no un look de
-película, la puerta es `references/motion-ui.md`, no esta tabla.
+película, la puerta es `repertorio.py sugerir` (opción `motor=gesto`; detalle en `references/motion-ui.md`), no esta tabla.
 
 ## Reglas que evitan basura
 

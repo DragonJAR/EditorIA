@@ -70,9 +70,9 @@ para HyperFrames/Remotion.
 ### 5. [Vibha-Ramprakash/claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects) — 45 fx talking-head
 
 Skill MIT de overlays con face-track (YuNet + MediaPipe) sobre footage
-vertical. **No se portó al motor de planes** (no son escenas `SCENES`): se
-integró como técnica externa con selector y catálogo único en
-`scripts/data/efectos_talking_head.json` + doctrina
+vertical. **No se portó al motor de planes** (no son escenas `SCENES`): las
+opciones viven en el **catálogo único** (`repertorio.py`); el detalle y la
+receta CVE están en `scripts/data/efectos_talking_head.json` +
 `references/efectos-talking-head.md`. El motor se clona en `/tmp` cuando
 hace falta; equivalentes nativos (`grade`, `chat`, `countdown`,
 `constancia`/`pasos`, `hand_draw`, `tarjeta_cristal`…) se declaran por

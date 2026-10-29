@@ -1,96 +1,81 @@
-# Efectos talking-head — face tracking sobre footage real
+# Efectos talking-head — detalle interno (face tracking)
+
+**No es un catálogo paralelo.** La elección del agente es
+`scripts/repertorio.py` (misma superficie que las 45 escenas y los gestos UI).
+Este documento y `scripts/data/efectos_talking_head.json` son el **detalle de
+producción** cuando la opción resuelta tiene `motor=efecto` o `nativo`.
 
 Fuente: [claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects)
-(MIT). Son **45 overlays que siguen la cara** (YuNet + MediaPipe Selfie
-Segmenter) sobre un talking-head vertical. No son escenas del motor de
-planes: no se añaden a `SCENES` ni a `repertorio.json`.
-
-**Fuente de verdad del catálogo** (ids, ocasiones, vía, cómo adaptar,
-aliases): `scripts/data/efectos_talking_head.json`. Este documento es la
-doctrina y la entrada; el JSON es el inventario. No se copia la tabla aquí.
+(MIT). Overlays que siguen la cara (YuNet + MediaPipe Selfie Segmenter) sobre
+talking-head vertical. **No se añaden a `SCENES`.**
 
 ```bash
-python scripts/efectos_talking_head.py listar
-python scripts/efectos_talking_head.py sugerir --pedido "palabra gigante detrás de mi cara"
+# elección (catálogo único)
+python scripts/repertorio.py sugerir --pedido "palabra gigante detrás de mi cara"
+python scripts/repertorio.py resolver --id orbit
+
+# producción (motor interno)
 python scripts/efectos_talking_head.py receta --fx orbit --start 3 --end 6
 python scripts/efectos_talking_head.py validar
 ```
 
-## 0. Cuándo se entra (y cuándo no)
+## 0. Cuándo produce este motor (no cuándo “entra a otro catálogo”)
 
-Se entra cuando:
+Se produce por aquí cuando `resolver` devolvió `motor=efecto` (o `nativo`) y:
 
-- El material es un **video real con persona a cámara** (talking-head,
-  creator, demo hablada) y el brief pide un efecto que **se ancla a la
-  cara** o se sienta *detrás* de la cabeza.
-- El usuario nombra un fx del catálogo (`orbit`, `spotlight`,
-  `glass-widgets`…) o describe su firma (“reels orbitando mi cabeza”,
-  “apaga las luces y déjame lit”).
+- Hay **video real con persona a cámara** y el brief pide un overlay anclado
+  a la cara / detrás de la cabeza, **o**
+- La opción marca `preferir=nativo` → se usa el motor EditorIA indicado
+  (`grade.py`, `chat`, `constancia`…) sin clonar CVE.
 
-No se entra cuando:
-
-- La pieza es gráfica pura (sin cara): se usa el **equivalente nativo**
-  que declara cada fila (`nativo` en el JSON) — `constancia`/`pasos`,
-  `chat`, `countdown`, `grade.py`, `hand_draw.py`, `tarjeta_cristal`, etc.
-- El pedido es soft-UI de producto/sitio → `references/motion-ui.md`.
-- El pedido es una escena del catálogo por intención →
-  `repertorio.py` / `intencion-escena.md`.
+Si el material es gráfica pura sin cara, `resolver` / `preferir` ya apuntan
+al equivalente nativo. Soft-UI de producto → opción `motor=gesto` del mismo
+repertorio. Escena de plan → `motor=escena`.
 
 `preferir` en el JSON:
 
 | valor | significa |
 |---|---|
-| `externo` | Solo tiene sentido con face-track CVE |
-| `nativo` | EditorIA ya lo cubre mejor sin CVE (p. ej. `moody` → `grade.py`) |
-| `ambos` | Con cara → CVE; sin cara o gráfica → motor nativo indicado |
+| `externo` | Face-track CVE en `/tmp` |
+| `nativo` | EditorIA ya lo cubre sin CVE |
+| `ambos` | Con cara → CVE; sin cara → nativo indicado |
 
-## 1. Cómo se pide (el agente elige, no adivina)
+## 1. Cómo se produce
 
-1. Confirmar que hay footage con cara (o declarar que falta).
-2. `efectos_talking_head.py sugerir --pedido "..."` o el fx nombrado.
-3. Leer `preferir` / `nativo` / `adaptar` de esa fila — una sola fuente.
-4. Si la vía es externa: **declarar** en la primera respuesta que se clona
-   el repo en `/tmp` y se usa su `.venv` (MediaPipe, OpenCV, Pillow) —
-   `references/capacidades.md`. Nunca degradar a un fade en silencio.
-5. Plan CVE al lado del video (`*_effects.json`), check frames
-   (`--still`), luego render. Ventanas **1.5–4 s**. Zoom ≤ 2×.
-6. Copy, cifras y color: brief / brand pack. No el demo “Claude”.
-7. Limpiar `/tmp/claude-video-effects` al terminar. No submodule.
-8. Puerta: `qa_entrega.py` como el resto de la edición de footage
-   (`references/video-real.md`).
-
-`receta --fx` imprime los comandos exactos (clone → setup → fx.py → rm).
+1. Ya elegiste con `repertorio.py sugerir` / `resolver` (no con un menú aparte).
+2. Si la vía es externa: **declarar** clone en `/tmp` + `.venv` CVE
+   (`capacidades.md`). Nunca degradar a un fade en silencio.
+3. `efectos_talking_head.py receta --fx` imprime clone→setup→render→rm.
+4. Ventanas **1.5–4 s**. Zoom ≤ 2×. Copy/cifras/color: brief / pack.
+5. Limpiar `/tmp/claude-video-effects`. No submodule. No vendorizar.
+6. Puerta: `qa_entrega.py` (`video-real.md`).
 
 ## 2. Relación con el resto del mapa
 
-| ya existe | qué aporta esta técnica |
+| ya existe | qué aporta este detalle |
 |---|---|
-| `video-real.md` / `formatos.md` | oficio de editar talking-head; aquí el **selector de overlays con cara** |
-| `modos-produccion.md` | híbrido footage+animación; aquí el motor externo cuando el ancla es la cara |
-| `grade.py` / `look.py` | grades nativos; `moody` del CVE se mapea aquí (`preferir=nativo`) |
-| `hand-draw.md` | doodle offline; `scribble`/`pause-point` usan CVE solo sobre cara |
-| `escenas.md` (`chat`, `countdown`, `constancia`, `pasos`, `timeline`…) | equivalentes **sin** face-track; no se duplican como tipos nuevos |
-| `motion-ui.md` | gesto de interfaz en gráfica/producto; no face-track |
+| `repertorio.py` | la **elección**; aquí la receta CVE / nativo |
+| `video-real.md` / `formatos.md` | oficio de editar talking-head |
+| `modos-produccion.md` | híbrido footage+animación |
+| `grade.py` / `look.py` | `moody` → nativo |
+| `hand-draw.md` | doodle offline; scribble/pause-point con cara usan CVE |
+| `escenas.md` | equivalentes sin face-track (no tipos nuevos) |
+| `motion-ui.md` | gesto de interfaz (también vía repertorio) |
 
 ## 3. Qué NO se trae (a propósito)
 
-Inventario canónico en el JSON (`descartado_a_proposito`): no se vendoriza
-`fx.py` ni los modelos ONNX/TFLite ni las fonts del repo; no hay submodule;
-no se hincha `SCENES`; SFX/captions siguen en `sfx.md` / `caption.py`; la
-marca demo no entra (regla marca-blanca).
+Inventario en el JSON (`descartado_a_proposito`): no vendorizar `fx.py` ni
+modelos; no submodule; no hinchar `SCENES`; SFX/captions en `sfx.md` /
+`caption.py`; marca demo fuera. Looks nombrados = mismo fx con `look=…`.
 
-Looks nombrados del origen (`glitter-spotlight`, `cover-star` editorial,
-`liquid-glass-graph` bento) son el **mismo** fx con `look=…`; no suman al
-conteo de 45 — viven en `looks_nombrados` del JSON.
+El efecto CVE `timeline` se expone en el catálogo único como `edit-timeline`
+(colisión con la escena `timeline` del plan); `receta` usa el nombre CVE.
 
 ## 4. Stack del motor externo (referencia)
 
-- Python 3.12 venv propio del clone: `numpy`, `opencv-python`, `pillow`,
-  `mediapipe` (+ models YuNet / selfie segmenter en el repo).
-- `words.py` del clone (bajo `/tmp/claude-video-effects/`): word-times
-  (faster-whisper / mlx-whisper) para anclar a “cuando digo X”. EditorIA
-  ya tiene `alinear.py` / `transcribir.py`; se usa el del clone si se está
-  en su pipeline, o el nativo si solo hace falta el timing.
+- Python 3.12 venv del clone: `numpy`, `opencv-python`, `pillow`, `mediapipe`.
+- `words.py` del clone para anclar a “cuando digo X”; o `alinear.py` /
+  `transcribir.py` nativos si solo hace falta el timing.
 
 ---
 

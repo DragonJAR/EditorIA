@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-"""Selector del repertorio talking-head (claude-video-effects destilado).
+"""Motor interno de overlays talking-head (claude-video-effects destilado).
 
-Fuente ÚNICA: scripts/data/efectos_talking_head.json
-Doctrina: references/efectos-talking-head.md
+NO es un catálogo paralelo. La elección del agente vive en repertorio.py
+(catálogo único). Este módulo PRODUCE: valida el JSON de detalle y
+`receta` imprime clone→render→rm en /tmp. `listar`/`sugerir` quedan como
+atajos de depuración y delegan el mensaje al repertorio unificado.
 
-No vendoriza el motor CVE. Lista, sugiere y valida el catálogo; `receta`
-imprime los comandos para clonar en /tmp y renderizar (el agente los ejecuta).
+Detalle: scripts/data/efectos_talking_head.json
+Doctrina interna: references/efectos-talking-head.md
 
-Uso:
-  python3 scripts/efectos_talking_head.py listar [--preferir externo|nativo|ambos] [--json]
-  python3 scripts/efectos_talking_head.py sugerir --pedido "orbit detrás de la cara" [--json]
-  python3 scripts/efectos_talking_head.py validar [--json]
+Uso (producción):
+  python3 scripts/repertorio.py sugerir --pedido "orbit detrás de la cara"
+  python3 scripts/repertorio.py resolver --id orbit
   python3 scripts/efectos_talking_head.py receta --fx orbit [--start 3 --end 6]
+  python3 scripts/efectos_talking_head.py validar [--json]
 """
 from __future__ import annotations
 
@@ -157,11 +159,15 @@ def receta(fx, start=None, end=None, video="entrada.mp4", datos=None):
         if (fx or "").strip().lower() == L["id"]:
             look = L
             eid = L["de"]
+            e = _por_id(datos)[eid]
             break
+    # id de catálogo puede diferir del nombre CVE (p. ej. edit-timeline → timeline)
+    cve_id = e.get("cve") or eid
     render = _binario_cve(datos, datos["fx_module"])
     words = _binario_cve(datos, datos["words_module"])
     lineas = [
-        f"# efecto: {eid}" + (f" look={look['look']}" if look else ""),
+        f"# efecto: {eid}" + (f" → CVE `{cve_id}`" if cve_id != eid else "")
+        + (f" look={look['look']}" if look else ""),
         f"# ocasión: {e['ocasion']}",
         f"# preferir: {e['preferir']}"
         + (f" · nativo: {e['nativo']}" if e.get("nativo") else ""),
@@ -177,7 +183,7 @@ def receta(fx, start=None, end=None, video="entrada.mp4", datos=None):
     en = f" --end {end}" if end is not None else " --end 4"
     opt = f" --opt look={look['look']}" if look else ""
     lineas.append(
-        f"{render} {eid} {video} {os.path.splitext(video)[0]}_{eid}.mp4"
+        f"{render} {cve_id} {video} {os.path.splitext(video)[0]}_{cve_id}.mp4"
         f"{st}{en}{opt}"
     )
     lineas.append(

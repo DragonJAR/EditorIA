@@ -64,7 +64,10 @@ class TestEfectosTalkingHead(unittest.TestCase):
         # no duplicar el inventario: la doc no enumera los 45 ids en tabla
         self.assertNotIn("| `orbit` |", self.ref)
 
-    def test_entrada_desde_skill_mapa_selector_capacidades(self):
+    def test_detalle_interno_alcanzable_y_eleccion_en_repertorio(self):
+        """La elección es repertorio.py; este doc/CLI son detalle de motor."""
+        self.assertIn("No es un catálogo paralelo", self.ref)
+        self.assertIn("repertorio.py", self.ref)
         for rel in (
             "SKILL.md",
             os.path.join("references", "animacion.md"),
@@ -76,10 +79,21 @@ class TestEfectosTalkingHead(unittest.TestCase):
             with open(path, encoding="utf-8") as fh:
                 txt = fh.read()
             self.assertIn(
+                "repertorio.py",
+                txt,
+                f"{rel} tiene que elegir vía repertorio (catálogo único)",
+            )
+            self.assertIn(
                 "efectos-talking-head.md",
                 txt,
-                f"{rel} tiene que enlazar la técnica talking-head",
+                f"{rel} mantiene el detalle interno enlazado",
             )
+        # cada efecto declara intenciones del repertorio
+        import repertorio as REP
+        ints = set(REP.familias())
+        for e in self.datos["efectos"]:
+            self.assertTrue(e.get("intenciones"), e["id"])
+            self.assertTrue(set(e["intenciones"]) <= ints, e["id"])
 
     def test_cli_listar_sugerir_receta_validar(self):
         env = {**os.environ, "PYTHONPATH": SCRIPTS}

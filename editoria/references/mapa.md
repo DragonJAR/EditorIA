@@ -21,7 +21,7 @@ contradigan.
 
 | dominio | canónico | qué resuelve | cuándo lo lees |
 |---|---|---|---|
-| **movimiento** | `animacion.md` | los 12 principios, overshoot medido, curvas, coreografía, cámara, tipografía en movimiento; el repertorio de interfaz vive en `motion-ui.md`; los overlays con cara en `efectos-talking-head.md` | siempre que algo se mueva |
+| **movimiento** | `animacion.md` | los 12 principios, overshoot medido, curvas, coreografía, cámara, tipografía en movimiento; la elección de qué poner (escena/efecto/gesto) es UNA vía `repertorio.py`; el detalle de gestos UI y overlays con cara es interno (`motion-ui.md`, `efectos-talking-head.md`) | siempre que algo se mueva |
 | **estructura** | `principios.md` | la idea, el arco, la dirección, el tono, los lenguajes visuales | antes de escribir el guion |
 | **plan** | `plan-video.md` | el schema de `plan.json`, el bloque `datos`, los límites del motor | al escribir el plan |
 | **escenas** | `escenas.md` | el catálogo de 45 tipos de escena y sus parámetros | al elegir escena |
@@ -65,19 +65,16 @@ contradigan.
   `fluidez.md` (el motor) → `ritmo.md` (el encadenamiento) → `copy.md` (el texto).
 - **"quiero un thumbnail"** → `thumbnails.md` → `checklist-qa.md`.
 - **"quiero ANIMAR una escena o un elemento"** → `animacion.md` (§0: qué
-  técnica cuándo y cómo se pide) → la referencia de la técnica elegida
-  (`canvas.md`, `hand-draw.md`, `remotion.md`, `hyperframes.md`, `3d.md`,
-  `modos-produccion.md`, `motion-ui.md` si pide sensación de producto/sitio,
-  `efectos-talking-head.md` si pide overlays que siguen la cara)
-  → `qa-entrega.md`.
-- **"quiero animación de interfaz / como un landing / soft UI"** →
-  `motion-ui.md` (las 8 técnicas: easing, delay, fade, morph, mask,
-  dimension, parallax, zoom) → el motor que indica cada fila →
-  `qa-entrega.md`.
-- **"quiero un efecto sobre mi talking-head / que siga mi cara"** →
-  `efectos-talking-head.md` + `scripts/efectos_talking_head.py`
-  (catálogo de 45 fx en `scripts/data/efectos_talking_head.json`) →
-  `video-real.md` → `qa-entrega.md`.
+  técnica cuándo y cómo se pide) → `scripts/repertorio.py sugerir` (catálogo
+  único) → la referencia del motor de la opción
+  (`escenas.md` / `efectos_talking_head.py receta` / gesto en `motion-ui.md`
+  como detalle / `canvas.md`, `hand-draw.md`, `remotion.md`, `hyperframes.md`,
+  `3d.md`, `modos-produccion.md`) → `qa-entrega.md`.
+- **"quiero animación de interfaz / soft UI / efecto sobre mi cara"** →
+  `scripts/repertorio.py sugerir --pedido "…"` (misma superficie que las
+  escenas; no hay menú A vs B) → `resolver --id` → producir con el motor
+  de la opción → `qa-entrega.md`. Detalle interno si hace falta:
+  `motion-ui.md` / `efectos-talking-head.md`.
 - **"quiero VIRALIZAR o publicar un video"** → `share-copy.md` (el flujo
   entero: momento, gancho, subtítulos, plataforma, variantes, poster y
   texto) → `scoring-shorts.md` (el momento) → `tecnicas-video.md` (hooks
@@ -131,11 +128,11 @@ escribir es un tapón).
 | `fluidez.md` | el motor: resortes, continuidad, ritmo, personalidad | movimiento |
 | `reglas-tecnicas.md` | las reglas duras y los problemas ya resueltos | movimiento |
 | `coherencia-espacial.md` | dónde se compone: zona segura, alineación, solapes | movimiento |
-| `intencion-escena.md` | el índice inverso: intención → escena → receta | movimiento |
+| `intencion-escena.md` | el índice inverso: intención → opción del catálogo único → producir | movimiento |
 | `ritmo.md` | el ritmo y el encadenamiento (anti-slideshow) | movimiento |
 | `tecnicas-video.md` | el catálogo de técnicas 2025-2026 | movimiento |
-| `motion-ui.md` | repertorio de interfaz (8 técnicas, Zajno destilado) → motor | movimiento |
-| `efectos-talking-head.md` | overlays con face-track (45 fx; catálogo JSON; motor externo en `/tmp`) | movimiento |
+| `motion-ui.md` | detalle interno de gestos UI (8 técnicas); la elección es `repertorio.py` | movimiento |
+| `efectos-talking-head.md` | detalle interno de overlays con cara; la elección es `repertorio.py` | movimiento |
 | `sonido.md` | voz, música y SFX | sonido |
 | `audio.md` | el ritmo musical: beat grid, anchors, compases | sonido |
 | `sfx.md` | la capa de efectos de sonido | sonido |
@@ -348,7 +345,7 @@ escribir es un tapón).
 |---|---|
 | `scripts/check_env.py` | que se puede hacer aqui y que falta |
 | `scripts/auditar_plan.py` | que el plan sea valido antes de renderizar |
-| `scripts/repertorio.py` | la única fuente intención→escena: sugerir con rotación, cobertura y validación de huérfanas |
+| `scripts/repertorio.py` | catálogo único de elección: intención→opción→motor (escenas + efectos + gestos); listar/sugerir/resolver/cobertura/validar |
 | `scripts/lint_copy.py` | que el copy entre, no se lea como generado y no contradiga al modelo |
 | `scripts/render_plan.py` | motor de escenas: componer el video desde el plan. Ademas de las escenas, sabe la COHERENCIA de la pieza: la camara es UNA trayectoria declarada en el plan (`"camara"`, no se reinicia en cada corte), la barra de deplecion es de la PIEZA entera (`"deplecion"`, no de una escena) y las escenas que comparten plano declaran la misma `"zona"` (el contenido conserva su sitio). Las escenas nuevas (`frase`, `constancia`, `gauge` con `forma: "anillo"`) estan en `references/escenas.md` |
 | `scripts/voz_off.py` | la voz en off |

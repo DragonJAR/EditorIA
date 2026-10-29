@@ -54,13 +54,13 @@ Cuando se parte de un video de referencia o se quiere modelar una estructura vir
 ## Efectos que siguen la cara
 
 Cuando el brief pide overlays anclados a la cara (orbit, spotlight, LED,
-glass widgets, grid de perfil…), la entrada es
-`references/efectos-talking-head.md` y el selector
-`scripts/efectos_talking_head.py` (catálogo único en
-`scripts/data/efectos_talking_head.json`). El motor face-track se clona en
-`/tmp` solo para esa pieza; no sustituye a `grade.py`, `caption.py` ni al
-catálogo de escenas. Si el JSON marca `preferir=nativo` (p. ej. `moody`),
-se usa la herramienta EditorIA y no se abre el clone.
+glass widgets, grid de perfil…), se eligen en el **mismo catálogo** que las
+escenas: `scripts/repertorio.py sugerir --pedido "…"` → `resolver --id`.
+La producción (si `motor=efecto`) es `efectos_talking_head.py receta` —
+clona face-track en `/tmp` solo para esa pieza. Detalle interno:
+`references/efectos-talking-head.md`. No sustituye a `grade.py`,
+`caption.py` ni hincha `SCENES`. Si `preferir=nativo` (p. ej. `moody`),
+motor EditorIA sin clone.
 
 ## Reglas editoriales (grabación cruda)
 

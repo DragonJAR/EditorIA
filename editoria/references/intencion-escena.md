@@ -1,8 +1,10 @@
-# Intención → escena — el índice inverso del catálogo
+# Intención → opción — el índice inverso del catálogo único
 
-`references/escenas.md` dice cómo se construye cada escena. Este es el camino
-de vuelta: **lo que el cliente pide en palabras vagas** → la escena que lo
-resuelve → la receta de movimiento.
+`references/escenas.md` dice cómo se construye cada escena del plan. Este es
+el camino de vuelta: **lo que el cliente pide en palabras vagas** → la
+opción del catálogo único (escena, overlay con cara o gesto de interfaz) →
+cómo se produce. El agente no elige entre catálogos: `repertorio.py` es la
+única superficie; el motor es metadato.
 
 ## 1. Antes de elegir escena: ¿para qué se mueve esto?
 
@@ -194,13 +196,15 @@ golpe final; `subrayado` es la frase de la casa apoyada en su linea.
 
 ## 2b. Rotacion: no usar siempre las mismas
 
-Este indice da UNA escena por intencion, y esa es la trampa: si cada pieza
-resuelve «dato» con `stats` y «cierre» con `final`, todas las piezas se
-parecen aunque el catalogo tenga 45 tipos. La escena se elige por el
-argumento, y dentro de la misma intencion hay familia para rotar. La tabla
-de abajo SE ESCRIBE desde `scripts/data/repertorio.json` (única fuente:
-`actualizar_conteos.py` la reescribe; `auditar_mapa.py` falla si difieren;
-`repertorio.py validar` vigila huérfanas/fantasmas del motor):
+Este indice da UNA escena de plan por intencion, y esa es la trampa: si cada
+pieza resuelve «dato» con `stats` y «cierre» con `final`, todas se parecen.
+La opción se elige por el argumento; la familia de plan rota, y el catálogo
+único también ofrece overlays y gestos bajo la misma intención
+(`repertorio.py listar`). La tabla de abajo es el subset de **escenas del
+plan** y SE ESCRIBE desde `scripts/data/repertorio.json`
+(`actualizar_conteos.py` la reescribe; `auditar_mapa.py` falla si difieren;
+`repertorio.py validar` vigila huérfanas del motor y que efectos/gestos
+sean alcanzables):
 
 <!-- REPERTORIO_TABLA_INI -->
 | intencion | familia (rota segun el argumento y la pieza anterior) |
@@ -224,23 +228,23 @@ las que la antigua tabla dejaba fuera (`versus`, `demo`, `callout`,
 `kenburns`, `typewriter`, `listo`, `pago`, `recupera`, `index`, `canales`,
 `medianoche`, `orbOpen`, `rotulo_inferior`).
 
-El mecanismo, no la memoria del agente:
+El mecanismo, no la memoria del agente — **brief → sugerir → producir**:
 
 ```bash
 python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre --anterior ../pieza-anterior/plan.json
+python scripts/repertorio.py sugerir --pedido "cascada suave / reels orbitando mi cara"
+python scripts/repertorio.py resolver --id orbit
 python scripts/repertorio.py cobertura plan.json
 python scripts/auditar_plan.py plan.json --anterior ../pieza-anterior/plan.json
 ```
 
-`sugerir` elige una escena por intención rotando la familia de forma
-determinista (misma `--semilla`, misma mano) y evitando los tipos de las
-piezas anteriores mientras la familia tenga otra opción; si no la tiene,
-lo dice (`reutilizada`). Antes de elegir, mira que tipos uso la pieza
-anterior del proyecto (su plan o `PROGRESO.md`): no repitas su tipo
-dominante si el argumento no lo pide. `auditar_plan.py` avisa dentro de la
-pieza (`poco-repertorio`: solo 2–3 tipos o un tipo en la mitad) y entre
-piezas (`ruta-repetida`, solo con `--anterior`); `demo_plan.json` es un
-ejemplo trabajado, no la plantilla por defecto.
+`sugerir --intenciones` elige una **escena de plan** por intención (rotación
+determinista; `--completo` o `--pedido` abren la familia entera:
+escena+efecto+gesto). `sugerir --pedido` solo puntúa el catálogo único.
+`resolver` dice el motor interno y cómo producir. Evita los tipos de la
+pieza anterior; `reutilizada` se dice, no se esconde. `auditar_plan.py`
+avisa `poco-repertorio` / `ruta-repetida`; `demo_plan.json` es ejemplo, no
+plantilla.
 
 Y lo que no se usa no se olvida: el plan declara sus intenciones y el
 porqué de las que descarta (`"intenciones": [...]`,
@@ -254,38 +258,31 @@ SIN DECLARAR, y el auditor avisa (`intencion-sin-escena`,
 Una escena del catálogo ya es la navaja: se **parametriza**, no se reescribe
 el motor. Orden:
 
-1. **Elige por intención**, no por nombre vistoso: `repertorio.py sugerir`
-   reparte la mano; el argumento ajusta dentro de la familia (§2b).
-2. **Copia la muestra** de `scripts/escenas_muestra.json` del tipo elegido y
-   sustituye copy, cifras, capturas y `at`. El schema canónico de cada tipo
-   está en `references/escenas.md` (Params). Si el linter avisa (emoji,
-   quinta tarjeta de `bento`, subtítulo de 3 líneas en `hero`), acorta el
-   copy: no bajes la letra por debajo del piso.
-3. **Gesto**: usa un rol de `MOVIMIENTO` (`titular`, `bloque`, `elemento`,
-   `suave`, `pop`, `lento` — `references/animacion.md` §3b). No inventes
-   stiffness/damping. Un trazo que se dibuja va por tiempo, no por resorte.
-4. **Look**: color y tipografía salen del brand pack / `direccion_arte.py`,
-   no de hex sueltos en el plan. Markup de énfasis: `*clave*`, `~caja~`,
-   `^caja^` (el mismo parser en titulares y `frase`/`cartel`).
-5. **Globales ≠ escenas**: `cabecera`, `grano`, `camara` (y depleción) van
-   en la raíz del plan; no entran en el repertorio. Ver
-   `references/plan-video.md`.
-6. **Si ninguna escena del catálogo sirve**: no fuerces una. Abre el
-   selector de técnica (`references/animacion.md` §0: canvas, HandDraw,
-   Remotion, HyperFrames, 3D, híbrido, diagramas, efectos talking-head) y
-   declara la capacidad si falta (`references/capacidades.md`).
-7. **Si lo que pide es el gesto de producto/sitio** (cascada, morph,
-   máscara, parallax, zoom continuo): no inventes una escena nueva; aplica
-   una técnica de `references/motion-ui.md` sobre la escena ya elegida o
-   cambia de motor si la fila lo exige (morph/mask foto → HyperFrames).
-8. **Si lo que pide es un overlay que sigue la cara** en footage real
-   (orbit, spotlight, LED, glass, grid…): no inventes un tipo en `SCENES`;
-   usa `references/efectos-talking-head.md` y
-   `scripts/efectos_talking_head.py` (catálogo JSON). Si la fila marca
-   `preferir=nativo`, quédate en el motor EditorIA indicado.
-9. **Verifica barato**: `render_plan.py plan.json --preview t1,t2,t3` y
-   `auditar_plan.py` antes del render completo; mide movimiento con
-   `medir_animacion.py` si hay pop/tirón.
+1. **Elige del catálogo único por intención**, no por procedencia
+   (CVE / Zajno / nativo): `repertorio.py sugerir` reparte; `resolver --id`
+   dice el motor. El argumento ajusta dentro de la familia (§2b + `listar`).
+2. **Si `motor=escena`**: copia la muestra de `scripts/escenas_muestra.json`,
+   sustituye copy/cifras/`at`. Schema en `references/escenas.md`. Si el
+   linter avisa, acorta el copy: no bajes la letra por debajo del piso.
+3. **Si `motor=gesto`**: aplica la técnica sobre la escena (o HyperFrames/
+   Remotion si `resolver` lo indica). Detalle de números:
+   `references/motion-ui.md` / `scripts/data/motion_ui.json`.
+4. **Si `motor=efecto` o `nativo`**: produce con la ruta de `resolver`
+   (`efectos_talking_head.py receta` clona CVE en `/tmp` cuando hace falta;
+   si `nativo`, usa grade/hand_draw/escena indicada). No hinches `SCENES`.
+5. **Gesto de resorte en plan**: rol `MOVIMIENTO` (`titular`, `bloque`,
+   `elemento`, `suave`, `pop`, `lento` — `animacion.md` §3b). No inventes
+   stiffness/damping.
+6. **Look**: brand pack / `direccion_arte.py`; markup `*clave*` / `~caja~` /
+   `^caja^`.
+7. **Globales ≠ opciones**: `cabecera`, `grano`, `camara` van en la raíz del
+   plan (`plan-video.md`).
+8. **Si ninguna opción del catálogo sirve**: selector de oficio en
+   `animacion.md` §0 (canvas, HandDraw, Remotion, HyperFrames, 3D, híbrido,
+   diagramas) y declara la capacidad si falta (`capacidades.md`). No abras
+   un segundo catálogo.
+9. **Verifica barato**: preview del motor elegido + `auditar_plan.py` /
+   `medir_animacion.py` + puerta.
 
 ## 3. Receta de movimiento por escena
 

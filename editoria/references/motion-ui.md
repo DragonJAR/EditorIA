@@ -1,15 +1,18 @@
-# Motion UI — el repertorio de interfaz (Zajno destilado)
+# Motion UI — detalle interno de gestos de interfaz (Zajno destilado)
+
+**No es un catálogo paralelo.** La elección del agente es
+`scripts/repertorio.py` (misma superficie que las escenas y los overlays).
+Este documento y `scripts/data/motion_ui.json` son el **detalle de producción**
+cuando la opción resuelta tiene `motor=gesto`.
 
 Fuente: [motion.zajno.com](https://motion.zajno.com/) (Zajno Digital Studio,
-Motion.ED). Es una guía educativa de **técnicas de animación de interfaz**,
-no un repo de código ni un look de película. Aquí no se copian demos ajenas:
-se destilan las **ocho técnicas**, con números y con el **motor de EditorIA**
-que las sirve. El copy, la marca y el arco salen del brief y del pack.
+Motion.ED). Guía educativa de técnicas de animación de interfaz — no repo de
+código ni look de película. Aquí no se copian demos ajenas: se destilan las
+**ocho técnicas**, con números y con el motor EditorIA que las sirve.
 
 Ante conflicto: el brand pack fija identidad, `fluidez.md` fija el motor de
-resortes, `animacion.md` fija el oficio, y **este documento** dice *qué
-técnica de interfaz aplicar* cuando la pieza pide sensación de producto /
-sitio / app (atención, continuidad, profundidad), no un estilo de cine.
+resortes, `animacion.md` fija el oficio, y el catálogo único decide *qué*
+opción; **este documento** solo concreta *cómo* producir el gesto.
 
 ## 0. Para qué se mueve la interfaz (antes de la técnica)
 
@@ -42,21 +45,18 @@ regla para looks).
 | 7 | **Parallax** | capas en X/Y: lo lejano se mueve menos | Fondo 0,2× · medio 0,5× · foco 1× · primer plano 1,4× del desplazamiento de cámara. No mezclar con otro movimiento de cámara en el mismo plano | Plan: receta de `animacion.md` §5; `kenburns` + overlay. Interactivo (mouse): solo HyperFrames/web, no el motor de planes |
 | 8 | **Zoom** | continuidad entre “páginas” / destinos; profundidad | Zoom de escena 1,00→1,08 (contemplación) o foco de `demo` ≤2×; transición zoom entre planos = un solo viaje de cámara, no un corte. Span orbital de producto → 3D o HyperFrames | Plan: `camara`, `kenburns`, `demo` (zoom al clic). Continuidad multipágina → HyperFrames o Remotion |
 
-## 2. Cómo se pide (el agente elige, no adivina)
+## 2. Cómo se pide (vía el catálogo único)
 
-1. El usuario nombra el empleo o enseña un referente de producto/sitio
-   (“como un landing suave”, “cards que se expanden”, “todo entra en cascada”).
-2. Se elige **una** fila de la tabla §1 (dominante) y, si hace falta, un
-   acento. Se declara en el tratamiento / `PROGRESO.md`.
-3. Se mapea al motor de la columna. Si el motor falta (Node para
-   HyperFrames/Remotion), se dice en la primera respuesta
-   (`capacidades.md`) — no se sustituye en silencio por un fade lineal.
-4. En motor de planes: se parametriza la escena del catálogo
-   (`intencion-escena.md` §2c) con los `at` y roles `MOVIMIENTO` que
-   concretan delay/easing/fade. No se inventa un tipo `morph`.
-5. Verificar: `render_plan.py --preview` · `medir_animacion.py` · puerta.
+1. `python scripts/repertorio.py sugerir --pedido "landing suave / cards que se expanden / cascada"`.
+2. `repertorio.py resolver --id offset-delay` (u otra opción `motor=gesto`).
+3. Una técnica dominante (+ acento opcional). Se declara en el tratamiento.
+4. Producir con el motor de la fila (§1 / JSON). Si falta Node
+   (HyperFrames/Remotion), se declara (`capacidades.md`) — no fade lineal.
+5. En plan: parametriza la escena con `at` y roles `MOVIMIENTO`. No inventes
+   un tipo `morph` en `SCENES`.
+6. Verificar: preview · `medir_animacion.py` · puerta.
 
-Frases típicas → técnica:
+Frases típicas → técnica (también las resuelve `sugerir --pedido`):
 
 | el usuario dice | técnica dominante |
 |---|---|
@@ -78,17 +78,19 @@ Frases típicas → técnica:
 - Interactividad *real-time* (hover, mouse parallax): el motor de planes
   es video determinista `f(t)`. Si el entregable es un sitio, HyperFrames
   o fuera de scope — se declara.
-- Sustituir el catálogo de 45 escenas: esto **compone** el gesto dentro
-  de una escena o de otro motor; no añade tipos a `SCENES`.
+- Sustituir o duplicar el catálogo de elección: los gestos **ya están** en
+  `repertorio.py`; esto solo **compone** el gesto; no añade tipos a `SCENES`
+  ni abre un menú paralelo.
 
 ## 4. Relación con el resto del mapa
 
-| ya existe | qué aporta motion-ui encima |
+| ya existe | qué aporta este detalle |
 |---|---|
-| `animacion.md` §1–§5 | oficio + curvas + cámara; aquí el **selector por empleo de UI** |
+| `repertorio.py` | la **elección**; aquí números y motor de producción del gesto |
+| `animacion.md` §1–§5 | oficio + curvas + cámara |
 | `fluidez.md` | física del resorte; aquí cuándo escalonar / fundir / zoom |
-| `estilos-codigo.md` | looks de película (Bauhaus, pixel…); aquí técnicas de **interfaz** |
-| `intencion-escena.md` | qué escena; aquí cómo se mueve esa escena al estilo producto |
+| `estilos-codigo.md` | looks de película; aquí técnicas de **interfaz** |
+| `intencion-escena.md` | índice del catálogo único |
 | `hyperframes.md` / `remotion.md` | morph, mask foto, parallax interactivo |
 
 ---

@@ -170,6 +170,41 @@ class TestCoberturaYAuditoria(unittest.TestCase):
         self.assertFalse(self._avisos(plan, "intencion-sin-escena"))
 
 
+class TestCatalogoUnico(unittest.TestCase):
+    """Escenas + efectos + gestos = una superficie; motores = metadato."""
+
+    def test_opciones_mezclan_capas_sin_menus(self):
+        ops = REP.opciones("gancho")
+        motores = {o["motor"] for o in ops}
+        self.assertIn(REP.MOTOR_ESCENA, motores)
+        self.assertIn(REP.MOTOR_EFECTO, motores)
+        self.assertIn(REP.MOTOR_GESTO, motores)
+        ids = {o["id"] for o in ops}
+        self.assertIn("apertura", ids)
+        self.assertIn("orbit", ids)
+        self.assertIn("offset-delay", ids)
+
+    def test_sugerir_pedido_encuentra_efecto_y_gesto(self):
+        hits = REP.sugerir_pedido("reels orbitando mi cabeza")
+        self.assertTrue(any(h["id"] == "orbit" for h in hits))
+        hits2 = REP.sugerir_pedido("cascada suave que no entre todo a la vez")
+        self.assertTrue(any(h["id"] == "offset-delay" for h in hits2))
+
+    def test_resolver_no_exige_saber_procedencia(self):
+        self.assertEqual(REP.resolver("apertura")["motor"], REP.MOTOR_ESCENA)
+        self.assertEqual(REP.resolver("orbit")["motor"], REP.MOTOR_EFECTO)
+        self.assertEqual(REP.resolver("easing")["motor"], REP.MOTOR_GESTO)
+        self.assertEqual(REP.resolver("moody")["motor"], REP.MOTOR_NATIVO)
+        # colisión CVE/escena: timeline es escena; edit-timeline es efecto
+        self.assertEqual(REP.resolver("timeline")["motor"], REP.MOTOR_ESCENA)
+        self.assertEqual(REP.resolver("edit-timeline")["motor"], REP.MOTOR_EFECTO)
+
+    def test_elegir_default_sigue_siendo_escenas_de_plan(self):
+        mano = REP.elegir(["gancho", "dato"], semilla=1)
+        self.assertTrue(all(m["motor"] == REP.MOTOR_ESCENA for m in mano))
+        self.assertTrue(all(m["escena"] in REP.catalogo() for m in mano))
+
+
 class TestCLI(unittest.TestCase):
     """La CLI documentada se ejecuta de verdad (censo de CLIs)."""
 
@@ -182,17 +217,29 @@ class TestCLI(unittest.TestCase):
         r = self._corre("validar")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("REPERTORIO VALIDO", r.stdout)
+        self.assertIn("opciones", r.stdout)
         r = self._corre("sugerir", "--intenciones", "gancho,dato,cierre", "--json")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         mano = json.loads(r.stdout)["mano"]
         self.assertEqual([m["intencion"] for m in mano], ["gancho", "dato", "cierre"])
         self.assertTrue(all(m["escena"] in REP.catalogo() for m in mano))
 
+    def test_sugerir_pedido_y_resolver_por_cli(self):
+        r = self._corre("sugerir", "--pedido", "spotlight en mi cara", "--json")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        hits = json.loads(r.stdout)["hits"]
+        self.assertTrue(any(h["id"] == "spotlight" for h in hits))
+        r = self._corre("resolver", "--id", "spotlight", "--json")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(json.loads(r.stdout)["motor"], "efecto")
+
     def test_listar_todo_por_cli(self):
         r = self._corre("listar", "--todo")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         import render_plan as _R
         self.assertIn(f"{len(_R.SCENES)} escenas", r.stdout)
+        self.assertIn("efectos", r.stdout)
+        self.assertIn("gestos", r.stdout)
         self.assertIn("paletas", r.stdout)
 
 

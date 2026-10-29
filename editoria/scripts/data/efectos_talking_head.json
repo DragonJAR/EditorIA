@@ -1,5 +1,5 @@
 {
- "_que_es": "ÚNICA fuente de verdad del repertorio de efectos talking-head (face tracking + segmentación) destilado de claude-video-effects (MIT). No se vendoriza el motor ni los modelos: se clona bajo /tmp cuando la pieza lo pide. No añade tipos a SCENES. Cada efecto declara ocasión, vía preferida y cómo adaptar; si hay equivalente nativo, el agente NO inventa una escena paralela.",
+ "_que_es": "Detalle interno de los overlays talking-head (face tracking) destilados de claude-video-effects (MIT). NO es un catálogo paralelo: el agente elige desde repertorio.json vía repertorio.py. Aquí vive el inventario de fx (ocasión, vía, adaptar, aliases) y la receta de clonado en /tmp. No añade tipos a SCENES.",
  "fuente": "https://github.com/Vibha-Ramprakash/claude-video-effects",
  "licencia": "MIT",
  "tecnica": "efectos-talking-head",
@@ -35,6 +35,11 @@
     "apilar",
     "detras",
     "contenido"
+   ],
+   "intenciones": [
+    "gancho",
+    "demostracion",
+    "imagen-texto"
    ]
   },
   {
@@ -54,6 +59,11 @@
     "arco",
     "opciones",
     "numeradas"
+   ],
+   "intenciones": [
+    "proceso",
+    "estructura",
+    "gancho"
    ]
   },
   {
@@ -71,6 +81,10 @@
     "seguir cara",
     "lock",
     "tracking"
+   ],
+   "intenciones": [
+    "gancho",
+    "social"
    ]
   },
   {
@@ -87,6 +101,11 @@
     "orbitar",
     "circular",
     "reels alrededor"
+   ],
+   "intenciones": [
+    "gancho",
+    "demostracion",
+    "cierre"
    ]
   },
   {
@@ -103,6 +122,10 @@
     "punch-in",
     "acercar",
     "enfasis palabra"
+   ],
+   "intenciones": [
+    "gancho",
+    "copy"
    ]
   },
   {
@@ -121,6 +144,11 @@
     "palabra detras",
     "titular detras",
     "backdrop"
+   ],
+   "intenciones": [
+    "copy",
+    "gancho",
+    "imagen-texto"
    ]
   },
   {
@@ -138,6 +166,11 @@
     "spotlight",
     "aislar",
     "kill the lights"
+   ],
+   "intenciones": [
+    "gancho",
+    "cierre",
+    "social"
    ]
   },
   {
@@ -157,6 +190,10 @@
     "ticket",
     "instrucciones",
     "bill"
+   ],
+   "intenciones": [
+    "proceso",
+    "estado"
    ]
   },
   {
@@ -175,6 +212,10 @@
     "moody",
     "bw",
     "lut"
+   ],
+   "intenciones": [
+    "imagen-texto",
+    "cierre"
    ]
   },
   {
@@ -192,6 +233,10 @@
     "slider",
     "comparar",
     "swipe"
+   ],
+   "intenciones": [
+    "comparacion",
+    "demostracion"
    ]
   },
   {
@@ -213,6 +258,10 @@
     "todo",
     "tareas",
     "ticks"
+   ],
+   "intenciones": [
+    "proceso",
+    "estado"
    ]
   },
   {
@@ -231,6 +280,9 @@
     "comentario",
     "instagram",
     "comment box"
+   ],
+   "intenciones": [
+    "social"
    ]
   },
   {
@@ -250,6 +302,10 @@
     "follow",
     "seguir",
     "boton"
+   ],
+   "intenciones": [
+    "social",
+    "cierre"
    ]
   },
   {
@@ -270,6 +326,10 @@
     "flecha",
     "señalar",
     "pause"
+   ],
+   "intenciones": [
+    "demostracion",
+    "imagen-texto"
    ]
   },
   {
@@ -287,6 +347,11 @@
     "uninstall",
     "borrar",
     "romper"
+   ],
+   "intenciones": [
+    "estado",
+    "cierre",
+    "comparacion"
    ]
   },
   {
@@ -303,6 +368,11 @@
     "marco reel",
     "tarjeta ig",
     "reel frame"
+   ],
+   "intenciones": [
+    "gancho",
+    "estructura",
+    "cierre"
    ]
   },
   {
@@ -322,6 +392,10 @@
     "atajos",
     "shortcuts",
     "lluvia"
+   ],
+   "intenciones": [
+    "demostracion",
+    "proceso"
    ]
   },
   {
@@ -341,6 +415,11 @@
     "reject",
     "no",
     "stamp"
+   ],
+   "intenciones": [
+    "estado",
+    "cierre",
+    "comparacion"
    ]
   },
   {
@@ -359,6 +438,10 @@
     "cuenta atras",
     "3 2 1",
     "flip clock"
+   ],
+   "intenciones": [
+    "gancho",
+    "proceso"
    ]
   },
   {
@@ -376,6 +459,10 @@
     "rabbit hole",
     "spin",
     "vortex"
+   ],
+   "intenciones": [
+    "gancho",
+    "proceso"
    ]
   },
   {
@@ -395,6 +482,11 @@
     "cover",
     "portada",
     "editorial"
+   ],
+   "intenciones": [
+    "gancho",
+    "imagen-texto",
+    "social"
    ]
   },
   {
@@ -412,6 +504,11 @@
     "doodle",
     "marcador",
     "scribble"
+   ],
+   "intenciones": [
+    "demostracion",
+    "copy",
+    "imagen-texto"
    ]
   },
   {
@@ -432,6 +529,10 @@
     "glass",
     "kpi",
     "frosted"
+   ],
+   "intenciones": [
+    "dato",
+    "demostracion"
    ]
   },
   {
@@ -451,6 +552,10 @@
     "bn",
     "rojo",
     "tesis"
+   ],
+   "intenciones": [
+    "copy",
+    "gancho"
    ]
   },
   {
@@ -469,6 +574,11 @@
     "titular split",
     "headline card",
     "mitad"
+   ],
+   "intenciones": [
+    "copy",
+    "gancho",
+    "imagen-texto"
    ]
   },
   {
@@ -487,6 +597,11 @@
     "pastel",
     "lavanda",
     "profile card"
+   ],
+   "intenciones": [
+    "gancho",
+    "social",
+    "copy"
    ]
   },
   {
@@ -506,18 +621,24 @@
     "tags",
     "click",
     "grid paper"
+   ],
+   "intenciones": [
+    "demostracion",
+    "proceso",
+    "estado"
    ]
   },
   {
    "n": 28,
-   "id": "timeline",
+   "id": "edit-timeline",
    "firma": "Grade cine + timeline de edición + playhead + REC",
    "ocasion": "Meta-edición: mostrar el oficio de editar sobre el hablante",
    "preferir": "ambos",
    "nativo": "escena timeline del catálogo (datos/proceso)",
    "adaptar": "CVE para grade+UI sobre cara; nativo: timeline de datos en plan",
-   "ruta": "python scripts/efectos_talking_head.py receta --fx timeline",
+   "ruta": "python scripts/efectos_talking_head.py receta --fx edit-timeline",
    "aliases": [
+    "timeline",
     "auto-edit"
    ],
    "keywords": [
@@ -525,7 +646,12 @@
     "playhead",
     "rec",
     "edicion"
-   ]
+   ],
+   "intenciones": [
+    "proceso",
+    "estructura"
+   ],
+   "cve": "timeline"
   },
   {
    "n": 29,
@@ -543,6 +669,10 @@
     "headline box",
     "titular caja",
     "punch-in titulo"
+   ],
+   "intenciones": [
+    "copy",
+    "gancho"
    ]
   },
   {
@@ -561,6 +691,11 @@
     "profile grid",
     "muro reels",
     "contador"
+   ],
+   "intenciones": [
+    "social",
+    "demostracion",
+    "estructura"
    ]
   },
   {
@@ -580,6 +715,10 @@
     "tier list",
     "s tier",
     "ranking"
+   ],
+   "intenciones": [
+    "comparacion",
+    "dato"
    ]
   },
   {
@@ -600,6 +739,11 @@
     "split",
     "precio",
     "price tag"
+   ],
+   "intenciones": [
+    "comparacion",
+    "demostracion",
+    "cierre"
    ]
   },
   {
@@ -619,6 +763,10 @@
     "phones",
     "fan",
     "moviles"
+   ],
+   "intenciones": [
+    "demostracion",
+    "gancho"
    ]
   },
   {
@@ -637,6 +785,10 @@
     "puntos",
     "dot reveal",
     "particulas revelar"
+   ],
+   "intenciones": [
+    "gancho",
+    "imagen-texto"
    ]
   },
   {
@@ -655,6 +807,11 @@
     "muro titulares",
     "headline wall",
     "views"
+   ],
+   "intenciones": [
+    "dato",
+    "copy",
+    "estructura"
    ]
   },
   {
@@ -673,6 +830,10 @@
     "task list",
     "checklist",
     "pasos verdes"
+   ],
+   "intenciones": [
+    "proceso",
+    "estado"
    ]
   },
   {
@@ -693,6 +854,10 @@
     "kpi",
     "cuenta up",
     "bento"
+   ],
+   "intenciones": [
+    "dato",
+    "demostracion"
    ]
   },
   {
@@ -711,6 +876,11 @@
     "carrusel",
     "carousel",
     "3d reels"
+   ],
+   "intenciones": [
+    "demostracion",
+    "gancho",
+    "cierre"
    ]
   },
   {
@@ -729,6 +899,10 @@
     "match cut",
     "news",
     "palabra caja"
+   ],
+   "intenciones": [
+    "copy",
+    "gancho"
    ]
   },
   {
@@ -748,6 +922,11 @@
     "settings",
     "iphone",
     "switches"
+   ],
+   "intenciones": [
+    "proceso",
+    "demostracion",
+    "estado"
    ]
   },
   {
@@ -767,6 +946,11 @@
     "neon",
     "letrero",
     "sign"
+   ],
+   "intenciones": [
+    "copy",
+    "cierre",
+    "gancho"
    ]
   },
   {
@@ -787,6 +971,11 @@
     "lento",
     "cinematic",
     "rack focus"
+   ],
+   "intenciones": [
+    "cierre",
+    "social",
+    "imagen-texto"
    ]
   },
   {
@@ -807,6 +996,10 @@
     "over the shoulder",
     "esquina",
     "dos graficas"
+   ],
+   "intenciones": [
+    "dato",
+    "demostracion"
    ]
   },
   {
@@ -827,6 +1020,9 @@
     "imessage",
     "mensajes",
     "notificaciones"
+   ],
+   "intenciones": [
+    "social"
    ]
   },
   {
@@ -847,6 +1043,11 @@
     "perfil",
     "views",
     "place in grid"
+   ],
+   "intenciones": [
+    "cierre",
+    "estructura",
+    "social"
    ]
   }
  ],
@@ -883,8 +1084,8 @@
    "por_que": "El usuario pidió carpeta temporal; la skill no depende de un checkout fijo"
   },
   {
-   "que": "45 tipos nuevos en SCENES / repertorio.json",
-   "por_que": "Son overlays sobre footage con cara, no escenas del motor de planes; duplicar firmas (checklist→constancia/pasos, messages→chat, countdown→countdown, moody→grade) rompería DRY"
+   "que": "45 tipos nuevos en SCENES (motor de planes)",
+   "por_que": "Son overlays sobre footage con cara, no escenas del plan. Sí entran al catálogo ÚNICO de elección (repertorio.py) como opciones con motor=efecto; no se duplican firmas como tipos SCENES."
   },
   {
    "que": "SFX/captions del reel de referencia",

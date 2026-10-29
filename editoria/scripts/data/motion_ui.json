@@ -1,0 +1,111 @@
+{
+ "_que_es": "Detalle interno de las 8 técnicas de interfaz (Zajno / motion.zajno.com destilado). NO es un catálogo paralelo: el agente elige desde repertorio.json vía repertorio.py. Aquí solo vive el metadato motor/firma/números para PRODUCIR cuando la opción elegida es un gesto.",
+ "fuente": "https://motion.zajno.com/",
+ "licencia": "guía educativa (no código)",
+ "entrada": "references/motion-ui.md",
+ "reglas": [
+  "Una técnica dominante por pieza; como máximo un acento de otra fila",
+  "El gesto COMPONE una escena o un motor (HyperFrames/Remotion); no añade tipos a SCENES",
+  "Si el motor falta (Node), se declara en la primera respuesta — no se sustituye por fade lineal",
+  "Interactividad real-time (hover, mouse parallax) solo HyperFrames/web o fuera de scope"
+ ],
+ "conteo": 8,
+ "tecnicas": [
+  {
+   "id": "easing",
+   "firma": "Nunca lineal: acelera al salir, frena al llegar",
+   "empleo": ["mood", "atencion"],
+   "numeros": "Entrada ease_out / rol MOVIMIENTO; viaje largo ease_in_out; aterrizaje pop o bloque",
+   "motor": "plan",
+   "motores_alt": ["hyperframes", "remotion"],
+   "adaptar": "Parametriza entra/at con roles MOVIMIENTO; prohibido lineal salvo cursor preciso (demo)",
+   "intenciones": ["gancho", "copy", "social", "cierre"],
+   "keywords": ["suave", "vivo", "no robotico", "easing", "resorte", "curva"],
+   "aliases": ["ease", "curva"]
+  },
+  {
+   "id": "offset-delay",
+   "firma": "Varios objetos no llegan a la vez: viscosidad y jerarquía",
+   "empleo": ["atencion", "desplegar"],
+   "numeros": "Stagger 40–90 ms; contenedor→contenido +60–120 ms; salida 60–70 % de la entrada",
+   "motor": "plan",
+   "motores_alt": ["hyperframes"],
+   "adaptar": "at distintos por elemento (at.item0..n, at.p1[]); HyperFrames animation-delay",
+   "intenciones": ["gancho", "dato", "proceso", "estructura", "estado"],
+   "keywords": ["cascada", "stagger", "no a la vez", "viscosidad", "escalonado", "delay"],
+   "aliases": ["offset", "delay", "stagger"]
+  },
+  {
+   "id": "fade",
+   "firma": "Aparece/desaparece por alfa, casi siempre con posición o escala",
+   "empleo": ["guiar", "mood"],
+   "numeros": "Solo-alfa: apoyos; alfa+Y (~30 px) o alfa+scale: protagonistas; salida anticipada 0,5 s",
+   "motor": "plan",
+   "motores_alt": ["hyperframes"],
+   "adaptar": "Entrada con fade+resorte; capa_salida; HyperFrames opacity",
+   "intenciones": ["copy", "social", "cierre", "imagen-texto", "estado"],
+   "keywords": ["aparecer", "desaparecer", "fundido", "fade", "suave entrada"],
+   "aliases": ["fade-in", "fade-out", "fundido"]
+  },
+  {
+   "id": "morph",
+   "firma": "Un objeto se convierte en otro y arrastra la atención entre pantallas",
+   "empleo": ["guiar", "invitar"],
+   "numeros": "Puente A→cápsula→B en 8–12 frames; squash 10–15 %; mismos vértices",
+   "motor": "hyperframes",
+   "motores_alt": ["remotion"],
+   "adaptar": "MorphSVG/flubber; el plan no morphéa paths: usa mancha/iris/dissolve o zoom demo/kenburns",
+   "intenciones": ["demostracion", "comparacion", "proceso"],
+   "keywords": ["morph", "se convierte", "tarjeta se expande", "transform"],
+   "aliases": ["transform", "transform-morph"]
+  },
+  {
+   "id": "masking",
+   "firma": "La forma actúa de máscara; la foto/texto se mueve dentro",
+   "empleo": ["desplegar", "atencion"],
+   "numeros": "Reveal tipográfico por clip; foto en contenedor con pan/scale interno 3–8 %",
+   "motor": "plan",
+   "motores_alt": ["hyperframes"],
+   "adaptar": "text_reveal / revelado tipográfico; foto-en-máscara con pan: HyperFrames o kenburns en caja",
+   "intenciones": ["copy", "imagen-texto", "demostracion", "dato"],
+   "keywords": ["mascara", "mask", "reveal", "texto sale de linea", "foto en forma"],
+   "aliases": ["mask", "mask-reveal"]
+  },
+  {
+   "id": "dimension",
+   "firma": "Sensación de volumen/espacio sin 3D full",
+   "empleo": ["invitar", "profundidad"],
+   "numeros": "Push-in cámara 1–5 %; capas a distinta velocidad; un movimiento de cámara por plano",
+   "motor": "plan",
+   "motores_alt": ["hyperframes"],
+   "adaptar": "camara global, camino, medianoche; 3D real → 3d.md overlay",
+   "intenciones": ["demostracion", "estructura", "proceso", "gancho"],
+   "keywords": ["profundidad", "flotar", "espacio", "volumen", "floating", "3d suave"],
+   "aliases": ["floating", "depth"]
+  },
+  {
+   "id": "parallax",
+   "firma": "Capas en X/Y: lo lejano se mueve menos",
+   "empleo": ["invitar", "profundidad"],
+   "numeros": "Fondo 0,2× · medio 0,5× · foco 1× · primer plano 1,4×",
+   "motor": "plan",
+   "motores_alt": ["hyperframes"],
+   "adaptar": "kenburns + overlay; mouse parallax solo HyperFrames/web",
+   "intenciones": ["imagen-texto", "demostracion", "estructura", "comparacion"],
+   "keywords": ["parallax", "capas", "fondo se mueve menos", "capas profundidad"],
+   "aliases": ["paralaje"]
+  },
+  {
+   "id": "zoom",
+   "firma": "Continuidad entre páginas/destinos; profundidad",
+   "empleo": ["guiar", "atencion"],
+   "numeros": "Zoom escena 1,00→1,08 o foco demo ≤2×; un solo viaje de cámara",
+   "motor": "plan",
+   "motores_alt": ["hyperframes", "remotion"],
+   "adaptar": "camara, kenburns, demo (zoom al clic); multipágina → HyperFrames/Remotion",
+   "intenciones": ["gancho", "demostracion", "cierre", "dato"],
+   "keywords": ["zoom", "viaje", "detalle", "push-in", "continuo", "no paginas sueltas"],
+   "aliases": ["zoom-continuo", "push-in-ui"]
+  }
+ ]
+}
