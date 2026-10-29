@@ -47,15 +47,17 @@ Formato mínimo de trazo:
 ```json
 {
   "strokes": [
-    {"color": "#101827", "width": 6, "points": [[120, 200], [180, 240], [260, 220]]},
+    {"color": "#FAF8F6", "width": 6, "points": [[120, 200], [180, 240], [260, 220]]},
     {"kind": "eraser", "width": 34, "points": [[200, 210], [220, 210]]}
   ]
 }
 ```
 
 Colores y anchos los pone la pieza (brand pack / modo libre). Los defaults
-del script son neutros (`#101827` / 6 px lápiz, 34 px borrador); no
-copiar la paleta demo de HandDraw a una marca.
+del script son neutros: el lápiz va en la tinta de la paleta neutra
+(`NEUTRO["blanco"]`, 6 px; el `#101827` de antes no se veía sobre video
+oscuro) y el borrador mide 34 px; no copiar la paleta demo de HandDraw a
+una marca.
 
 ## Constantes útiles (DRY con el origen)
 

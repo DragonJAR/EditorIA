@@ -20,6 +20,65 @@ from _plataforma import resolver_fuente
 from _comun import NEUTRO, aplicar_grano, segmentos_enfasis, segmentos_resalte  # paleta, grano y markup * ~ ^
 ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
+
+# ---------- tokens de categoría y de estado (references/paleta.md) ----------
+# Las escenas de datos necesitan MÁS de un color (porciones, temperaturas,
+# un "pagado"): antes cada una traía sus RGB a mano y no seguían a la marca.
+# Se derivan del acento: SERIE[0] es el acento y el resto sale de Okabe-Ito
+# (la paleta categórica pensada para daltonismo), eligiendo cada vez el que
+# más se aleja de los ya elegidos con visión normal Y simulada. EXITO y AVISO
+# son su verde y su naranja. Todos suben de luz hasta leerse sobre el fondo.
+# Un pack puede declararlos en `colores` (serie, exito, aviso) y entonces mandan.
+OKABE_ITO=((230,159,0),(86,180,233),(0,158,115),(240,228,66),(0,114,178),(213,94,0),(204,121,167))
+_DEUTERANOPIA=((0.367322,0.860646,-0.227968),(0.280085,0.672501,0.047413),(-0.011820,0.042940,0.968881))
+_PROTANOPIA=((0.152286,1.052583,-0.204868),(0.114503,0.786281,0.099216),(-0.003882,-0.048116,1.051998))
+N_SERIE=5
+
+def _simula(c,m):
+    """El color como lo ve una visión de dos conos (Machado 2009, sRGB lineal)."""
+    li=[(v/255)/12.92 if v/255<=0.04045 else ((v/255+0.055)/1.055)**2.4 for v in c[:3]]
+    out=[]
+    for fila in m:
+        x=max(0.0,min(1.0,sum(k*v for k,v in zip(fila,li))))
+        out.append(255*(12.92*x if x<=0.0031308 else 1.055*x**(1/2.4)-0.055))
+    return out
+
+def distancia_daltonica(a,b):
+    """La PEOR distancia RGB entre dos colores: visión normal, deuteranopía y
+    protanopía. Dos categorías que se confunden en una de las tres se confunden."""
+    def d(p,q): return math.dist(p[:3],q[:3])
+    return min(d(a,b),d(_simula(a,_DEUTERANOPIA),_simula(b,_DEUTERANOPIA)),
+               d(_simula(a,_PROTANOPIA),_simula(b,_PROTANOPIA)))
+
+def _legible(c,fondo,minimo=4.5):
+    """Sube la luz (HLS, mismo tono) hasta que el color se lee sobre el fondo."""
+    import colorsys
+    from _comun import contraste
+    h,l,s=colorsys.rgb_to_hls(*[v/255 for v in c[:3]])
+    rgb=tuple(c[:3])
+    while contraste(rgb,fondo)<minimo and l<0.97:
+        l+=0.01; rgb=tuple(int(round(v*255)) for v in colorsys.hls_to_rgb(h,l,s))
+    return rgb
+
+def tokens_de_estado(acento,negro):
+    """{serie, exito, aviso} derivados del acento (ver el bloque de arriba)."""
+    pool=[_legible(c,negro) for c in OKABE_ITO]
+    serie=[tuple(acento[:3])]
+    while len(serie)<N_SERIE:
+        c=max(pool,key=lambda p:min(distancia_daltonica(p,q) for q in serie))
+        serie.append(c); pool.remove(c)
+    return {"serie":serie,"exito":_legible(OKABE_ITO[2],negro),"aviso":_legible(OKABE_ITO[0],negro)}
+
+_ESTADO=tokens_de_estado(ACENTO,NEGRO)
+SERIE=_ESTADO["serie"]; EXITO=_ESTADO["exito"]; AVISO=_ESTADO["aviso"]
+
+def colores_de(valor):
+    """La lista de colores de un parámetro de escena: "serie" (la de la marca),
+    una lista de RGB/hex, o None."""
+    if valor is None: return None
+    if valor=="serie": return [tuple(c) for c in SERIE[:4]]
+    return [hex_a_rgb(c) if isinstance(c,str) else tuple(c) for c in valor]
+
 FJ=resolver_fuente("Plus Jakarta Sans", generica="sans-bold")
 FJI=None   # display en itálica: la trae el pack si la declara ("titulares_itálica")
 FM=resolver_fuente("Montserrat", generica="sans")
@@ -392,6 +451,39 @@ def iris_mask(ctx, t, t0, dur=0.7, fx=0.5, fy=0.38):
     return mask
 
 
+def resplandor(layer, bbox, color, sigma, alfa=255, dibujar=None, escala=1):
+    """Halo difuso del `color` sobre `bbox` (x0, y0, x1, y1 en coordenadas de
+    `layer`). UNA sola receta para todos los brillos de las escenas.
+
+    El lienzo se ACOLCHA 3σ por lado: el desenfoque nunca se recorta. Sin
+    eso el halo se pintaba en un lienzo del tamaño justo de la forma, el blur
+    extendía el borde y se veía el CUADRADO del lienzo (zoom_orbita.png).
+    `dibujar(d, ox, oy)` pinta otra forma (un texto) restando el origen
+    (ox, oy) del lienzo; por defecto, una elipse en `bbox` con alfa `alfa`.
+    `escala` > 1 pinta y desenfoca a 1/escala y amplía (un halo grande y
+    barato; solo con la elipse). Devuelve el lienzo; si `layer` no es None,
+    lo compone encima."""
+    pad = int(math.ceil(3 * sigma))
+    x0, y0, x1, y1 = bbox
+    ox, oy = int(math.floor(x0)) - pad, int(math.floor(y0)) - pad
+    w, h = int(math.ceil(x1)) + pad - ox, int(math.ceil(y1)) + pad - oy
+    q = max(1, int(escala)) if dibujar is None else 1
+    # el fondo transparente lleva el MISMO color: el blur no oscurece el borde
+    g = Image.new("RGBA", (max(1, -(-w // q)), max(1, -(-h // q))), tuple(color[:3]) + (0,))
+    d = ImageDraw.Draw(g)
+    if dibujar is not None:
+        dibujar(d, ox, oy)
+    else:
+        d.ellipse([(x0 - ox) / q, (y0 - oy) / q, (x1 - ox) / q, (y1 - oy) / q],
+                  fill=tuple(color[:3]) + (int(alfa),))
+    g = g.filter(ImageFilter.GaussianBlur(sigma / q))
+    if q > 1:
+        g = g.resize((w, h), Image.BILINEAR)
+    if layer is not None:
+        layer.alpha_composite(g, (ox, oy))
+    return g
+
+
 # La salida del corte por defecto: la escena que sale sigue ENTERA hasta el
 # corte y se va en SOLAPE s debajo de la que entra. Medido (trans_zoom.png):
 # con 0.25 s antes + 0.45 s después quedaba al ~12 % 0.3 s tras el corte, un
@@ -430,7 +522,8 @@ def sale_por_mascara(escenas,i,manchas_ok):
     """¿La escena i sale por una transición de máscara de la siguiente?"""
     if i+1>=len(escenas): return False
     # el iris entra siempre por su rama de `componer` (como allí)
-    return escenas[i+1].get("transicion") in ("dissolve","iris") or (i+1) in manchas_ok
+    tr=escenas[i+1].get("transicion")
+    return tr=="dissolve" or tr=="iris" or (i+1) in manchas_ok
 
 def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,maxw=None):
     """Titular cinético: cada palabra entra con resorte en su `at`, con escala
@@ -1847,14 +1940,12 @@ def sc_medianoche(ctx,e,t):
         # fondo de pantalla vivo: un halo del acento deriva despacio (la pantalla
         # bloqueada no queda congelada entre notificación y notificación)
         hx=tw/2+130*math.sin(0.9*t); hy=th*0.70+90*math.cos(0.7*t)
-        q=8   # se pinta a 1/8 y se desenfoca: halo suave sin borde, barato
-        halo=Image.new("L",(tw//q,th//q),0)
-        ImageDraw.Draw(halo).ellipse([(hx-260)/q,(hy-260)/q,(hx+260)/q,(hy+260)/q],fill=110)
-        halo=halo.filter(ImageFilter.GaussianBlur(120/q)).resize((tw,th),Image.BILINEAR)
         masc=Image.new("L",(tw,th),0)
         ImageDraw.Draw(masc).rounded_rectangle([18,18,tw-18,th-18],radius=70,fill=255)
         brillo=Image.new("RGBA",(tw,th),ACENTO+(0,))
-        brillo.putalpha(ImageChops.multiply(halo,masc))
+        # a 1/8 y desenfocado: halo suave y barato; la pantalla lo recorta
+        resplandor(brillo,(hx-260,hy-260,hx+260,hy+260),ACENTO,120,alfa=110,escala=8)
+        brillo.putalpha(ImageChops.multiply(brillo.getchannel("A"),masc))
         ph.alpha_composite(brillo)
         dp.rounded_rectangle([tw/2-85,42,tw/2+85,90],radius=24,fill=(0,0,0,255))
         dp.text((tw/2,160),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],600),fill=(255,255,255,200),anchor="ma")
@@ -1984,6 +2075,25 @@ def sc_chat(ctx,e,t):
         d.text((x+40,yy+84),lk.get("monto",""),font=ctx.fT(ESCALA["rotulo"],800),fill=BLANCO+(ak,))
     return capa_salida(layer,t,e["to"])
 
+def tinta_sobre(fondo):
+    """La tinta (BLANCO o NEGRO de la pieza) que se lee sobre `fondo`: un
+    texto blanco fijo sobre un token claro (AVISO, un acento ámbar) no llega
+    al piso. Misma regla que `texto_sobre` de _comun."""
+    from _comun import texto_sobre
+    return hex_a_rgb(texto_sobre(fondo, tokens={"blanco": BLANCO, "negro": NEGRO}))
+
+def color_de_temperatura(f_):
+    """Color de una temperatura de lead (tolerante: "caliente", "Hot", "frio"…):
+    caliente = ACENTO, tibio = AVISO, frío = GRIS (baja prioridad: neutro).
+    Un `color` explícito manda. Desconocida: neutro, nunca un KeyError."""
+    if f_.get("color"):
+        return hex_a_rgb(f_["color"])
+    t_=str(f_.get("temp","")).lower().translate(str.maketrans("áéíóú","aeiou"))
+    for claves,col in ((("calien","hot","alta"),ACENTO),(("tib","warm","media"),AVISO),
+                       (("fri","cold","baja"),GRIS)):
+        if t_.startswith(claves): return tuple(col)
+    return GRIS
+
 def sc_leads(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
@@ -1998,14 +2108,7 @@ def sc_leads(ctx,e,t):
     paso=min(148, max(120, alto_util / max(1, n)))
     alto_fila=min(124, paso - 16)
     fy=flota(t, e["from"]+1.6, 4, 0.36)
-    def color_temp(f_):   # tolerante: el agente escribe "caliente", "Hot", "frio"…
-        if f_.get("color"):
-            return hex_a_rgb(f_["color"])
-        t_=str(f_.get("temp","")).lower().translate(str.maketrans("áéíóú","aeiou"))
-        for claves,col in ((("calien","hot","alta"),ACENTO),(("tib","warm","media"),(200,140,40)),
-                           (("fri","cold","baja"),(90,140,200))):
-            if t_.startswith(claves): return col
-        return GRIS   # temperatura desconocida: neutro, nunca un KeyError
+    color_temp=color_de_temperatura
     for i,f in enumerate(filas):
         t_f=escalonado({}, "fila", i, e["from"]+0.4)
         k=entra(t, t_f, "elemento")
@@ -2021,7 +2124,7 @@ def sc_leads(ctx,e,t):
             ds.rounded_rectangle([zx0,yy,zx1,yy+alto_fila],radius=28,outline=color_temp(f)+(ah,),width=4)
         pad_v=max(16, int((alto_fila-64)/2))
         ds.ellipse([zx0+24,yy+pad_v,zx0+88,yy+pad_v+64],fill=color_temp(f)+(255,))
-        ds.text((zx0+56,yy+pad_v+32),f["nombre"][0],font=ctx.fT(36,800),fill=BLANCO,anchor="mm")
+        ds.text((zx0+56,yy+pad_v+32),f["nombre"][0],font=ctx.fT(36,800),fill=tinta_sobre(color_temp(f))+(int(255*clamp01(k)),),anchor="mm")   # tinta oscura: entra con la fila
         bmax=min(260,(zx1-zx0)*0.32)   # barra de puntaje a la derecha, el texto se ajusta al resto
         ancho_txt=(zx1-zx0)-bmax-150
         ds.text((zx0+112,yy+pad_v-4),f["nombre"],font=fuente_que_cabe(ctx.fX,f["nombre"],ESCALA["secundario"],ancho_txt,800),fill=BLANCO)
@@ -2053,10 +2156,10 @@ def sc_handoff(ctx,e,t):
         r_av=50*pulso
         ds.ellipse([zx0+90-r_av,y_card+110-r_av,zx0+90+r_av,y_card+110+r_av],fill=ACENTO+(255,))
         ini=e.get("iniciales") or "".join(w_[0] for w_ in e["cliente"].split()[:2]).upper()   # derivables del nombre
-        ds.text((zx0+90,y_card+110),ini,font=fuente_que_cabe(ctx.fT,ini,44,72,800),fill=BLANCO,anchor="mm")
+        ds.text((zx0+90,y_card+110),ini,font=fuente_que_cabe(ctx.fT,ini,44,72,800),fill=tinta_sobre(ACENTO),anchor="mm")
         at_=zx1-zx0-200
         ds.text((zx0+170,y_card+52),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],ESCALA["dato"],at_,800),fill=BLANCO)
-        ds.text((zx0+170,y_card+102),e.get("temp",""),font=ctx.fM(ESCALA["nota"],700),fill=(200,140,40))
+        ds.text((zx0+170,y_card+102),e.get("temp",""),font=ctx.fM(ESCALA["nota"],700),fill=_legible(color_de_temperatura(e),PANEL))   # el token, con luz para leerse en la tarjeta
         ds.text((zx0+170,y_card+142),e.get("nota",""),font=fuente_que_cabe(ctx.fX,e.get("nota",""),ESCALA["nota"],at_,400),fill=GRIS)
         fundir(layer,sub,k)
     y=y_card+270
@@ -2249,7 +2352,7 @@ def sc_recupera(ctx,e,t):
         al_pag = int(255 * min(1, k_pag))
         tarjeta(ctx,layer,bx,yc,bw,240,radio=30,alpha=al_pag)
         d.text((W/2,yc+52),e.get("hecho","PAGADO"),font=ctx.fT(64,800),
-               fill=(80,220,120,al_pag),anchor="ma")
+               fill=EXITO+(al_pag,),anchor="ma")   # éxito: pago hecho
         d.text((W/2,yc+142),e["monto"],font=ctx.fT(54,800),fill=BLANCO+(al_pag,),anchor="ma")
     return capa_salida(layer,t,e["to"])
 
@@ -2273,13 +2376,11 @@ def sc_remate(ctx,e,t):
         bb0=ctx.fT(tam_g,800).getbbox(e["gigante"],anchor="mm"); hb=bb0[3]-bb0[1]
         yc=min(H*0.62+hb/2,zy1-hb*0.65)
         fnt=ctx.fT(int(tam_g*sc),800)
-        bb=fnt.getbbox(e["gigante"],anchor="mm"); pad=90   # glow: lienzo por el bbox real (nunca recorta)
+        bb=fnt.getbbox(e["gigante"],anchor="mm")
         a_g=smoothstep(clamp01((t-g)/0.25))
-        glow=Image.new("RGBA",(bb[2]-bb[0]+2*pad,bb[3]-bb[1]+2*pad),(0,0,0,0))
-        ImageDraw.Draw(glow).text((pad-bb[0],pad-bb[1]),e["gigante"],font=fnt,
-                                  fill=ACENTO+(int(110*a_g),),anchor="mm")
-        glow=glow.filter(ImageFilter.GaussianBlur(30))
-        layer.alpha_composite(glow,(int(W/2+bb[0]-pad),int(yc+bb[1]-pad)))
+        resplandor(layer,(W/2+bb[0],yc+bb[1],W/2+bb[2],yc+bb[3]),ACENTO,30,
+                   dibujar=lambda d_,ox,oy: d_.text((W/2-ox,yc-oy),e["gigante"],font=fnt,
+                                                    fill=ACENTO+(int(110*a_g),),anchor="mm"))
         d.text((W/2,yc),e["gigante"],font=fnt,fill=BLANCO+(int(255*a_g),),anchor="mm")
         if e.get("subtexto_gigante") and k > 0:
             fnt_s = fuente_que_cabe(ctx.fX, e["subtexto_gigante"], 60, (zx1 - zx0) * 0.86, 500)
@@ -3924,7 +4025,8 @@ def sc_subrayado(ctx, e, t):
     desincronizan.
 
     Params: `texto` (el lema), `color?`, `colores?` (la linea se parte en
-    estos colores), `y?`, `grosor?`, `at{texto, linea}`.
+    estos colores; "serie" = la SERIE de la marca), `y?`, `grosor?`,
+    `at{texto, linea}`.
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     texto = str(e.get("texto", "")).strip()
@@ -3938,7 +4040,7 @@ def sc_subrayado(ctx, e, t):
     fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fT
     fnt = fab(tam, 800)
     col = e.get("color") or ACENTO
-    colores = e.get("colores")
+    colores = colores_de(e.get("colores"))   # "serie": las categorías de la marca
 
     # el lema, centrado, en un maximo de dos lineas
     ancho_max = int((zx1 - zx0) * 0.92)
@@ -4986,6 +5088,36 @@ def sc_comentario(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def colores_del_pie(porciones):
+    """El color de cada porción: su `color` explícito, ACENTO para la del
+    acento (o la primera) y, para el resto, la SERIE de la marca sin el acento,
+    en orden (antes cinco RGB a mano que no seguían a la marca)."""
+    resto = list(SERIE[1:]) or [GRIS]
+    out, j = [], 0
+    for i, p in enumerate(porciones):
+        c = p.get("color")
+        if c is not None:
+            out.append(hex_a_rgb(c) if isinstance(c, str) else tuple(c[:3]))
+        elif p.get("acento") or i == 0:
+            out.append(tuple(ACENTO))
+        else:
+            out.append(tuple(resto[j % len(resto)])); j += 1
+    return out
+
+
+def centro_del_pie(e):
+    """(cifra, etiqueta) del centro del donut: el `centro` declarado, o la
+    porción del acento (su % y su etiqueta). "100%" no decía nada."""
+    if e.get("centro") is not None:
+        return str(e["centro"]), ""
+    por = e.get("porciones") or []
+    if not por:
+        return "", ""
+    total = sum(float(p.get("valor", 0)) for p in por) or 1.0
+    ac = next((p for p in por if p.get("acento")), por[0])
+    return f"{int(float(ac.get('valor', 0)) / total * 100)}%", str(ac.get("etiqueta", ""))
+
+
 def sc_pie(ctx, e, t):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
@@ -5031,7 +5163,7 @@ def sc_pie(ctx, e, t):
     dp = ImageDraw.Draw(pie_layer)
     
     ang_actual = -90.0 + (t - t_pie) * 4.0 if t > t_pie else -90.0
-    colores_def = [ACENTO, (245, 130, 32), (64, 158, 255), (140, 100, 240), (46, 204, 113)]
+    colores = colores_del_pie(porciones)   # una sola fuente para el donut y la leyenda
     
     for i, p in enumerate(porciones):
         t_p = at.get(f"p{i}", t_pie + i * 0.25)
@@ -5046,9 +5178,7 @@ def sc_pie(ctx, e, t):
         barrido = 360.0 * frac * clamp01((t - t_p) / 0.55)
         ang_fin = ang_actual + barrido
         
-        col = p.get("color")
-        if col is None:
-            col = ACENTO if p.get("acento") or i == 0 else colores_def[i % len(colores_def)]
+        col = colores[i]
         al_sec = int(255 * clamp01(kp * 1.4))
         col_rgba = col[:3] + (al_sec,)
         
@@ -5060,12 +5190,18 @@ def sc_pie(ctx, e, t):
     dp.ellipse([cx - r_in, cy - r_in, cx + r_in, cy + r_in], fill=(12, 12, 14, 255))
     dp.ellipse([cx - r_in, cy - r_in, cx + r_in, cy + r_in], outline=(255, 255, 255, 40), width=2)
     
-    centro_txt = str(e.get("centro", "100%"))
-    fnt_c = ctx.fT(int(r_in * 0.65), 800)
+    centro_txt, centro_etq = centro_del_pie(e)
+    fnt_c = fuente_que_cabe(ctx.fT, centro_txt, int(r_in * 0.65), r_in * 1.5, 800)
     # el centro late en el hold: el donut ya no se mueve tras el barrido
     pulso_c = latido(t, t_pie + 1.2, 1.7, 0.07)
-    dp.text((cx, cy), centro_txt, font=fnt_c,
-            fill=BLANCO + (min(255, int(255 * clamp01(k_pie * 1.4) * pulso_c)),), anchor="mm")
+    al_c = min(255, int(255 * clamp01(k_pie * 1.4) * pulso_c))
+    dy_c = -r_in * 0.12 if centro_etq else 0
+    dp.text((cx, cy + dy_c), centro_txt, font=fnt_c, fill=BLANCO + (al_c,), anchor="mm")
+    if centro_etq:   # la etiqueta de la porción del acento, chica, bajo la cifra
+        w_etq = r_in * 1.4
+        fnt_e = fuente_que_cabe(ctx.fX, centro_etq, int(r_in * 0.16), w_etq, 600, minimo=18)
+        dp.text((cx, cy + dy_c + fnt_c.size * 0.42), recorta_para(centro_etq, fnt_e, w_etq, ctx.tmp),
+                font=fnt_e, fill=GRIS + (al_c,), anchor="ma")
     
     layer.alpha_composite(pie_layer)
     
@@ -5075,7 +5211,7 @@ def sc_pie(ctx, e, t):
         if kp <= 0:
             continue
         es_ac = bool(p.get("acento")) or i == 0
-        col = p.get("color") or (ACENTO if es_ac else colores_def[i % len(colores_def)])
+        col = colores[i]
         yi = ley_y + i * gap_ley
         pulso_l = latido(t, t_p + 0.6, 1.6, 0.08) if es_ac else 1.0
         al_l = min(255, int(255 * clamp01(kp * 1.4) * pulso_l))
@@ -5114,11 +5250,8 @@ def sc_orbita(ctx, e, t):
     r_core = min(int((zx1 - zx0) * 0.22), int(unidad() * 0.18))
     # pulso = latido DRY (antes seno suelto 3.5 Hz: nervioso vs el resto del catálogo)
     pulso = latido(t, e["from"], 1.6, 0.12)
-    halo = Image.new("RGBA", (r_core * 2, r_core * 2), (0, 0, 0, 0))
-    dh = ImageDraw.Draw(halo)
-    dh.ellipse([0, 0, r_core * 2, r_core * 2], fill=ACENTO + (int(70 * pulso),))
-    halo = halo.filter(ImageFilter.GaussianBlur(max(1, int(r_core * 0.45))))
-    layer.alpha_composite(halo, (int(cx - r_core), int(cy - r_core)))
+    resplandor(layer, (cx - r_core, cy - r_core, cx + r_core, cy + r_core), ACENTO,
+               max(1, int(r_core * 0.45)), alfa=int(70 * pulso))
     
     n_part = 18
     r_orb = min(int((zx1 - zx0) * 0.38), int(unidad() * 0.28))
@@ -5483,12 +5616,9 @@ def sc_orbOpen(ctx, e, t):
             al = int(235 * clamp01(k_s * 1.5))
             d.ellipse([x - sz, y - sz, x + sz, y + sz], fill=ACENTO + (al,))
         # el nucleo: un halo gaussiano suave
-        glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        gd = ImageDraw.Draw(glow)
         rr = int(r * 0.62)
-        gd.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=ACENTO + (int(90 * k_s),))
-        glow = glow.filter(ImageFilter.GaussianBlur(max(6, int(r * 0.22))))
-        layer.alpha_composite(glow)
+        resplandor(layer, (cx - rr, cy - rr, cx + rr, cy + rr), ACENTO,
+                   max(6, int(r * 0.22)), alfa=int(90 * k_s))
         if figura == "robot":
             rr2 = int(r * 0.5)
             d.rounded_rectangle([cx - rr2, cy - rr2, cx + rr2, cy + rr2],
@@ -5567,9 +5697,13 @@ def _instalar_tokens(c):
     ÚNICA puerta: la usan tanto el pack de marca como la paleta del catálogo,
     para que los dos caminos instalen exactamente los mismos globals.
     """
-    global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS
+    global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS, SERIE, EXITO, AVISO
     ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS = (c["acento"], c["acento_oscuro"],
                                                c["negro"], c["blanco"], c["gris"])
+    # categoría y estado: los declarados (pack) mandan; si no, del acento
+    est=tokens_de_estado(ACENTO,NEGRO)
+    SERIE=[tuple(x) for x in (c.get("serie") or est["serie"])]
+    EXITO=tuple(c.get("exito") or est["exito"]); AVISO=tuple(c.get("aviso") or est["aviso"])
 
 
 def aplicar_paleta(nombre):
@@ -5595,7 +5729,12 @@ def aplicar_brand(brand_path):
     global SOLAPE, SOLAPE_PRE
     from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
     d = leer_pack(brand_path)
-    _instalar_tokens(colores_marca(brand_path))
+    c = colores_marca(brand_path)
+    col = d.get("colores") or {}   # serie / exito / aviso declarados por el pack
+    if col.get("serie"): c["serie"] = [hex_a_rgb(x) for x in col["serie"]]
+    for k in ("exito", "aviso"):
+        if col.get(k): c[k] = hex_a_rgb(col[k])
+    _instalar_tokens(c)
     global FJI
     for rol, glob, defecto, gen in (("titulares", "FJ", "Plus Jakarta Sans", "sans-bold"),
                                     ("texto", "FM", "Montserrat", "sans"),

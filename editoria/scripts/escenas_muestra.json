@@ -746,7 +746,6 @@
      "valor": 15
     }
    ],
-   "centro": "100%",
    "fuente": "Estudio de consumo de video digital",
    "at": {
     "rotulo": 0.2,
@@ -944,32 +943,7 @@
    "from": 0,
    "to": 5,
    "texto": "Un camino, todas las habilidades",
-   "colores": [
-    [
-     193,
-     27,
-     5,
-     255
-    ],
-    [
-     28,
-     176,
-     246,
-     255
-    ],
-    [
-     206,
-     130,
-     255,
-     255
-    ],
-    [
-     255,
-     200,
-     0,
-     255
-    ]
-   ],
+   "colores": "serie",
    "at": {
     "texto": 0.2,
     "linea": 0.9

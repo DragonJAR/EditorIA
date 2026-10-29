@@ -35,8 +35,13 @@ Size = Dict[str, float]
 SUAVIZADO_DEFECTO = {"alpha": 0.26, "snap": 170.0}
 SUAVIZADO_DIBUJO = {"alpha": 0.42, "snap": 170.0}
 
-# Brochas por defecto (colores neutros; la marca los sustituye con --color).
-BROCHA_LAPIZ = {"ancho": 6.0, "color": "#101827", "borrar": False}
+# Brochas por defecto: el lápiz va en la TINTA de la paleta neutra (la misma
+# que el texto): el overlay va sobre video oscuro y el #101827 de antes no se
+# veía. La marca la sustituye con --color.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import NEUTRO, rgb_a_hex  # noqa: E402
+
+BROCHA_LAPIZ = {"ancho": 6.0, "color": rgb_a_hex(NEUTRO["blanco"]), "borrar": False}
 BROCHA_BORRADOR = {"ancho": 34.0, "color": "#000000", "borrar": True}
 
 # Histéresis de gestos (HandDraw gesture): start entra, end sale.

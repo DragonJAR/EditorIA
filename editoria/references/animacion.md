@@ -74,7 +74,7 @@ viole uno sin motivo está sin terminar.
 | **Follow-through y overlapping action** | Las partes no se detienen a la vez: el contenedor llega, su contenido llega 60–120 ms después y asienta con un rebote menor. Sombras, glows y partículas arrastran detrás del objeto. | Desfase 60–120 ms entre capas |
 | **Slow in / slow out** | Nunca lineal. Entradas con ease-out o resorte; desplazamientos largos con ease-in-out; salidas con ease-in (acelera al irse). | Ver §3 |
 | **Arcos** | Lo que viaja más de ~200 px lo hace en arco (curva cuadrática, flecha del arco 6–12% de la distancia), no en línea recta. Solo la UI precisa (cursor, tabla) viaja recta. | Flecha 8% |
-| **Acción secundaria** | Un segundo movimiento pequeño que apoya al principal: el glow pulsa cuando cae la cifra, la tarjeta se inclina 1–2° al aterrizar. Nunca compite con el foco. | Amplitud ≤25% del principal |
+| **Acción secundaria** | Un segundo movimiento pequeño que apoya al principal: el glow pulsa cuando cae la cifra, la tarjeta se inclina 1–2° al aterrizar. Nunca compite con el foco. Todo glow se pinta con `resplandor` (`render_plan.py`): lienzo acolchado 3σ, sin el cuadrado de un blur recortado. | Amplitud ≤25% del principal |
 | **Timing** | El peso se comunica con frames: objetos pesados (logo, cifra gigante) tardan más y rebotan menos; ligeros (chips, partículas) rápidos y vivos. | Pesado 600–900 ms · ligero 250–400 ms |
 | **Exageración** | Solo en el momento firma de la pieza (uno). En el resto, contención. | Overshoot ≤8%, 10% en el foco |
 | **Dibujo sólido** | Volumen y perspectiva consistentes: si algo rota en 3D, su sombra y su perspectiva acompañan. Nada de rotaciones planas que delatan el 2D. | — |

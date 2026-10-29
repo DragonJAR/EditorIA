@@ -59,6 +59,7 @@
   "test_referencia.py",
   "test_reglas_del_pack.py",
   "test_repertorio.py",
+  "test_serie_y_resplandor.py",
   "test_sincronizar_instalada.py",
   "test_speech_estimate_cifras.py",
   "test_stagger_y_revelado.py",

@@ -38,8 +38,8 @@ Link de pago como tarjeta final.
   pausa; antes del remate, `escribe` 1.5–2.5 s (el suspenso vende el remate).
 
 ## 5. `leads` — tabla priorizada
-Filas de tabla que entran en cascada; resaltado por temperatura (Caliente/Tibio/Frío)
-sincronizado con `at`. Puntaje como barra.
+Filas de tabla que entran en cascada; resaltado por temperatura (Caliente/Tibio/Frío =
+`ACENTO`/`AVISO`/`GRIS`, `references/paleta.md`) sincronizado con `at`. Puntaje como barra.
 - Params: `rotulo`, `total`, `filas[{nombre, canal, etapa, puntaje, temp}]`, `at{rotulo, Caliente, Tibio, Frío}`
 
 ## 6. `handoff` — traspaso con contexto
@@ -68,8 +68,8 @@ Contador que sube + tarjetas de tareas en grilla que entran en cascada.
 - Params: `rotulo`, `fecha`, `cuenta`, `tarjetas[{titulo, detalle, n, boton, alerta}]`, `at{rotulo, cuenta}`
 
 ## 11. `recupera` — pago recuperado
-Cursor que arrastra una barra de progreso; al completarse, tarjeta "pagado" con
-cambio de color.
+Cursor que arrastra una barra de progreso; al completarse, tarjeta "pagado" en
+el token `EXITO` (verde de la paleta, `references/paleta.md`).
 - Params: `rotulo`, `resumen`, `cliente`, `hace` (ej. "hace 2 horas"),
   `monto`, `hecho?` ("PAGADO", en el idioma de la pieza), `at{rotulo, cursor, recupera, pagado}`
 
@@ -304,7 +304,7 @@ Bento). `rotulo?`, `items[{icono?, titulo, texto, acento?, at?}]`, `pie?`,
 
 **`comentario`** — Tarjeta de prueba social / testimonio (Tweet / LinkedIn / Review): avatar circular con iniciales automáticas, titular de autor con insignia de verificación ("✓"), usuario/handle secundario, calificación de estrellas interactiva (`estrellas`), cuerpo con wrap y énfasis por palabras (`*...*`), contador animado de me gusta ("❤️ 1.420 Me gusta") y fecha de publicación. `autor`, `usuario?`, `iniciales?`, `verificado?`, `estrellas?`, `texto`, `likes?`, `fecha?`, `rotulo?`, `at{rotulo, card, texto, likes}`.
 
-**`pie`** — Gráfico circular / rosquilla (Donut Chart): barrido secuencial por sectores con resorte y micro-rotación viva continua, orificio central con cifra/porcentaje destacado, leyenda paramétrica (a la derecha en horizontal 16:9, vertical inferior en 9:16) y fuente de datos al pie. `titulo?`, `porciones[{etiqueta, valor, acento?, color?}]`, `centro?`, `fuente?`, `at{rotulo, pie, p0..n, fuente}`.
+**`pie`** — Gráfico circular / rosquilla (Donut Chart): barrido secuencial por sectores con resorte y micro-rotación viva continua, orificio central con cifra/porcentaje destacado, leyenda paramétrica (a la derecha en horizontal 16:9, vertical inferior en 9:16) y fuente de datos al pie. `titulo?`, `porciones[{etiqueta, valor, acento?, color?}]` (sin `color`: el acento y luego la `SERIE` de la marca), `centro?` (sin él: el % y la etiqueta de la porción del acento), `fuente?`, `at{rotulo, pie, p0..n, fuente}`.
 
 **`orbita`** — Apertura cinemática tech / IA: núcleo central brillante con pulso y halo gaussiano suave, 3 anillos elípticos de partículas 3D en perspectiva con diferentes inclinaciones y velocidades orbitales continuas, kicker superior en acento, titular central con wrap y acento, y subtítulo descriptivo inferior. `kicker?`, `titulo`, `subtitulo?`, `at{kicker, titulo, subtitulo}`.
 
@@ -397,7 +397,8 @@ La línea la dibuja la **misma función** que el camino y que cualquier otro
 trazo (`trazado`): aquí lo que cambian son los puntos y los colores. Cinco
 trazos dibujados de cinco maneras son cinco trazos que se desincronizan.
 
-`texto` (el lema), `color?`, `colores?` (la línea se parte en estos colores),
+`texto` (el lema), `color?`, `colores?` (la línea se parte en estos colores;
+`"serie"` = la `SERIE` de la marca, nunca un arcoíris a mano),
 `y?`, `tam?`, `grosor?`, `itálica?`, `at{texto, linea}`.
 
 **El vuelo es de la pieza, no de la escena**: es el global `camara` (su

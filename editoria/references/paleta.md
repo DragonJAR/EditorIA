@@ -33,6 +33,16 @@ la pieza, para quién es y si es urgente o Informativo. Elegirlo a ciegas
    un descuido.
 6. **El tono de acento se deriva del acento** (×0,65) para las sombras y
    bordes: nunca un segundo color libre.
+7. **Categorías y estados también salen del acento.** Cuando una escena
+   necesita más de un color (las porciones de un `pie`, las temperaturas de
+   `leads`, un "pagado"), los toma de tres tokens que el motor deriva del
+   acento (`tokens_de_estado` en `render_plan.py`): `SERIE` (5 categorías:
+   `SERIE[0]` es el acento y el resto sale de Okabe-Ito, eligiendo cada vez
+   el más distinto con visión normal, deuteranopía y protanopía), `EXITO`
+   (verde: listo, pagado) y `AVISO` (naranja: tibio, pendiente). Todos suben
+   de luz hasta leerse sobre el fondo (4.5:1). Un pack puede declararlos en
+   `colores.serie` / `colores.exito` / `colores.aviso` y entonces mandan.
+   Nunca un RGB suelto en una escena.
 
 ## 3. El catálogo
 
@@ -124,6 +134,9 @@ paleta completa), que gana sobre el respaldo.
 - `scripts/_tests/test_paleta.py` fija el catálogo, comprueba el contraste
   AA de cada acento sobre su fondo y verifica que el respaldo **no** sea
   el mismo color que el pack de ejemplo.
+- `scripts/_tests/test_serie_y_resplandor.py` comprueba que `SERIE`,
+  `EXITO` y `AVISO` de cada paleta y de cada pack se leen sobre su fondo y
+  que dos categorías no se confunden (tampoco con daltonismo).
 - La puerta de entrega (`scripts/qa_entrega.py`) no juzga el color: la
   coherencia cromática se juzga mirando la pieza (`references/auto-qa.md`).
 

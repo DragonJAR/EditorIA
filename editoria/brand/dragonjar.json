@@ -15,7 +15,17 @@
   "blanco": "#FAF8F6",
   "gris": "#AAAAAA",
   "gris_superficie": "#1A1A1A",
-  "negro": "#0A0A0A"
+  "negro": "#0A0A0A",
+  "serie": [
+   "#C11B05",
+   "#56B4E9",
+   "#F0E442",
+   "#009E73",
+   "#E69F00"
+  ],
+  "exito": "#009E73",
+  "aviso": "#E69F00",
+  "_nota_estado": "serie/exito/aviso: categorías (pie, leyendas) y estados (pagado, tibio). Derivados del acento con tokens_de_estado (render_plan.py): serie[0] es el acento y el resto Okabe-Ito, distinguibles con daltonismo y legibles sobre el negro."
  },
  "colors": {
   "outline": "0A0A0A",
