@@ -65,13 +65,10 @@
     "delivery_check",
     "loudness",
     "contact_sheet",
-<<<<<<< HEAD
-    "efectos_talking_head"
-=======
+    "efectos_talking_head",
     "componer",
     "qa_entrega",
     "puntuar"
->>>>>>> 55b5562 (fix E2E skill flows: gate, loudness, and catalog drift)
    ],
    "sin_test": {
     "scripts/ffmpeg_tools/transcribir.py": "necesita el modelo de voz (Whisper) instalado"
