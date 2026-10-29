@@ -48,8 +48,8 @@
    "firma": "Baldosas numeradas en arco encima de la cabeza",
    "ocasion": "Enumerar opciones/pasos breves anclados a la cara en talking-head",
    "preferir": "ambos",
-   "nativo": "escena lineup / pasos (plan) si no hay cara que seguir",
-   "adaptar": "CVE si hay talking-head; si es gráfica pura → repertorio lineup/pasos",
+   "nativo": "escena pasos (plan) si no hay cara que seguir",
+   "adaptar": "CVE si hay talking-head; si es gráfica pura → repertorio pasos",
    "ruta": "python scripts/efectos_talking_head.py receta --fx lineup",
    "aliases": [
     "the-lineup"
@@ -245,7 +245,7 @@
    "firma": "Checklist al lado de la cabeza que se tilda al hablar",
    "ocasion": "Lista de tareas que se confirman en sync con la voz",
    "preferir": "ambos",
-   "nativo": "escena constancia / pasos / checklist conceptual",
+   "nativo": "escena constancia / pasos (checklist conceptual)",
    "adaptar": "CVE con ticks en segundos de palabra; nativo: constancia o pasos en plan",
    "ruta": "python scripts/efectos_talking_head.py receta --fx todo",
    "aliases": [

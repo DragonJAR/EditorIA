@@ -601,10 +601,13 @@ def rotulo_y():
     Garantiza coherencia espacial y retícula uniforme entre escenas (references/coherencia-espacial.md)."""
     return vy(0.20) if H > W else vy(0.16)
 
-def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=44):
+def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=None):
     """Rótulo con entrada real: cada línea sube desde detrás de su línea base
-    (revelado por máscara, `_revela_clip`) con el resorte del rol (nunca de golpe)."""
+    (revelado por máscara, `_revela_clip`) con el resorte del rol (nunca de golpe).
+    El tamaño por defecto es el rol `rotulo` de la ESCALA (antes un 44 escrito
+    aquí aparte: dos fuentes de verdad para la misma cifra)."""
     color=color or BLANCO
+    tam=ESCALA["rotulo"] if tam is None else tam
     if not texto or t<at: return 0   # sin rótulo en el plan: no se dibuja
     k=entra(t, at, "bloque")
     sg=segs(texto); fnt=ctx.fX(tam,700)
@@ -651,11 +654,11 @@ def vy(f):
     y=H*f; top=SAFE["top"]
     return y if y<=top else top+(y-top)*vk()
 
-def bajo_rotulo(y,tam=44,aire=0.45):
+def bajo_rotulo(y,tam=None,aire=0.45):
     """Primer y libre bajo un rótulo anclado arriba en `y` (alto de línea +
-    aire). Lo que va debajo del rótulo se mide desde aquí, nunca con una
+    aire; `tam` por defecto, el rol `rotulo` de la ESCALA). Lo que va debajo del rótulo se mide desde aquí, nunca con una
     fracción fija de H: en 16:9 H*0.04 son 43 px y el rótulo mide ~55."""
-    return y+tam*(1.2+aire)
+    return y+(ESCALA["rotulo"] if tam is None else tam)*(1.2+aire)
 
 def tarjeta(ctx,img,x,y,w,h,radio=28,alpha=255):
     d=ImageDraw.Draw(img)
@@ -4847,7 +4850,7 @@ def sc_bento(ctx, e, t):
         {"icono": "03", "titulo": "Limpio", "texto": "QA cuadro a cuadro"}
     ])[:4]
     n = len(items)
-    top_grid = bajo_rotulo(yr, 44, aire=1.15)
+    top_grid = bajo_rotulo(yr, ESCALA["rotulo"], aire=1.15)
     bot_grid = y1 - ((82 if e.get("pie") else 20) + (46 if e.get("fuente") else 0))
     cols = 1 if (H > W and n <= 3) else 2
     cajas = cuadricula(x0, int(top_grid), x1 - x0, int(bot_grid - top_grid), cols, n)

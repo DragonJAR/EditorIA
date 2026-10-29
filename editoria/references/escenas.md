@@ -2,7 +2,7 @@
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
-Todas comparten: fondo vivo, salida anticipada 0.5s, transición `mancha`
+Todas comparten: fondo vivo, salida cruzada desde el corte (0,32 s, `SOLAPE`), transición `mancha`
 opcional al entrar. Tiempos `at` en segundos absolutos del video.
 
 ## 1. `apertura` — gancho

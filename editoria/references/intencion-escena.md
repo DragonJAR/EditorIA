@@ -221,9 +221,9 @@ sabes la intención, mira `ocasion` antes de inventar otra.
 | copy | `frase`, `typewriter`, `quote`, `cartel` |
 | proceso | `pasos`, `timeline`, `orbita`, `leads`, `handoff`, `hoy`, `cadena`, `camino` |
 | social | `chat`, `comentario`, `notificacion`, `quote`, `medianoche` |
-| cierre | `remate`, `final`, `oferta`, `confetti`, `audiowave`, `subrayado` |
+| cierre | `remate`, `final`, `oferta`, `confetti`, `subrayado` |
 | comparacion | `versus`, `bars`, `ranking` |
-| demostracion | `demo`, `callout`, `buscador` |
+| demostracion | `demo`, `callout`, `buscador`, `audiowave` |
 | estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |
 | imagen-texto | `kenburns`, `typewriter`, `rotulo_inferior`, `quote` |
 | estructura | `index`, `canales`, `medianoche` |
