@@ -1101,7 +1101,20 @@ def separar(txt, miles=None, decimal=None):
     return txt.replace(",", "\0").replace(".", d).replace("\0", m)
 
 
-def cuenta_up(desde, hasta, t, t0, dur=0.8, fmt="{:,}", progreso=None):
+# Lo que se RELLENA con un dato (una barra, un arco, un anillo, la cifra que
+# cuenta) va por tiempo y con UNA duracion: antes cada escena tenia la suya
+# (stats 0.7, cuenta 0.8, bars/ranking 0.9, gauge 1.1, anillo 1.2) y un mismo
+# dato se llenaba a cinco ritmos en la misma pieza (animacion.md §3b).
+RELLENO = 0.9
+
+
+def rellena(t, t0, dur=RELLENO):
+    """Progreso 0→1 de un relleno de datos: por tiempo, smoothstep (sin
+    rebote: un dato no se pasa de su valor)."""
+    return smoothstep(clamp01((t - t0) / max(dur, 1e-6)))
+
+
+def cuenta_up(desde, hasta, t, t0, dur=RELLENO, fmt="{:,}", progreso=None):
     """Cuenta animada de `desde` a `hasta` en `dur` segundos desde `t0`.
     Devuelve el string listo para imprimir (con separadores). Cada valor
     intermedio lleva los MISMOS decimales que el final (3.5 cuenta 0.0 → 3.5,
@@ -1203,11 +1216,32 @@ def unidad():
     return min(W, H)
 
 
+# REPARTO VERTICAL: en 9:16 el hueco que sobra entre filas se reparte entre
+# ellas en vez de quedar como una banda centrada en negro. Con TOPE: cada
+# hueco crece como mucho REPARTO_MAX x el alto medio de una fila (mas, y las
+# filas se leen sueltas, no como una lista). Las filas NO se estiran: crece el
+# aire entre ellas. Una regla para `pila` y `cuadricula`, no una por escena.
+REPARTO_MAX = 0.5
+
+
+def reparto(contenido, n, hueco, gap, fila):
+    """Hueco entre `n` filas de alto medio `fila` cuyo bloque (filas + huecos
+    `gap`) mide `contenido` px, en un sitio de `hueco` px: en 9:16 crece hasta
+    REPARTO_MAX·fila con lo que sobra; en 16:9 (o sin sitio) queda `gap`."""
+    if H <= W or n < 2 or hueco <= contenido:
+        return gap
+    return gap + min((hueco - contenido) / (n - 1), REPARTO_MAX * fila)
+
+
 def pila(alturas, y0, y1, gap=24):
     """Apila bloques de `alturas` px entre y0 e y1: devuelve (centros, f).
     Si no caben, f < 1 encoge TODO por igual (tamaños de letra incluidos)
-    en vez de dejar que se pisen; el conjunto queda centrado en su hueco."""
-    total = sum(alturas) + gap * (len(alturas) - 1)
+    en vez de dejar que se pisen; el conjunto queda centrado en su hueco.
+    Si sobra sitio en 9:16, el aire entre bloques crece (`reparto`)."""
+    n = len(alturas)
+    total = sum(alturas) + gap * (n - 1)
+    gap = reparto(total, n, y1 - y0, gap, sum(alturas) / max(1, n))
+    total = sum(alturas) + gap * (n - 1)
     f = min(1.0, (y1 - y0) / max(1, total))
     y = y0 + ((y1 - y0) - total * f) / 2
     centros = []
@@ -1241,14 +1275,21 @@ def pie_fuente(ctx, d, e, t, t_def):
                    fill=GRIS + (al,), anchor="mb")
 
 
-def cuadricula(x0, y0, ancho_total, alto_total, cols, n):
+def cuadricula(x0, y0, ancho_total, alto_total, cols, n, alto_hueco=None):
     """Layout en grilla: devuelve [(x, y, w, h)] para `n` items en `cols` columnas.
-    DRY: la usan `stats`, `lineup`, `pasos`, `bento`, `hoy`.
-    Centra automáticamente las filas incompletas para mantener armonía visual."""
+    DRY: la usan `stats`, `pasos`, `bento`, `hoy`.
+    Centra automáticamente las filas incompletas para mantener armonía visual.
+    Con `alto_hueco` (el sitio que tiene la grilla desde y0), la grilla se
+    centra en él y en 9:16 reparte lo que sobra entre filas (`reparto`): las
+    tarjetas conservan su alto (`alto_total`), crece el aire entre ellas."""
     filas = (n + cols - 1) // cols
     gap = 24
     w = (ancho_total - gap * (cols - 1)) // cols
     h = (alto_total - gap * (filas - 1)) // filas
+    gap_v = gap
+    if alto_hueco is not None:
+        gap_v = reparto(filas * h + gap * (filas - 1), filas, alto_hueco, gap, h)
+        y0 = y0 + max(0, (alto_hueco - (filas * h + gap_v * (filas - 1))) / 2)
     out = []
     for i in range(n):
         r, c = divmod(i, cols)
@@ -1257,7 +1298,7 @@ def cuadricula(x0, y0, ancho_total, alto_total, cols, n):
         rx0 = x0 + (ancho_total - ancho_fila) // 2
         c_in_row = c if (r < filas - 1 or n % cols == 0) else (i - (filas - 1) * cols)
         x = rx0 + c_in_row * (w + gap)
-        y = y0 + r * (h + gap)
+        y = y0 + r * (h + gap_v)
         out.append((x, y, w, h))
     return out
 
@@ -1623,14 +1664,17 @@ def puntos_de_ruta(x0, y0, x1, y1, forma="recta", n=48, amp=0.18):
     """
     pts = []
     if forma == "s":
-        # la amplitud es del RECORRIDO, no de la altura: si la linea es
-        # horizontal (y0 == y1) la S se aplana y no hay S
-        amp_px = amp * abs(x1 - x0) * 0.12
+        # la amplitud es del RECORRIDO y la S se abre en PERPENDICULAR a el:
+        # igual en una ruta horizontal (se abre en y) que en una vertical (en
+        # x; el camino de 9:16). Antes se medía con |x1-x0| y en vertical no
+        # habia S.
+        largo_r = math.hypot(x1 - x0, y1 - y0)
+        amp_px = amp * largo_r * 0.12
+        nx, ny = -(y1 - y0) / max(1e-9, largo_r), (x1 - x0) / max(1e-9, largo_r)
         for i in range(n + 1):
             p = i / n
-            x = x0 + (x1 - x0) * p
-            y = y0 + (y1 - y0) * p + math.sin(p * math.pi) * amp_px
-            pts.append((x, y))
+            o = math.sin(p * math.pi) * amp_px
+            pts.append((x0 + (x1 - x0) * p + nx * o, y0 + (y1 - y0) * p + ny * o))
     elif forma == "onda":
         for i in range(n + 1):
             p = i / n
@@ -2479,7 +2523,7 @@ def sc_bars(ctx, e, t):
         # fill con animación
         # crece con smoothstep en 0.9 s: un dato no rebota por encima de su valor
         # (el resorte lo mostraba de más) y el borde no salta >60 px por frame
-        g_ = smoothstep(clamp01((t - t_in) / 0.9))
+        g_ = rellena(t, t_in)
         fill_h = max_h * fraccion * g_
         if fill_h >= 1:   # el radio nunca supera la mitad del alto: nace de 0, no como píldora
             d.rounded_rectangle([x0, base_y - fill_h, x0 + bw, base_y], radius=min(18, fill_h / 2), fill=col)
@@ -2529,7 +2573,7 @@ def sc_gauge(ctx, e, t):
     arco(d, cx, cy, r, 135, 135 + 270, (255, 255, 255, int(32 * ka)), grosor)
     # el arco llena con smoothstep (sin rebote: un dato no se pasa de su valor)
     # y la cifra dice exactamente lo que marca el arco
-    g_ = smoothstep(clamp01((t - t_in) / 1.1))
+    g_ = rellena(t, t_in)
     if g_ > 0:
         fraccion = clamp01(e.get("valor", 0) / max(1e-9, e.get("max", 100)))
         # caps redondeados: discos en los extremos del arco (ImageDraw.arc
@@ -2615,7 +2659,7 @@ def sc_gauge_anillo(ctx, e, t):
 
     t_in = at.get("gauge", e["from"] + 0.3)
     ka = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))
-    g_ = smoothstep(clamp01((t - t_in) / 1.2))
+    g_ = rellena(t, t_in)
     # el valor ANIMA dentro de la escena: de `valor_desde` (el valor del beat
     # anterior) al valor de este. Sin esto el dial salta de 31 a 3 en el
     # corte y la puerta lo cuenta como 10 pops (medido).
@@ -2698,7 +2742,9 @@ def sc_ranking(ctx, e, t):
     zx0, _, zx1, zy1 = caja_segura()
     y0 = rotulo_y() + 90
     fila_h = min(160, (zy1 - 80 - y0) / n)
-    y0 += ((zy1 - 80 - y0) - fila_h * n) / 2          # bloque centrado en su hueco
+    # las filas se APILAN (`pila`): centradas en su hueco y, en 9:16, con el
+    # sitio que sobra repartido entre ellas (antes, una banda al centro)
+    centros_f, _ = pila([fila_h] * n, y0, zy1 - 80, gap=0)
     hi = fila_h * 0.6
     # los dos tamanos se calculan con la altura de la fila, pero con PISO: un
     # tamaño calculado puede caer por debajo del piso legible sin que el copy
@@ -2706,9 +2752,16 @@ def sc_ranking(ctx, e, t):
     fnt = ctx.fX(int(max(ESCALA["nota"], min(52, fila_h * 0.36))), 700)
     fnt_v = ctx.fX(int(max(ESCALA["nota"], min(58, fila_h * 0.40))), 800)
     finales = [cuenta_up(0, it.get("valor", 0), 1e9, 0) for it in items]
-    max_w_lab = int((zx1 - zx0) * 0.38)
-    w_lab = min(max_w_lab, max(d.textlength(it.get("etiqueta", ""), font=fnt) for it in items) + 28)
     w_val = max(largo(v, fnt_v, True) for v in finales) + 24
+    # la columna de la etiqueta se MIDE con las etiquetas (antes, un tope fijo
+    # del 38 % cortaba "WhatsA…"): toma lo que pide la mas larga y deja a la
+    # barra su minimo legible; la que aun no cabe se PARTE en dos lineas con
+    # la misma letra (`texto_que_cabe`, como `bars`), nunca se recorta
+    BARRA_MIN = int((zx1 - zx0) * 0.30)
+    max_w_lab = int(zx1 - zx0 - w_val - 16 - BARRA_MIN)
+    w_lab = min(max_w_lab, max(d.textlength(it.get("etiqueta", ""), font=fnt) for it in items) + 28)
+    etiquetas = [texto_que_cabe(ctx.fX, it.get("etiqueta", ""), fnt.size, w_lab - 28, 700,
+                                max_lineas=2, minimo=ESCALA["nota"]) for it in items]
     x_bar = zx0 + w_lab
     bw = max(100, zx1 - w_val - x_bar - 16)
     max_v = max((i.get("valor", 0) for i in items), default=1) or 1
@@ -2717,17 +2770,16 @@ def sc_ranking(ctx, e, t):
         k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
-        yi = y0 + i * fila_h + (fila_h - hi) / 2
+        yi = centros_f[i] - hi / 2
         al = int(255 * clamp01(k * 1.4))
-        txt_lab = it.get("etiqueta", "")
-        if d.textlength(txt_lab, font=fnt) > max_w_lab - 28:
-            while len(txt_lab) > 3 and d.textlength(txt_lab + "…", font=fnt) > max_w_lab - 28:
-                txt_lab = txt_lab[:-1]
-            txt_lab += "…"
-        d.text((zx0, yi + hi / 2), txt_lab, font=fnt, fill=BLANCO + (al,), anchor="lm")
+        fnt_l, lineas_l = etiquetas[i]
+        paso_l = fnt_l.size * 1.1
+        for li, ln in enumerate(lineas_l):
+            d.text((zx0, yi + hi / 2 + (li - (len(lineas_l) - 1) / 2) * paso_l), ln,
+                   font=fnt_l, fill=BLANCO + (al,), anchor="lm")
         fraccion = clamp01(it.get("valor", 0) / max_v)
         col = ACENTO if i == 0 else BLANCO
-        g_ = smoothstep(clamp01((t - t_in) / 0.9))   # sin rebote: un dato no se pasa de su valor
+        g_ = rellena(t, t_in)   # sin rebote: un dato no se pasa de su valor
         barra_h(d, x_bar, yi, bw, hi, fraccion * g_, col + (int(230 * al / 255),),
                 radio=hi // 2, pista=18 * al / 255, min_px=int(hi * 1.15))
         val = cuenta_up(0, it.get("valor", 0), t, t_in, progreso=g_)   # la cifra dice lo que mide la barra
@@ -2753,8 +2805,8 @@ def sc_stats(ctx, e, t):
     filas_ = (n + cols - 1) // cols
     alto = min(y1 - 90 - (rotulo_y() + 80), filas_ * unidad() * 0.36)   # tarjetas, no paredes
     ancho = min(x1 - x0, cols * unidad() * 0.62)
-    coords = cuadricula((W - ancho) / 2, (rotulo_y() + 80) + (y1 - 90 - (rotulo_y() + 80) - alto) / 2,
-                        ancho, alto, cols, n)
+    coords = cuadricula((W - ancho) / 2, rotulo_y() + 80, ancho, alto, cols, n,
+                        alto_hueco=y1 - 90 - (rotulo_y() + 80))
     for i, (cx, cy, cw, ch) in enumerate(coords):
         t_in = escalonado(at, "card", i, e["from"] + 0.2)
         k = entra(t, t_in, "elemento")
@@ -2768,7 +2820,7 @@ def sc_stats(ctx, e, t):
                 int(cw * s), int(ch * s), alpha=al)
         # cifra
         col = (ACENTO if c.get("acento") else BLANCO) + (al,)
-        val = cuenta_up(0, c.get("valor", 0), t, t_in, dur=0.7, fmt="{:,}")
+        val = cuenta_up(0, c.get("valor", 0), t, t_in, progreso=rellena(t, t_in), fmt="{:,}")
         # tamaño fijado por la cifra FINAL (no salta mientras cuenta)
         fnt_v = fuente_que_cabe(ctx.fT, cuenta_up(0, c.get("valor", 0), 1e9, 0), ch * 0.42, cw * 0.84,
                                 tabular=True)
@@ -3938,19 +3990,38 @@ def sc_camino(ctx, e, t):
     if not estaciones:
         return capa_salida(layer, t, e["to"])
     at = e.get("at") or {}
-    zx0, _, zx1, _ = caja_segura()
-    # el camino entero flota: latido solo de grosor/alfa no alcanza el umbral
-    # de muerto en el hold final (medido 0.29 → nota 86)
-    y = int(e.get("y", H * 0.46) + flota(t, e["from"] + 0.8, 4, 0.40))
-    x0 = int(e.get("x0", zx0))
-    x1 = int(e.get("x1", zx1))
+    zx0, zy0, zx1, zy1 = caja_segura()
     R = 50
     col_linea = e.get("color") or ACENTO
     n = len(estaciones)
+    # el camino entero flota: latido solo de grosor/alfa no alcanza el umbral
+    # de muerto en el hold final (medido 0.29 → nota 86)
+    fl = flota(t, e["from"] + 0.8, 4, 0.40)
+    # 9:16: el camino corre en VERTICAL (como el timeline: etiquetas a la
+    # derecha del nodo). Horizontal, 778 px de linea en un lienzo de 1920 de
+    # alto dejaban el 87 % de la zona en negro (ocupacion 0.13). Se queda en
+    # horizontal si el plan fija la geometria (`y`, `x0`, `x1`) o vuela la
+    # camara de la pieza (su paneo es lateral: el mundo se desliza de lado).
+    vertical = (H > W and not _CAMARA["activa"]
+                and not any(k in e for k in ("y", "x0", "x1")))
+    fnts = [fuente_que_cabe(ctx.fT, str(est.get("titulo", "")).upper(), ESCALA["secundario"],
+                            (zx1 - zx0) * 0.55 if vertical else (zx1 - zx0) / max(1, n) - 12, 800)
+            for est in estaciones]
+    if vertical:
+        w_et = max(ctx.tmp.textlength(str(est.get("titulo", "")).upper(), font=f)
+                   for est, f in zip(estaciones, fnts))
+        xr = int((W - (2 * R + 28 + w_et)) / 2 + R)        # el grupo nodo+etiqueta, centrado
+        paso = min((zy1 - zy0) / n, 2 * R * (2 + REPARTO_MAX * 2))
+        ya = (zy0 + zy1) / 2 - paso * n / 2 + fl
+        pts = puntos_de_ruta(xr, ya, xr, ya + paso * n, e.get("ruta", "recta"))
+    else:
+        y = int(e.get("y", H * 0.46) + fl)
+        x0 = int(e.get("x0", zx0))
+        x1 = int(e.get("x1", zx1))
+        pts = puntos_de_ruta(x0, y, x1, y, e.get("ruta", "recta"))
 
     # el MUNDO: la linea y las estaciones, en coordenadas de mundo
     mundo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    pts = puntos_de_ruta(x0, y, x1, y, e.get("ruta", "recta"))
     p0 = 0.5 / n
     p1 = 1.0 - 0.5 / n
     prog = clamp01((t - e["from"]) / max(1e-6, e["to"] - e["from"]))
@@ -3991,13 +4062,11 @@ def sc_camino(ctx, e, t):
         r_nodo = int(R * (latido(t, t_in, 1.4, 0.04) if en_cabeza else 1.0))
         insignia_3d(dn, cx, cy, r_nodo, est.get("icono"), ctx.fT(30, 800),
                      color=col, alpha=a, t=t)
-        # el nombre de la estacion, debajo — se ENCOGE / acorta al hueco
-        # (LECCIONES era más ancha que el nodo y se leía desbalanceada)
-        fnt = fuente_que_cabe(ctx.fT, str(est.get("titulo", "")).upper(),
-                               ESCALA["secundario"],
-                               (x1 - x0) / max(1, n) - 12, 800)
-        dn.text((cx, cy + R + 18), str(est.get("titulo", "")).upper(), font=fnt,
-                fill=(BLANCO if encendida else GRIS) + (a,), anchor="ma")
+        # el nombre de la estacion, debajo (a la derecha en vertical) — se
+        # ENCOGE / acorta al hueco (LECCIONES era más ancha que el nodo)
+        xy_et, anc = ((cx + R + 28, cy), "lm") if vertical else ((cx, cy + R + 18), "ma")
+        dn.text(xy_et, str(est.get("titulo", "")).upper(), font=fnts[i],
+                fill=(BLANCO if encendida else GRIS) + (a,), anchor=anc)
         if k < 1:
             sub_n.putalpha(sub_n.split()[3].point(lambda v: int(v * clamp01(k * 1.4))))
         mundo.alpha_composite(sub_n)
@@ -5842,8 +5911,22 @@ NO_CRECEN=A_SANGRE|{"final","kenburns","demo","rotulo_inferior"}   # a sangre u 
 CENTRO_OPTICO=0.46   # fracción de la altura de la zona segura, desde arriba
 BANDA_MAX=0.5        # una escena más alta que media zona ya la compone (rótulo arriba,
                      # fuente al pie): moverla solo la carga hacia arriba
-ANCLADAS={"constancia","cadena","cartel"}   # van ABAJO por su rol (bajo la cara del reel)
-SITIO_PROPIO=NO_CRECEN|ANCLADAS
+ANCLADAS={"constancia","cadena","cartel"}   # van ABAJO por su rol, bajo la cara del reel...
+# ...pero SOLO si hay cara debajo. Antes se anclaban siempre, y sin video
+# debajo el cartel quedaba pegado al pie de la zona con el 80 % del 9:16 en
+# negro (medido: ocupacion 0.17-0.22). Hay cara debajo cuando la pieza es un
+# overlay (ALFA: se compone sobre el video) o la escena lo declara
+# (`sobre_cara: true`, p. ej. un plan con la toma ya quemada en el fondo).
+
+def sobre_cara(e):
+    """¿La escena va encima de una cara/toma? UN predicado: lo usan el
+    encuadre (`_crecer`) y la prosa (escenas.md, repertorio)."""
+    return bool(ALFA or e.get("sobre_cara"))
+
+def sitio_propio(e):
+    """¿La escena tiene su sitio por diseño? A sangre/overlay (NO_CRECEN) o
+    anclada abajo con cara debajo."""
+    return e["tipo"] in NO_CRECEN or (e["tipo"] in ANCLADAS and sobre_cara(e))
 
 def _crecer(e,bb):
     """(factor, dy) del encuadre del bbox `bb`: crece alrededor de (W/2,
@@ -5851,8 +5934,9 @@ def _crecer(e,bb):
     vertical al centro óptico (CENTRO_OPTICO), sin salirse de la zona. Función
     pura del bbox medido: el mismo (g, dy) en toda la escena. Sin cambio:
     (1.0, 0.0): a sangre, overlay, ancladas por su rol, `y` o `zona`
-    declaradas, o trayectoria global de cámara (fijan el sitio del contenido)."""
-    if (ALFA or e["tipo"] in SITIO_PROPIO or e.get("zona") or e.get("y") is not None
+    declaradas, o trayectoria global de cámara (fijan el sitio del contenido).
+    Las ANCLADAS solo con cara debajo (`sobre_cara`)."""
+    if (ALFA or sitio_propio(e) or e.get("zona") or e.get("y") is not None
             or _CAMARA["activa"]): return (1.0,0.0)
     x0,y0,x1,y1=bb; cx,cy=W/2,CENTRO_Y*H
     zx0,zy0,zx1,zy1=caja_segura()

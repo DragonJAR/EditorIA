@@ -100,6 +100,9 @@ class TestCamino(unittest.TestCase):
     def setUp(self):
         import render_plan as R
         R.formato(1080, 1920)
+        # sin la camara que deja otro test: con ella el camino es horizontal
+        R.aplicar_globales({"escenas": []})
+        self.addCleanup(R.aplicar_globales, {"escenas": []})
         self.R = R
         self.ctx = R.Ctx()
 
@@ -126,7 +129,7 @@ class TestCamino(unittest.TestCase):
         ar, ag, ab = self.R.ACENTO[:3]
         puntos = []
         for x in range(0, w, 2):
-            for y in range(int(h * 0.30), int(h * 0.62), 2):
+            for y in range(0, h, 2):
                 r, g, b = px[x, y]
                 if abs(r - ar) < 70 and abs(g - ag) < 70 and abs(b - ab) < 70:
                     puntos.append((x, y))
@@ -141,13 +144,18 @@ class TestCamino(unittest.TestCase):
         R = self.R
         R.MARCA_NOMBRE = None
         # t=2,5: las cuatro estaciones ya han entrado, pero la cabeza solo
-        # hapassed las dos primeras: las de la derecha siguen apagadas
+        # ha pasado las dos primeras: las del final siguen apagadas. El
+        # final del camino es la derecha en 16:9 y ABAJO en 9:16 (el camino
+        # corre en vertical): se mira el ultimo cuarto del recorrido.
         temprano = self._estaciones(self._pintar(self._escena(), 2.5))
         tarde = self._estaciones(self._pintar(self._escena(), 5.5))
         self.assertTrue(temprano, "no hay tinta de acento")
-        w = self._pintar(self._escena(), 2.5).size[0]
-        derecha_temprano = [p for p in temprano if p[0] > w * 0.53]
-        derecha_tarde = [p for p in tarde if p[0] > w * 0.53]
+        eje = 1 if R.H > R.W else 0
+        lo = min(p[eje] for p in tarde)
+        hi = max(p[eje] for p in tarde)
+        corte = lo + 0.75 * (hi - lo)
+        derecha_temprano = [p for p in temprano if p[eje] > corte]
+        derecha_tarde = [p for p in tarde if p[eje] > corte]
         self.assertEqual(derecha_temprano, [],
                          "las estaciones de la derecha estan encendidas antes "
                          "de que la cabeza las pase")

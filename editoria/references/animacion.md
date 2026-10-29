@@ -160,6 +160,13 @@ El avance de un trazo va por **tiempo**: 360° en 0,9 s (la elipse), la porción
 del donut en 0,55 s. El resorte queda para lo que *entra* (una tarjeta, un
 titular), no para lo que *se dibuja*.
 
+Lo que se **rellena con un dato** (la barra de `bars` y `ranking`, el arco
+del `gauge`, el anillo, la cifra que cuenta en `stats` y `cuenta_up`) va con
+UNA duración: `RELLENO` (0,9 s), por el helper `rellena(t, t0)` (smoothstep:
+sin rebote, un dato no se pasa de su valor). Antes cada escena tenía la suya
+(0,7 / 0,8 / 0,9 / 1,1 / 1,2 s) y el mismo dato se llenaba a cinco ritmos en
+una pieza. La cifra viaja con su barra (`progreso=`), no con un reloj propio.
+
 ### Un bloque oscuro se compone en capa propia
 
 `ImageDraw` **reemplaza** el pixel, no lo mezcla: pintar un rectángulo negro
@@ -229,14 +236,23 @@ El movimiento de cámara convierte un layout plano en un espacio.
   el centro de su bbox medido al **centro óptico** de la zona
   (`CENTRO_OPTICO` = 0.46 de su altura, un poco sobre el geométrico), sin
   salirse. Es función pura del bbox: el mismo desplazamiento en toda la
-  escena. No se mueven las que tienen sitio propio (`SITIO_PROPIO`: a
+  escena. No se mueven las que tienen sitio propio (`sitio_propio`: a
   sangre, overlays y `ANCLADAS` abajo por su rol —constancia, cadena,
-  cartel—) ni las de `y` o `zona` declaradas; una escena más alta que media
+  cartel— **solo con cara debajo**, `sobre_cara(e)`: overlay o
+  `sobre_cara: true`; sin nada debajo iban pegadas al pie con ocupación
+  0.17–0.22 y ahora van al centro óptico como el resto) ni las de `y` o
+  `zona` declaradas; una escena más alta que media
   zona ya la compone y tampoco se toca. El centrado deja sitio al push-in
   y a la flotación (una escena crecida no queda pegada arriba) y la holgura
   del push-in se mide sobre el bbox ya colocado y descuenta `FLOTA_CAM`. Lo que NO arregla: la
   ocupación de una escena de solo tipo limitada por el ancho (apertura) no
   sube al centrarla; eso es copy o escala de la escena.
+- **Reparto vertical (9:16)**: las listas y grillas no se quedan en una
+  banda al centro. `pila` y `cuadricula(..., alto_hueco=)` reparten el alto
+  que sobra en el **aire entre filas** (`reparto`), con tope `REPARTO_MAX`
+  (0,5 × el alto de una fila: más, y las filas se leen sueltas); las filas
+  no se estiran. En 16:9 no cambia nada. Lo usan `ranking`, `stats` y las
+  escenas que apilan con `pila`; `camino` corre en vertical en 9:16.
 - **Vuelo continuo (una pieza, un solo recorrido)**: la cámara no salta de
   plano en plano: viaja. En 2D eso es un **dolly con paneo**: el mundo se
   escala y se desliza mientras la cámara se queda con el punto de interés

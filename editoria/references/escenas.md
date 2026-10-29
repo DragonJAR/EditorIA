@@ -194,6 +194,9 @@ hacia que el bloque saltase de sitio y el medidor lo contara como 10 pops).
 
 **`ranking`** — Ranking horizontal con barras proporcionales, #1 lleva acento.
 `items[{etiqueta, valor, fecha?}]`, `at{rotulo, item0..n, fuente}`.
+La columna de la etiqueta se mide con las etiquetas y la que no cabe se
+**parte en dos líneas** a la misma letra (nunca "WhatsA…"); en 9:16 las filas
+reparten el alto que sobra (`pila`, con tope `REPARTO_MAX`).
 Fuente: `DataRanking` (MIT).
 
 **`stats`** — Grid de stat cards (cifra grande + etiqueta). `cards[{valor, etiqueta, acento?}]`,
@@ -388,6 +391,12 @@ encienden cuando la cabeza las pasa.
 `grosor?`, `color?`, `colores?` (la línea se divide en ramas de colores),
 `at{estacion0..n}`.
 
+En **9:16 el camino corre en vertical** (de arriba abajo, la etiqueta a la
+derecha del nodo, como el `timeline`): la misma `trazado`, los mismos
+`puntos_de_ruta` (la S se abre en perpendicular al recorrido) y el mismo
+encendido por la cabeza. Se queda horizontal si el plan fija `y`/`x0`/`x1`
+o si vuela la cámara de la pieza (su paneo es lateral).
+
 **`subrayado`** — El **lema con su línea de luz debajo**: la línea es la
 línea base y se puede partir en varios colores. Es el cierre del reel de
 referencia: "One path," / "every skill." con la línea debajo, que se abre en
@@ -409,7 +418,13 @@ global, el mundo se escapa del encuadre porque la cámara se ha ido, que es
 lo que pasa de verdad.
 
 `texto` (la afirmación), `kicker?` (el rótulo de arriba), `icono?` (lupa,
-reloj, alerta, globo, codigo), `tam?`, `y?`, `at{panel, icono, texto}`.
+reloj, alerta, globo, codigo), `tam?`, `y?`, `sobre_cara?`, `at{panel, icono, texto}`.
+
+**`cartel`, `cadena` y `constancia` van abajo solo si hay cara debajo**: en
+un overlay (la pieza se compone sobre el video) o con `sobre_cara: true` en
+la escena, se quedan al pie de la zona segura, bajo la cara. Sin nada debajo
+(un plan de motion puro) se colocan como el resto, en el centro óptico: al
+pie dejaban el 80 % del 9:16 en negro. El predicado es uno (`sobre_cara`).
 
 **`cadena`** — La **cadena de estados**: N nodos con icono de línea, unidos
 por un conector punteado, cada uno con su etiqueta. Es la escena del reel

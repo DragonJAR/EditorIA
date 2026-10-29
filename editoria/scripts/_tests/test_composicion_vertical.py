@@ -10,7 +10,8 @@ el ancho). Ahora `encuadrar` aplica UNA regla a toda escena: el centro
 vertical de su bbox medido cae en el centro optico de la zona segura
 (`CENTRO_OPTICO`, un poco sobre el centro geometrico), sin salirse de ella.
 Quedan fuera las que tienen su sitio por diseno: zona declarada, overlay,
-a sangre, `y` declarada y las ancladas abajo por su rol (`ANCLADAS`).
+a sangre, `y` declarada y las ancladas abajo por su rol (`ANCLADAS`) cuando
+hay cara debajo (`sobre_cara`).
 
 Run with: python3 -m pytest -q -p no:cacheprovider _tests/test_composicion_vertical.py
 """
@@ -97,8 +98,10 @@ class TestComposicionVertical(unittest.TestCase):
     def test_las_ancladas_y_las_declaradas_no_se_mueven(self):
         R = self.R
         self.assertTrue({"cadena", "cartel", "constancia"} <= R.ANCLADAS)
+        # ancladas abajo SOLO con cara debajo (`sobre_cara`); sin ella van al
+        # centro optico como el resto (test_etiquetas_y_layout.py)
         for i, tipo in enumerate(("cadena", "cartel", "rotulo_inferior")):
-            e = R.completar_escena(_muestra(tipo), i)
+            e = R.completar_escena(dict(_muestra(tipo), sobre_cara=True), i)
             with self.subTest(tipo=tipo):
                 self.assertEqual(R.llenado(self.ctx, e, i), (1.0, 0.0))
         base = {"tipo": "_prueba_alta", "from": 0.0, "to": 4.0}

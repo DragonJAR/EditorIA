@@ -162,7 +162,7 @@
    "firma": "query tipada + resultado"
   },
   "cadena": {
-   "ocasion": "Secuencia de estados encadenados con conectores",
+   "ocasion": "Secuencia de estados encadenados con conectores — va abajo (bajo la cara) solo con cara debajo: overlay o `sobre_cara: true`; si no, al centro óptico",
    "firma": "lo que vio cada quien, en fila"
   },
   "callout": {
@@ -178,7 +178,7 @@
    "firma": "dónde está cada fuente"
   },
   "cartel": {
-   "ocasion": "Afirmación cartel / claim tipográfico de impacto",
+   "ocasion": "Afirmación cartel / claim tipográfico de impacto — va abajo (bajo la cara) solo con cara debajo: overlay o `sobre_cara: true`; si no, al centro óptico",
    "firma": "kicker + display; una tesis"
   },
   "chat": {
@@ -194,7 +194,7 @@
    "firma": "solo si el brief pide deleite"
   },
   "constancia": {
-   "ocasion": "Acta de casillas ✓/○ (confirmado vs pendiente)",
+   "ocasion": "Acta de casillas ✓/○ (confirmado vs pendiente) — va abajo (bajo la cara) solo con cara debajo: overlay o `sobre_cara: true`; si no, al centro óptico",
    "firma": "checklist del argumento"
   },
   "countdown": {
