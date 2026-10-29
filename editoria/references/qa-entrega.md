@@ -100,7 +100,9 @@ por eso comparten la medicion y no dos implementaciones.
   congelado a `auto_qa`: medido en un video real del catalogo, el piso de
   diff de cuadro entero es ~0.42 (> 0.35, su umbral) y vio 1.75 s de un
   congelado de 3.0 s. La nota cobra el mayor de `muerto` y `quieto` (25 por
-  fraccion) y hasta 20 por la ocupacion bajo el piso.
+  fraccion) y hasta 20 por la ocupacion bajo el piso. En un video (sin las
+  zonas de cifra del motor) el digito nuevo de un contador no cuenta como
+  pop (`_digito_nuevo`, `animacion.md`).
 - **copy**: los fallos son texto que el motor no puede colocar; los avisos
   son copy que se lee como generado o que se encoge de mas. Un plan con
   avisos es entregable; un plan con fallos, no.
@@ -149,8 +151,8 @@ por eso comparten la medicion y no dos implementaciones.
 - **movimiento**: pops o tirones. Las dos causasmas comunes son convertir
   el footage a una tasa que no es la suya (duplica cuadros) y cortar dos
   planos en seco. Ver `references/lecciones-produccion.md`. Un congelado
-  largo es casi siempre una escena sin camara ni fondo vivo (un rotulo
-  inferior sostenido); una ocupacion baja, escenas de solo tipo en un
+  largo es casi siempre una escena sin camara ni fondo vivo (el rotulo
+  inferior ya flota con `vida`); una ocupacion baja, escenas de solo tipo en un
   lienzo grande: la medicion `--plan` dice cual (`ocupacion_escena`).
 - **composicion**: la letra se queda pequena porque el copy es largo. Se
   acorta el texto del plan, no se sube el tamano a mano: el motor vuelve a

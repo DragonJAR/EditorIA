@@ -49,7 +49,8 @@ transiciones *dentro* de la escena.)
 ## Continuidad
 - **Fondo vivo**: el mundo de fondo (blobs de color, partículas, ondas) se mueve
   SIEMPRE, aunque sea lento. Un fondo congelado mata la fluidez. La cámara
-  también: push-in de `EMPUJE` = 6 % por escena (`animacion.md` §5). El
+  también: push-in de `EMPUJE` = 6 % por escena (`animacion.md` §5), y lo
+  que se lee quieto (rótulo inferior) flota con `vida`. El
   medidor lo vigila con `quieto` (sin grano): más de 1 s sin que nada se
   mueva, fuera del cierre, no pasa la puerta. Sin rejillas
   ni líneas geométricas decorativas (ver `coherencia-espacial.md`; el brand

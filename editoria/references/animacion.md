@@ -175,7 +175,12 @@ El movimiento de cámara convierte un layout plano en un espacio.
   tope 5 %: en una escena de 3 s, un 3 % que no se veía). El push-in
   TERMINA donde el contenido llena la zona segura: si no hay sitio, la toma
   arranca un poco más abierta y llega a su encaje, así que nunca se sale.
-  Exentas: `CAMARA_PROPIA`, overlays y `respira: false`.
+  Exentas: `CAMARA_PROPIA`, overlays y `respira: false`. Las que se leen
+  quietas (`QUIETAS`: el rótulo inferior) no empujan pero tampoco se
+  congelan: llevan la **vida en reposo** (`vida`), la misma flotación de la
+  cámara (`FLOTA_CAM` = 6 px a `FLOTA_HZ` = 0.3 Hz), también como overlay.
+  Medido sobre fondo quieto: un hold de 3 s pasó de `quieto_max` 3.27 s a
+  0.47 s. `final`, `kenburns` y `demo` ya se mueven solas y no la llevan.
 - **Paralaje 2.5D**: separar en 3–4 capas (fondo, medio, foco, partículas
   delante). Al mover la cámara, cada capa se desplaza en proporción a su
   profundidad (fondo 0.2×, medio 0.5×, foco 1×, primer plano 1.4×).
@@ -196,6 +201,18 @@ El movimiento de cámara convierte un layout plano en un espacio.
   el llenado solo hace crecer las escenas angostas (stats ×1.10); las de
   solo tipo (apertura, cartel) siguen siendo una banda (ocupación 0.17–0.18
   frente a 0.50–0.86 de las de datos) y `medir_animacion` las señala.
+- **Composición vertical**: en la misma transformación, una escena que es
+  una banda (alto ≤ `BANDA_MAX` = 0.5 de la zona segura), crezca o no, lleva
+  el centro de su bbox medido al **centro óptico** de la zona
+  (`CENTRO_OPTICO` = 0.46 de su altura, un poco sobre el geométrico), sin
+  salirse. Es función pura del bbox: el mismo desplazamiento en toda la
+  escena. No se mueven las que tienen sitio propio (`SITIO_PROPIO`: a
+  sangre, overlays y `ANCLADAS` abajo por su rol —constancia, cadena,
+  cartel—) ni las de `y` o `zona` declaradas; una escena más alta que media
+  zona ya la compone y tampoco se toca. La holgura del push-in se mide
+  sobre el bbox ya colocado y descuenta `FLOTA_CAM`. Lo que NO arregla: la
+  ocupación de una escena de solo tipo limitada por el ancho (apertura) no
+  sube al centrarla; eso es copy o escala de la escena.
 - **Vuelo continuo (una pieza, un solo recorrido)**: la cámara no salta de
   plano en plano: viaja. En 2D eso es un **dolly con paneo**: el mundo se
   escala y se desliza mientras la cámara se queda con el punto de interés
@@ -220,7 +237,10 @@ El movimiento de cámara convierte un layout plano en un espacio.
   En el motor lo hace UN helper, `_revela_clip`, con el resorte del rol que
   entra (sin curva nueva): lo usan `titular` (palabra a palabra) y `rotulo`
   (línea a línea). La línea de clip es la base de la línea (base +
-  descendente) y el fundido que queda es corto: solo quita el borde duro.
+  descendente) y el fundido acompaña al resorte (alfa = k): con un fundido
+  corto (k·3) la tinta que el clip destapa en un frame de un titular de
+  124 px era un pop según la altura de la escena (3 de 5 alturas medidas;
+  con alfa = k, 0 de 11).
 - **Pesos variables**: con fuentes variables (las empaquetadas en
   `assets/fonts/` lo son) el peso puede animar 400→800 en la palabra clave.
 - **Kerning y ortografía**: revisar pares problemáticos en tamaños
@@ -260,6 +280,9 @@ El acabado digital perfectamente limpio no es lo que se premia
    de pops y tirones, `quieto` (racha congelada sin grano, en s) y
    `ocupacion` por escena. Un congelado > 1 s fuera del cierre es un fondo
    o una cámara que se pararon; una escena bajo 0.20 es una banda chica.
+   En un video no hay zonas de cifra del motor: el dígito nuevo de un
+   contador ("8" → "11") pegado a las cifras que cuentan se infiere
+   (`_digito_nuevo`) y no es pop; un objeto que aparece lejos, sí.
 5. Puntuar con `rubrica-premios.md`. Si algún eje queda por debajo de 4, se
    corrige y se vuelve a renderizar antes de entregar.
 
