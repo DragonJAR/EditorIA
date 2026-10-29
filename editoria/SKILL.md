@@ -84,9 +84,9 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles: signature, techniques, the engine that serves each; plus the cinema catalogue) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` (Familia 7) + `references/recetas-ai-video.md` (§7) |
 | Animate a scene, a logo, a title, or one element | **Animation selector**: `references/animacion.md` §0 (what fits when, and how each one is requested), then the technique's reference |
-| Soft UI / product-site motion, or talking-head overlays that track the face (stagger, morph, parallax, orbit, glass, LED…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (produce via the option's motor — never vendor CVE, never add types to `SCENES`. Detail: `references/motion-ui.md`, `references/efectos-talking-head.md`) |
+| Soft UI / product-site motion, or talking-head overlays that track the face (stagger, morph, parallax, orbit, glass, LED…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (produce via the option's motor — `scripts/efectos_talking_head.py receta` clones CVE under `/tmp` when needed; never vendor CVE, never add types to `SCENES`. Detail: `references/motion-ui.md`, `references/efectos-talking-head.md`) |
 | Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
-| Viralizar: prepare a piece to be discovered and shared | **Publish flow**: `references/share-copy.md` (moment, triple hook, burned captions, platform spec, A/B variants, poster, share copy), ending at the same gate |
+| Viralizar: prepare a piece to be discovered and shared | **Publish flow**: `references/share-copy.md` (moment, triple hook, burned captions, platform spec, hook×body variantes, poster, share copy), ending at the same gate |
 
 Complete skill architecture map: `references/arquitectura.md`.
 
