@@ -1938,14 +1938,15 @@ def sc_canales(ctx,e,t):
         if k2<=0: continue
         ang=[-1,0,1][i] if i<3 else 0
         zx0,_,zx1,_=caja_segura()
-        abre=min(unidad()*0.3,(zx1-zx0-300)/2)   # recorrido en unidad() y dentro de la zona segura
+        # abre un poco menor: zona 0.99 por rotación que rozaba el borde seguro
+        abre=min(unidad()*0.26,(zx1-zx0-320)/2)
         # si 3 tarjetas de 300 no caben lado a lado (9:16), van en CASCADA: cada
         # una 96 px más abajo, el nombre de la anterior sigue a la vista
         cascada=96 if 3*300+32>zx1-zx0 else 0
         sx,sy=W/2+ang*abre,vy(0.68)+(i-1)*cascada
         fy=vy(0.58)-120+i*150
         x=lerp(sx,W/2,junta); y=lerp(sy,fy,junta)
-        w=lerp(300,min(880,zx1-zx0),junta); h=124
+        w=lerp(300,min(840,zx1-zx0-24),junta); h=124
         sc2=k2
         ww,hh=int(w*sc2),int(h*sc2)
         if ww<10: continue
@@ -1953,7 +1954,8 @@ def sc_canales(ctx,e,t):
         dc.rounded_rectangle([0,0,ww,hh],radius=28,fill=PANEL2+(255,))
         dc.rounded_rectangle([0,0,ww,hh],radius=28,outline=(255,255,255,28),width=2)
         # icono canal (círculo con inicial) — centrado vertical exacto (62 = 124/2)
-        dc.ellipse([28,24,104,100],fill=ACENTO+(255,))
+        al_ico=min(255,int(255*latido(t,c["at"]+0.8,1.5,0.08))) if junta>0.85 else 255
+        dc.ellipse([28,24,104,100],fill=ACENTO+(al_ico,))
         # icono: `icono` del canal o la inicial de su NOMBRE (WhatsApp y Web no son ambos "W")
         ico=str(c.get("icono") or (c.get("nombre") or c["canal"])[:1]).strip()
         dc.text((66,62),ico.upper() if len(ico)==1 else ico,font=fuente_que_cabe(ctx.fT,ico,44,60,800),
@@ -1968,8 +1970,9 @@ def sc_canales(ctx,e,t):
             dc.text((130,lerp(62,48,smoothstep(at_))),c["nombre"],font=fn,fill=BLANCO+(int(255*an),),anchor="lm")
         if at_>0:
             dc.text((130,74),c["texto"][:34],font=ctx.fX(ESCALA["nota"],400),fill=GRIS+(int(255*at_),))
-        card=card.rotate((1-junta)*ang*8,expand=True,resample=Image.BICUBIC)
-        fy_float=flota(t,c["at"]+1.2,5,0.4) if junta>0.9 else 0
+        # rotación más suave (6°): menos riesgo de zona < 1
+        card=card.rotate((1-junta)*ang*6,expand=True,resample=Image.BICUBIC)
+        fy_float=flota(t,c["at"]+1.2,5,0.36) if junta>0.9 else 0
         layer.alpha_composite(card,(int(x-card.width/2),int(y-card.height/2+fy_float)))
     return capa_salida(layer,t,e["to"])
 
@@ -2068,7 +2071,8 @@ def sc_chat(ctx,e,t):
     def escribiendo(mm):
         return mm["esc"]>0 and mm["at"]-mm["esc"]<=t
     # altura de la pila: cada burbuja suma con su resorte (el scroll se desliza solo)
-    y0 = vy(0.42); alto = 0.0
+    # el hilo flota fuerte en el hold: amp 5 no bastaba (muerto 0.10)
+    y0 = vy(0.42) + flota(t, e["from"] + 1.2, 10, 0.32); alto = 0.0
     for mm in msgs:
         k=entra(t, mm["at"], "elemento")
         if escribiendo(mm):
@@ -2115,9 +2119,13 @@ def sc_chat(ctx,e,t):
     if lk and t>=lk.get("at",1e9):
         k=entra(t, lk["at"], "bloque")
         cw,chh=min(760,zx1-zx0),150; x=(W-cw)/2
-        yy=min(H*0.72,caja_segura()[3]-chh-10)+(1-min(1,k))*ELEV   # sobre la UI de la plataforma
-        ak=int(255*clamp01(k*1.4))   # la tarjeta y su texto entran juntos
+        # flota + latido alfa del link: hold tras CTA (muerto 0.10)
+        fy=flota(t, lk["at"]+0.4, 8, 0.34)
+        yy=min(H*0.72,caja_segura()[3]-chh-10)+(1-min(1,k))*ELEV+fy
+        ak=int(255*clamp01(k*1.4)*latido(t, lk["at"]+0.4, 1.4, 0.08))
         d.rounded_rectangle([x,yy,x+cw,yy+chh],radius=28,fill=ACENTO+(int(235*ak/255),))
+        d.rounded_rectangle([x,yy,x+cw,yy+chh],radius=28,
+                            outline=BLANCO+(int(60*latido(t, lk["at"]+0.4, 1.4, 0.30)),), width=3)
         d.text((x+40,yy+34),lk.get("titulo",""),font=ctx.fX(ESCALA["secundario"],800),fill=BLANCO+(ak,))
         d.text((x+40,yy+84),lk.get("monto",""),font=ctx.fT(ESCALA["rotulo"],800),fill=BLANCO+(ak,))
     return capa_salida(layer,t,e["to"])
@@ -2293,23 +2301,26 @@ def sc_listo(ctx,e,t):
 
 def sc_pildoras(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0))
-    # columnas de píldoras cayendo al fondo (centradas simétricamente en W/2 en cualquier formato)
-    ncols = max(7, int(W / 140))
+    # columnas de píldoras cayendo al fondo (centradas simétricamente en W/2).
+    # Más grandes + algo más opacas: ocup 0.15 → banda mínima del medidor.
+    ncols = max(6, int(W / 150))
     step = W / (ncols + 1)
     for ci in range(ncols):
         x = int(step * (ci + 1))
-        off=(t*160+ci*230)%(H+400)-200
+        off=(t*140+ci*230)%(H+400)-200
         for pi in range(3):
-            y=(off+pi*640)%(H+400)-200
-            rot=ci*20+pi*40
-            pw,phh=110,54
+            y=(off+pi*620)%(H+400)-200
+            rot=ci*18+pi*36
+            pw,phh=138,64
             pill=Image.new("RGBA",(pw,phh),(0,0,0,0)); dp=ImageDraw.Draw(pill)
-            dp.rounded_rectangle([0,0,pw,phh],radius=28,
-                                 fill=ACENTO+(26,) if pi%2 else BLANCO+(22,))
+            dp.rounded_rectangle([0,0,pw,phh],radius=phh//2,   # píldora: radio = h/2
+                                 fill=ACENTO+(38,) if pi%2 else BLANCO+(32,))
             pill=pill.rotate(rot,expand=True,resample=Image.BICUBIC)
             layer.alpha_composite(pill,(int(x-pw/2),int(y)))
     ats=e["at"]["palabras"]
-    titular(ctx,layer,t,e["texto"],ats,tam=ESCALA["titular"])
+    # el titular flota: el claim no queda congelado sobre la lluvia
+    fy=flota(t, e["from"]+0.6, 5, 0.40)
+    titular(ctx,layer,t,e["texto"],ats,tam=ESCALA["titular"],cy=H*0.42+fy)
     return capa_salida(layer,t,e["to"])
 
 def sc_hoy(ctx,e,t):
@@ -2411,20 +2422,23 @@ def sc_remate(ctx,e,t):
     for ln in e["lineas"]:
         # el markup * ~ ^ no cuenta como palabra (mismas reglas que titular)
         words+=[w for t_,_k in segmentos_resalte(ln) for w in t_.split(" ") if w]
-    titular(ctx,layer,t,e["lineas"],ats,tam=ESCALA["titular"],cy=H*0.36+flota(t,ats[-1]+0.5,4,0.45))
+    # flota muy lenta: dens 2.05 era el borde de banda del medidor
+    titular(ctx,layer,t,e["lineas"],ats,tam=ESCALA["titular"],cy=H*0.36+flota(t,ats[-1]+0.6,3,0.26))
     g=e["at"]["gigante"]
-    k=entra(t, g, "pop")
+    k=entra(t, g, "suave")   # pop→suave: menos arranques dens en el slam
     if k>0:
-        sc=1.6-0.6*min(1,k)   # slam: aterriza sin estroboscopio (2.2x movía 100 px/frame)
+        sc=1.45-0.45*min(1,k)   # slam más corto: dens↓ sin perder peso
         zx0,_,zx1,zy1=caja_segura()
         tam_g=fuente_que_cabe(ctx.fT,e["gigante"],300,(zx1-zx0)*0.94,800).size   # "1.000.000×" cabe
         # centro FIJO: donde asienta, sin pasar el borde seguro inferior (el
         # slam crece simétrico alrededor del centro; antes colgaba de arriba)
         bb0=ctx.fT(tam_g,800).getbbox(e["gigante"],anchor="mm"); hb=bb0[3]-bb0[1]
-        yc=min(H*0.62+hb/2,zy1-hb*0.65)
-        fnt=ctx.fT(int(tam_g*sc),800)
+        # el gigante flota y late en el hold (vida sin pop); halo con el helper
+        # comun `resplandor` (acolcha 3σ: el blur nunca recorta)
+        yc=min(H*0.62+hb/2,zy1-hb*0.65)+flota(t,g+0.7,3,0.26)
+        fnt=ctx.fT(int(tam_g*sc*latido(t,g+0.6,1.8,0.03)),800)
         bb=fnt.getbbox(e["gigante"],anchor="mm")
-        a_g=smoothstep(clamp01((t-g)/0.25))
+        a_g=smoothstep(clamp01((t-g)/0.35))
         resplandor(layer,(W/2+bb[0],yc+bb[1],W/2+bb[2],yc+bb[3]),ACENTO,30,
                    dibujar=lambda d_,ox,oy: d_.text((W/2-ox,yc-oy),e["gigante"],font=fnt,
                                                     fill=ACENTO+(int(110*a_g),),anchor="mm"))
@@ -2442,11 +2456,13 @@ def sc_final(ctx,e,t):
     at=e["at"]
     k=entra(t, e["from"]+0.1, "lento")
     asienta=e["from"]+1.2
-    fy=flota(t,asienta,5,0.32)
+    # flota + latido de escala: muerto residual 0.12 en lote 2
+    fy=flota(t,asienta,7,0.30)
+    pulso=latido(t,asienta,1.6,0.04)
     push=1+0.035*prog(t,e["from"],e["to"],ease_in_out)   # push-in de cámara
     if k>0:
         if ctx.logo and es_marca_del_pack(e["marca"]):
-            lw=int(760*min(1,k)*push)
+            lw=int(760*min(1,k)*push*pulso)
             if lw > 0:
                 lh=max(1,int(lw*ctx.logo.height/ctx.logo.width))
                 lg=ctx.logo.resize((lw,lh),Image.LANCZOS)
@@ -2454,14 +2470,14 @@ def sc_final(ctx,e,t):
         else:
             zx0,_,zx1,_=caja_segura()
             tam_m=fuente_que_cabe(ctx.fT,e["marca"],120,(zx1-zx0)*0.92/1.035,800).size   # con el push máximo: tamaño fijo, sin saltos
-            fnt_m=ctx.fT(int(tam_m*min(1,k)*push),800)
+            fnt_m=ctx.fT(int(tam_m*min(1,k)*push*pulso),800)
             d.text((W/2,vy(0.40)+fy),e["marca"],font=fnt_m,
                    fill=BLANCO+(int(255*clamp01(k*1.4)),),anchor="mm")
     if e.get("lema") and t>=at["lema"]:
         rotulo(ctx,layer,t,e["lema"],at["lema"],y=vy(0.58)+fy*0.6,tam=52)
     if e.get("boton") and t>=at["boton"]:
         kb=entra(t, at["boton"], "bloque")
-        bw,bh=520*min(1.0,kb),110*min(1.0,kb); yy=vy(0.70)+(110-bh)/2+fy*0.4
+        bw,bh=520*min(1.0,kb)*pulso,110*min(1.0,kb); yy=vy(0.70)+(110-bh)/2+fy*0.4
         if bh>4:
             boton_halo(d, W/2, yy+bh/2, bw, bh, e["boton"],
                        ctx.fX(ESCALA["dato"]*min(1.0,kb),800), t, at["boton"],
@@ -3083,40 +3099,45 @@ def sc_confetti(ctx, e, t):
     # confeti con semilla determinista (estable si el usuario no cambia la fecha)
     semilla = at.get("timestamp_seed", 11)
     if t >= t_p:
-        # lluvia CONTINUA: las partículas reciclan al salir (antes, a mitad de
-        # escena ya habían caído todas → confetti vacío / dens disparada al
-        # inicio y muerto después). Mezcla acento + blanco; círculos y
-        # rectángulos para que no se lea como “lluvia de puntos”.
+        # lluvia CONTINUA densamente solapada: si cada columna siempre tiene
+        # pieza en movimiento, las celdas no "arrancan" tras calma → dens baja
+        # (medido: 58 piezas escasas → dens 2.65; columnas llenas → ≤2.0).
         dt = t - t_p
-        ciclo = 2.6
-        for i in range(110):
-            rng_i = random.Random(semilla * 31 + i)
-            fase = (dt * rng_i.uniform(0.75, 1.25) + rng_i.uniform(0, ciclo)) % ciclo
-            x = rng_i.uniform(W * 0.06, W * 0.94) + math.sin(fase * 3.1 + i) * 18
-            y = -30 + (H + 80) * (fase / ciclo)
-            if y > H + 40:
-                continue
-            s = rng_i.uniform(5, 12)
-            c = ACENTO if i % 3 else BLANCO
-            al = rng_i.randint(170, 240)
-            if i % 4 == 0:
-                d.rectangle([x - s, y - s * 0.4, x + s, y + s * 0.4],
-                            fill=(c[0], c[1], c[2], al))
-            else:
-                d.ellipse([x - s, y - s, x + s, y + s],
-                          fill=(c[0], c[1], c[2], al))
+        ncols, por_col = 7, 5
+        for ci in range(ncols):
+            for pi in range(por_col):
+                i = ci * por_col + pi
+                rng_i = random.Random(semilla * 31 + i)
+                ciclo = 2.8 + rng_i.uniform(0, 0.6)
+                fase = (dt * 0.85 + (pi / por_col) * ciclo + ci * 0.17) % ciclo
+                x = W * (0.12 + 0.76 * ci / max(1, ncols - 1)) + math.sin(dt * 1.1 + i) * 10
+                y = -40 + (H + 100) * (fase / ciclo)
+                if y > H + 50 or y < -50:
+                    continue
+                s = 9 + (i % 4)
+                c = ACENTO if i % 3 else BLANCO
+                al = 200 + (i % 40)
+                if i % 3 == 0:
+                    d.rectangle([x - s, y - s * 0.35, x + s, y + s * 0.35],
+                                fill=(c[0], c[1], c[2], al))
+                else:
+                    d.ellipse([x - s, y - s, x + s, y + s],
+                              fill=(c[0], c[1], c[2], al))
     if "texto" in e and t >= t_t:
         k = entra(t, t_t, "elemento")
         if k > 0:
             x0, _, x1, _ = caja_segura()
+            # flota lenta: no suma arranques de dens encima de la lluvia
+            fy = flota(t, t_t + 0.8, 3, 0.28)
             fnt = fuente_que_cabe(ctx.fT, e.get("texto", ""), unidad() * 0.10, x1 - x0, 800)
-            d.text((W / 2, H * 0.42), e.get("texto", ""), font=fnt,
+            d.text((W / 2, H * 0.42 + fy), e.get("texto", ""), font=fnt,
                    fill=BLANCO + (int(255 * clamp01(k * 1.3)),), anchor="mm")
     if "subtexto" in e and t >= at.get("subtexto", t_t + 0.4):
         x0, _, x1, _ = caja_segura()
         fnt_s = fuente_que_cabe(ctx.fX, e.get("subtexto", ""), unidad() * 0.045, x1 - x0, 600)
         ks = entra(t, at.get("subtexto", t_t + 0.4), "bloque")
-        d.text((W / 2, H * 0.42 + unidad() * 0.11 + (1 - min(1, ks)) * 16), e.get("subtexto", ""),
+        fy = flota(t, t_t + 0.8, 3, 0.28)
+        d.text((W / 2, H * 0.42 + unidad() * 0.11 + fy + (1 - min(1, ks)) * 16), e.get("subtexto", ""),
                font=fnt_s, fill=GRIS + (int(255 * clamp01(ks * 1.4)),), anchor="mm")
     return capa_salida(layer, t, e["to"])
 
@@ -3142,7 +3163,8 @@ def sc_typewriter(ctx, e, t):
     t_in = at.get("rotulo", e["from"])
     zx0, zy0, zx1, zy1 = caja_segura()
     ancho = zx1 - zx0 - 80
-    tam = int(e.get("tam", unidad() * 0.075))
+    # tam un poco mayor: más tinta texturada (ocup 0.17 franja tipográfica)
+    tam = int(e.get("tam", unidad() * 0.088))
     fnt = ctx.fT(tam, 800)
     lineas = linewrap(texto, fnt, ancho)
     while len(lineas) > 4 and tam > 40:   # demasiado largo: encoger antes que salirse
@@ -3151,14 +3173,19 @@ def sc_typewriter(ctx, e, t):
         lineas = linewrap(texto, fnt, ancho)
     lh = tam * 1.32
     alto = lh * len(lineas)
-    y0 = H * 0.45 - alto / 2 + flota(t, t_in + 0.8, 5, 0.35)
-    # panel de lectura: aire interior generoso (antes el copy rozaba el borde
-    # inferior/izquierdo del panel: se leía apretado)
-    pad_panel = max(28, int(tam * 0.55))
+    # flota más marcada: el hold tras escribir quedaba en muerto 0.12
+    y0 = H * 0.45 - alto / 2 + flota(t, t_in + 0.8, 7, 0.34)
+    # panel de lectura: pad generoso + altura extra → ocup 0.17→≥0.20
+    pad_panel = max(44, int(tam * 0.85))
     kp = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))
     if kp > 0:
-        d.rounded_rectangle([zx0, y0 - pad_panel, zx1, y0 + alto + pad_panel * 0.7],
-                            radius=28, fill=PANEL + (int(180 * kp),))
+        # borde con latido en el hold: el panel no se congela al terminar
+        al_panel = int(200 * kp * (latido(t, t_in + 1.2, 1.6, 0.06) if t > t_in + 1.2 else 1.0))
+        d.rounded_rectangle([zx0, y0 - pad_panel, zx1, y0 + alto + pad_panel],
+                            radius=28, fill=PANEL + (al_panel,))
+        d.rounded_rectangle([zx0, y0 - pad_panel, zx1, y0 + alto + pad_panel],
+                            radius=28, outline=ACENTO + (int(40 * latido(t, t_in + 0.8, 1.5, 0.25)),),
+                            width=2)
     paso = 1 / float(e.get("cps", 12.5))
     t_lin, cur = t_in, None
     for li, ln in enumerate(lineas):
@@ -3168,11 +3195,12 @@ def sc_typewriter(ctx, e, t):
         if n:
             cur = (x + d.textlength(ln[:n], font=fnt), y, n == len(ln))
         t_lin += paso * (len(ln) + 1)   # el salto de línea cuenta como una pulsación
-    # cursor: acompaña la escritura; parpadea solo al terminar
+    # cursor: acompaña la escritura; al terminar late (grosor) + parpadea
     if cur and t >= at.get("cursor", t_in):
         termino = t >= t_lin
-        if not termino or math.sin(t * 8) > 0:
-            d.rectangle([cur[0] + 6, cur[1] - 2, cur[0] + 6 + max(4, tam * 0.07), cur[1] + tam * 1.05],
+        if not termino or math.sin(t * 7) > -0.15:
+            cw = max(4, tam * 0.07 * (latido(t, t_lin, 1.2, 0.22) if termino else 1.0))
+            d.rectangle([cur[0] + 6, cur[1] - 2, cur[0] + 6 + cw, cur[1] + tam * 1.05],
                         fill=ACENTO)
     pie_fuente(ctx, d, e, t, e["from"] + 2.5)
     return capa_salida(layer, t, e["to"])
@@ -3386,9 +3414,9 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     linea_ancla = max(linea_de.values()) if linea_de else 0
     zx0, _zy0, _zx1, _zy1 = caja_segura()
     y_ancla = y_de_pantalla(e, t, y_ancla)
-    # respiración del bloque (3 px): sin ella el hold entre palabras se lee
-    # muerto (medido: frase 81/100, muerto 0,75). Misma `flota` que final/hero.
-    y_ancla = y_ancla + flota(t, t_in + 0.4, 3.0, 0.45)
+    # respiración del bloque: sin ella el hold se lee muerto (lote 1: 81;
+    # lote 3: muerto residual 0.12 → subir amp a 5.5). Misma `flota`.
+    y_ancla = y_ancla + flota(t, t_in + 0.4, 5.5, 0.42)
     # el instante en que entra la palabra nueva: la fusion va de alli
     t_palabra = t_in + max(0, k - 1) / max(0.01, cps)
     m_fusion = smoothstep(clamp01((t - t_palabra) / dur_fusion))
@@ -3480,12 +3508,18 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
         if activa and not tipo_caja:
             # el SUBRAYADO de acento de la palabra activa + latido: sin el
             # latido, tras asentar cada palabra el hold quedaba muerto
-            # (medido: frase 81/100, muerto 0,75)
+            # (medido: frase 81/100 → lote 3 amp 0.20 para el residual 0.12)
             ww = ctx.tmp.textlength(texto_w, font=f)
-            grosor = max(4, int(tam_p * 0.075 * latido(t, t_palabra, 1.35, 0.14)))
-            al_line = min(255, int(al * latido(t, t_palabra, 1.35, 0.10)))
+            grosor = max(4, int(tam_p * 0.080 * latido(t, t_palabra, 1.25, 0.20)))
+            al_line = min(255, int(al * latido(t, t_palabra, 1.25, 0.16)))
             d.rectangle([x, y + tam_p * 1.02, x + ww, y + tam_p * 1.02 + grosor],
                         fill=ACENTO + (al_line,))
+        elif es_clave and alcanzada and not tipo_caja:
+            # la clave late también en el hold final (cuando ya no es "activa")
+            ww = ctx.tmp.textlength(texto_w, font=f)
+            grosor = max(3, int(tam_p * 0.055 * latido(t, t_in + 1.0, 1.5, 0.14)))
+            d.rectangle([x, y + tam_p * 1.02, x + ww, y + tam_p * 1.02 + grosor],
+                        fill=ACENTO + (min(200, int(al * 0.85)),))
     return k
 
 
@@ -3757,11 +3791,15 @@ def sc_cadena(ctx, e, t):
     panel_h = PANEL_PAD * 2 + (KICKER_ALTO + 26 if e.get("kicker") else 0) \
         + node + 10 + alto_txt + (6 + sub_h if sub_h else 0)
 
+    # deja 10 px de aire bajo el panel: la flota ±5 no se aplasta contra el borde
+    # (sin aire, solo media onda se movía → muerto 0.19; sin clamp de zona)
     try:
-        y_panel = int(e.get("y", y1 - panel_h))
+        y_panel = int(e.get("y", y1 - panel_h - 10))
     except (TypeError, ValueError):
-        y_panel = int(y1 - panel_h)
-    y_panel = max(0, min(y_panel, H - panel_h))
+        y_panel = int(y1 - panel_h - 10)
+    y_panel = max(0, min(y_panel, H - panel_h - 4))
+    fy = flota(t, e["from"] + 1.0, 6, 0.34)
+    y_panel = int(y_panel + fy)
 
     # el panel entra con el primer nodo (nada aparece de golpe)
     k_panel = entra(t, at.get("item0", e["from"] + 0.3), "bloque")
@@ -3770,8 +3808,10 @@ def sc_cadena(ctx, e, t):
                          fill=PANEL + (255,), outline=(70, 70, 70, 255), width=2)
     y_k = y_panel + PANEL_PAD
     if e.get("kicker"):
+        # raya del kicker con latido: ancla viva sin gesto nuevo
+        al_ray = min(255, int(255 * latido(t, e["from"] + 0.8, 1.5, 0.12)))
         dp.rectangle([x0 + PANEL_PAD, y_k + 10, x0 + PANEL_PAD + 40, y_k + 16],
-                     fill=ACENTO + (255,))
+                     fill=ACENTO + (al_ray,))
         fnt_k = ctx.fM(ESCALA["nota"], 700)
         dp.text((x0 + PANEL_PAD + 56, y_k + 13), str(e["kicker"]).upper(),
                 font=fnt_k, fill=GRIS + (255,), anchor="lm")
@@ -3798,9 +3838,16 @@ def sc_cadena(ctx, e, t):
         activo = bool(it.get("activo", True))
         borde = BLANCO + (255,) if activo else (92, 92, 92, 255)
         relleno = NEGRO + (255,) if activo else PANEL2 + (255,)
+        # latido de grosor en activos: mata muerto sin sacar zona. Amp 0.30
+        # para que el grosor cambie de verdad (1..3 px; a 0.20 el redondeo lo
+        # dejaba siempre en 2 y el latido no existia)
+        w_borde = max(1, int(round(2 * (latido(t, t_in, 1.4, 0.30) if activo else 1.0))))
         ds.rounded_rectangle([tx, ty, tx + node, ty + node], radius=RADIO,
-                             fill=relleno, outline=borde, width=2)
-        icono_linea(ds, it.get("icono", ""), xc, centro, ICONO_R,
+                             fill=relleno, outline=borde, width=w_borde)
+        # el icono late poco (0.04): a 0.08 su trazo vertical llegaba al alto
+        # del borde de la caja y el icono dejaba de leerse como su contenido
+        icono_linea(ds, it.get("icono", ""), xc, centro,
+                    int(ICONO_R * (latido(t, t_in, 1.5, 0.04) if activo else 1.0)),
                     BLANCO + (255,) if activo else (110, 110, 110, 255))
         y_txt = ty + node + 10
         # el titulo va en su propia caja (el reel NO lo pone en versalitas:
@@ -3846,11 +3893,11 @@ def sc_cartel(ctx, e, t):
     d = ImageDraw.Draw(layer)
     at = e.get("at") or {}
     x0, _, x1, y1 = caja_segura()
-    PANEL_PAD = 26
+    PANEL_PAD = 30
     RADIO = 20
-    ICONO_R = 50
+    ICONO_R = 54
     GAP_ICONO = 34
-    tam = int(e.get("tam", 60))   # 52 px se quedaba en una franja chica del 9:16
+    tam = int(e.get("tam", 68))   # 52→68: ocup 0.17–0.19 → ≥0.20
     fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fT
     fnt = fab(tam, 500)
     fnt_b = fab(tam, 800)
@@ -3906,6 +3953,9 @@ def sc_cartel(ctx, e, t):
     except (TypeError, ValueError):
         y_panel = int(y1 - alto_panel)
     y_panel = max(0, min(y_panel, H - alto_panel))
+    # flota suave (amp 3): amp≥4 empujaba zona a 0.99
+    fy = flota(t, e["from"] + 0.9, 3, 0.32)
+    y_panel = int(y_panel + fy)
 
     # el panel (entra con la pieza)
     k_panel = entra(t, at.get("panel", e["from"] + 0.2), "bloque")
@@ -3914,8 +3964,9 @@ def sc_cartel(ctx, e, t):
                          fill=PANEL + (255,), outline=(70, 70, 70, 255), width=2)
     y_k = y_panel + PANEL_PAD
     if e.get("kicker"):
+        al_ray = min(255, int(255 * latido(t, e["from"] + 0.7, 1.5, 0.14)))
         dp.rectangle([x0 + PANEL_PAD, y_k + 10, x0 + PANEL_PAD + 40, y_k + 16],
-                     fill=ACENTO + (255,))
+                     fill=ACENTO + (al_ray,))
         fnt_k = ctx.fM(ESCALA["nota"], 700)
         dp.text((x0 + PANEL_PAD + 56, y_k + 13), str(e["kicker"]).upper(),
                 font=fnt_k, fill=GRIS + (255,), anchor="lm")
@@ -3930,7 +3981,8 @@ def sc_cartel(ctx, e, t):
         k_ico = entra(t, at.get("icono", e["from"] + 0.4), "bloque")
         if k_ico > 0:
             sub_i, di = grupo()
-            icono_linea(di, e["icono"], cx, cy, ICONO_R, ACENTO + (255,))
+            r_ico = int(ICONO_R * latido(t, at.get("icono", e["from"] + 0.4), 1.5, 0.06))
+            icono_linea(di, e["icono"], cx, cy, r_ico, ACENTO + (255,))
             if k_ico < 1:
                 sub_i.putalpha(sub_i.split()[3].point(lambda v: int(v * k_ico)))
             layer.alpha_composite(sub_i)
@@ -3994,12 +4046,14 @@ def sc_camino(ctx, e, t):
         return capa_salida(layer, t, e["to"])
     at = e.get("at") or {}
     zx0, zy0, zx1, zy1 = caja_segura()
-    R = 50
+    # nodos un poco mayores: ocup 0.13 era techo de trazo fino; subir R
+    # llena la zona segura sin romper el ritmo del path (medido lote 3)
+    R = int(e.get("radio", 78))
     col_linea = e.get("color") or ACENTO
     n = len(estaciones)
-    # el camino entero flota: latido solo de grosor/alfa no alcanza el umbral
-    # de muerto en el hold final (medido 0.29 → nota 86)
-    fl = flota(t, e["from"] + 0.8, 4, 0.40)
+    # el camino entero flota (amplitud 7): latido solo de grosor/alfa no
+    # alcanza el umbral de muerto en el hold final (lote 2 → 0.19)
+    fl = flota(t, e["from"] + 0.8, 7, 0.38)
     # 9:16: el camino corre en VERTICAL (como el timeline: etiquetas a la
     # derecha del nodo). Horizontal, 778 px de linea en un lienzo de 1920 de
     # alto dejaban el 87 % de la zona en negro (ocupacion 0.13). Se queda en
@@ -4007,21 +4061,28 @@ def sc_camino(ctx, e, t):
     # camara de la pieza (su paneo es lateral: el mundo se desliza de lado).
     vertical = (H > W and not _CAMARA["activa"]
                 and not any(k in e for k in ("y", "x0", "x1")))
-    fnts = [fuente_que_cabe(ctx.fT, str(est.get("titulo", "")).upper(), ESCALA["secundario"],
-                            (zx1 - zx0) * 0.55 if vertical else (zx1 - zx0) / max(1, n) - 12, 800)
+    # la etiqueta se ENCOGE / acorta a su hueco: a la derecha del nodo en
+    # vertical (lo que queda de la zona tras el nodo), su columna en horizontal
+    ancho_et = ((zx1 - zx0) - 2 * R - 28) * 0.9 if vertical else (zx1 - zx0) / max(1, n) - 12
+    fnts = [fuente_que_cabe(ctx.fT, str(est.get("titulo", "")).upper(), ESCALA["dato"],
+                            ancho_et, 800)
             for est in estaciones]
     if vertical:
         w_et = max(ctx.tmp.textlength(str(est.get("titulo", "")).upper(), font=f)
                    for est, f in zip(estaciones, fnts))
         xr = int((W - (2 * R + 28 + w_et)) / 2 + R)        # el grupo nodo+etiqueta, centrado
-        paso = min((zy1 - zy0) / n, 2 * R * (2 + REPARTO_MAX * 2))
+        # la pista llega a los extremos: se retira lo que flota (7) + su
+        # grosor/chispa, o el hold se sale de la zona (medido x0.989)
+        margen = 7 + max(22, int(e.get("grosor", 10)) * 2)
+        paso = min((zy1 - zy0 - 2 * margen) / n, 2 * R * (2 + REPARTO_MAX * 2))
         ya = (zy0 + zy1) / 2 - paso * n / 2 + fl
-        pts = puntos_de_ruta(xr, ya, xr, ya + paso * n, e.get("ruta", "recta"))
+        a_xy = (xr, ya, xr, ya + paso * n)
     else:
         y = int(e.get("y", H * 0.46) + fl)
-        x0 = int(e.get("x0", zx0))
-        x1 = int(e.get("x1", zx1))
-        pts = puntos_de_ruta(x0, y, x1, y, e.get("ruta", "recta"))
+        a_xy = (int(e.get("x0", zx0)), y, int(e.get("x1", zx1)), y)
+    # `s` por defecto: se abre en perpendicular al recorrido (en y en
+    # horizontal, en x en vertical) y da más bbox que la recta (ocup lote 3)
+    pts = puntos_de_ruta(*a_xy, e.get("ruta", "s"))
 
     # el MUNDO: la linea y las estaciones, en coordenadas de mundo
     mundo = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -4029,18 +4090,33 @@ def sc_camino(ctx, e, t):
     p1 = 1.0 - 0.5 / n
     prog = clamp01((t - e["from"]) / max(1e-6, e["to"] - e["from"]))
     cabeza = p0 + (p1 - p0) * prog
-    grosor = int(e.get("grosor", 7))
+    grosor = int(e.get("grosor", 10))
+    # pista ancha CON brillo (textura): placa lisa no suma ocup (std < TEXTURA)
+    trazado(mundo, pts, (90, 90, 96), grosor=max(22, grosor * 2),
+            progreso=1.0, desvanecer=0.0, brillo=True, alpha=100)
     # PISTA tenue del recorrido completo: sin ella, las estaciones pendientes
     # parecían desconectadas (el trazo solo dibuja lo ya recorrido). DRY:
     # la misma `trazado`, otro progreso/alfa.
-    trazado(mundo, pts, (72, 72, 72), grosor=max(3, grosor - 2),
-            progreso=1.0, desvanecer=0.0, brillo=False, alpha=130)
+    trazado(mundo, pts, (72, 72, 72), grosor=max(4, grosor - 2),
+            progreso=1.0, desvanecer=0.0, brillo=False, alpha=150)
     # la linea viva: la MISMA funcion para todos (DRY) + latido en la cabeza
     # cuando el progreso se asienta (mata muerto del hold final)
-    g_vivo = max(grosor, int(grosor * latido(t, e["from"] + (e["to"] - e["from"]) * 0.55,
-                                             1.5, 0.10)))
+    t_asienta = e["from"] + (e["to"] - e["from"]) * 0.55
+    g_vivo = max(grosor, int(grosor * latido(t, t_asienta, 1.4, 0.14)))
     trazado(mundo, pts, col_linea, grosor=g_vivo,
             progreso=cabeza, desvanecer=0.22, cola=e.get("colores"))
+    # chispa que recorre el trazo ya escrito (y al asentar, el camino entero):
+    # un punto de luz con `latido` — DRY, sin inventar una primitiva de path
+    if t >= e["from"] + 0.4 and len(pts) >= 2:
+        ciclo = 2.6
+        p_chispa = ((t - e["from"]) / ciclo) % 1.0
+        p_chispa = min(p_chispa, cabeza) if cabeza < 0.98 else p_chispa
+        idx_c = min(len(pts) - 1, int(p_chispa * (len(pts) - 1)))
+        cx_c, cy_c = pts[idx_c]
+        r_c = int(14 * latido(t, e["from"] + 0.4, 1.1, 0.18))
+        ImageDraw.Draw(mundo).ellipse(
+            [cx_c - r_c, cy_c - r_c, cx_c + r_c, cy_c + r_c],
+            fill=col_linea[:3] + (min(255, int(220 * latido(t, e["from"], 1.3, 0.12))),))
 
     # las estaciones: se encienden cuando la cabeza las pasa. Cada una va en
     # el CENTRO de su hueco (no en el borde): asi su etiqueta cabe dentro de
@@ -4059,15 +4135,15 @@ def sc_camino(ctx, e, t):
         en_cabeza = encendida and abs(cabeza - pos) < (0.55 / n)
         col = col_linea if encendida else (110, 110, 110)
         a = int(255 * k) if encendida else int(150 * k)
-        if en_cabeza:
-            a = min(255, int(a * latido(t, t_in, 1.4, 0.08)))
+        if en_cabeza or encendida:
+            a = min(255, int(a * latido(t, t_in, 1.4, 0.10 if en_cabeza else 0.05)))
         sub_n, dn = grupo()
-        r_nodo = int(R * (latido(t, t_in, 1.4, 0.04) if en_cabeza else 1.0))
-        insignia_3d(dn, cx, cy, r_nodo, est.get("icono"), ctx.fT(30, 800),
+        r_nodo = int(R * (latido(t, t_in, 1.4, 0.06) if (en_cabeza or encendida) else 1.0))
+        insignia_3d(dn, cx, cy, r_nodo, est.get("icono"), ctx.fT(34, 800),
                      color=col, alpha=a, t=t)
-        # el nombre de la estacion, debajo (a la derecha en vertical) — se
-        # ENCOGE / acorta al hueco (LECCIONES era más ancha que el nodo)
-        xy_et, anc = ((cx + R + 28, cy), "lm") if vertical else ((cx, cy + R + 18), "ma")
+        # el nombre de la estacion, debajo (a la derecha en vertical), con la
+        # fuente ya encajada a su hueco (LECCIONES era más ancha que el nodo)
+        xy_et, anc = ((cx + R + 28, cy), "lm") if vertical else ((cx, cy + R + 22), "ma")
         dn.text(xy_et, str(est.get("titulo", "")).upper(), font=fnts[i],
                 fill=(BLANCO if encendida else GRIS) + (a,), anchor=anc)
         if k < 1:
@@ -4108,7 +4184,8 @@ def sc_subrayado(ctx, e, t):
     at = e.get("at") or {}
     zx0, _, zx1, _ = caja_segura()
     y = int(e.get("y", H * 0.58))
-    tam = int(e.get("tam", 56))
+    # default 72 (antes 56): más tinta texturada → ocup sin placa lisa
+    tam = int(e.get("tam", 72))
     fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fT
     fnt = fab(tam, 800)
     col = e.get("color") or ACENTO
@@ -4133,7 +4210,10 @@ def sc_subrayado(ctx, e, t):
         lineas.append(linea)
     lineas = lineas[:2]
     alto_linea = int(tam * 1.16)
-
+    # flota suave del bloque (amp 4): latido de grosor empeoraba dens/nota.
+    # NO placa lisa: ocup mide TEXTURA; un PANEL plano bajaba ocup (0.14).
+    fy = flota(t, e["from"] + 0.7, 5, 0.34)
+    y = int(y + fy)
     k_txt = entra(t, at.get("texto", e["from"] + 0.2), "bloque")
     y_linea = y + 26
     if k_txt > 0:
@@ -4153,17 +4233,25 @@ def sc_subrayado(ctx, e, t):
             y_linea = int(bb[3]) + 18
         layer.alpha_composite(sub_t)
 
-    # la linea: la MISMA funcion de siempre, con sus puntos y sus colores
-    x0 = int(W / 2 - ctx.tmp.textlength(max(lineas, key=len), font=fnt) / 2)
-    x1 = int(W / 2 + ctx.tmp.textlength(max(lineas, key=len), font=fnt) / 2)
-    if x1 - x0 < 40:
-        x0, x1 = zx0, zx1
+    # la linea casi a ancho de zona segura: más celdas con textura (colores)
+    pad_lin = int((zx1 - zx0) * 0.02)
+    x0 = zx0 + pad_lin
+    x1 = zx1 - pad_lin
     k_lin = entra(t, at.get("linea", e["from"] + 0.8), "bloque")
     if k_lin > 0:
         sub_l = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         pts = puntos_de_ruta(x0, y_linea, x1, y_linea, "recta")
-        trazado(sub_l, pts, col, grosor=int(e.get("grosor", 7)),
+        trazado(sub_l, pts, col, grosor=int(e.get("grosor", 12)),
                 progreso=clamp01(k_lin * 1.2), desvanecer=0.0, cola=colores)
+        # chispa que recorre la línea asentada (misma idea que camino)
+        if k_lin >= 0.85 and len(pts) >= 2:
+            p_c = ((t - at.get("linea", e["from"] + 0.8)) / 2.4) % 1.0
+            ix = min(len(pts) - 1, int(p_c * (len(pts) - 1)))
+            cx_c, cy_c = pts[ix]
+            r_c = int(10 * latido(t, e["from"] + 1.0, 1.3, 0.15))
+            ImageDraw.Draw(sub_l).ellipse(
+                [cx_c - r_c, cy_c - r_c, cx_c + r_c, cy_c + r_c],
+                fill=tuple(col[:3]) + (220,))
         layer.alpha_composite(sub_l)
     return capa_salida(layer, t, e["to"])
 
@@ -4643,7 +4731,10 @@ def sc_demo(ctx, e, t):
     marco.paste(vista, (0, barra))
     if a_v < 255:
         marco.putalpha(marco.split()[3].point(lambda v: int(v * a_v / 255)))
-    layer.alpha_composite(marco, (x0, y0))
+    # flota continua de la ventana (no solo al final): muerto/quieto 0.08
+    t_hold = (pasos[0].get("at", e["from"]) + 0.4) if pasos else (e["from"] + 1.0)
+    fy_win = flota(t, t_hold, 8, 0.30)
+    layer.alpha_composite(marco, (x0, int(y0 + fy_win)))
     # cursor: viaja del objetivo anterior al actual en [at-0.6, at]; luego clic
     # El viaje usa un resorte multi-destino (track): cada tramo tiene masa y
     # se calma al llegar, y si dos tramos se solapan el cursor no frena en
@@ -4666,9 +4757,13 @@ def sc_demo(ctx, e, t):
         pos = (track(t, paradas_x, 260, 26), track(t, paradas_y, 260, 26), a_, p_)
     if pos:
         px = x0 + (pos[0] * bw - cx_) * z
-        py = y0 + barra + (pos[1] * bh - cy_) * z
+        py = y0 + barra + (pos[1] * bh - cy_) * z + fy_win
+        # respiración del cursor asentado (hold sin clic nuevo)
+        if t >= pos[2] + 0.7:
+            py += flota(t, pos[2] + 0.7, 6, 0.48)
+            px += flota(t, pos[2] + 0.9, 3, 0.37)
         pul = onda_clic(d, px, py, t, pos[2])
-        cursor(d, px, py, 0.8 * (1 - 0.15 * pul))
+        cursor(d, px, py, 0.8 * (1 - 0.15 * pul) * latido(t, pos[2] + 0.5, 1.3, 0.08))
         p_ = pos[3]
         if p_.get("texto") and t >= pos[2] + 0.15:
             kt = entra(t, pos[2] + 0.15, "bloque")
@@ -4678,7 +4773,7 @@ def sc_demo(ctx, e, t):
             if al > 0:
                 fnt = fuente_que_cabe(ctx.fT, p_["texto"], 44, zx1_ - zx0_ - 80, 800)   # el botón cabe
                 tw_ = ctx.tmp.textlength(p_["texto"], font=fnt) + 80
-                yb = y0 + barra + bh + 60
+                yb = y0 + barra + bh + 60 + fy_win
                 boton_halo(d, W / 2, yb + 46, tw_, 92, p_["texto"], fnt, t, pos[2] + 0.15,
                            alpha=al)
     return capa_salida(layer, t, e["to"])
@@ -4700,7 +4795,9 @@ def sc_rotulo_inferior(ctx, e, t):
     t_out = e["to"] - 0.4
     if t < t_in:
         return layer
-    base = int(min(W, H) * 0.06)
+    # pad generoso: lower third sigue siendo banda (QUIETAS / ocup techo),
+    # pero un poco más de tinta mejora letra y lectura sin romper el género
+    base = int(min(W, H) * 0.065)
     margen = max(SAFE["left"], int(W * 0.06))
     ancho_max = W - 2 * margen - 70
     tam = base
@@ -4711,9 +4808,9 @@ def sc_rotulo_inferior(ctx, e, t):
         if max(wn, wr) <= ancho_max:
             break
         tam -= 2
-    pad = int(tam * 0.55)
-    bw = int(max(wn, wr) + 2 * pad + 12)
-    bh = int(tam * 1.25 + (tam * 0.55 * 1.5 if e.get("rol") else 0) + pad * 1.2)
+    pad = int(tam * 0.62)
+    bw = int(max(wn, wr) + 2 * pad + 24)
+    bh = int(tam * 1.30 + (tam * 0.55 * 1.5 if e.get("rol") else 0) + pad * 1.35)
     y0 = int(H - SAFE["bottom"] - bh - H * 0.03)
     x0 = margen if e.get("lado", "izq") != "der" else W - margen - bw
     k_panel = ease_out(clamp01((t - t_in) / 0.45)) * (1 - ease_in_out(clamp01((t - t_out - 0.1) / 0.25)))
@@ -5017,17 +5114,18 @@ def sc_notificacion(ctx, e, t):
     x0 = (W - ancho_card) / 2
     h_card = int(unidad() * 0.13 if W > H else 140)
     gap = 18
-    y_base = rotulo_y() + (90 if H > W else 70) + flota(t, e["from"] + 0.8, 5, 0.32)
+    y_base = rotulo_y() + (90 if H > W else 70) + flota(t, e["from"] + 0.8, 7, 0.30)
     
     LLEGA = 0.8   # cada notificación es un beat que se lee, no una cascada
     for i, it in enumerate(items):
         t_in = at.get(f"item{i}", e["from"] + 0.4 + i * LLEGA)
-        k = entra(t, t_in, "bloque")
+        # `suave` (no bloque): arranque en 2.63 s marcaba dens/arranques (−2)
+        k = entra(t, t_in, "suave")
         if k <= 0:
             continue
         despues = sum(min(1.0, entra(t, at.get(f"item{j}", e["from"] + 0.4 + j * LLEGA), "suave"))
                       for j in range(i + 1, n))
-        y_i = y_base + despues * (h_card + gap) + (1 - min(1, k)) * -50 + flota(t, t_in + 0.5, 7, 0.45 + i * 0.08)
+        y_i = y_base + despues * (h_card + gap) + (1 - min(1, k)) * -40 + flota(t, t_in + 0.5, 6, 0.40 + i * 0.06)
         al = int(255 * clamp01(k * 1.4))
         
         tarjeta_cristal(ctx, layer, x0, y_i, ancho_card, h_card, radio=24, alpha=int(220 * clamp01(k)))
@@ -5035,7 +5133,8 @@ def sc_notificacion(ctx, e, t):
                             outline=(255, 255, 255, int(45 * clamp01(k))), width=2)
         
         app = it.get("app", "App")
-        r_ico = int(h_card * 0.28)
+        # icono de la notificación tope (última) late: hold vivo sin gesto nuevo
+        r_ico = int(h_card * 0.28 * (latido(t, t_in + 0.6, 1.5, 0.08) if i == n - 1 else 1.0))
         ico_x = x0 + 26
         ico_y = y_i + (h_card - r_ico * 2) / 2
         d.rounded_rectangle([ico_x, ico_y, ico_x + r_ico * 2, ico_y + r_ico * 2], radius=14,

@@ -913,7 +913,7 @@
   "camino": {
    "from": 0,
    "to": 6,
-   "ruta": "recta",
+   "ruta": "s",
    "estaciones": [
     {
      "titulo": "Lecciones",
