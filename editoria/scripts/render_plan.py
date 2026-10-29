@@ -5512,8 +5512,11 @@ def _crecer(e,bb):
     alto=g*(y1-y0)
     if g==1.0 and alto>BANDA_MAX*(zy1-zy0): return (1.0,0.0)   # ya compone la zona: es su diseño
     # el centro buscado, sujeto a que el bbox (crecido) quepa entero en la zona
+    # CON el push-in y la flotación encima (si no, una escena crecida queda
+    # pegada arriba y la cámara tiene que arrancar más abierta)
     c=zy0+CENTRO_OPTICO*(zy1-zy0)
-    c=(zy0+zy1)/2 if alto>=zy1-zy0 else min(max(c,zy0+alto/2),zy1-alto/2)
+    ocupa=min(zy1-zy0,alto*(1+EMPUJE)+2*FLOTA_CAM)
+    c=min(max(c,zy0+ocupa/2),zy1-ocupa/2)
     # encajar: Y = cy + dy + g·(y - cy); el centro del bbox cae en c
     dy=c-cy-g*((y0+y1)/2-cy)
     return (g,dy) if g>1.0 or abs(dy)>=1.0 else (1.0,0.0)

@@ -209,8 +209,9 @@ El movimiento de cámara convierte un layout plano en un espacio.
   escena. No se mueven las que tienen sitio propio (`SITIO_PROPIO`: a
   sangre, overlays y `ANCLADAS` abajo por su rol —constancia, cadena,
   cartel—) ni las de `y` o `zona` declaradas; una escena más alta que media
-  zona ya la compone y tampoco se toca. La holgura del push-in se mide
-  sobre el bbox ya colocado y descuenta `FLOTA_CAM`. Lo que NO arregla: la
+  zona ya la compone y tampoco se toca. El centrado deja sitio al push-in
+  y a la flotación (una escena crecida no queda pegada arriba) y la holgura
+  del push-in se mide sobre el bbox ya colocado y descuenta `FLOTA_CAM`. Lo que NO arregla: la
   ocupación de una escena de solo tipo limitada por el ancho (apertura) no
   sube al centrarla; eso es copy o escala de la escena.
 - **Vuelo continuo (una pieza, un solo recorrido)**: la cámara no salta de

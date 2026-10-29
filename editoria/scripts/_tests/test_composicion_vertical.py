@@ -106,6 +106,16 @@ class TestComposicionVertical(unittest.TestCase):
             with self.subTest(extra=extra):
                 self.assertEqual(R.llenado(self.ctx, dict(base, **extra), 10 + j), (1.0, 0.0))
 
+    def test_centrar_no_le_quita_el_push_in_a_una_escena_crecida(self):
+        """Una escena que crece casi hasta la zona (stats x1.10) y se lleva al
+        centro optico quedaba pegada arriba: el push-in arrancaba 4.5 % mas
+        abierto (holgura 1.001) y la ocupacion bajo de 0.81 a 0.75."""
+        R = self.R
+        e = R.completar_escena(_muestra("stats"), 0)
+        g, _ = R.llenado(self.ctx, e, 0)
+        self.assertGreater(g, 1.0)
+        self.assertGreaterEqual(R._ESCALA[("holgura", 0)], 1 + R.EMPUJE - 1e-6)
+
     def test_la_zona_segura_se_respeta_en_las_escenas_reales(self):
         """Las escenas del catalogo que se recentran siguen dentro de la zona
         segura al final de la escena (camara al maximo): la `zona` del QA."""
