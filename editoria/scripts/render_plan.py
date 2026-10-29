@@ -5540,10 +5540,20 @@ EMPUJE=0.06   # push-in a lo largo de TODA la escena (animacion.md §5: 4-8 %). 
               # 1 %/s con tope 5 %: en una escena de 3 s, 3 %, y no se veía. El
               # crecimiento del lienzo (LLENA_MAX) le deja este sitio en la zona segura.
 CAMARA_PROPIA={"final","kenburns","demo","rotulo_inferior"}   # ya se mueven o son overlay
-QUIETAS={"rotulo_inferior"}   # quieta POR DISEÑO mientras se lee (lower third / overlay)
+QUIETAS={"rotulo_inferior"}   # se LEE quieta (lower third / overlay): sin push-in ni eventos,
+                              # pero no congelada: lleva la vida en reposo (`vida`)
 
 FLOTA_CAM=6    # px de flotación vertical: mueve TODOS los bordes (el push-in casi no
                # mueve lo que está cerca de su centro)
+FLOTA_HZ=0.3   # una oscilación cada ~3.3 s: se siente, no se mira
+
+def vida(e,t):
+    """dy de la VIDA EN REPOSO: la flotación de la cámara (FLOTA_CAM a FLOTA_HZ,
+    el `flota` de siempre) sin el push-in. Para las escenas que se leen quietas
+    (QUIETAS): medido, un rótulo inferior sostenido 3 s sobre un fondo quieto
+    era un congelado de 3 s (la puerta `quieto_max` > 1 s fallaba en el video
+    real). final, kenburns y demo ya se mueven solas y no la llevan."""
+    return flota(t,e["from"],FLOTA_CAM,FLOTA_HZ)
 
 def empuja(e):
     """¿La escena lleva el push-in por escena? (no: overlay, cámara propia,
@@ -5565,7 +5575,9 @@ def respiracion(e,t):
     por escena y la flotación también. La capacidad es opt-in y no cambia las
     piezas ya hechas.
     """
-    if ALFA or e["tipo"] in CAMARA_PROPIA or not e.get("respira",True): return 1.0,0.0,0.0
+    if not e.get("respira",True): return 1.0,0.0,0.0
+    if e["tipo"] in QUIETAS: return 1.0,vida(e,t),0.0   # también como overlay: el rótulo no se congela
+    if ALFA or e["tipo"] in CAMARA_PROPIA: return 1.0,0.0,0.0
     if _CAMARA["activa"]:
         # trayectoria global: continua por construcción (mismo t -> misma escala)
         dx,_dy_rec=_offset_camara(t)
@@ -5574,7 +5586,7 @@ def respiracion(e,t):
     dur=max(0.5,e.get("to",e["from"]+4.0)-e["from"])
     # ease_in_out (una curva canónica): arranca y llega sin tirón; pasado el
     # corte (la salida se solapa con la siguiente) se queda donde llegó
-    return 1+EMPUJE*ease_in_out(dt/dur), FLOTA_CAM*math.sin(2*math.pi*0.3*dt), 0.0
+    return 1+EMPUJE*ease_in_out(dt/dur), flota(t,e["from"],FLOTA_CAM,FLOTA_HZ), 0.0
 
 def encajar(layer,f,dy=0.0,dx=0.0):
     """Escala la capa alrededor de (W/2, CENTRO_Y·H) y la desplaza dx/dy px, con

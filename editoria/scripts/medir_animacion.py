@@ -257,8 +257,10 @@ def medir(job):
          for (num, tipo, texto), tam in ultimos_escena.items()),
         key=lambda d: d["letra_px"])
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
-    if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
-        m["muerto"] = m["quieto"] = m["quieto_max"] = 0.0
+    if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # se LEE quieta (render_plan.QUIETAS)
+        # su flotación (render_plan.vida) no llega al umbral de `muerto` (diff de
+        # cuadro entero); `quieto` (por bloque) sí la ve y se mide como en todas
+        m["muerto"] = 0.0
         m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
                 letra_por_escena=letra_por_escena, costo=round(costo, 3))

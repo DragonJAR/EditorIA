@@ -137,9 +137,15 @@ class TestCamara(unittest.TestCase):
 
     def test_las_exenciones_siguen(self):
         R = self.R
-        for tipo in sorted(R.CAMARA_PROPIA):
+        for tipo in sorted(R.CAMARA_PROPIA - R.QUIETAS):
             self.assertEqual(R.respiracion({"tipo": tipo, "from": 0.0, "to": 4.0}, 3.0),
                              (1.0, 0.0, 0.0))
+        # las que se leen quietas: sin push-in, solo la vida en reposo
+        # (test_vida_en_reposo)
+        for tipo in sorted(R.QUIETAS):
+            f, dy, dx = R.respiracion({"tipo": tipo, "from": 0.0, "to": 4.0}, 3.0)
+            self.assertEqual((f, dx), (1.0, 0.0))
+            self.assertLessEqual(abs(dy), R.FLOTA_CAM)
         self.assertEqual(R.respiracion({"tipo": "titular", "from": 0.0, "to": 4.0,
                                         "respira": False}, 3.0), (1.0, 0.0, 0.0))
 
