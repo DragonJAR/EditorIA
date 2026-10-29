@@ -19,6 +19,10 @@ transiciones *dentro* de la escena.)
   hasta 10% solo en el elemento focal de piezas de alta energía.
   (Canónico aquí; `tecnicas-video.md` lo referencia.)
 - **Nada aparece de golpe**: fade + escala 0.9→1.0 + elevación, mínimo 0.35s.
+  El texto que abre (titular, rótulo) no se funde: se revela por máscara
+  desde su línea base (`_revela_clip`, `animacion.md` §6); el fundido queda
+  solo para las excepciones. Las listas entran en cascada a paso
+  `STAGGER` = 0.06 s (`escalonado`, `animacion.md` §4).
 - **Movimiento barato vs. movimiento con masa**: un `easeOutCubic` lleva de A
   a B por una curva fija; un resorte **acelera, se pasa un pelo y se calma**.
   Lo caro es lo que tiene masa. Cuando el elemento es pequeno (un cursor, un
@@ -44,7 +48,10 @@ transiciones *dentro* de la escena.)
 
 ## Continuidad
 - **Fondo vivo**: el mundo de fondo (blobs de color, partículas, ondas) se mueve
-  SIEMPRE, aunque sea lento. Un fondo congelado mata la fluidez. Sin rejillas
+  SIEMPRE, aunque sea lento. Un fondo congelado mata la fluidez. La cámara
+  también: push-in de `EMPUJE` = 6 % por escena (`animacion.md` §5). El
+  medidor lo vigila con `quieto` (sin grano): más de 1 s sin que nada se
+  mueva, fuera del cierre, no pasa la puerta. Sin rejillas
   ni líneas geométricas decorativas (ver `coherencia-espacial.md`; el brand
   pack puede habilitarlas si la marca las pide).
 - **Transiciones**: el idioma de transición lo fija el brand pack o el tono de

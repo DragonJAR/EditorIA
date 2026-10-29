@@ -30,7 +30,12 @@ Regla de cierre de la elección: la técnica se verifica como el resto de la
 pieza — preview de instantes antes de pagar el render, y la puerta al final
 (`references/qa-entrega.md`). Lo que se mueve se mide
 (`scripts/medir_animacion.py`): un movimiento que no se puede medir es un
-movimiento que no se puede corregir.
+movimiento que no se puede corregir. Mide también lo que la pieza NO hace:
+`quieto` (el cuadro congelado, medido sin el grano: por bloques, con un
+umbral que solo sube si el grano medido de la pieza lo exige) y `ocupacion`
+(cuánto de la zona segura cubre el contenido: la banda chica en un lienzo
+enorme tiene número). La puerta falla un congelado de más de 1 s que no sea
+el cierre, o una pieza que ocupa menos de 0.20 de la zona segura.
 
 ## 1. Los 12 principios, traducidos a motion graphics
 
@@ -114,7 +119,10 @@ amortiguación a mano**: un resorte fuera del catálogo es un gesto sin
 nombre, y el guard de `scripts/_tests/test_movimiento.py` lo hace fallar.
 
 **La regla que da forma al conjunto**: lo que rebota fuerte (`pop`) es lo
-que quiere que lo mires; todo lo demás se asienta con calma. Un elemento
+que quiere que lo mires; todo lo demás se asienta con calma. El gesto vale
+también para lo que se REVELA: `titular` y `rotulo` entran por máscara
+(`_revela_clip`, §6) con el resorte de su rol, no con una curva propia; una
+lista entra en cascada a paso `STAGGER` (`escalonado`, §4). Un elemento
 que aparece y desaparece sin más gesto es ruido, no información.
 
 ### Lo que se dibuja va por tiempo, no por resorte
@@ -182,7 +190,12 @@ El movimiento de cámara convierte un layout plano en un espacio.
   push-in) y la centra en la zona segura (`llenado`). No crecen las
   escenas a sangre, los overlays, las de zona declarada ni las de
   trayectoria global de cámara. El crecimiento amplía el raster: la letra
-  legible se gana subiendo la escala de la escena, no solo creciendo.
+  legible se gana subiendo la escala de la escena, no solo creciendo. Red,
+  llenado y cámara se aplican en UNA transformación (`encuadrar`). Medido
+  sobre la muestra: casi todo el catálogo ya llega al ancho seguro, así que
+  el llenado solo hace crecer las escenas angostas (stats ×1.10); las de
+  solo tipo (apertura, cartel) siguen siendo una banda (ocupación 0.17–0.18
+  frente a 0.50–0.86 de las de datos) y `medir_animacion` las señala.
 - **Vuelo continuo (una pieza, un solo recorrido)**: la cámara no salta de
   plano en plano: viaja. En 2D eso es un **dolly con paneo**: el mundo se
   escala y se desliza mientras la cámara se queda con el punto de interés
@@ -243,7 +256,11 @@ El acabado digital perfectamente limpio no es lo que se premia
 3. Contact sheet (`scripts/auto_qa.py --sheet`) + frames de cada golpe a
    resolución completa: el frame en pleno movimiento debe mostrar motion
    blur y el frame asentado, nitidez total.
-4. Puntuar con `rubrica-premios.md`. Si algún eje queda por debajo de 4, se
+4. `scripts/medir_animacion.py --video final.mp4 --plan plan.json`: además
+   de pops y tirones, `quieto` (racha congelada sin grano, en s) y
+   `ocupacion` por escena. Un congelado > 1 s fuera del cierre es un fondo
+   o una cámara que se pararon; una escena bajo 0.20 es una banda chica.
+5. Puntuar con `rubrica-premios.md`. Si algún eje queda por debajo de 4, se
    corrige y se vuelve a renderizar antes de entregar.
 
 ## 10. La excepción: cuando el personaje está dibujado

@@ -50,7 +50,7 @@ Tambien acepta `--ignorar-inicio` para un fade-in intencional.
 | `lint_copy` | texto que no entra, tells de genero, cifras sin fuente, copy de muestra | el render |
 | `auto_qa` | frames negros, congelados, flashes, fotosensibilidad, audio | el copy, el movimiento fino |
 | `delivery_check` | el spec de la plataforma: resolucion, fps, duracion, bitrate, sonoridad, true peak | la composicion |
-| `medir_animacion` | coherencia de movimiento: pops, tirones, arranques, densidad | el copy, la narrativa |
+| `medir_animacion` | coherencia de movimiento: pops, tirones, arranques, densidad, cuadro congelado sin grano (`quieto`), ocupacion de la zona segura | el copy, la narrativa |
 | `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan (cada solape con su escena, su instante y los dos textos) | el copy, el movimiento fino |
 | `plan-vs-video` | que el plan no sea posterior al MP4: un plan editado despues del render (una fuente retirada, un copy acortado) deja a la puerta aprobando un plan que no es el video entregado | el contenido, si el render es posterior |
 | `subtitulos` | en una pieza **narrada** para reels/tiktok/shorts, que los subtitulos esten declarados (`"subtitulos": true` o la ruta en el plan, o `--subtitulos archivo`) | si el quemado se ve bien (eso se mira en los frames) |
@@ -92,7 +92,15 @@ por eso comparten la medicion y no dos implementaciones.
 
 - **movimiento**: nota minima 90 sobre 100, y cero pops. La nota descuenta
   los pops (12 puntos cada uno), los tirones (4 cada uno, hasta 20) y los
-  arranques sin ease-in (2 cada uno, hasta 10).
+  arranques sin ease-in (2 cada uno, hasta 10). Ademas falla con un cuadro
+  congelado de mas de 1 s (`quieto_max`, el FROZEN_MAX de `auto_qa` y de
+  `checklist-qa.md`; la racha que llega al final es el cierre y no cuenta)
+  o con una `ocupacion` media bajo 0.20 (la caja del contenido sobre la zona
+  segura). `quieto` se mide por bloques porque el grano del MP4 tapa el
+  congelado a `auto_qa`: medido en un video real del catalogo, el piso de
+  diff de cuadro entero es ~0.42 (> 0.35, su umbral) y vio 1.75 s de un
+  congelado de 3.0 s. La nota cobra el mayor de `muerto` y `quieto` (25 por
+  fraccion) y hasta 20 por la ocupacion bajo el piso.
 - **copy**: los fallos son texto que el motor no puede colocar; los avisos
   son copy que se lee como generado o que se encoge de mas. Un plan con
   avisos es entregable; un plan con fallos, no.
@@ -140,7 +148,10 @@ por eso comparten la medicion y no dos implementaciones.
   (escribe `final_loudnorm.mp4`; hay que renombrarlo sobre el original).
 - **movimiento**: pops o tirones. Las dos causasmas comunes son convertir
   el footage a una tasa que no es la suya (duplica cuadros) y cortar dos
-  planos en seco. Ver `references/lecciones-produccion.md`.
+  planos en seco. Ver `references/lecciones-produccion.md`. Un congelado
+  largo es casi siempre una escena sin camara ni fondo vivo (un rotulo
+  inferior sostenido); una ocupacion baja, escenas de solo tipo en un
+  lienzo grande: la medicion `--plan` dice cual (`ocupacion_escena`).
 - **composicion**: la letra se queda pequena porque el copy es largo. Se
   acorta el texto del plan, no se sube el tamano a mano: el motor vuelve a
   calcular el tamano y el ajuste a mano se pierde en el siguiente render.
