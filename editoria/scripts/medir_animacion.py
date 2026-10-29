@@ -9,6 +9,10 @@ completo, en 9:16 y 16:9, sin codificar, y mide sobre los frames reales:
   tirones    jerk de la curva de movimiento + frames muertos en mitad de un
              movimiento (animación entrecortada)
   muerto     % del hold con movimiento bajo el umbral de auto_qa
+  quieto     % del tiempo activo con el cuadro congelado (nada se mueve en
+             toda la imagen) medido sin el grano, y la racha más larga en s
+  ocupacion  fracción de la zona segura que cubre la caja del contenido
+             (una banda chica en un lienzo enorme), por escena y media
   densidad   eventos de movimiento por segundo (banda del motor: 0.5–2.0
              eventos/s; ritmo cómodo: uno cada 0.8–1.5 s)
   letra      tamaño mínimo de texto dibujado (px sobre el lado corto 1080)
@@ -55,6 +59,10 @@ POP_PROPORCION = 0.35  # fracción de bloques abruptos sin origen para llamarlo 
 MOV_RADIO = 10         # px de análisis (≈ 60 px a 1080, 1800 px/s): lo que se mueve más rápido
                        # que esto se lee como teletransporte (aparición), no como movimiento
 LETRA_MIN = 26         # px (sobre lado corto 1080) bajo los cuales no se lee en un teléfono
+QUIETO_SIGMAS = 4      # un bloque se movió si cambia más que 4 veces el piso de grano medido
+OCUPACION_MIN = 0.20   # fracción de la zona segura bajo la cual la pieza es una banda chica:
+                       # medido en HEAD, las escenas más angostas POR DISEÑO (apertura,
+                       # cartel: solo tipo) ocupan 0.17–0.23; las de datos 0.50–0.86
 FORMATOS = {"v": (1080, 1920), "h": (1920, 1080)}
 
 _W = {}
@@ -233,7 +241,11 @@ def medir(job):
         R.cifra = cifra_orig
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
-    m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_)
+    m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_, caja=R.caja_segura())
+    if not ventana and len(escenas) > 1:   # la escena chica, con su nombre: la media la diluye
+        m["ocupacion_escena"] = ocupacion_por_escena(
+            F, fps, [(j + 1, s_.get("tipo", "?"), s_["from"], s_["to"]) for j, s_ in enumerate(escenas)],
+            R.caja_segura())
     letra = int(_letra_en_reposo(tamanos, ultimos) * 1080 / min(w, h)) if tamanos else 0
     # La letra culpable, CON su escena y su texto: un «21 px» global obliga a
     # inspeccionar frame a frame hasta dar con la escena (dos ciclos de
@@ -246,25 +258,141 @@ def medir(job):
         key=lambda d: d["letra_px"])
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # quieta POR DISEÑO mientras se lee
-        m["muerto"] = 0.0
+        m["muerto"] = m["quieto"] = m["quieto_max"] = 0.0
         m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
                 letra_por_escena=letra_por_escena, costo=round(costo, 3))
 
 
-def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
+def _rejilla(A):
+    """(n, alto, ancho) -> (n, hb, BLOQUE, wb, BLOQUE): la grilla de bloques de
+    pops, textura, quietud y ocupación (una sola)."""
+    hb, wb = A.shape[1] // BLOQUE, A.shape[2] // BLOQUE
+    return A[:, :hb * BLOQUE, :wb * BLOQUE].reshape(len(A), hb, BLOQUE, wb, BLOQUE)
+
+
+def _rachas(v):
+    """[(i0, i1)] de las rachas de True de un vector booleano (i1 exclusivo)."""
+    out, i0 = [], None
+    for i, x in enumerate(list(v) + [False]):
+        if x and i0 is None:
+            i0 = i
+        elif not x and i0 is not None:
+            out.append((i0, i))
+            i0 = None
+    return out
+
+
+def _muestreo(F, fps, dur):
+    """Muestras a la cadencia de auto_qa y la ventana activa (desde 0.5 s hasta
+    la salida común): la misma ventana para `muerto` y `quieto`.
+    Devuelve (muestras, paso, t de cada par, máscara activa por par)."""
+    import auto_qa as QA
+    paso = max(1, int(fps / QA.FPS_MUESTREO))
+    muestras = F[::paso]
+    t_m = np.arange(1, len(muestras)) * paso / fps
+    return muestras, paso, t_m, (t_m > 0.5) & (t_m < dur - 0.6)
+
+
+def quietud(F, fps, dur):
+    """Cuadro CONGELADO sin la influencia del grano (checklist-qa.md: frozen =
+    nada se mueve en toda la imagen; un elemento quieto sobre fondo vivo no
+    lo es).
+
+    La diff de cuadro entero no sirve en un MP4: medido en el video real del
+    catálogo, el grano + el códec dejan un piso de ~0.42 niveles (percentil 5),
+    por encima de FROZEN_DIFF (0.35); auto_qa vio 1.75 s de un congelado de
+    3.0 s y ninguno de los cortos. El grano es de media cero: promediado por
+    bloque (la grilla de BLOQUE) se va; el movimiento no. Un par de muestras
+    está quieto si NINGÚN bloque cambia más que max(CELDA_MOV, QUIETO_SIGMAS ×
+    piso): el piso es el ruido por bloque MEDIDO en la pieza (desvío robusto
+    en sus muestras más calmas; 0.10 en el video real, 0.015 en un render sin
+    grano), así que el umbral solo sube con un grano pesado y lo compuesto
+    (sin grano) y lo decodificado dan la misma respuesta.
+
+    Cuenta solo la quietud sostenida (≥ 0.5 s, como `muerto`) en la ventana
+    activa, y no la racha que llega hasta el final: es el CTA de cierre, la
+    excepción de la doctrina. Devuelve {"quieto": fracción, "quieto_max": s}."""
+    import auto_qa as QA
+    muestras, paso, t_m, activo = _muestreo(F, fps, dur)
+    if len(muestras) < 2:
+        return {"quieto": 0.0, "quieto_max": 0.0}
+    cambio = np.abs(np.diff(_rejilla(muestras).mean(axis=(2, 4)), axis=0))   # (pares, hb, wb)
+    ruido = 1.4826 * np.median(cambio, axis=(1, 2))      # desvío robusto por par (fondo = mayoría)
+    piso = float(np.percentile(ruido, 10))
+    quieto = ((cambio > max(CELDA_MOV, QUIETO_SIGMAS * piso)).sum(axis=(1, 2)) == 0) & activo
+    ultimo = int(np.nonzero(activo)[0][-1]) if activo.any() else -1
+    racha = max(2, int(round(0.5 * QA.FPS_MUESTREO)))
+    largas = [(a, b) for a, b in _rachas(quieto) if b - a >= racha and b - 1 < ultimo]
+    s_par = paso / fps
+    return {"quieto": round(sum(b - a for a, b in largas) / max(1, int(activo.sum())), 3),
+            "quieto_max": round(max((b - a for a, b in largas), default=0) * s_par, 2)}
+
+
+def _caja_de(ancho_a, alto_a, caja=None):
+    """La zona segura en px de análisis. `caja` es la del motor (x0, y0, x1,
+    y1 a lado corto 1080, render_plan.caja_segura); sin ella (un video) se
+    le pide al motor la de ese aspecto."""
+    k_ = min(ancho_a, alto_a) / 1080
+    if caja is None:
+        import render_plan as R
+        w, h = round(ancho_a / k_), round(alto_a / k_)
+        if (R.W, R.H) != (w, h):
+            R.formato(w, h)
+        caja = R.caja_segura()
+    return tuple(v * k_ for v in caja)
+
+
+def ocupacion(F, caja=None):
+    """Fracción media de la zona segura que cubre la caja del contenido: los
+    bloques con textura (desvío > TEXTURA: tinta, no fondo liso ni manchas
+    difusas) dentro de la zona segura, su rectángulo envolvente sobre el área
+    de la zona. Una banda chica en un lienzo enorme da poco aunque se mueva
+    bien. `caja` en px a lado corto 1080 (None = la del motor)."""
+    if not len(F):
+        return 0.0
+    x0, y0, x1, y1 = _caja_de(F.shape[2], F.shape[1], caja)
+    tex = _rejilla(F).std(axis=(2, 4)) > TEXTURA                 # (n, hb, wb)
+    yc = (np.arange(tex.shape[1]) + 0.5) * BLOQUE
+    xc = (np.arange(tex.shape[2]) + 0.5) * BLOQUE
+    filas, cols = (yc >= y0) & (yc <= y1), (xc >= x0) & (xc <= x1)
+    area = max(1, int(filas.sum()) * int(cols.sum()))
+    tex = tex & filas[None, :, None] & cols[None, None, :]
+    fr = []
+    for t in tex:
+        yy, xx = np.nonzero(t)
+        fr.append(0.0 if not len(yy) else (np.ptp(yy) + 1) * (np.ptp(xx) + 1) / area)
+    return round(float(np.mean(fr)), 3)
+
+
+def ocupacion_por_escena(F, fps, escenas, caja=None):
+    """[{escena, ocupacion}] en el reposo de cada escena (de su mitad hasta
+    0.6 s antes del final, la ventana de la letra). `escenas` = [(nº, tipo,
+    from, to)] como `_escenas_del_plan`."""
+    import auto_qa as QA
+    paso = max(1, int(fps / QA.FPS_MUESTREO))
+    out = []
+    for num, tipo, f0, f1 in escenas:
+        i0, i1 = int((f0 + (f1 - f0) * 0.5) * fps), int((f1 - 0.6) * fps)
+        if i1 > i0:
+            out.append({"escena": f"{num}:{tipo}", "ocupacion": ocupacion(F[i0:i1:paso], caja)})
+    return out
+
+
+def metricas(F, fps, dur, zonas_cifra=None, k_=1.0, caja=None):
     """Las métricas de movimiento sobre frames en gris (n, alto, ancho) a la
-    escala de análisis. Una sola implementación para escenas, planes y videos."""
+    escala de análisis. Una sola implementación para escenas, planes y videos.
+    `caja`: zona segura del motor (px a lado corto 1080); None = la del aspecto."""
     alto_a, ancho_a = F.shape[1], F.shape[2]
     d = np.abs(np.diff(F, axis=0))                       # (n-1, h, w)
     energia = d.mean(axis=(1, 2))
     # pops: bloque que cambia mucho en un frame, fuera de la salida (fade común)
     hb, wb = alto_a // BLOQUE, ancho_a // BLOQUE
-    bloques = d[:, :hb * BLOQUE, :wb * BLOQUE].reshape(len(d), hb, BLOQUE, wb, BLOQUE).mean(axis=(2, 4))
+    bloques = _rejilla(d).mean(axis=(2, 4))
     # textura del bloque: contenido que cambia a OTRO contenido (dígitos que
     # cuentan, texto que se desplaza) no es una aparición; un pop es fondo o
     # superficie lisa que pasa a algo (o al revés) en un solo frame
-    std = F[:, :hb * BLOQUE, :wb * BLOQUE].reshape(len(F), hb, BLOQUE, wb, BLOQUE).std(axis=(2, 4))
+    std = _rejilla(F).std(axis=(2, 4))
     contenido = (std[:-1] > TEXTURA) & (std[1:] > TEXTURA)
     candidatos = (bloques > POP_SALTO) & ~contenido
     for i in range(len(candidatos)):   # zonas de cifras que cuentan (con un bloque de margen)
@@ -301,20 +429,20 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
         if len(energia) > 2 else 0.0
     # tiempo muerto en el hold (desde 0.5 s hasta la salida), ventana de auto_qa
     import auto_qa as QA
-    paso = max(1, int(fps / QA.FPS_MUESTREO))
-    muestras = F[::paso]
+    muestras, paso, t_m, hold = _muestreo(F, fps, dur)
     dm = np.abs(np.diff(muestras, axis=0)).mean(axis=(1, 2))
-    t_m = np.arange(1, len(muestras)) * paso / fps
-    hold = (t_m > 0.5) & (t_m < dur - 0.6)
     # tiempo muerto = quietud SOSTENIDA (≥ 0.5 s seguidos bajo el umbral de auto_qa):
     # el punto de giro de una flotación (velocidad 0 un instante) es easing, no un cuadro congelado
     bajo = (dm < QA.FROZEN_DIFF) & hold
     muertas = np.zeros_like(bajo)
     racha = max(2, int(round(0.5 * QA.FPS_MUESTREO)))
-    for i in range(len(bajo) - racha + 1):
-        if bajo[i:i + racha].all():
-            muertas[i:i + racha] = True
+    for a_, b_ in _rachas(bajo):
+        if b_ - a_ >= racha:
+            muertas[a_:b_] = True
     muerto = float(muertas[hold].mean()) if hold.any() else 0.0
+    # congelado SIN grano y ocupación de la zona segura, en la misma ventana activa
+    quieto = quietud(F, fps, dur)
+    ocup = ocupacion(muestras[1:][hold], caja) if hold.any() else ocupacion(muestras, caja)
     # densidad: eventos = ARRANQUES de movimiento en una zona del cuadro. Una
     # celda de la grilla que empieza a moverse (> CELDA_MOV niveles/frame) tras
     # ≥ 0.3 s quieta es algo NUEVO que pasa; arranques a < 0.35 s son el mismo
@@ -338,7 +466,7 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0):
     densidad = len(eventos) / max(0.5, dur - 0.6)
     return {"pops": pops, "tirones": len(tir_t), "t_tirones": tir_t, "arranques": arr_t,
             "jerk": round(jerk, 3),
-            "muerto": round(muerto, 3), "densidad": round(densidad, 2)}
+            "muerto": round(muerto, 3), "densidad": round(densidad, 2), **quieto, "ocupacion": ocup}
 
 
 def solapes(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
@@ -453,7 +581,13 @@ def nota(m):
     p += 12 * min(3, len(m["pops"]))                       # cada pop: algo aparece de golpe
     p += 4 * min(5, m["tirones"])                          # movimiento entrecortado
     p += 2 * min(5, len(m.get("arranques", [])))           # arranca sin ease-in (mecánico)
-    p += 25 * m["muerto"]                                  # hold congelado
+    # hold congelado: `muerto` (diff de cuadro entero) y `quieto` (sin grano)
+    # miden el mismo defecto; se cobra una vez, el mayor: en un MP4 con grano
+    # `muerto` queda ciego y `quieto` lo ve
+    p += 25 * max(m["muerto"], m.get("quieto", 0.0))
+    ocup = m.get("ocupacion")
+    if ocup is not None and ocup < OCUPACION_MIN:         # banda chica en un lienzo enorme
+        p += 20 * (OCUPACION_MIN - ocup) / OCUPACION_MIN
     p += 10 * min(3, len(m.get("solapes", [])))           # un texto pisa a otro (composición)
     dens = m["densidad"]
     if m.get("quieta"):                                    # quieta por diseño (lower third)
@@ -555,11 +689,13 @@ def main():
                     # "pop en 12.4 s" -> "pop en 12.4 s, escena 3 (bento)"
                     r["pops_escena"] = [f"{_escena_en(t, escenas)}@{t}s" for t in r["pops"]]
                     r["tirones_escena"] = [f"{_escena_en(t, escenas)}@{t}s" for t in r["t_tirones"]]
+                    r["ocupacion_escena"] = ocupacion_por_escena(F, fps_v, escenas)
                     extra = (f" pops_escena={r['pops_escena'][:6]}"
                              f" tirones_escena={r['tirones_escena'][:6]}")
                 res.append(r)
                 print(f"{r['nota']:5.1f}  {r['escena']}  pops={r['pops'][:6]} tirones={r['t_tirones'][:6]} "
-                      f"muerto={r['muerto']} densidad={r['densidad']}{extra}")
+                      f"muerto={r['muerto']} quieto={r['quieto']} (racha {r['quieto_max']} s) "
+                      f"ocupacion={r['ocupacion']} densidad={r['densidad']}{extra}")
             if a.json:
                 asegurar_padre(a.json)
                 json.dump(res, open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
@@ -609,14 +745,18 @@ def main():
                 r["densidad"] = 1.0
             r["nota"] = nota(r)
         res.sort(key=lambda r: r["nota"])
-        print(f"{'escena':18s} f  nota  pops tir  jerk  muerto dens letra zona  s/frame")
+        print(f"{'escena':18s} f  nota  pops tir  jerk  muerto quieto ocup dens letra zona  s/frame")
         for r in res:
             print(f"{r['escena']:18s} {r['formato']}  {r['nota']:5.1f} {len(r['pops']):4d} {r['tirones']:3d} "
-                  f"{r['jerk']:5.2f} {r['muerto']:6.2f} {r['densidad']:4.2f} {r['letra_min']:5d} "
-                  f"{r['zona']:5.2f} {r['costo']:6.3f}")
+                  f"{r['jerk']:5.2f} {r['muerto']:6.2f} {r['quieto_max']:5.2f}s {r['ocupacion']:4.2f} "
+                  f"{r['densidad']:4.2f} {r['letra_min']:5d} {r['zona']:5.2f} {r['costo']:6.3f}")
         for r in res:
             for x in r.get("solapes", []):
                 print(f"  SOLAPE {r['formato']} {x}")
+            for d in (r.get("ocupacion_escena") or []):
+                if d["ocupacion"] < OCUPACION_MIN:
+                    print(f"  OCUPACION {r['formato']} escena {d['escena']}: {d['ocupacion']:.2f} de la zona "
+                          f"segura (< {OCUPACION_MIN}) — banda chica en un lienzo grande")
             for d in (r.get("letra_por_escena") or []):
                 if d["letra_px"] < LETRA_MIN:
                     print(f"  LETRA {r['formato']} escena {d['escena']}: «{d['texto']}» "
