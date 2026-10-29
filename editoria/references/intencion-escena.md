@@ -204,7 +204,14 @@ La opción se elige por el argumento; la familia de plan rota, y el catálogo
 plan** y SE ESCRIBE desde `scripts/data/repertorio.json`
 (`actualizar_conteos.py` la reescribe; `auditar_mapa.py` falla si difieren;
 `repertorio.py validar` vigila huérfanas del motor y que efectos/gestos
-sean alcanzables):
+sean alcanzables).
+
+**Dónde poner cada escena (criterio fino):** además de la familia, cada
+escena del plan declara `ocasion` + `firma` en
+`repertorio.json → detalle_escenas` (misma superficie que efectos/gestos;
+no es un menú paralelo). `repertorio.py resolver --id <escena>` y
+`opciones(<intencion>)` las exponen. Si el pedido es vago, §2 nombra; si ya
+sabes la intención, mira `ocasion` antes de inventar otra.
 
 <!-- REPERTORIO_TABLA_INI -->
 | intencion | familia (rota segun el argumento y la pieza anterior) |

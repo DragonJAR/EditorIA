@@ -24,6 +24,21 @@ MOTOR = os.path.join(SCRIPTS, "render_plan.py")
 ROLES_ESPERADOS = {"titular", "bloque", "elemento", "suave", "pop", "lento"}
 
 
+class TestLatido(unittest.TestCase):
+    """latido: vida en el hold sin inventar resortes (frase/index/camino/gauge)."""
+
+    def test_oscila_alrededor_de_uno(self):
+        import render_plan as R
+        vals = [R.latido(t, 0.0, 1.0, 0.1) for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+        self.assertAlmostEqual(vals[0], 1.0, places=5)
+        self.assertTrue(max(vals) > 1.05 and min(vals) < 0.95)
+        self.assertTrue(all(0.85 <= v <= 1.15 for v in vals))
+
+    def test_antes_de_t0_queda_en_uno(self):
+        import render_plan as R
+        self.assertEqual(R.latido(0.5, 1.0, 1.0, 0.2), 1.0)
+
+
 def _spring(t, t0, stiff, damp):
     if t <= t0:
         return 0.0

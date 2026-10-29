@@ -199,6 +199,23 @@ class TestCatalogoUnico(unittest.TestCase):
         self.assertEqual(REP.resolver("timeline")["motor"], REP.MOTOR_ESCENA)
         self.assertEqual(REP.resolver("edit-timeline")["motor"], REP.MOTOR_EFECTO)
 
+    def test_cada_escena_declara_ocasion(self):
+        """detalle_escenas: la skill sabe DÓNDE poner cada escena del plan."""
+        datos = REP.cargar()
+        detalle = datos.get("detalle_escenas") or {}
+        self.assertEqual(set(detalle), REP.catalogo(),
+                         "detalle_escenas debe cubrir exactamente SCENES")
+        for sid, meta in detalle.items():
+            self.assertTrue(str(meta.get("ocasion", "")).strip(),
+                            f"{sid} sin ocasion")
+            self.assertTrue(str(meta.get("firma", "")).strip(),
+                            f"{sid} sin firma")
+        op = REP.resolver("frase")
+        self.assertIn("palabra a palabra", op.get("ocasion", "").lower())
+        ops = REP.opciones("copy")
+        self.assertTrue(all(o.get("ocasion") for o in ops
+                            if o["motor"] == REP.MOTOR_ESCENA))
+
     def test_elegir_default_sigue_siendo_escenas_de_plan(self):
         mano = REP.elegir(["gancho", "dato"], semilla=1)
         self.assertTrue(all(m["motor"] == REP.MOTOR_ESCENA for m in mano))

@@ -299,6 +299,23 @@ class TestFraseCinetica(unittest.TestCase):
         finally:
             R.aplicar_brand(None)
 
+    def test_el_gap_entre_palabras_no_dispersa_la_frase(self):
+        """El tracking extra era tam*0.24: la frase se leía a islas.
+
+        Ahora el gap es el espacio tipográfico + tam*0.06 (aire mínimo).
+        """
+        R = self.R
+        e = R.completar_escena({
+            "tipo": "frase", "from": 0.0, "to": 6.0,
+            "frase": "uno dos tres cuatro cinco seis",
+        }, 0)
+        _p, _ln, _ld, _ad, gap, _mw = R._frase_layout(self.ctx, e, 64)
+        espacio = self.ctx.tmp.textlength(" ", font=self.ctx.fX(64, 500))
+        self.assertLessEqual(gap, espacio + 64 * 0.08 + 0.5,
+                             f"gap demasiado abierto: {gap} (espacio={espacio})")
+        self.assertGreaterEqual(gap, espacio,
+                                "el gap no puede ser menor que el espacio tipográfico")
+
 class TestAnillo(unittest.TestCase):
     """El medidor de anillo: un dial de marcas que se llena."""
 

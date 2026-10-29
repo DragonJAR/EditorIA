@@ -1,6 +1,6 @@
 {
  "_que_es": "ÚNICA superficie de elección del agente: intención → opción → motor interno. Las `escenas` de cada intención cubren el dict SCENES de render_plan.py (huérfanas prohibidas). Efectos talking-head y gestos de interfaz se agregan en repertorio.py desde scripts/data/efectos_talking_head.json y scripts/data/motion_ui.json — mismo catálogo, no menús A/B. El motor (plan / efecto CVE / gesto / HyperFrames / …) es metadato de producción. auditar_plan.py y clonar_video.py consumen solo las familias de escenas; actualizar_conteos.py reescribe la tabla §2b de intencion-escena.md.",
- "_reglas": "Una opción puede servir a varias intenciones. La elección la manda el argumento (repertorio.py sugerir); este archivo garantiza que la familia de escenas es alcanzable y que rotar es posible. Efectos/gestos declaran sus intenciones en SU JSON de detalle. Lo que una pieza no usa se declara no_aplica. No se hincha SCENES con overlays ni gestos: se eligen aquí y se producen por su motor.",
+ "_reglas": "Una opción puede servir a varias intenciones. La elección la manda el argumento (repertorio.py sugerir); este archivo garantiza que la familia de escenas es alcanzable y que rotar es posible. Efectos/gestos declaran sus intenciones en SU JSON de detalle. Lo que una pieza no usa se declara no_aplica. No se hincha SCENES con overlays ni gestos: se eligen aquí y se producen por su motor. detalle_escenas[id].ocasion/firma dice CUÁNDO usar cada escena del plan (misma superficie que efectos/gestos; no es un menú paralelo).",
  "intenciones": [
   {
    "id": "gancho",
@@ -139,5 +139,187 @@
   "social": "social",
   "proceso": "proceso",
   "cierre": "cierre"
+ },
+ "detalle_escenas": {
+  "apertura": {
+   "ocasion": "Primera frase de la pieza: gancho en dos tiempos con mancha",
+   "firma": "texto1 → texto2; no es un titular genérico"
+  },
+  "audiowave": {
+   "ocasion": "Forma de onda / presencia sonora",
+   "firma": "cierre con audio o podcast"
+  },
+  "bars": {
+   "ocasion": "Comparar magnitudes entre pocas categorías",
+   "firma": "cuál es mayor / cuánto más"
+  },
+  "bento": {
+   "ocasion": "Grid de 2–4 features/servicios estilo Liquid Glass",
+   "firma": "máx. 4 tarjetas; con 3 → columna"
+  },
+  "buscador": {
+   "ocasion": "Spotlight / búsqueda que revela la respuesta del producto",
+   "firma": "query tipada + resultado"
+  },
+  "cadena": {
+   "ocasion": "Secuencia de estados encadenados con conectores",
+   "firma": "lo que vio cada quien, en fila"
+  },
+  "callout": {
+   "ocasion": "Señalar un punto exacto dentro de una captura",
+   "firma": "elipse + etiqueta sobre placa"
+  },
+  "camino": {
+   "ocasion": "Línea de luz que enciende estaciones al pasar",
+   "firma": "progreso de un recorrido / path"
+  },
+  "canales": {
+   "ocasion": "Mapa 'todos tus canales, un lugar'",
+   "firma": "dónde está cada fuente"
+  },
+  "cartel": {
+   "ocasion": "Afirmación cartel / claim tipográfico de impacto",
+   "firma": "kicker + display; una tesis"
+  },
+  "chat": {
+   "ocasion": "Conversación con burbujas escalonadas",
+   "firma": "diálogo IA o humano"
+  },
+  "comentario": {
+   "ocasion": "Review/testimonio estilo red social con avatar",
+   "firma": "autor + estrellas + likes"
+  },
+  "confetti": {
+   "ocasion": "Celebración determinista (semilla fija)",
+   "firma": "solo si el brief pide deleite"
+  },
+  "constancia": {
+   "ocasion": "Acta de casillas ✓/○ (confirmado vs pendiente)",
+   "firma": "checklist del argumento"
+  },
+  "countdown": {
+   "ocasion": "Cuenta regresiva exacta antes de un evento o reveal",
+   "firma": "el número es función del tiempo"
+  },
+  "demo": {
+   "ocasion": "Ventana de app con capturas reales + cursor track()",
+   "firma": "producto funcionando; captura de verdad"
+  },
+  "final": {
+   "ocasion": "Cierre de marca / wordmark de despedida",
+   "firma": "último plano de la pieza"
+  },
+  "frase": {
+   "ocasion": "Copy que se LEE palabra a palabra (teleprompter cinético)",
+   "firma": "clave con *; no es titular de golpe"
+  },
+  "gauge": {
+   "ocasion": "UN valor frente a una meta o máximo conocidos",
+   "firma": "arco + cifra central"
+  },
+  "handoff": {
+   "ocasion": "Traspaso persona→persona con contexto y temperatura",
+   "firma": "relevo con información, no solo nombre"
+  },
+  "hero": {
+   "ocasion": "Bienvenida / hero de producto o lanzamiento SaaS",
+   "firma": "badge + titular + métrica + CTA"
+  },
+  "hoy": {
+   "ocasion": "Panel del día / agenda operativa",
+   "firma": "qué toca ahora"
+  },
+  "index": {
+   "ocasion": "Índice 'lo que vamos a ver' con paso activo",
+   "firma": "agenda / capítulos"
+  },
+  "kenburns": {
+   "ocasion": "Foto o captura con zoom/paneo cinematográfico",
+   "firma": "imagen manda; texto apoyo"
+  },
+  "leads": {
+   "ocasion": "Tabla priorizada de oportunidades; fila 1 destacada",
+   "firma": "pipeline / ranking de leads"
+  },
+  "listo": {
+   "ocasion": "Check con estallido: estado HECHO",
+   "firma": "confirmación celebratoria"
+  },
+  "medianoche": {
+   "ocasion": "Teléfono 3D con notificaciones (beat nocturno)",
+   "firma": "00:47 / urgencia suave"
+  },
+  "notificacion": {
+   "ocasion": "Cascada de pushes que empujan a las anteriores",
+   "firma": "alerta / feedback de sistema"
+  },
+  "oferta": {
+   "ocasion": "Descuento, código o CTA comercial",
+   "firma": "precio / promo con urgencia"
+  },
+  "orbOpen": {
+   "ocasion": "Apertura de capítulo: partículas que CONVERGEN a una figura",
+   "firma": "distinto de orbita (allí orbitan)"
+  },
+  "orbita": {
+   "ocasion": "Elementos que ORBITAN alrededor de un centro",
+   "firma": "showreel / ecosistema"
+  },
+  "pago": {
+   "ocasion": "Comprobante de pago / recibo",
+   "firma": "estado pagado"
+  },
+  "pasos": {
+   "ocasion": "Proceso secuencial 1–5 pasos con el activo brillando",
+   "firma": "columna en 9:16"
+  },
+  "pie": {
+   "ocasion": "Partes de un todo (2–5 porciones visibles)",
+   "firma": "no más de 5–6 slices"
+  },
+  "pildoras": {
+   "ocasion": "Claim corto con atmósfera de partículas/píldoras",
+   "firma": "frase con acento + fondo vivo"
+  },
+  "quote": {
+   "ocasion": "Cita/testimonio de confianza; entra despacio",
+   "firma": "sin rebote; autor al final"
+  },
+  "ranking": {
+   "ocasion": "Ordenar canales o ítems; el orden ES el mensaje",
+   "firma": "barras horizontales; top en acento"
+  },
+  "recupera": {
+   "ocasion": "Pago recuperado / salvado",
+   "firma": "antes perdido, ahora ok"
+  },
+  "remate": {
+   "ocasion": "Cierre con frases + cifra gigante",
+   "firma": "el golpe de dato final"
+  },
+  "rotulo_inferior": {
+   "ocasion": "Lower third: nombre + rol (overlay con alfa)",
+   "firma": "quieta por diseño mientras se lee"
+  },
+  "stats": {
+   "ocasion": "1–4 cifras sueltas con etiqueta y fuente",
+   "firma": "no uses si es una sola cifra sin contexto → remate"
+  },
+  "subrayado": {
+   "ocasion": "Lema apoyado en línea de luz bajo el texto",
+   "firma": "cierre tipográfico del path"
+  },
+  "timeline": {
+   "ocasion": "Hitos con fecha en el tiempo (3–6)",
+   "firma": "no series densas"
+  },
+  "typewriter": {
+   "ocasion": "Texto que se escribe carácter a carácter con cursor",
+   "firma": "idea/prompt que se arma en vivo"
+  },
+  "versus": {
+   "ocasion": "Dos columnas cara a cara; acento en la que defiendes",
+   "firma": "comparación A vs B"
+  }
  }
 }

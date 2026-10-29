@@ -168,6 +168,21 @@ def entra(t, t0, rol="bloque"):
     stiff, damp = MOVIMIENTO[rol]
     return spring(t, t0, stiff, damp)
 
+
+def latido(t, t0=0.0, periodo=1.6, amp=0.10):
+    """Vida suave en el hold: 1±amp, sin inventar un resorte nuevo.
+
+    Las escenas que se asientan (frase, index, camino, gauge…) no pueden
+    quedar congeladas: el medidor lo lee como tiempo muerto. Un seno lento
+    sobre el acento / el trazo activo mantiene el cuadro vivo sin robar
+    protagonismo al dato. DRY: una sola curva; cada escena elige qué pintar
+    con ella (alfa del subrayado, grosor de la cabeza, brillo del activo).
+    """
+    if t < t0:
+        return 1.0
+    return 1.0 + amp * math.sin(2 * math.pi * (t - t0) / max(0.2, float(periodo)))
+
+
 def track(t,paradas,stiff=260,damp=26):
     """Resorte MULTI-DESTINO: un resorte por cambio, sumados.
 
@@ -623,9 +638,12 @@ def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
 # Cada nueva escena se compone de estas primitivas. DRY: las escenas NO duplican lógica
 # de barras / anillos / círculos / partículas / grids; la llaman aquí.
 
-def barra_h(d, x, y, ancho, alto, fraccion, color, radio=None, pista=18):
+def barra_h(d, x, y, ancho, alto, fraccion, color, radio=None, pista=18, min_px=None):
     """Barra horizontal rellenable: track + fill con esquinas redondeadas.
     `fraccion` ∈ [0, 1] controla el porcentaje visible (la animación lo interpola).
+    `min_px`: piso visual del fill cuando fraccion>0 (un 6/48 no puede verse
+    como un punto: en ranking quedaba un “nub” ilegible). None = alto (una
+    píldora mínima del alto de la pista).
     DRY: la usan `bars`, `ranking`, `progreso`, `leads.puntaje`."""
     radio = radio or alto // 2
     if ancho < 2 * radio or alto < 2 * radio:
@@ -636,7 +654,14 @@ def barra_h(d, x, y, ancho, alto, fraccion, color, radio=None, pista=18):
     f = clamp01(fraccion)
     if f <= 0:
         return
-    fill_w = max(1, int(ancho * f))
+    # el piso visual crece CON la fraccion (no salta a min_px en el frame 1:
+    # eso seria un pop). En reposo (f≈1) un valor chico no queda en un “nub”.
+    raw = max(1, int(ancho * f))
+    if min_px:
+        piso_vivo = max(1, int(float(min_px) * f))
+        fill_w = min(int(ancho), max(raw, piso_vivo))
+    else:
+        fill_w = raw
     if fill_w < 2 * radio:   # nace de 0: una píldora más angosta, no una entera de golpe
         r_ = max(0, fill_w // 2)
         d.rounded_rectangle([x, y, x + fill_w, y + alto], radius=r_, fill=color)
@@ -2356,7 +2381,25 @@ def sc_gauge(ctx, e, t):
     g_ = smoothstep(clamp01((t - t_in) / 1.1))
     if g_ > 0:
         fraccion = clamp01(e.get("valor", 0) / max(1e-9, e.get("max", 100)))
-        arco(d, cx, cy, r, 135, 135 + 270 * fraccion * g_, ACENTO, grosor)
+        # caps redondeados: discos en los extremos del arco (ImageDraw.arc
+        # usa butt caps; el disco cierra el look premium del gauge)
+        ang_fin = 135 + 270 * fraccion * g_
+        arco(d, cx, cy, r, 135, ang_fin, ACENTO, grosor)
+        for ang in (135, ang_fin):
+            rad = math.radians(ang)
+            ex = cx + r * math.cos(rad)
+            ey = cy + r * math.sin(rad)
+            rr = grosor / 2
+            d.ellipse([ex - rr, ey - rr, ex + rr, ey + rr], fill=ACENTO + (255,))
+        # latido suave del arco asentado: mata muerto del hold
+        if g_ > 0.98:
+            pulso = latido(t, t_in + 1.1, 1.6, 0.06)
+            rr = (grosor / 2) * pulso
+            rad = math.radians(ang_fin)
+            ex = cx + r * math.cos(rad)
+            ey = cy + r * math.sin(rad)
+            d.ellipse([ex - rr, ey - rr, ex + rr, ey + rr],
+                      fill=ACENTO + (min(255, int(200 * pulso)),))
     val = cuenta_up(0, e.get("valor", 0), t, t_in, progreso=g_)
     fnt = fuente_que_cabe(ctx.fT, cuenta_up(0, e.get("valor", 0), 1e9, 0), unidad() * 0.18, r * 1.3,
                           800, tabular=True)
@@ -2534,8 +2577,8 @@ def sc_ranking(ctx, e, t):
         fraccion = clamp01(it.get("valor", 0) / max_v)
         col = ACENTO if i == 0 else BLANCO
         g_ = smoothstep(clamp01((t - t_in) / 0.9))   # sin rebote: un dato no se pasa de su valor
-        barra_h(d, x_bar, yi, bw, hi, fraccion * g_, col + (int(230 * al / 255),), radio=hi // 2,
-                pista=18 * al / 255)
+        barra_h(d, x_bar, yi, bw, hi, fraccion * g_, col + (int(230 * al / 255),),
+                radio=hi // 2, pista=18 * al / 255, min_px=int(hi * 1.15))
         val = cuenta_up(0, it.get("valor", 0), t, t_in, progreso=g_)   # la cifra dice lo que mide la barra
         cifra(d, (zx1, yi + hi / 2), val, fnt_v, col + (al,), anchor="rm")
     pie_fuente(ctx, d, e, t, e["from"] + 2.0)
@@ -2825,20 +2868,28 @@ def sc_confetti(ctx, e, t):
     # confeti con semilla determinista (estable si el usuario no cambia la fecha)
     semilla = at.get("timestamp_seed", 11)
     if t >= t_p:
-        # mezclar acento con blanco para variedad visual (sin random en runtime)
-        for i in range(80):
+        # lluvia CONTINUA: las partículas reciclan al salir (antes, a mitad de
+        # escena ya habían caído todas → confetti vacío / dens disparada al
+        # inicio y muerto después). Mezcla acento + blanco; círculos y
+        # rectángulos para que no se lea como “lluvia de puntos”.
+        dt = t - t_p
+        ciclo = 2.6
+        for i in range(110):
             rng_i = random.Random(semilla * 31 + i)
-            ang = rng_i.uniform(0, 6.283)
-            vel = rng_i.uniform(280, 720)
-            caida = 980
-            dt = t - t_p
-            x = W * 0.5 + math.cos(ang) * vel * dt
-            y = H * 0.45 + math.sin(ang) * vel * dt + 0.5 * caida * dt * dt
-            if y > H + 40 or x < -40 or x > W + 40:
+            fase = (dt * rng_i.uniform(0.75, 1.25) + rng_i.uniform(0, ciclo)) % ciclo
+            x = rng_i.uniform(W * 0.06, W * 0.94) + math.sin(fase * 3.1 + i) * 18
+            y = -30 + (H + 80) * (fase / ciclo)
+            if y > H + 40:
                 continue
-            s = rng_i.uniform(4, 10)
-            c = ACENTO if i % 2 == 0 else BLANCO
-            d.ellipse([x - s, y - s, x + s, y + s], fill=(c[0], c[1], c[2], rng_i.randint(160, 230)))
+            s = rng_i.uniform(5, 12)
+            c = ACENTO if i % 3 else BLANCO
+            al = rng_i.randint(170, 240)
+            if i % 4 == 0:
+                d.rectangle([x - s, y - s * 0.4, x + s, y + s * 0.4],
+                            fill=(c[0], c[1], c[2], al))
+            else:
+                d.ellipse([x - s, y - s, x + s, y + s],
+                          fill=(c[0], c[1], c[2], al))
     if "texto" in e and t >= t_t:
         k = entra(t, t_t, "elemento")
         if k > 0:
@@ -2883,19 +2934,21 @@ def sc_typewriter(ctx, e, t):
         tam -= 4
         fnt = ctx.fT(tam, 800)
         lineas = linewrap(texto, fnt, ancho)
-    lh = tam * 1.25
+    lh = tam * 1.32
     alto = lh * len(lineas)
     y0 = H * 0.45 - alto / 2 + flota(t, t_in + 0.8, 5, 0.35)
-    # panel de lectura: entra con la escena, dentro de la zona segura
+    # panel de lectura: aire interior generoso (antes el copy rozaba el borde
+    # inferior/izquierdo del panel: se leía apretado)
+    pad_panel = max(28, int(tam * 0.55))
     kp = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))
     if kp > 0:
-        d.rounded_rectangle([zx0, y0 - tam * 0.45, zx1, y0 + alto + tam * 0.25], radius=28,
-                            fill=PANEL + (int(180 * kp),))
+        d.rounded_rectangle([zx0, y0 - pad_panel, zx1, y0 + alto + pad_panel * 0.7],
+                            radius=28, fill=PANEL + (int(180 * kp),))
     paso = 1 / float(e.get("cps", 12.5))
     t_lin, cur = t_in, None
     for li, ln in enumerate(lineas):
         y = y0 + li * lh
-        x = zx0 + 40
+        x = zx0 + pad_panel
         n = text_reveal(d, ln, fnt, x, y, t, t_lin, paso * len(ln), BLANCO)
         if n:
             cur = (x + d.textlength(ln[:n], font=fnt), y, n == len(ln))
@@ -2927,7 +2980,12 @@ def _frase_layout(ctx, e, tam, visibles=None, max_lineas=None):
     maxw = zx1 - zx0 - 40
     fnt = ctx.fX(tam, 500)
     fnt_b = ctx.fX(tam, 800)     # la palabra clave va en negrita: es MAS ANCHA
-    gap = ctx.tmp.textlength(" ", font=fnt) + tam * 0.24
+    # el hueco entre palabras: el ancho del espacio tipográfico + un aire
+    # mínimo. Antes era tam*0.24 (~15 px extra a 64): el bloque se leía
+    # disperso y con tracking irregular (medido en muestra: gaps visuales
+    # de 80–100 px entre palabras cortas). 0.06 deja respirar sin romper
+    # la frase en islas.
+    gap = ctx.tmp.textlength(" ", font=fnt) + tam * 0.06
     palabras = (e.get("frase") or e.get("texto") or "").split()
     if visibles is not None:
         palabras = [palabras[i] for i in visibles]
@@ -3113,6 +3171,9 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     linea_ancla = max(linea_de.values()) if linea_de else 0
     zx0, _zy0, _zx1, _zy1 = caja_segura()
     y_ancla = y_de_pantalla(e, t, y_ancla)
+    # respiración del bloque (3 px): sin ella el hold entre palabras se lee
+    # muerto (medido: frase 81/100, muerto 0,75). Misma `flota` que final/hero.
+    y_ancla = y_ancla + flota(t, t_in + 0.4, 3.0, 0.45)
     # el instante en que entra la palabra nueva: la fusion va de alli
     t_palabra = t_in + max(0, k - 1) / max(0.01, cps)
     m_fusion = smoothstep(clamp01((t - t_palabra) / dur_fusion))
@@ -3128,31 +3189,33 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
         return (zx0 + (maxw - layout_ancho.get(li, 0)) / 2.0 + pos[0][1],
                 y_ancla + (li - ultimo) * lh)
 
-    # EL ESTADO DE CADA PALABRA (el sistema del reel de referencia):
-    #   · la que aun NO se ha escrito: no se ve
-    #   · la recien alcanzada: GRIS y mas CHICA (crece a su tamano)
-    #   · la ya alcanzada: BLANCA (o gris si no es la clave)
-    #   · la ACTIVA (la ultima): blanca y con el SUBRAYADO ROJO debajo
-    # Asi el ojo sigue la palabra que se esta leyendo, y el bloque nunca se
-    # mueve de sitio (medido: recomponerlo daba 10 pops).
+    # EL ESTADO DE CADA PALABRA (teleprompter legible, no nube dispersa):
+    #   · la que aun NO se ha alcanzado: se ve en GRIS tenue, MISMO tamaño
+    #     (encogerla a 0,66 rompía la baseline y abría huecos feos)
+    #   · la alcanzada: BLANCA; dentro de la ventana no baja del piso de
+    #     contraste (0,45): un fade a negro sobre fondo negro es ilegible
+    #   · la ACTIVA: blanca + SUBRAYADO de acento con latido (mata muerto)
+    #   · la clave (*…*): no se apaga: es el mensaje
     #
-    # El CRECIMIENTO de la palabra: si apareciese de golpe, el medidor lo
+    # El CRECIMIENTO de la activa: si apareciese de golpe, el medidor lo
     # cuenta como un pop (un bloque de 10x10 px que cambia de golpe).
-    dur_crece = 0.30
+    dur_crece = 0.34
     for i in range(len(palabras)):
         w_ = palabras[i]
         texto_w = _limpia(w_)
         es_clave, es_sel = _marca(w_)
         tipo_caja = _caja_de(w_)
-        # el estado de la palabra, segun el MODELO DEL REEL DE REFERENCIA:
-        #   · la que AUN NO se ha alcanzado (i >= k): se ve, pero en GRIS y
-        #     mas CHICA (0,66): el lector ve la frase entera por delante
-        #   · la alcanzada: BLANCA, a su tamano, y se apaga con la edad
-        #   · la ACTIVA (la ultima alcanzada): blanca y con el SUBRAYADO ROJO
         alcanzada = i < k
         activa = (i == k - 1)
         edad = k - 1 - i
-        fade = 1.0 if edad == 0 else max(0.0, 1.0 - (edad - 1) / float(max(1, ventana)))
+        if not alcanzada:
+            fade = 0.30                 # pista del copy por delante, no protagonista
+        elif edad == 0:
+            fade = 1.0
+        else:
+            # dentro de la ventana: piso 0,45 (legible); fuera: se apaga
+            crudo = max(0.0, 1.0 - (edad - 1) / float(max(1, ventana)))
+            fade = max(0.45, crudo) if edad < ventana else crudo
         if es_clave:
             fade = max(fade, 0.92)       # la clave no se apaga: es el mensaje
         if activa:
@@ -3161,23 +3224,22 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
         if sitio is None:
             continue
         x, y = sitio
-        # la palabra RECIEN alcanzada crece desde 0,66 hasta su tamano
+        # solo la ACTIVA crece (0,82 -> 1,0): menos jerk que 0,66->1 y sin
+        # encoger el resto de la frase (baseline estable)
         escala_p = 1.0
-        if not alcanzada:
-            escala_p = 0.66           # la que aun no se ha leido: pequena
-        elif activa:
-            # la ACTIVA crece al entrar (0,66 -> 1,0): el reel de referencia
-            # lo hace asi, y es movimiento de verdad (si la palabra saliera
-            # de golpe, el medidor lo contaria como un pop)
-            escala_p = 0.66 + 0.34 * smoothstep(clamp01((t - t_palabra) / dur_crece))
-        if es_clave or tipo_caja in ("roja", "blanca"):
-            col = BLANCO
-        elif alcanzada:
-            col = BLANCO
-        else:
-            col = GRIS
+        if activa:
+            escala_p = 0.82 + 0.18 * smoothstep(clamp01((t - t_palabra) / dur_crece))
+        # jerarquía: clave/caja/activa en blanco; el resto alcanzado en gris
+        # legible; lo por delante, gris tenue (teleprompter, no nube blanca)
         if tipo_caja == "blanca":
             col = NEGRO
+        elif es_clave or tipo_caja == "roja" or activa:
+            col = BLANCO
+        elif alcanzada:
+            col = (200, 200, 200)       # gris claro: se lee, no compite con la clave
+        else:
+            col = GRIS
+            fade = max(fade, 0.36)      # pista visible (a>80) sin robar foco
         tam_p = max(10, int(round(tam * escala_p)))
         f = fab(tam_p, 800) if (es_clave or tipo_caja) else fab(tam_p, 500)
         al = int(255 * fade)
@@ -3201,12 +3263,14 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
                                 outline=AZUL_SELECCION + (min(255, al + 40),),
                                 width=max(2, int(tam * 0.035)))
         if activa and not tipo_caja:
-            # el SUBRAYADO ROJO de la palabra activa: una barra solida del
-            # ancho de la palabra, pegada debajo (medido: 8-9 px de grosor)
+            # el SUBRAYADO de acento de la palabra activa + latido: sin el
+            # latido, tras asentar cada palabra el hold quedaba muerto
+            # (medido: frase 81/100, muerto 0,75)
             ww = ctx.tmp.textlength(texto_w, font=f)
-            grosor = max(4, int(tam_p * 0.075))
+            grosor = max(4, int(tam_p * 0.075 * latido(t, t_palabra, 1.35, 0.14)))
+            al_line = min(255, int(al * latido(t, t_palabra, 1.35, 0.10)))
             d.rectangle([x, y + tam_p * 1.02, x + ww, y + tam_p * 1.02 + grosor],
-                        fill=ACENTO + (al,))
+                        fill=ACENTO + (al_line,))
     return k
 
 
@@ -3729,8 +3793,17 @@ def sc_camino(ctx, e, t):
     p1 = 1.0 - 0.5 / n
     prog = clamp01((t - e["from"]) / max(1e-6, e["to"] - e["from"]))
     cabeza = p0 + (p1 - p0) * prog
-    # la linea: la MISMA funcion para todos (DRY)
-    trazado(mundo, pts, col_linea, grosor=int(e.get("grosor", 7)),
+    grosor = int(e.get("grosor", 7))
+    # PISTA tenue del recorrido completo: sin ella, las estaciones pendientes
+    # parecían desconectadas (el trazo solo dibuja lo ya recorrido). DRY:
+    # la misma `trazado`, otro progreso/alfa.
+    trazado(mundo, pts, (72, 72, 72), grosor=max(3, grosor - 2),
+            progreso=1.0, desvanecer=0.0, brillo=False, alpha=130)
+    # la linea viva: la MISMA funcion para todos (DRY) + latido en la cabeza
+    # cuando el progreso se asienta (mata muerto del hold final)
+    g_vivo = max(grosor, int(grosor * latido(t, e["from"] + (e["to"] - e["from"]) * 0.55,
+                                             1.5, 0.08)))
+    trazado(mundo, pts, col_linea, grosor=g_vivo,
             progreso=cabeza, desvanecer=0.22, cola=e.get("colores"))
 
     # las estaciones: se encienden cuando la cabeza las pasa. Cada una va en
@@ -3746,12 +3819,18 @@ def sc_camino(ctx, e, t):
         if k <= 0:
             continue
         encendida = cabeza >= pos - 0.02
+        # la estación bajo la cabeza late: es el "ahora" del camino
+        en_cabeza = encendida and abs(cabeza - pos) < (0.55 / n)
         col = col_linea if encendida else (110, 110, 110)
         a = int(255 * k) if encendida else int(150 * k)
+        if en_cabeza:
+            a = min(255, int(a * latido(t, t_in, 1.4, 0.08)))
         sub_n, dn = grupo()
-        insignia_3d(dn, cx, cy, R, est.get("icono"), ctx.fT(30, 800),
+        r_nodo = int(R * (latido(t, t_in, 1.4, 0.04) if en_cabeza else 1.0))
+        insignia_3d(dn, cx, cy, r_nodo, est.get("icono"), ctx.fT(30, 800),
                      color=col, alpha=a, t=t)
-        # el nombre de la estacion, debajo
+        # el nombre de la estacion, debajo — se ENCOGE / acorta al hueco
+        # (LECCIONES era más ancha que el nodo y se leía desbalanceada)
         fnt = fuente_que_cabe(ctx.fT, str(est.get("titulo", "")).upper(),
                                ESCALA["secundario"],
                                (x1 - x0) / max(1, n) - 12, 800)
@@ -3931,8 +4010,14 @@ def sc_pasos(ctx, e, t):
         fila_h = min(260, (zy1 - y0 - _res) / n)
         y0 += ((zy1 - y0 - _res) - fila_h * n) / 2
         cx = W / 2
+        # el ACTIVO es el último ya asentado (o el marcado): antes TODOS los
+        # entrados brillaban en acento y no se leía el "ahora" del proceso
+        t_ins = [escalonado(at, "item", j, e["from"] + 0.3) for j in range(n)]
+        alcanzados = [j for j in range(n) if t >= t_ins[j] and entra(t, t_ins[j], "elemento") > 0.85]
+        marcado = next((j for j, it in enumerate(items) if it.get("activo")), None)
+        activo_idx = marcado if marcado is not None else (alcanzados[-1] if alcanzados else -1)
         for i, it in enumerate(items):
-            t_in = escalonado(at, "item", i, e["from"] + 0.3)
+            t_in = t_ins[i]
             k = entra(t, t_in, "elemento")
             if k <= 0:
                 continue
@@ -3940,45 +4025,59 @@ def sc_pasos(ctx, e, t):
             yi = y0 + i * fila_h + fila_h * 0.1
             # número
             radio = min(fila_h * 0.35, 60)
-            es_activo = k > 0.5
-            circulo_numero(ds, cx, yi + radio, radio, i + 1,
-                           ACENTO if es_activo else (80, 80, 80, 255), BLANCO, ctx)
-            # texto a la izquierda del número (en columna: debajo)
+            es_activo = (i == activo_idx)
+            pulso = latido(t, t_in, 1.5, 0.07) if es_activo else 1.0
+            col_n = ACENTO if es_activo else ((90, 90, 90, 255) if i in alcanzados or i < activo_idx
+                                              else (70, 70, 70, 255))
+            circulo_numero(ds, cx, yi + radio, radio, i + 1, col_n, BLANCO, ctx,
+                           alpha=min(255, int(255 * pulso)) if es_activo else 255)
+            # texto debajo del número
             fnt = ctx.fX(int(min(46, fila_h * 0.18)), 700)
-            ds.text((cx, yi + 2 * radio + 8), it.get("titulo", ""), font=fnt, fill=BLANCO, anchor="mt")
+            col_t = BLANCO if (es_activo or i <= activo_idx) else GRIS
+            ds.text((cx, yi + 2 * radio + 8), it.get("titulo", ""), font=fnt,
+                    fill=col_t + (255,), anchor="mt")
             y_fin = yi + 2 * radio + 8 + fnt.size
             if it.get("texto"):
                 fnt_t = ctx.fX(int(min(32, fila_h * 0.13)), 400)
-                ds.text((cx, y_fin + 6), it.get("texto", ""), font=fnt_t, fill=GRIS, anchor="mt")
+                ds.text((cx, y_fin + 6), it.get("texto", ""), font=fnt_t,
+                        fill=GRIS + (255,), anchor="mt")
                 y_fin += 6 + fnt_t.size
             # conector: del texto al círculo siguiente (nunca atraviesa la letra)
             if i < n - 1 and yi + fila_h + fila_h * 0.1 - 10 > y_fin + 14:
                 ds.line([cx, y_fin + 14, cx, yi + fila_h - 10],
-                       fill=(120, 120, 120, 255), width=3)
+                       fill=(150, 150, 150, 255), width=3)
             fundir(layer, sub, k)
     else:
-        # fila
+        # fila (misma regla de activo que la columna)
         zx0, _, zx1, _ = caja_segura()
         x0, w_disp = zx0, zx1 - zx0
         col_w = w_disp / n
         cy = H * 0.50
+        t_ins = [escalonado(at, "item", j, e["from"] + 0.3) for j in range(n)]
+        alcanzados = [j for j in range(n) if t >= t_ins[j] and entra(t, t_ins[j], "elemento") > 0.85]
+        marcado = next((j for j, it in enumerate(items) if it.get("activo")), None)
+        activo_idx = marcado if marcado is not None else (alcanzados[-1] if alcanzados else -1)
         for i, it in enumerate(items):
-            t_in = escalonado(at, "item", i, e["from"] + 0.3)
+            t_in = t_ins[i]
             k = entra(t, t_in, "elemento")
             if k <= 0:
                 continue
             sub, ds = grupo()   # el paso entero entra fundido
             radio = min(col_w * 0.18, 60)
             xi = x0 + (i + 0.5) * col_w - radio          # centrado en su columna
-            es_activo = k > 0.5
-            circulo_numero(ds, xi + radio, cy, radio, i + 1,
-                           ACENTO if es_activo else (80, 80, 80, 255), BLANCO, ctx)
+            es_activo = (i == activo_idx)
+            pulso = latido(t, t_in, 1.5, 0.07) if es_activo else 1.0
+            col_n = ACENTO if es_activo else ((90, 90, 90, 255) if i <= activo_idx
+                                              else (70, 70, 70, 255))
+            circulo_numero(ds, xi + radio, cy, radio, i + 1, col_n, BLANCO, ctx,
+                           alpha=min(255, int(255 * pulso)) if es_activo else 255)
             # texto
             fnt = ctx.fX(int(unidad() * 0.042), 700)
             lineas = linewrap(it.get("titulo", ""), fnt, col_w * 0.85)
+            col_t = BLANCO if (es_activo or i <= activo_idx) else GRIS
             for li, ln in enumerate(lineas):
                 ds.text((xi + radio, cy + radio + 18 + li * (fnt.size + 4)),
-                       ln, font=fnt, fill=BLANCO, anchor="mt")
+                       ln, font=fnt, fill=col_t + (255,), anchor="mt")
             if it.get("texto"):
                 fnt_t = ctx.fX(int(unidad() * 0.03), 400)
                 ds.text((xi + radio, cy + radio + 26 + len(lineas) * (fnt.size + 4)),
@@ -3987,7 +4086,7 @@ def sc_pasos(ctx, e, t):
             # conector hasta el borde del círculo siguiente
             if i < n - 1:
                 ds.line([xi + 2 * radio + 10, cy, x0 + (i + 1.5) * col_w - radio - 10, cy],
-                       fill=(120, 120, 120, 255), width=3)
+                       fill=(150, 150, 150, 255), width=3)
             fundir(layer, sub, k)
     if e.get("fuente"):
         pie_fuente(ctx, ImageDraw.Draw(layer), e, t, at.get("fuente", e["from"] + 1.5))
@@ -4396,17 +4495,26 @@ def sc_rotulo_inferior(ctx, e, t):
         kr = smoothstep(clamp01((t - t_in - dt) / 0.5)) * k_txt   # barrido parejo (ease_out revelaba media palabra en 2 frames)
         if kr <= 0:
             continue
+        # se dibuja sobre una capa del tamaño del cuadro: así `medir_animacion`
+        # ve la letra (antes el text() iba a un buffer auxiliar y letra_min=0)
         tw_ = int(ctx.tmp.textlength(txt, font=fnt)) + 4
-        img = Image.new("RGBA", (tw_, int(fnt.size * 1.4)), (0, 0, 0, 0))
-        ImageDraw.Draw(img).text((0, 0), txt, font=fnt, fill=col + (255,))
+        th_ = int(fnt.size * 1.4)
+        ox, oy = int(x0 + pad + 12), int(yy)
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(img).text((ox, oy), txt, font=fnt, fill=col + (255,))
         # máscara que barre con borde DIFUMINADO (40 px): la letra se revela, no aparece entera
         borde = 40
-        x_rev = (tw_ + borde) * kr
-        rampa = np.clip((x_rev - np.arange(tw_)) / borde, 0, 1)
+        x_rev = ox + (tw_ + borde) * kr
+        xs = np.arange(W, dtype=np.float32)
+        rampa = np.clip((x_rev - xs) / borde, 0, 1)
         a_ = np.asarray(img.split()[3], np.float32) * rampa[None, :]
+        # fuera de la franja del texto, alfa 0 (no contaminar el panel)
+        a_[:max(0, oy), :] = 0
+        a_[min(H, oy + th_):, :] = 0
+        a_[:, :max(0, ox)] = 0
+        a_[:, min(W, ox + tw_ + borde):] = 0
         img.putalpha(Image.fromarray(a_.astype(np.uint8), "L"))
-        vis = img
-        layer.alpha_composite(vis, (int(x0 + pad + 12), int(yy)))
+        layer.alpha_composite(img)
     return layer
 
 
@@ -4789,7 +4897,10 @@ def sc_comentario(ctx, e, t):
     t_likes = at.get("likes", t_card + 1.2)
     kl = clamp01((t - t_likes) / 0.5)
     y_fot = yc + hc - 36
-    d.text((xc + 36, y_fot), f"❤️ {likes} Me gusta", font=ctx.fX(26, 700),
+    # piso de escala (nota=28): 26 px era justo el LETRA_MIN del QA y se veía
+    # justo en el límite en móvil
+    d.text((xc + 36, y_fot), f"❤️ {likes} Me gusta",
+           font=ctx.fX(ESCALA["nota"], 700),
            fill=ACENTO + (int(255 * kl),), anchor="ls")
     fecha = e.get("fecha", "Reciente")
     d.text((xc + wc - 36, y_fot), fecha, font=ctx.fX(ESCALA["nota"], 400),
@@ -5209,17 +5320,29 @@ def sc_index(ctx, e, t):
         y = y0 + i * fila_h
         num = cuenta_up(1, i + 1, t, t_i, 0.4)
         al = int(255 * clamp01(k * 1.4))
-        col = ACENTO + (al,) if activo else GRIS + (int(al * 0.85),)
+        # inactivo: gris más claro (antes ~GRIS*0.85 sobre negro perdía contraste
+        # en móvil); activo: acento con latido para no morir en el hold
+        if activo:
+            pulso = latido(t, t_i, 1.5, 0.08)
+            col = ACENTO + (min(255, int(al * pulso)),)
+        else:
+            col = (168, 168, 168, int(al * 0.92))
         # el numero en su circulo (primitiva comun): el inactivo va en
-        # blanco atenuado sobre gris, no gris sobre gris (no se leia)
-        radio_n = max(20, min(26, int(fila_h * 0.22)))
+        # blanco atenuado sobre gris, no gris sobre gris (no se leia).
+        # El radio del badge es FIJO (si late, fuente_que_cabe baja la letra
+        # bajo LETRA_MIN=26). El latido va al alfa y al subrayado.
+        radio_n = max(22, min(28, int(fila_h * 0.24)))
+        pulso = latido(t, t_i, 1.5, 0.08) if activo else 1.0
         circulo_numero(d, zx0 + radio_n, y, radio_n, num,
-                       ACENTO if activo else (60, 60, 60, 255), BLANCO, ctx, alpha=al)
+                       ACENTO if activo else (60, 60, 60, 255), BLANCO, ctx,
+                       alpha=min(255, int(al * pulso)) if activo else al)
         x_texto = zx0 + 2 * radio_n + 20
         d.text((x_texto, y), texto, font=fnt, fill=col, anchor="lm")
         if activo:
             d.line([(x_texto, y + 22), (x_texto + ctx.tmp.textlength(texto, font=fnt),
-                                     y + 22)], fill=ACENTO + (int(150 * al),), width=2)
+                                     y + 22)],
+                   fill=ACENTO + (min(255, int(160 * al / 255 * pulso)),),
+                   width=max(2, int(2 * pulso)))
 
     if e.get("fuente"):
         pie_fuente(ctx, d, e, t, at.get("fuente", e["from"] + 1.5))

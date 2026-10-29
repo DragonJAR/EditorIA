@@ -110,12 +110,15 @@ def opciones(intencion, datos=None, efectos=None, gestos=None):
         raise ValueError(f"intención desconocida: {intencion} "
                          f"(válidas: {', '.join(fams)})")
     out = []
+    detalle = (datos or {}).get("detalle_escenas") or {}
     for e in fams[intencion]:
+        meta = detalle.get(e) or {}
         out.append({
             "id": e,
             "motor": MOTOR_ESCENA,
             "intencion": intencion,
-            "firma": f"escena del plan `{e}`",
+            "firma": meta.get("firma") or f"escena del plan `{e}`",
+            "ocasion": meta.get("ocasion", ""),
             "producir": f"plan.json tipo={e} · references/escenas.md",
         })
     for eid, fila in _opciones_efecto(efectos).items():
@@ -199,11 +202,13 @@ def resolver(nombre, datos=None, efectos=None, gestos=None):
     tipos = catalogo()
     if nombre in tipos:
         ints = intencion_de(nombre, datos)
+        meta = (datos.get("detalle_escenas") or {}).get(nombre) or {}
         return {
             "id": nombre,
             "motor": MOTOR_ESCENA,
             "intenciones": ints,
-            "firma": f"escena del plan `{nombre}`",
+            "firma": meta.get("firma") or f"escena del plan `{nombre}`",
+            "ocasion": meta.get("ocasion", ""),
             "producir": f"plan.json tipo={nombre} · references/escenas.md",
         }
     # efectos + looks + aliases
