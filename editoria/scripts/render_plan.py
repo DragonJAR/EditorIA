@@ -392,9 +392,15 @@ def iris_mask(ctx, t, t0, dur=0.7, fx=0.5, fy=0.38):
     return mask
 
 
-SOLAPE=0.45      # s que la salida de una escena se superpone con la entrada de la siguiente
+# La salida del corte por defecto: la escena que sale sigue ENTERA hasta el
+# corte y se va en SOLAPE s debajo de la que entra. Medido (trans_zoom.png):
+# con 0.25 s antes + 0.45 s después quedaba al ~12 % 0.3 s tras el corte, un
+# fantasma bajo el texto nuevo, y el fundido previo vaciaba el cuadro antes de
+# que la nueva mostrara nada. El primer elemento que entra llega a ~+0.2 s:
+# la salida sostiene el cuadro hasta ahí y a +0.3 s ya no queda (< 2 %).
+SOLAPE=0.32      # s que la salida se superpone con la entrada de la siguiente
 SOLAPE_DISSOLVE=0.40   # s del fundido cruzado (transicion "dissolve")
-SOLAPE_PRE=0.25  # s de fundido de salida ANTES del corte
+SOLAPE_PRE=0.0   # s de fundido de salida ANTES del corte (0: sale desde el corte)
 # El pack puede declarar "corte_seco": entonces el corte es seco (la escena que
 # entra aparece de inmediato) pero el saliente se disuelve DEBAJO durante un
 # cuarto de segundo. Sin ese retardo quedaba un hueco vacío entre escenas: la
@@ -403,15 +409,28 @@ SOLAPE_SECO=0.25
 SOLAPE_PRE_SECO=0.03
 
 def capa_salida(layer,t,to_):
-    """Salida anticipada que se SOLAPA con la escena siguiente: empieza 0.25 s
-    antes del fin y termina SOLAPE s después, debajo de lo que ya entra (antes
+    """Salida que se SOLAPA con la escena siguiente: empieza SOLAPE_PRE s antes
+    del fin y termina SOLAPE s después, debajo de lo que ya entra (antes
     terminaba en `to` y quedaban frames de fondo vacío en cada corte: un
-    parpadeo que fluidez.md prohíbe)."""
+    parpadeo que fluidez.md prohíbe; si dura de más, deja un fantasma)."""
     s=prog(t,to_-SOLAPE_PRE,to_+SOLAPE,smoothstep)   # cruza el corte: sin hueco vacío
     if s<=0: return layer
     a=layer.split()[3].point(lambda v:int(v*(1-s)))
     layer.putalpha(a)
     return layer
+
+def instante_saliente(e,t):
+    """El instante en que se pinta una escena que sale por una transición de
+    máscara (iris, mancha, dissolve): su estado SIN fundir, el de justo antes
+    de que empiece `capa_salida`. La salida la hace la máscara; si además se
+    fundía, la máscara abría sobre fondo vacío (0.3-0.5 s medidos)."""
+    return min(t,e["to"]-SOLAPE_PRE)
+
+def sale_por_mascara(escenas,i,manchas_ok):
+    """¿La escena i sale por una transición de máscara de la siguiente?"""
+    if i+1>=len(escenas): return False
+    # el iris entra siempre por su rama de `componer` (como allí)
+    return escenas[i+1].get("transicion") in ("dissolve","iris") or (i+1) in manchas_ok
 
 def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,maxw=None):
     """Titular cinético: cada palabra entra con resorte en su `at`, con escala
@@ -5815,11 +5834,12 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     # un solo mundo continuo para todo el video (con una semilla por escena el
     # fondo saltaba de lugar en cada corte)
     bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=1)
-    layer=encuadrar(ctx,s,si,t,pintar(ctx,s,t).copy())
+    ts=instante_saliente(s,t) if sale_por_mascara(escenas,si,manchas_ok) else t
+    layer=encuadrar(ctx,s,si,t,pintar(ctx,s,ts).copy())
+    ep=escenas[si-1] if si>0 else None
     if s.get("transicion")=="iris" and si>0 and t-s["from"]<0.9:
         # IRIS: la escena nueva se abre en circulo desde un punto (la cara)
-        ep=escenas[si-1]
-        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t))
+        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,instante_saliente(ep,t)).copy())
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.38)
         mask=iris_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -5830,15 +5850,15 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         # DISOLUCION: la escena nueva aparece encima de la anterior con alfa
         # creciente (un corte suave, sin mancha). Es la transicion mas neutra:
         # no pide atencion como la mancha ni ensucia con formas.
-        ep=escenas[si-1]
-        bg.alpha_composite(encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t).copy()))
         kd=smoothstep(clamp01((t-s["from"])/SOLAPE_DISSOLVE))
+        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,instante_saliente(ep,t)).copy())
+        prev.putalpha(prev.split()[3].point(lambda v:int(v*(1-kd))))   # cruza: la que sale baja lo que la otra sube
+        bg.alpha_composite(prev)
         layer=layer.copy()
         layer.putalpha(layer.split()[3].point(lambda v:int(v*kd)))
         bg.alpha_composite(layer)
     elif si in manchas_ok and t-s["from"]<0.9:
-        ep=escenas[si-1]
-        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t))
+        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,instante_saliente(ep,t)).copy())
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.45)
         mask=mancha_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -5847,7 +5867,6 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         bg.alpha_composite(Image.composite(layer,nada,mask))
     else:
         if si>0 and t-s["from"]<SOLAPE:   # la anterior termina de irse DEBAJO de la nueva
-            ep=escenas[si-1]
             bg.alpha_composite(encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t).copy()))
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])

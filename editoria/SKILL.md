@@ -284,7 +284,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (45/45 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (66 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (45/45 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (67 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

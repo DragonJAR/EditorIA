@@ -64,6 +64,7 @@
   "test_stagger_y_revelado.py",
   "test_tmp_unico.py",
   "test_track_y_picos.py",
+  "test_transiciones.py",
   "test_verificar_ritmo.py",
   "test_verticales.py",
   "test_vida_en_reposo.py",

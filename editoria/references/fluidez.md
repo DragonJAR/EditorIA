@@ -61,9 +61,14 @@ transiciones *dentro* de la escena.)
   máximo, nunca como costura por defecto. La fluidez manda en entradas,
   salidas y transiciones *dentro* de la escena; la costura *entre* escenas
   la fija el idioma de transición elegido.
-- **Salidas que cruzan el corte**: cada escena empieza a irse 0.25 s antes de
-  su fin y termina de irse 0.45 s DESPUÉS, debajo de la siguiente que ya
-  entra (`capa_salida` + `SOLAPE` en `componer`). Nunca un frame de fondo
+- **Salidas que cruzan el corte**: cada escena sigue entera hasta su fin y
+  termina de irse 0.32 s DESPUÉS, debajo de la siguiente que ya entra
+  (`capa_salida` + `SOLAPE`/`SOLAPE_PRE` en `componer`): sostiene el cuadro
+  hasta que llega el primer elemento nuevo (~+0.2 s) y a +0.3 s ya no queda
+  (< 2 %), así no hay fantasma bajo el texto nuevo. Con una
+  transición de máscara (iris, mancha, dissolve) la salida la hace la máscara:
+  la escena que sale se pinta SIN fundir (`instante_saliente`), si no la
+  máscara abre sobre fondo. Nunca un frame de fondo
   vacío entre escenas: eso es un parpadeo (medido con
   `medir_animacion.py --plan`; validate_skill lo exige). El fondo es UN mundo
   continuo para todo el video: no salta de lugar en los cortes.

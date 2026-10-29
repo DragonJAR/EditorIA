@@ -85,7 +85,7 @@ class ReglasDelPack(unittest.TestCase):
                 ruta = os.path.join(tmp, f"pack_{valor}.json")
                 with open(ruta, "w", encoding="utf-8") as f:
                     json.dump(pack, f, ensure_ascii=False)
-                solape_previo = R.SOLAPE
+                solape_previo, pre_previo = R.SOLAPE, R.SOLAPE_PRE
                 try:
                     R.aplicar_brand(ruta)
                     self.assertEqual(R.TRANSICIONES, valor)
@@ -94,8 +94,7 @@ class ReglasDelPack(unittest.TestCase):
                         f"con transiciones={valor} el motor no aplico la regla "
                         f"(solape {R.SOLAPE}, se esperaba {getattr(R, esperado)})")
                 finally:
-                    R.SOLAPE = solape_previo
-                    R.SOLAPE_PRE = 0.25
+                    R.SOLAPE, R.SOLAPE_PRE = solape_previo, pre_previo
 
     def test_un_pack_nuevo_no_puede_colarse(self):
         """Un pack con una regla desconocida se rechaza, no se ignora en
