@@ -634,7 +634,10 @@ class TestViralFeaturesAndPrimitives(unittest.TestCase):
         self.assertNotIn("titular", CV.FAMILIAS_ESCENAS["hook"])
         self.assertIn("ranking", CV.FAMILIAS_ESCENAS["dato"])
         self.assertIn("notificacion", CV.FAMILIAS_ESCENAS["social"])
-        self.assertIn("audiowave", CV.FAMILIAS_ESCENAS["cierre"])
+        # audiowave es una tarjeta de reproductor (demostracion), no un cierre:
+        # el cierre de un clon remata, no pone un reproductor (T14)
+        self.assertIn("remate", CV.FAMILIAS_ESCENAS["cierre"])
+        self.assertNotIn("audiowave", CV.FAMILIAS_ESCENAS["cierre"])
 
         # Segmentación sintética de video de 30 segundos
         segs = CV.detectar_cortes("/fake/video.mp4", 30.0)
