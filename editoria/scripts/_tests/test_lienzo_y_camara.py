@@ -72,7 +72,8 @@ class TestLienzo(unittest.TestCase):
         for i, tipo in enumerate(("ranking", "bars", "hoy")):
             e = R.completar_escena(_muestra(tipo), i)
             with self.subTest(tipo=tipo):
-                self.assertEqual(R.llenado(self.ctx, e, i), (1.0, 0.0))
+                # no crece (puede recentrarse: test_composicion_vertical)
+                self.assertEqual(R.llenado(self.ctx, e, i)[0], 1.0)
 
     def test_los_overlays_y_la_zona_declarada_no_crecen(self):
         R = self.R

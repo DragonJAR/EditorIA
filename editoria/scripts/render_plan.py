@@ -1583,15 +1583,18 @@ def _revela_clip(layer, tile, xy, k):
     del rol que entra, el texto sube desde detrás de esa línea: va (1-k)·alto
     más abajo y lo que cae fuera de la caja no se ve. Sin curva nueva: el
     gesto es el de `entra`. Afín sub-píxel, así que es función pura de t (el
-    blur por sub-frames lo necesita). El fundido es corto: solo quita el
-    borde duro del primer frame, no es la entrada."""
+    blur por sub-frames lo necesita). El fundido acompaña al resorte (alfa =
+    k): con un fundido corto (k·3) la tinta que el clip destapa en UN frame
+    en un titular de 124 px era un pop para el medidor según dónde cayera la
+    escena (medido moviendo la apertura: pops en 3 de 5 alturas; con alfa = k,
+    0 de 11)."""
     if k <= 0:
         return
     oy = (1 - k) * tile.height   # k > 1 (overshoot): asoma un poco; el tile trae aire arriba
     if abs(oy) > 0.01:
         tile = tile.transform(tile.size, Image.AFFINE, (1, 0, 0, 0, 1, -oy),
                               resample=Image.BICUBIC)
-    a = clamp01(k * 3)
+    a = clamp01(k)
     if a < 1:
         tile.putalpha(tile.split()[3].point(lambda v: int(v * a)))
     x, y = int(xy[0]), int(xy[1])
@@ -5467,9 +5470,10 @@ def escala_segura(ctx,e,idx):
     _ESCALA[idx]=f if f<0.995 else 1.0
     llena=_crecer(e,(xs0,ys0,xs1,ys1)) if _ESCALA[idx]==1.0 and xs1>xs0 else (1.0,0.0)
     _ESCALA[("llena",idx)]=llena
-    # holgura para el push-in: la que deja el contenido ya encajado (crecida,
-    # es 1+EMPUJE por construcción)
-    _ESCALA[("holgura",idx)]=1+EMPUJE if llena[0]>1 else max(1.0,cabe/_ESCALA[idx])
+    # holgura para el push-in: la que deja el contenido YA colocado (encogido,
+    # crecido o llevado al centro óptico), medida desde el punto donde empuja
+    _ESCALA[("holgura",idx)]=(_holgura((xs0,ys0,xs1,ys1),_ESCALA[idx]*llena[0],llena[1])
+                              if xs1>xs0 else math.inf)
     return _ESCALA[idx]
 
 # LLENAR EL LIENZO: la misma medición, en el otro sentido. Una escena cuyo
@@ -5480,20 +5484,49 @@ def escala_segura(ctx,e,idx):
 LLENA_MAX=1.35   # tope: más allá el raster ampliado empieza a ablandar la letra
 LLENA_MIN=1.02   # por debajo no compensa mover la escena (sería un salto sin ganancia)
 NO_CRECEN=A_SANGRE|{"final","kenburns","demo","rotulo_inferior"}   # a sangre u overlay: su sitio es el diseño
+# COMPOSICIÓN VERTICAL: toda escena que no tiene su sitio por diseño lleva el
+# centro de su contenido al centro ÓPTICO de la zona segura (el ojo pone el
+# centro un poco más arriba que el geométrico). Antes solo se recentraba la
+# escena que crecía y casi ninguna crece (las limita el ancho): medido en el
+# catálogo, la mitad de arriba o de abajo del 9:16 quedaba en negro.
+CENTRO_OPTICO=0.46   # fracción de la altura de la zona segura, desde arriba
+BANDA_MAX=0.5        # una escena más alta que media zona ya la compone (rótulo arriba,
+                     # fuente al pie): moverla solo la carga hacia arriba
+ANCLADAS={"constancia","cadena","cartel"}   # van ABAJO por su rol (bajo la cara del reel)
+SITIO_PROPIO=NO_CRECEN|ANCLADAS
 
 def _crecer(e,bb):
-    """(factor, dy) para que el bbox `bb` llene la zona segura: crece alrededor
-    de (W/2, CENTRO_Y·H) y dy lleva su centro al centro vertical de la zona.
-    Sin crecimiento: (1.0, 0.0). Con zona declarada o trayectoria global de
-    cámara no crece (las dos fijan el sitio del contenido entre escenas)."""
-    if ALFA or e["tipo"] in NO_CRECEN or e.get("zona") or _CAMARA["activa"]: return (1.0,0.0)
+    """(factor, dy) del encuadre del bbox `bb`: crece alrededor de (W/2,
+    CENTRO_Y·H) hasta llenar la zona segura (con tope) y dy lleva su centro
+    vertical al centro óptico (CENTRO_OPTICO), sin salirse de la zona. Función
+    pura del bbox medido: el mismo (g, dy) en toda la escena. Sin cambio:
+    (1.0, 0.0): a sangre, overlay, ancladas por su rol, `y` o `zona`
+    declaradas, o trayectoria global de cámara (fijan el sitio del contenido)."""
+    if (ALFA or e["tipo"] in SITIO_PROPIO or e.get("zona") or e.get("y") is not None
+            or _CAMARA["activa"]): return (1.0,0.0)
     x0,y0,x1,y1=bb; cx,cy=W/2,CENTRO_Y*H
     zx0,zy0,zx1,zy1=caja_segura()
     g=min(LLENA_MAX,(cx-zx0)/max(1,cx-x0),(zx1-cx)/max(1,x1-cx),(zy1-zy0)/max(1,y1-y0))
     g/=1+EMPUJE   # el push-in de la cámara cabe dentro
-    if g<LLENA_MIN: return (1.0,0.0)
-    # encajar: Y = cy + dy + g·(y - cy); el centro del bbox cae en el de la zona
-    return (g,(zy0+zy1)/2-cy-g*((y0+y1)/2-cy))
+    if g<LLENA_MIN: g=1.0
+    alto=g*(y1-y0)
+    if g==1.0 and alto>BANDA_MAX*(zy1-zy0): return (1.0,0.0)   # ya compone la zona: es su diseño
+    # el centro buscado, sujeto a que el bbox (crecido) quepa entero en la zona
+    c=zy0+CENTRO_OPTICO*(zy1-zy0)
+    c=(zy0+zy1)/2 if alto>=zy1-zy0 else min(max(c,zy0+alto/2),zy1-alto/2)
+    # encajar: Y = cy + dy + g·(y - cy); el centro del bbox cae en c
+    dy=c-cy-g*((y0+y1)/2-cy)
+    return (g,dy) if g>1.0 or abs(dy)>=1.0 else (1.0,0.0)
+
+def _holgura(bb,f,dy):
+    """Cuánto puede empujar la cámara el bbox `bb` ya colocado (escala f y dy
+    alrededor de (W/2, CENTRO_Y·H)) sin salirse de la zona segura: el push-in
+    escala alrededor de (W/2, CENTRO_Y·H + dy) y la flotación (FLOTA_CAM) lo
+    sube y lo baja encima (sin ella, medido, el gauge salía 5 px por abajo)."""
+    x0,y0,x1,y1=bb; cx,cy=W/2,CENTRO_Y*H; py=cy+dy
+    zx0,zy0,zx1,zy1=caja_segura()
+    return max(1.0,min((cx-zx0)/max(1,f*(cx-x0)),(zx1-cx)/max(1,f*(x1-cx)),
+                       (py-zy0-FLOTA_CAM)/max(1,f*(cy-y0)),(zy1-py-FLOTA_CAM)/max(1,f*(y1-cy))))
 
 def llenado(ctx,e,idx):
     """(factor, dy) de crecimiento de la escena idx (se mide con escala_segura)."""
