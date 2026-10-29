@@ -194,6 +194,20 @@ Antes de cualquier trabajo pagado (TTS, música IA), acordar con el usuario
 qué cubre y cuánto, y anotarlo en `BRIEF.md`. Lo que exceda ese acuerdo es
 decisión del usuario. `PROGRESO.md` lleva el gasto real frente al acordado.
 
+## 10. Cierre en la puerta
+
+Tras transformar y construir con Steps 2–5 (o el montaje de Step 6), el
+resultado se mide igual que cualquier otra pieza:
+
+```bash
+python scripts/qa_entrega.py final.mp4 --plan plan.json
+python scripts/puntuar.py final.mp4 --plan plan.json --ejes "1=4,2=5,5=4,7=4"
+```
+
+Sin plan (solo edición de footage): omitir `--plan` y pasar el eje 4 a ojo
+en `--ejes`. Comparar fuente y resultado por función en las mismas palabras
+antes de declarar listo.
+
 ---
 
 → Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-rapidos.md`, `references/estilos.md`, `references/copy.md`

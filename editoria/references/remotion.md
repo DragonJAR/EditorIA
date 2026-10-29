@@ -81,6 +81,12 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
 - Regla: si la pieza se resuelve en <10 escenas del plan, el motor Python
   suele ser más rápido. Remotion brilla a partir de lógica que Python
   expresaría con dificultad.
+- **Cierre en la puerta de EditorIA**: `npx remotion still` es QA barato de
+  frames; el MP4 entregable sigue la misma puerta que el resto de la skill:
+  `python scripts/qa_entrega.py final.mp4` y
+  `python scripts/puntuar.py final.mp4 --ejes "1=4,2=4,4=4,5=4,7=4"`
+  (con `--plan` si la pieza también usa el motor de plan). Loudness y spec
+  de plataforma se miden aquí, no en Remotion.
 
 ---
 

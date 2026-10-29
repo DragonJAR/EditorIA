@@ -19,14 +19,19 @@
     "proyecto",
     "galeria",
     "film_marca",
+    "film_marca_v2",
     "check_env",
     "beat_file",
     "beat_grid",
     "auto_qa",
-    "hand_draw"
+    "hand_draw",
+    "qa_entrega",
+    "puntuar",
+    "verificar_ritmo",
+    "compilar_reel"
    ],
    "sin_test": {
-    "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 39 escenas del catalogo), no un test",
+    "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 45 escenas del catalogo), no un test",
     "scripts/film_marca.py": "renderiza una pieza entera de cine: la validacion ya lo hace con la v2"
    },
    "entrada": [
@@ -60,7 +65,13 @@
     "delivery_check",
     "loudness",
     "contact_sheet",
+<<<<<<< HEAD
     "efectos_talking_head"
+=======
+    "componer",
+    "qa_entrega",
+    "puntuar"
+>>>>>>> 55b5562 (fix E2E skill flows: gate, loudness, and catalog drift)
    ],
    "sin_test": {
     "scripts/ffmpeg_tools/transcribir.py": "necesita el modelo de voz (Whisper) instalado"

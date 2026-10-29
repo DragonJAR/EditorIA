@@ -24,6 +24,11 @@ la vez, uno de los dos está de mas.
 
 ## 2. Si el cliente pide…
 
+Los primeros picks de esta sección son atajos de lenguaje vago → una escena.
+**No son el catálogo completo**: la fuente única intención→familia es §2b /
+`scripts/data/repertorio.json` (`repertorio.py sugerir`). No elijas tipos
+solo desde esta lista ni desde `demo_plan.json`.
+
 ### "Quiero una apertura que enganche"
 `apertura` — gancho en dos tiempos: `texto1` entra (150 px), `texto2` lo
 sustituye (124 px) con `at.cambio`. La mancha crece desde un punto. Es la

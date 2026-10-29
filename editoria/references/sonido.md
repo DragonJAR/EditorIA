@@ -442,16 +442,24 @@ está en `checklist-qa.md`.)
 
 ## Flujo de audio completo
 
+El camino canónico es el de Step 4 en `SKILL.md` y `references/audio.md`
+(«De la mezcla a la entrega»). No hay un segundo pipeline:
+
 1. Guion con marcas de dirección en los campos `voz` del plan + matemática de
    timing (ver "Timing de la VO para explainers").
-2. `voz_off.py` genera segmentos por escena (con la voz del idioma).
-3. `musica.py gen` con prompt del arco → `mix` o `musiconly`.
-4. Mezcla: normalizar la VO primero (`loudnorm=I=-14:TP=-1.5:LRA=11`); cama
-   0.12 (verificado: ~15 dB bajo la voz con `medir_mezcla.py`); SFX con el gain
-   único del kit; una sola pista maestra premezclada.
-5. Mastering pre-entrega: highpass → acompressor → loudnorm → alimiter
-   (−14 LUFS enérgico / −16 LUFS calmo, −1.5 dBTP). Verificar niveles: voz al
-   frente, sin clipping.
+2. `voz_off.py` (o `voz_local.py` como maqueta sin API) genera segmentos por
+   escena; `alinear.py` si la pieza lleva karaoke.
+3. Música: `musica.py gen` (pago) o `musica.py cama` (gratis, sin key).
+4. `mezclar_audio.py` suma voz + cama ducked + SFX del plan sobre el video
+   (`medir_mezcla.py` valida la jerarquía de pistas sueltas, no el master).
+5. Si hay subtítulos quemados, `caption.py` sobre el mezclado **antes** del
+   loudness (un solo archivo final).
+6. `ffmpeg_tools/loudness.py` cierra (−14 LUFS enérgico / −16 calmo, TP −1.5)
+   y **entonces** la puerta: `qa_entrega.py final.mp4` (+ `puntuar.py`).
+
+La cadena ffmpeg de «Mastering (pre-entrega)» arriba es alternativa avanzada
+cuando se trabaja una pista WAV suelta fuera del mezclador; no sustituye
+`mezclar_audio.py` → `loudness.py` en el flujo de la skill.
 
 ---
 

@@ -117,6 +117,17 @@ viven en `references/estilos-codigo.md`, con sus fuentes declaradas.
 se integra en el motor de esta skill ni se copia su código; se declara la
 fuente y se usa como referencia y como material.
 
+## Cierre en la puerta
+
+Un film (`film_marca_v2.py` / `film_marca.py` o material 3D compuesto)
+también cierra en la puerta:
+
+```bash
+python scripts/qa_entrega.py final.mp4 --plan plan.json   # si hubo plan
+python scripts/qa_entrega.py final.mp4                    # film sin plan
+python scripts/puntuar.py final.mp4 --ejes "1=4,2=5,4=4,5=4,7=4"
+```
+
 ---
 
 → Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/brand-packs.md`, `references/tonos.md`

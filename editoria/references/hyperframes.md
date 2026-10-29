@@ -37,7 +37,9 @@ render local **no exige login ni cuenta** (verificado 2026-10-04). El
 router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
 > **Estos comandos son de la herramienta externa** (Node, HyperFrames y el
-> paquete `skills` de npm), no CLIs de la skill: **la puerta no los verifica**.
+> paquete `skills` de npm), no CLIs de la skill: **`check_env` / la puerta de
+> entrega no verifican que HyperFrames esté instalado** (es capacidad
+> declarable). Eso no exime al MP4 final de la puerta de EditorIA.
 > Y `npx -y skills add ...` instala y ejecuta código de internet con
 > confirmación automática (`-y`): revisa el origen del paquete antes de
 > correrlo.
@@ -101,6 +103,10 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 - Handoff (concepto, no implementado): un `plan.json` de EditorIA se
   traduciría 1:1 a una composición HyperFrames (escena → sección HTML
   con `data-start`/`data-duration`).
+- **Cierre en la puerta**: tras `hyperframes render`, el MP4 pasa por
+  `python scripts/qa_entrega.py final.mp4` y
+  `python scripts/puntuar.py final.mp4 --ejes "1=4,2=4,4=4,5=4,7=4"`.
+  Preview/lint/check de HyperFrames no sustituyen esa puerta.
 
 ---
 
