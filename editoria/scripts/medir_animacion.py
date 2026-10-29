@@ -381,6 +381,23 @@ def ocupacion_por_escena(F, fps, escenas, caja=None):
     return out
 
 
+def _digito_nuevo(candidatos, cambia):
+    """(n, hb, wb) bool: los candidatos a pop que son el DÍGITO NUEVO de un
+    contador. Un contador que suma un dígito ("8" -> "11") deja bloques que
+    pasan de fondo a tinta pegados en la misma fila a bloques con tinta que
+    cambian de golpe a otra tinta (las cifras que cuentan). Con el motor eso
+    lo dicen las zonas de cifra; en un video no hay motor, y el gauge del plan
+    de muestra marcaba un pop en 20.43 s que la medición por escena no ve.
+    Un objeto que aparece lejos de una cifra que cuenta sigue siendo pop."""
+    out = np.zeros_like(candidatos)
+    for i, y in zip(*np.nonzero((candidatos & ~cambia).any(axis=2))):
+        fila = candidatos[i, y] | cambia[i, y]
+        for a, b in _rachas(fila):   # tramos contiguos de la fila: si uno trae cifra, es contador
+            if cambia[i, y, a:b].any():
+                out[i, y, a:b] = candidatos[i, y, a:b]
+    return out
+
+
 def metricas(F, fps, dur, zonas_cifra=None, k_=1.0, caja=None):
     """Las métricas de movimiento sobre frames en gris (n, alto, ancho) a la
     escala de análisis. Una sola implementación para escenas, planes y videos.
@@ -403,6 +420,8 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0, caja=None):
             by0, by1 = int(y0_ * k_ / BLOQUE) - 1, int(y1_ * k_ / BLOQUE) + 2
             bx0, bx1 = int(x0_ * k_ / BLOQUE) - 1, int(x1_ * k_ / BLOQUE) + 2
             candidatos[i, max(0, by0):by1, max(0, bx0):bx1] = False
+    if zonas_cifra is None:   # un video: sin el motor, las zonas de cifra se infieren
+        candidatos &= ~_digito_nuevo(candidatos, (bloques > POP_SALTO) & contenido)
     fin_activo = int((dur - 0.6) * fps)
     pops = []
     for i in range(min(len(candidatos), fin_activo - 1)):
