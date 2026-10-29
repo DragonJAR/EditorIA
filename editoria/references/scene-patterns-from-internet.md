@@ -78,6 +78,24 @@ hace falta; equivalentes nativos (`grade`, `chat`, `countdown`,
 `constancia`/`pasos`, `hand_draw`, `tarjeta_cristal`…) se declaran por
 fila para no duplicar firmas.
 
+### 6. Skills agenticas de video (EI-26) — Reelsmaker / HyperFrames / Remotion / Media Use
+
+Clonados en `/tmp` (sin submodule): IT Reelsmaker (`itpartypattaya/reels-montage`),
+HyperFrames (+ captions-overlay / media-use), Remotion + `remotion-dev/skills`.
+
+**Adoptado (orgánico, una superficie):** cadena
+`references/flujo-talking-head.md`; identidades caption en
+`captions_identidades.json` vía `repertorio.py` (`motor=caption`); doctrina
+drop/rail/embed + matte; ledger/media “no fetch en render”; skills Remotion
+on-demand documentadas en `remotion.md`.
+
+**Ya cubierto mejor por EditorIA:** silence/retakes, caption.py karaoke,
+loudness −14, verticales editar/publicar, efectos CVE, repertorio 45+45+8.
+
+**Descartado:** vendorizar plugins/repos; menús `/it-reelsmaker` /
+`/media-use` / `/embedded-captions` paralelos; APIs de pago del add-on
+online; skills internas del monorepo Remotion; hinchar `SCENES`.
+
 ## Cómo se mapean a EditorIA (DRY)
 
 Cada escena del catálogo extendido se compone a partir de **primitivas DRY**

@@ -13,6 +13,7 @@
   "test_cadena_e_iconos.py",
   "test_camino.py",
   "test_caption_hablantes.py",
+  "test_captions_identidades.py",
   "test_cartel.py",
   "test_catalogo_prosa.py",
   "test_censo_clis.py",

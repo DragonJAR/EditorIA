@@ -179,10 +179,10 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   CLI `suavizar` / `pintar` → PNG con alfa para montaje. Sin MediaPipe en la
   skill (captura en vivo se declara).
 - **scripts/repertorio.py** — catálogo único de elección (escenas + efectos +
-  gestos UI). **scripts/efectos_talking_head.py** + JSON +
-  `references/efectos-talking-head.md` y **scripts/data/motion_ui.json** +
-  `references/motion-ui.md` son detalle/producción (CVE en `/tmp`, números de
-  gesto); no menús paralelos ni tipos nuevos en `SCENES`.
+  gestos UI + captions). Detalle/producción (no menús): 
+  `efectos_talking_head.py`, `motion_ui.json` / `motion-ui.md`,
+  `captions_identidades.py` / `captions-identidades.md`, cadena
+  `flujo-talking-head.md`. No tipos de caption en `SCENES`.
 - **references/tecnicas-video.md** — LA BIBLIOTECA: catálogo maestro de técnicas
   2025–2026 (investigación web, 16 secciones): transiciones, tipografía cinética,
   ritmo, cámara, efectos, dataviz animada (sección profunda), fotos→dinámicas

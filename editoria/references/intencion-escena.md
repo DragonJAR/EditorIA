@@ -2,7 +2,7 @@
 
 `references/escenas.md` dice cómo se construye cada escena del plan. Este es
 el camino de vuelta: **lo que el cliente pide en palabras vagas** → la
-opción del catálogo único (escena, overlay con cara o gesto de interfaz) →
+opción del catálogo único (escena, overlay con cara, gesto UI o caption) →
 cómo se produce. El agente no elige entre catálogos: `repertorio.py` es la
 única superficie; el motor es metadato.
 
@@ -247,11 +247,11 @@ python scripts/auditar_plan.py plan.json --anterior ../pieza-anterior/plan.json
 
 `sugerir --intenciones` elige una **escena de plan** por intención (rotación
 determinista; `--completo` o `--pedido` abren la familia entera:
-escena+efecto+gesto). `sugerir --pedido` solo puntúa el catálogo único.
-`resolver` dice el motor interno y cómo producir. Evita los tipos de la
-pieza anterior; `reutilizada` se dice, no se esconde. `auditar_plan.py`
-avisa `poco-repertorio` / `ruta-repetida`; `demo_plan.json` es ejemplo, no
-plantilla.
+escena+efecto+gesto+caption). `sugerir --pedido` solo puntúa el catálogo
+único. `resolver` dice el motor interno y cómo producir. Evita los tipos
+de la pieza anterior; `reutilizada` se dice, no se esconde.
+`auditar_plan.py` avisa `poco-repertorio` / `ruta-repetida`;
+`demo_plan.json` es ejemplo, no plantilla.
 
 Y lo que no se usa no se olvida: el plan declara sus intenciones y el
 porqué de las que descarta (`"intenciones": [...]`,
@@ -277,18 +277,21 @@ el motor. Orden:
 4. **Si `motor=efecto` o `nativo`**: produce con la ruta de `resolver`
    (`efectos_talking_head.py receta` clona CVE en `/tmp` cuando hace falta;
    si `nativo`, usa grade/hand_draw/escena indicada). No hinches `SCENES`.
-5. **Gesto de resorte en plan**: rol `MOVIMIENTO` (`titular`, `bloque`,
+5. **Si `motor=caption`**: `captions_identidades.py receta` (rail →
+   `caption.py`; HF/matte → on-demand). Cadena:
+   `references/flujo-talking-head.md`. No menú de skills HF/Reelsmaker.
+6. **Gesto de resorte en plan**: rol `MOVIMIENTO` (`titular`, `bloque`,
    `elemento`, `suave`, `pop`, `lento` — `animacion.md` §3b). No inventes
    stiffness/damping.
-6. **Look**: brand pack / `direccion_arte.py`; markup `*clave*` / `~caja~` /
+7. **Look**: brand pack / `direccion_arte.py`; markup `*clave*` / `~caja~` /
    `^caja^`.
-7. **Globales ≠ opciones**: `cabecera`, `grano`, `camara` van en la raíz del
+8. **Globales ≠ opciones**: `cabecera`, `grano`, `camara` van en la raíz del
    plan (`plan-video.md`).
-8. **Si ninguna opción del catálogo sirve**: selector de oficio en
+9. **Si ninguna opción del catálogo sirve**: selector de oficio en
    `animacion.md` §0 (canvas, HandDraw, Remotion, HyperFrames, 3D, híbrido,
    diagramas) y declara la capacidad si falta (`capacidades.md`). No abras
    un segundo catálogo.
-9. **Verifica barato**: preview del motor elegido + `auditar_plan.py` /
+10. **Verifica barato**: preview del motor elegido + `auditar_plan.py` /
    `medir_animacion.py` + puerta.
 
 ## 3. Receta de movimiento por escena

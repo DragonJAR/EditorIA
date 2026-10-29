@@ -179,22 +179,28 @@ class TestCatalogoUnico(unittest.TestCase):
         self.assertIn(REP.MOTOR_ESCENA, motores)
         self.assertIn(REP.MOTOR_EFECTO, motores)
         self.assertIn(REP.MOTOR_GESTO, motores)
+        self.assertIn(REP.MOTOR_CAPTION, motores)
         ids = {o["id"] for o in ops}
         self.assertIn("apertura", ids)
         self.assertIn("orbit", ids)
         self.assertIn("offset-delay", ids)
+        self.assertIn("cap-rail-karaoke", ids)
 
     def test_sugerir_pedido_encuentra_efecto_y_gesto(self):
         hits = REP.sugerir_pedido("reels orbitando mi cabeza")
         self.assertTrue(any(h["id"] == "orbit" for h in hits))
         hits2 = REP.sugerir_pedido("cascada suave que no entre todo a la vez")
         self.assertTrue(any(h["id"] == "offset-delay" for h in hits2))
+        hits3 = REP.sugerir_pedido("karaoke vertical talking head")
+        self.assertTrue(any(h["motor"] == REP.MOTOR_CAPTION for h in hits3))
 
     def test_resolver_no_exige_saber_procedencia(self):
         self.assertEqual(REP.resolver("apertura")["motor"], REP.MOTOR_ESCENA)
         self.assertEqual(REP.resolver("orbit")["motor"], REP.MOTOR_EFECTO)
         self.assertEqual(REP.resolver("easing")["motor"], REP.MOTOR_GESTO)
         self.assertEqual(REP.resolver("moody")["motor"], REP.MOTOR_NATIVO)
+        self.assertEqual(REP.resolver("cap-rail-karaoke")["motor"], REP.MOTOR_CAPTION)
+        self.assertEqual(REP.resolver("karaoke")["id"], "cap-rail-karaoke")
         # colisión CVE/escena: timeline es escena; edit-timeline es efecto
         self.assertEqual(REP.resolver("timeline")["motor"], REP.MOTOR_ESCENA)
         self.assertEqual(REP.resolver("edit-timeline")["motor"], REP.MOTOR_EFECTO)
@@ -257,6 +263,7 @@ class TestCLI(unittest.TestCase):
         self.assertIn(f"{len(_R.SCENES)} escenas", r.stdout)
         self.assertIn("efectos", r.stdout)
         self.assertIn("gestos", r.stdout)
+        self.assertIn("captions", r.stdout)
         self.assertIn("paletas", r.stdout)
 
 

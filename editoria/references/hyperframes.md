@@ -54,13 +54,13 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
   (runtime en headless Chrome — atrapa errores JS y assets faltantes;
   `validate` está deprecado), `preview` (vista local), `render` (MP4
   final). Nota: `render` **no admite** `--non-interactive`.
-- Skills del agente: `/hyperframes` (router/orientación — leer primero),
-  `/hyperframes-cli` (dev loop), `/hyperframes-media` (TTS, transcripción,
-  remoción de fondo), `/product-launch-video` (URL → video de lanzamiento),
-  `/faceless-explainer` (texto → explainer sin cámara),
-  `/embedded-captions` (MP4 existente + subtítulos sin tocar el footage).
-  (Verificar la lista vigente en https://hyperframes.heygen.com/llms.txt
-  antes de invocar un workflow por nombre.)
+- Skills del agente (on-demand, **no** menús paralelos a EditorIA):
+  `/hyperframes` (router), `/hyperframes-cli`, `/media-use` (Media OS:
+  BGM/SFX/imágenes/voz/grades + ledger local; renders never fetch),
+  captions registry (`npx hyperframes catalog --tag caption-style`) y
+  doctrina drop/rail/embed + matte (`captions-identidades.md`,
+  `flujo-talking-head.md`). Verificar lista vigente en
+  https://hyperframes.heygen.com/llms.txt.
 
 ## Mejores pautas (verificadas 2026-10-04, CLI 0.8.117)
 
@@ -110,4 +110,4 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/recetas-ai-video.md`, `references/motion-ui.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/captions-identidades.md`, `references/flujo-talking-head.md`, `references/motion-ui.md`

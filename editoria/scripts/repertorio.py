@@ -11,17 +11,18 @@ Fuentes de detalle (DRY, no menús paralelos):
   scripts/data/repertorio.json          intención → escenas (SCENES)
   scripts/data/efectos_talking_head.json overlays (motor efecto)
   scripts/data/motion_ui.json            gestos de interfaz (motor gesto)
+  scripts/data/captions_identidades.json captions rail/HF (motor caption)
 
-  listar     intenciones y opciones (escena+efecto+gesto); --todo añade
-             paletas/direcciones/tonos/SFX derivados de SU fuente
+  listar     intenciones y opciones (escena+efecto+gesto+caption); --todo
+             añade paletas/direcciones/tonos/SFX derivados de SU fuente
   sugerir    --intenciones: una opción por intención (por defecto rota
              escenas del plan; con --pedido puntúa toda la familia;
-             --completo rota también efectos/gestos)
+             --completo rota también efectos/gestos/captions)
              --pedido solo: top-N del catálogo entero (sustituye el
              sugerir paralelo de efectos_talking_head)
-  resolver   id → motor + cómo producir (receta / escena / gesto)
+  resolver   id → motor + cómo producir (receta / escena / gesto / caption)
   cobertura  qué usa un plan, intenciones sin tocar / no_aplica
-  validar    escenas huérfanas/fantasmas + efectos/gestos alcanzables
+  validar    escenas huérfanas/fantasmas + efectos/gestos/captions alcanzables
 
 auditar_plan.py y clonar_video.py consumen las familias de ESCENAS;
 nadie copia la relación a mano.
@@ -46,11 +47,13 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 DATOS = os.path.join(BASE, "data", "repertorio.json")
 DATOS_EFECTOS = os.path.join(BASE, "data", "efectos_talking_head.json")
 DATOS_GESTOS = os.path.join(BASE, "data", "motion_ui.json")
+DATOS_CAPTIONS = os.path.join(BASE, "data", "captions_identidades.json")
 
 # Motores internos (metadato). El agente no los elige como menú.
 MOTOR_ESCENA = "escena"       # render_plan.SCENES
 MOTOR_EFECTO = "efecto"       # CVE en /tmp vía efectos_talking_head.receta
 MOTOR_GESTO = "gesto"         # motion UI sobre escena u otro motor
+MOTOR_CAPTION = "caption"     # caption.py nativo o HyperFrames on-demand
 MOTOR_NATIVO = "nativo"       # grade/hand_draw/… cuando el fx lo declara
 
 
@@ -66,6 +69,11 @@ def _cargar_efectos():
 
 def _cargar_gestos():
     with open(DATOS_GESTOS, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _cargar_captions():
+    with open(DATOS_CAPTIONS, encoding="utf-8") as fh:
         return json.load(fh)
 
 
@@ -99,8 +107,22 @@ def _opciones_gesto(gestos=None):
     return {t["id"]: t for t in gestos.get("tecnicas", [])}
 
 
-def opciones(intencion, datos=None, efectos=None, gestos=None):
-    """Lista unificada de opciones para una intención (orden: escena→efecto→gesto).
+def _opciones_caption(captions=None):
+    captions = captions if captions is not None else _cargar_captions()
+    return {c["id"]: c for c in captions.get("identidades", [])}
+
+
+def _producir_caption(fila):
+    cid = fila["id"]
+    if fila.get("preferir") == "nativo":
+        return fila.get("ruta") or (
+            f"python scripts/captions_identidades.py receta --id {cid}"
+        )
+    return f"python scripts/captions_identidades.py receta --id {cid}"
+
+
+def opciones(intencion, datos=None, efectos=None, gestos=None, captions=None):
+    """Lista unificada (orden: escena→efecto→gesto→caption).
 
     Cada fila: {id, motor, firma?, producir?} — motor es metadato interno.
     """
@@ -157,28 +179,45 @@ def opciones(intencion, datos=None, efectos=None, gestos=None):
             "keywords": fila.get("keywords", []),
             "empleo": fila.get("empleo", []),
         })
+    for cid, fila in _opciones_caption(captions).items():
+        if intencion not in (fila.get("intenciones") or []):
+            continue
+        out.append({
+            "id": cid,
+            "motor": MOTOR_CAPTION,
+            "intencion": intencion,
+            "firma": fila.get("firma", ""),
+            "preferir": fila.get("preferir"),
+            "producir": _producir_caption(fila),
+            "aliases": fila.get("aliases", []),
+            "keywords": fila.get("keywords", []),
+            "ocasion": fila.get("ocasion", ""),
+        })
     return out
 
 
-def familias_opciones(datos=None, efectos=None, gestos=None):
+def familias_opciones(datos=None, efectos=None, gestos=None, captions=None):
     """{intencion: [ids de opción]} — catálogo único por intención."""
     datos = datos or cargar()
     efectos = efectos if efectos is not None else _cargar_efectos()
     gestos = gestos if gestos is not None else _cargar_gestos()
+    captions = captions if captions is not None else _cargar_captions()
     return {
-        i["id"]: [o["id"] for o in opciones(i["id"], datos, efectos, gestos)]
+        i["id"]: [o["id"] for o in opciones(
+            i["id"], datos, efectos, gestos, captions)]
         for i in datos["intenciones"]
     }
 
 
-def catalogo_opciones(datos=None, efectos=None, gestos=None):
+def catalogo_opciones(datos=None, efectos=None, gestos=None, captions=None):
     """Todas las opciones indexadas por id (primera ocurrencia gana el detalle)."""
     datos = datos or cargar()
     efectos = efectos if efectos is not None else _cargar_efectos()
     gestos = gestos if gestos is not None else _cargar_gestos()
+    captions = captions if captions is not None else _cargar_captions()
     out = {}
     for i in datos["intenciones"]:
-        for o in opciones(i["id"], datos, efectos, gestos):
+        for o in opciones(i["id"], datos, efectos, gestos, captions):
             if o["id"] not in out:
                 out[o["id"]] = o
             else:
@@ -190,11 +229,12 @@ def catalogo_opciones(datos=None, efectos=None, gestos=None):
     return out
 
 
-def resolver(nombre, datos=None, efectos=None, gestos=None):
+def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
     """Normaliza nombre/alias → opción del catálogo único (o None)."""
     datos = datos or cargar()
     efectos = efectos if efectos is not None else _cargar_efectos()
     gestos = gestos if gestos is not None else _cargar_gestos()
+    captions = captions if captions is not None else _cargar_captions()
     clave = (nombre or "").strip().lower().replace("_", "-")
     if not clave:
         return None
@@ -231,7 +271,7 @@ def resolver(nombre, datos=None, efectos=None, gestos=None):
             }
     for look in efectos.get("looks_nombrados", []):
         if clave == look["id"]:
-            base = resolver(look["de"], datos, efectos, gestos)
+            base = resolver(look["de"], datos, efectos, gestos, captions)
             if base:
                 base = dict(base)
                 base["look"] = look.get("look")
@@ -249,6 +289,18 @@ def resolver(nombre, datos=None, efectos=None, gestos=None):
                 "motores_alt": t.get("motores_alt", []),
                 "producir": t.get("adaptar", ""),
                 "empleo": t.get("empleo", []),
+            }
+    for c in captions.get("identidades", []):
+        ids = {c["id"]} | {a.lower().replace("_", "-") for a in c.get("aliases", [])}
+        if clave in ids:
+            return {
+                "id": c["id"],
+                "motor": MOTOR_CAPTION,
+                "intenciones": c.get("intenciones", []),
+                "firma": c.get("firma", ""),
+                "preferir": c.get("preferir"),
+                "producir": _producir_caption(c),
+                "ocasion": c.get("ocasion", ""),
             }
     return None
 
@@ -282,23 +334,24 @@ def _score_opcion(texto, tokens, op):
     return score
 
 
-def sugerir_pedido(pedido, datos=None, efectos=None, gestos=None, limite=5,
-                   intencion=None):
+def sugerir_pedido(pedido, datos=None, efectos=None, gestos=None, captions=None,
+                   limite=5, intencion=None):
     """Top-N del catálogo único emparejando el pedido (sustituye el CLI paralelo)."""
     datos = datos or cargar()
     efectos = efectos if efectos is not None else _cargar_efectos()
     gestos = gestos if gestos is not None else _cargar_gestos()
+    captions = captions if captions is not None else _cargar_captions()
     texto = (pedido or "").strip().lower()
     if not texto:
         return []
     tokens = set(re.findall(r"[a-z0-9áéíóúñü+-]+", texto, re.I))
     candidatas = []
     if intencion:
-        candidatas = opciones(intencion, datos, efectos, gestos)
+        candidatas = opciones(intencion, datos, efectos, gestos, captions)
     else:
         seen = set()
         for i in datos["intenciones"]:
-            for o in opciones(i["id"], datos, efectos, gestos):
+            for o in opciones(i["id"], datos, efectos, gestos, captions):
                 key = (o["id"], o["motor"])
                 if key in seen:
                     continue
@@ -313,11 +366,12 @@ def sugerir_pedido(pedido, datos=None, efectos=None, gestos=None, limite=5,
     return [o for _, o in scored[:limite]]
 
 
-def validar(datos=None, tipos=None, efectos=None, gestos=None):
+def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
     """Problemas del repertorio unificado (lista vacía = sano)."""
     datos = datos or cargar()
     efectos = efectos if efectos is not None else _cargar_efectos()
     gestos = gestos if gestos is not None else _cargar_gestos()
+    captions = captions if captions is not None else _cargar_captions()
     tipos = catalogo() if tipos is None else set(tipos)
     malos, cubiertas = [], set()
     ids = set()
@@ -377,11 +431,36 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None):
     if gestos.get("conteo") and len(g_ids) != int(gestos["conteo"]):
         malos.append(f"gestos: conteo={gestos.get('conteo')} pero hay {len(g_ids)}")
 
+    # captions: igual
+    cap_ids = set()
+    for c in captions.get("identidades", []):
+        cid = c.get("id")
+        if not cid:
+            malos.append("caption sin id")
+            continue
+        if cid in cap_ids:
+            malos.append(f"caption repetido: {cid}")
+        cap_ids.add(cid)
+        ints = c.get("intenciones") or []
+        if not ints:
+            malos.append(f"caption '{cid}': sin intenciones")
+        for inten in ints:
+            if inten not in ids:
+                malos.append(f"caption '{cid}': intención desconocida '{inten}'")
+    if captions.get("conteo") and len(cap_ids) != int(captions["conteo"]):
+        malos.append(
+            f"captions: conteo={captions.get('conteo')} pero hay {len(cap_ids)}"
+        )
+
     # colisiones de id entre capas (rompería resolver)
-    choque = (tipos & fx_ids) | (tipos & g_ids) | (fx_ids & g_ids)
+    capas = (tipos, fx_ids, g_ids, cap_ids)
+    choque = set()
+    for i, a in enumerate(capas):
+        for b in capas[i + 1:]:
+            choque |= (a & b)
     for c in sorted(choque):
         malos.append(f"id '{c}' choca entre capas del catálogo único "
-                     "(escena/efecto/gesto deben ser disjuntos)")
+                     "(escena/efecto/gesto/caption deben ser disjuntos)")
 
     return malos
 
@@ -396,12 +475,13 @@ def _rotar(lista, semilla, clave):
 
 
 def elegir(intenciones, evitar=(), semilla=0, datos=None, completo=False,
-           pedido=None, efectos=None, gestos=None):
+           pedido=None, efectos=None, gestos=None, captions=None):
     """Una opción por intención.
 
     Por defecto rota solo escenas del plan (compat con auditar/clonar y
-    con el flujo plan.json). Con completo=True incluye efectos y gestos.
-    Con pedido, puntúa la familia unificada y elige la mejor disponible.
+    con el flujo plan.json). Con completo=True incluye efectos, gestos y
+    captions. Con pedido, puntúa la familia unificada y elige la mejor
+    disponible.
 
     Devuelve [{intencion, opcion, escena, motor, reutilizada, producir}].
     `escena` se rellena cuando motor=escena (alias de opcion) para no
@@ -410,16 +490,20 @@ def elegir(intenciones, evitar=(), semilla=0, datos=None, completo=False,
     datos = datos or cargar()
     efectos = efectos if efectos is not None else _cargar_efectos()
     gestos = gestos if gestos is not None else _cargar_gestos()
+    captions = captions if captions is not None else _cargar_captions()
     fams = familias(datos)
     evitar, elegidas, mano = set(evitar), set(), []
     for inten in intenciones:
         if inten not in fams:
             raise ValueError(f"intención desconocida: {inten} "
                              f"(válidas: {', '.join(fams)})")
-        pool = opciones(inten, datos, efectos, gestos) if (completo or pedido) \
+        pool = (
+            opciones(inten, datos, efectos, gestos, captions)
+            if (completo or pedido)
             else [{"id": e, "motor": MOTOR_ESCENA,
                    "producir": f"plan.json tipo={e} · references/escenas.md"}
                   for e in fams[inten]]
+        )
         if pedido:
             texto = pedido.strip().lower()
             tokens = set(re.findall(r"[a-z0-9áéíóúñü+-]+", texto, re.I))
@@ -605,18 +689,21 @@ def _otras_dimensiones():
     return out
 
 
-def _resumen_conteos(datos=None, efectos=None, gestos=None):
+def _resumen_conteos(datos=None, efectos=None, gestos=None, captions=None):
     datos = datos or cargar()
     efectos = efectos if efectos is not None else _cargar_efectos()
     gestos = gestos if gestos is not None else _cargar_gestos()
+    captions = captions if captions is not None else _cargar_captions()
     n_esc = len(catalogo())
     n_fx = len(efectos.get("efectos", []))
     n_g = len(gestos.get("tecnicas", []))
+    n_cap = len(captions.get("identidades", []))
     return {
         "n_escenas": n_esc,
         "n_efectos": n_fx,
         "n_gestos": n_g,
-        "n_opciones": n_esc + n_fx + n_g,
+        "n_captions": n_cap,
+        "n_opciones": n_esc + n_fx + n_g + n_cap,
         "n_intenciones": len(datos.get("intenciones", [])),
     }
 
@@ -629,7 +716,10 @@ def main():
     # subcomandos y la puerta exige que toda opcion se explique en --help.
     ayuda_json = "salida en JSON, para leerla desde otra herramienta"
 
-    p = sub.add_parser("listar", help="catálogo único por intención (escena+efecto+gesto)")
+    p = sub.add_parser(
+        "listar",
+        help="catálogo único por intención (escena+efecto+gesto+caption)",
+    )
     p.add_argument("--todo", action="store_true",
                    help="añade paletas, direcciones, tonos, modos y SFX")
     p.add_argument("--solo-escenas", action="store_true",
@@ -643,7 +733,7 @@ def main():
                    help="prosa del brief: puntúa opciones; solo, top-N del catálogo")
     p.add_argument("--limite", type=int, default=5, help="top-N con --pedido sin intenciones")
     p.add_argument("--completo", action="store_true",
-                   help="con --intenciones, rota también efectos y gestos (no solo escenas)")
+                   help="con --intenciones, rota también efectos/gestos/captions")
     p.add_argument("--anterior", action="append", default=[],
                    help="plan.json de una pieza anterior; se repite y sus tipos se evitan")
     p.add_argument("--evitar", default="",
@@ -653,7 +743,8 @@ def main():
     p.add_argument("--json", action="store_true", help=ayuda_json)
 
     p = sub.add_parser("resolver", help="id/alias → motor interno y cómo producir")
-    p.add_argument("--id", required=True, help="apertura | orbit | offset-delay | …")
+    p.add_argument("--id", required=True,
+                   help="apertura | orbit | offset-delay | cap-rail-karaoke | …")
     p.add_argument("--json", action="store_true", help=ayuda_json)
 
     p = sub.add_parser("cobertura", help="cobertura de un plan contra escenas + no_aplica")
@@ -679,7 +770,8 @@ def main():
             print(
                 f"REPERTORIO VALIDO: {counts['n_opciones']} opciones "
                 f"({counts['n_escenas']} escenas + {counts['n_efectos']} efectos + "
-                f"{counts['n_gestos']} gestos) en {counts['n_intenciones']} intenciones "
+                f"{counts['n_gestos']} gestos + {counts['n_captions']} captions) "
+                f"en {counts['n_intenciones']} intenciones "
                 f"— una sola superficie de elección"
             )
         return 1 if malos else 0
@@ -687,14 +779,15 @@ def main():
     if a.cmd == "listar":
         datos = cargar()
         efectos, gestos = _cargar_efectos(), _cargar_gestos()
-        counts = _resumen_conteos(datos, efectos, gestos)
+        captions = _cargar_captions()
+        counts = _resumen_conteos(datos, efectos, gestos, captions)
         if a.solo_escenas:
             fams = familias(datos)
             salida = {"intenciones": fams, **counts}
         else:
             salida = {
                 "intenciones": {
-                    i["id"]: opciones(i["id"], datos, efectos, gestos)
+                    i["id"]: opciones(i["id"], datos, efectos, gestos, captions)
                     for i in datos["intenciones"]
                 },
                 **counts,
@@ -713,7 +806,7 @@ def main():
             print(
                 f"catálogo único: {counts['n_opciones']} opciones "
                 f"({counts['n_escenas']} escenas + {counts['n_efectos']} efectos + "
-                f"{counts['n_gestos']} gestos)"
+                f"{counts['n_gestos']} gestos + {counts['n_captions']} captions)"
             )
             for k, v in salida.get("otras_dimensiones", {}).items():
                 print(f"{k}: {v if isinstance(v, str) else ', '.join(map(str, v))}")

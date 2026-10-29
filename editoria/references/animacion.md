@@ -28,6 +28,7 @@ nunca se sustituye en silencio por otra que "se parece".
 | Una pieza que sea UN recorrido (una idea, muchas funciones) y no una tanda de planos | El camino: una línea de luz que corre, la cámara vuela con la cabeza y cada estación se enciende al paso | La escena `camino` del catálogo: las estaciones van en `estaciones` y el trazo lo dibuja UNA función | `references/escenas.md` → `references/plan-video.md` |
 | Sensación de producto / sitio / app (cascada, morph, máscara, parallax, zoom) | Misma elección: opción `motor=gesto` del catálogo único | `repertorio.py sugerir --pedido "…"`; una técnica dominante; el detalle de números vive aparte | Detalle interno: `references/motion-ui.md` · `scripts/data/motion_ui.json` |
 | Overlays que siguen la cara (orbit, spotlight, glass, LED, grid…) | Misma elección: opción `motor=efecto` (o `nativo`) | `repertorio.py sugerir --pedido "…"` → `resolver` → `efectos_talking_head.py receta` si hace falta CVE en `/tmp` | Detalle interno: `references/efectos-talking-head.md` · JSON de fx |
+| Captions / subtítulos tipográficos (karaoke, slam, matte detrás de cara…) | Misma elección: opción `motor=caption` | `repertorio.py sugerir --pedido "…"` → `resolver` → `caption.py` o `captions_identidades.py receta` | Flujo: `flujo-talking-head.md` · detalle: `captions-identidades.md` |
 
 Regla de cierre de la elección: la técnica se verifica como el resto de la
 pieza — preview de instantes antes de pagar el render, y la puerta al final

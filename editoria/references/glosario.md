@@ -100,9 +100,11 @@ un parametro del plan, esta es su definicion.
 | **LUFS** | la sonoridad percibida de la mezcla. La entrega pide -14 (banda de 2) | `scripts/ffmpeg_tools/_delivery.py` |
 | **true peak** | el pico instantaneo. La entrega pide <= -1,0 dBTP | `scripts/ffmpeg_tools/_delivery.py` |
 | **motion blur** | el desenfoque de obturador: 180 grados. Se renderiza con sub-frames (`--blur 5`) | `references/animacion.md` |
-| **catálogo único** | la superficie de elección del agente: intención → opción → motor interno (escenas + overlays + gestos UI); no hay menús A/B | `scripts/repertorio.py` |
+| **catálogo único** | la superficie de elección del agente: intención → opción → motor interno (escenas + overlays + gestos UI + captions); no hay menús A/B | `scripts/repertorio.py` |
 | **motion UI** | gestos de interfaz (easing, delay, fade, morph, mask, dimension, parallax, zoom) como opciones del catálogo único; detalle de números aparte | `repertorio.py` · detalle `references/motion-ui.md` |
 | **efectos talking-head** | overlays con face-track (orbit, spotlight, glass…) como opciones del catálogo único; producción CVE en `/tmp` | `repertorio.py` · detalle `references/efectos-talking-head.md` |
+| **captions identidades** | looks de subtítulo (rail karaoke/pop… o registry HF / matte embed) como opciones del catálogo único; no skills-menú | `repertorio.py` · detalle `references/captions-identidades.md` |
+| **flujo talking-head** | cadena única footage→corte→captions→motion→master→puerta→publicar | `references/flujo-talking-head.md` |
 | **still** | un frame suelto | `references/thumbnails.md` |
 | **contact sheet** | la hoja de contactos: la foto del video para revisarlo de un vistazo | `scripts/contact_sheet.py` |
 | **storyboard / animatic** | el plan de planos y su montaje sin pulir, para ajustar el ritmo antes de renderizar | `references/ritmo.md` |

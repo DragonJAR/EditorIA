@@ -67,11 +67,27 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
   de audio la conserve en el montaje (un clip sin audio rompe mezclas
   que asumen `[k:a]`).
 
+## Skills oficiales (on-demand)
+
+Cuando el proyecto **ya** es Remotion (no como menú de EditorIA):
+
+```bash
+npx skills add remotion-dev/skills
+```
+
+Router `/remotion-best-practices`; útiles en el flujo captions:
+`/remotion-captions` (tipo `Caption` JSON word-timed), `/remotion-render`,
+`/remotion-markup`. No clonar el monorepo `remotion-dev/remotion` ni sus
+skills internas de mantenimiento del framework.
+
 ## Cómo convive con EditorIA
 
 - EditorIA puede **generar los assets** (PNG con alfa, JSON de tiempos,
   guion) y Remotion componerlos — o al revés: Remotion renderiza una
   escena compleja y `aplicar_edl.py`/ffmpeg la integra al montaje.
+- Talking-head vertical por defecto: cadena
+  `flujo-talking-head.md` (Python/ffmpeg); Remotion solo si el brief pide
+  kit React o la pieza ya vive en Remotion.
 - **`/remotion-to-hyperframes` confirmado (one-way)**. Migra mecánicamente
   ~80% de una composición típica (`useCurrentFrame`/`interpolate` →
   tweens, `Sequence` → clips, frames → segundos) y valida con SSIM
@@ -90,4 +106,4 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/hyperframes.md`, `references/instalacion.md`, `references/prompt-motion-graphics.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/hyperframes.md`, `references/flujo-talking-head.md`, `references/instalacion.md`, `references/prompt-motion-graphics.md`

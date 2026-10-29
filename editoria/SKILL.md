@@ -48,7 +48,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | "Where is X documented?" / what does this word mean | **Map**: `references/mapa.md` (the index: one canonical source per idea, the reading path per task) + `references/glosario.md` (the vocabulary) |
 | Resume, continue, or pick up a video project | **Memory**: `python scripts/proyecto.py {carpeta}` (BRIEF, TRATAMIENTO, PROGRESO, TIMELINE; never overwrites) |
 | "Is this piece good enough to ship?" | **Awards gate**: `python scripts/puntuar.py final.mp4 --plan plan.json` (four axes measured, four of judgment, gate: no axis under 4 and mean 4.3) |
-| "Which scene / effect / gesture fits this idea?" / "don't repeat the last piece's route" | **Repertoire**: `scripts/repertorio.py listar/sugerir/resolver/cobertura/validar` (one catalog: intent → option → motor; the index is `references/intencion-escena.md`) |
+| "Which scene / effect / gesture / caption fits this idea?" / "don't repeat the last piece's route" | **Repertoire**: `scripts/repertorio.py listar/sugerir/resolver/cobertura/validar` (one catalog: intent → option → motor; the index is `references/intencion-escena.md`) |
 | Write or check the on-screen copy | **Copy**: `references/copy.md` + `scripts/lint_copy.py` (authored before the plan, checked against the engine's auto-fit) |
 | Check the piece before delivering | **Gate**: `scripts/qa_entrega.py` (plan, copy, render, spec and motion in one verdict) |
 | Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (45 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
@@ -84,7 +84,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles: signature, techniques, the engine that serves each; plus the cinema catalogue) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` (Familia 7) + `references/recetas-ai-video.md` (§7) |
 | Animate a scene, a logo, a title, or one element | **Animation selector**: `references/animacion.md` §0 (what fits when, and how each one is requested), then the technique's reference |
-| Soft UI / product-site motion, or talking-head overlays that track the face (stagger, morph, parallax, orbit, glass, LED…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (produce via the option's motor — `scripts/efectos_talking_head.py receta` clones CVE under `/tmp` when needed; never vendor CVE, never add types to `SCENES`. Detail: `references/motion-ui.md`, `references/efectos-talking-head.md`) |
+| Soft UI / face-track overlays / animated captions (stagger, orbit, karaoke, matte-behind-face…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (produce via the option's motor — CVE `/tmp`, `caption.py`, or `captions_identidades.py receta` for HyperFrames; never vendor repos, never add caption types to `SCENES`. Talking-head chain: `references/flujo-talking-head.md`. Detail: `motion-ui.md`, `efectos-talking-head.md`, `captions-identidades.md`) |
 | Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
 | Viralizar: prepare a piece to be discovered and shared | **Publish flow**: `references/share-copy.md` (moment, triple hook, burned captions, platform spec, hook×body variantes, poster, share copy), ending at the same gate |
 
@@ -97,7 +97,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 65 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 67 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
@@ -134,7 +134,7 @@ Then author the plan: write `plan.json` following `references/plan-video.md` (45
 
 Before writing the scenes, write the argument: one claim per scene with the proof that carries it, in plain text (`references/copy.md` §1). The order of that list is the order of the video, and it is what keeps a piece from falling into the stock sequence.
 
-Then pick from the **one catalog by intent, not by provenance**: `references/intencion-escena.md` is the reverse index (what the client asks for → which option → how to produce). `scripts/repertorio.py` is the single choice surface (plan scenes + face-track overlays + UI gestures); motors are metadata on the option. `scripts/demo_plan.json` is one worked example, not the template — deal the hand first, then let the argument adjust it. For any option, `repertorio.py resolver --id …` says how to produce.
+Then pick from the **one catalog by intent, not by provenance**: `references/intencion-escena.md` is the reverse index (what the client asks for → which option → how to produce). `scripts/repertorio.py` is the single choice surface (plan scenes + face-track overlays + UI gestures + caption identities); motors are metadata on the option. `scripts/demo_plan.json` is one worked example, not the template — deal the hand first, then let the argument adjust it. For any option, `repertorio.py resolver --id …` says how to produce.
 
 ```bash
 python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre --anterior ../previous-piece/plan.json
@@ -248,11 +248,11 @@ python scripts/medir_contraste.py
 
 ### Step 6: Edit Footage You Already Have (transcripts, free pieces, post-production)
 
-When summarizing meetings or editing camera-first footage (`references/video-real.md`; the v2 pipeline in `references/pipeline-resumen.md` is legacy):
+When summarizing meetings or editing camera-first footage (`references/video-real.md`; the v2 pipeline in `references/pipeline-resumen.md` is legacy). For a talking-head reel end-to-end (cut → captions → motion → master → publish) follow the single chain in `references/flujo-talking-head.md` — same tools, no parallel skill menus:
 
 1. Extract 6 to 10 verified moments from the transcript using `references/scoring-shorts.md`.
 2. Choose the visual language in `references/estilos.md` and camera direction in `references/direccion.md`.
-3. Apply post-production tools as needed: transcribe (`scripts/ffmpeg_tools/transcribir.py`), remove retakes and silence (`scripts/retakes.py`, `scripts/ffmpeg_tools/silence.py`), apply EDL (`scripts/ffmpeg_tools/aplicar_edl.py`), burn captions (`scripts/ffmpeg_tools/caption.py`), sync cuts to beats (`scripts/beat_grid.py`, `scripts/beat_sync.py`), generate chapters (`scripts/chapters.py`), and bake poster/thumbnails (`scripts/poster_frame.py`, `scripts/ffmpeg_tools/thumbnail.py`, `references/thumbnails.md`).
+3. Apply post-production tools as needed: transcribe (`scripts/ffmpeg_tools/transcribir.py`), remove retakes and silence (`scripts/retakes.py`, `scripts/ffmpeg_tools/silence.py`), apply EDL (`scripts/ffmpeg_tools/aplicar_edl.py`), pick caption identity via `scripts/repertorio.py sugerir --pedido "…"` then burn (`scripts/ffmpeg_tools/caption.py` or `scripts/captions_identidades.py receta` for HyperFrames matte/registry), optional face-tracked motion (`repertorio` → `efectos_talking_head.py receta`), sync cuts to beats (`scripts/beat_grid.py`, `scripts/beat_sync.py`), generate chapters (`scripts/chapters.py`), and bake poster/thumbnails (`scripts/poster_frame.py`, `scripts/ffmpeg_tools/thumbnail.py`, `references/thumbnails.md`). Burn captions **before** loudness.
 4. Prepare companion caption in `share-copy.txt` per `references/share-copy.md` and log new production findings via `python scripts/registrar_aprendizaje.py --titulo "Que aprendimos" --detalle "Lo que se vio y por que"` (`references/auto-mejora.md`, `references/lecciones-produccion.md`).
 5. **Close at the gate**, like the create path. An edited piece ships on the same terms as an animated one:
 
@@ -284,7 +284,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (45/45 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (64 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (45/45 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (65 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

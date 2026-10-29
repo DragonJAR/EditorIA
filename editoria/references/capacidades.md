@@ -34,6 +34,8 @@ que levantan el listón del resultado. Por eso la regla de esta tabla no es
 | Diagramas como HTML+SVG | ninguno (es metodo, no binario) | No falta nada: la guia de estilo es el brand pack (ver `references/diagramas.md`) |
 | Trazos a mano / pizarra (overlay) | `scripts/hand_draw.py` (Pillow) | Offline: suavizar y pintar PNG con alfa. Captura en vivo por cámara: declarar Node + MediaPipe (ver `references/hand-draw.md`); no entregar el overlay vacío en silencio |
 | Overlays talking-head con face-track (opción `motor=efecto` del catálogo único) | Clone temporal de [claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects) (MIT) + su `.venv` (OpenCV, MediaPipe, Pillow) | **Elegir** con `repertorio.py sugerir/resolver`; **producir** con `efectos_talking_head.py receta --fx …` (clone→setup→render→rm). No vendorizar ni añadir a `SCENES`. Si `preferir=nativo`, motor EditorIA indicado. Detalle: `references/efectos-talking-head.md` |
+| Captions tipográficos HF / matte detrás del sujeto (`motor=caption`, `preferir=hyperframes`) | HyperFrames on-demand (`npx hyperframes skills update` / `catalog add`) + Node 22+ | **Elegir** con `repertorio.py`; **producir** con `captions_identidades.py receta --id …`. Rail nativo no exige HF (`caption.py`). Flujo: `references/flujo-talking-head.md`. No vendorizar el monorepo |
+| Skills oficiales Remotion (React→MP4) | `npx skills add remotion-dev/skills` cuando el proyecto **ya** es Remotion | Declarar; no instalarlas como menú paralelo a EditorIA. Ver `references/remotion.md` |
 
 **Que "declarar" quiere decir exactamente:** cuando una pieza necesita una
 capacidad que no esta, **se le dice al usuario en la primera respuesta** que
@@ -96,4 +98,4 @@ que era provisional.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`, `references/hand-draw.md`, `references/efectos-talking-head.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`, `references/hand-draw.md`, `references/efectos-talking-head.md`, `references/captions-identidades.md`, `references/flujo-talking-head.md`

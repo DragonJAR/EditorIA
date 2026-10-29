@@ -66,6 +66,7 @@
     "loudness",
     "contact_sheet",
     "efectos_talking_head",
+    "captions_identidades",
     "componer",
     "qa_entrega",
     "puntuar"
@@ -75,7 +76,8 @@
    },
    "entrada": [
     "step 6",
-    "montaje"
+    "montaje",
+    "flujo-talking-head"
    ]
   },
   {

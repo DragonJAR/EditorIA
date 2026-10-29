@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-65 referencias, 50 scripts, 20 herramientas de ffmpeg y 64 suites de tests. Este
+67 referencias, 51 scripts, 20 herramientas de ffmpeg y 65 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -43,8 +43,12 @@ contradigan.
   `principios.md` (la idea) → `copy.md` (el texto) → `intencion-escena.md` (qué
   escena) → `plan-video.md` (el schema) → `qa-entrega.md` (la puerta).
 - **"quiero EDITAR un video que ya tengo"** → Step 6 o 7 de `SKILL.md` →
-  `video-real.md` (el oficio de la edicion) → `montaje.md` (las 19 operaciones)
-  → `ritmo.md` (el encadenamiento) → `qa-entrega.md`.
+  `video-real.md` (el oficio de la edicion) → si es talking-head vertical a
+  entrega: `flujo-talking-head.md` (corte→captions→motion→master→publicar) →
+  `montaje.md` (las 19 operaciones) → `ritmo.md` → `qa-entrega.md`.
+- **"talking-head / reel con captions animados"** → `flujo-talking-head.md` →
+  `repertorio.py sugerir` (caption + efecto) → `captions-identidades.md` /
+  `efectos-talking-head.md` (detalle) → `share-copy.md` → `qa-entrega.md`.
 - **"no entiendo esta instruccion"** → `glosario.md` (la palabra) → `escenas.md` (la escena)
   → `plan-video.md` (el parámetro).
 - **"¿esta pieza está lista?"** → `qa-entrega.md` (defectos) → `puntuar.py` (los ocho
@@ -151,6 +155,8 @@ escribir es un tapón).
 | `recetas-ai-video.md` | video con IA por código | produccion |
 | `cine.md` | films de marca | produccion |
 | `video-real.md` | editar grabaciones con personas | produccion |
+| `flujo-talking-head.md` | cadena talking-head → corte → captions → master → publicar (una ruta, sin skills-menú) | produccion |
+| `captions-identidades.md` | detalle interno de identidades de caption; la elección es `repertorio.py` | produccion |
 | `pipeline-resumen.md` | el pipeline del resumen animado | produccion |
 | `tecnicas-reutilizables.md` | analizar un video que ya existe | produccion |
 | `scoring-shorts.md` | elegir los momentos fuertes | produccion |
@@ -312,7 +318,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 65 referencias, no se estiman.
+    guard nuevo se cuentan contra las 67 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que
@@ -345,7 +351,8 @@ escribir es un tapón).
 |---|---|
 | `scripts/check_env.py` | que se puede hacer aqui y que falta |
 | `scripts/auditar_plan.py` | que el plan sea valido antes de renderizar |
-| `scripts/repertorio.py` | catálogo único de elección: intención→opción→motor (escenas + efectos + gestos); listar/sugerir/resolver/cobertura/validar |
+| `scripts/repertorio.py` | catálogo único de elección: intención→opción→motor (escenas + efectos + gestos + captions); listar/sugerir/resolver/cobertura/validar |
+| `scripts/captions_identidades.py` | receta/validar de captions (nativo o HyperFrames on-demand); la elección es `repertorio.py` |
 | `scripts/lint_copy.py` | que el copy entre, no se lea como generado y no contradiga al modelo |
 | `scripts/render_plan.py` | motor de escenas: componer el video desde el plan. Ademas de las escenas, sabe la COHERENCIA de la pieza: la camara es UNA trayectoria declarada en el plan (`"camara"`, no se reinicia en cada corte), la barra de deplecion es de la PIEZA entera (`"deplecion"`, no de una escena) y las escenas que comparten plano declaran la misma `"zona"` (el contenido conserva su sitio). Las escenas nuevas (`frase`, `constancia`, `gauge` con `forma: "anillo"`) estan en `references/escenas.md` |
 | `scripts/voz_off.py` | la voz en off |
