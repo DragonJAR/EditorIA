@@ -131,6 +131,38 @@ class TestMedirConNombreRaro(unittest.TestCase):
             self.assertIn("nota", paso["detalle"])
 
 
+class TestQuietoYOcupacionEnLaPuerta(unittest.TestCase):
+    """La puerta lee `quieto_max` y `ocupacion` de la medicion y los juzga."""
+
+    def setUp(self):
+        self.mod = _cargar(QA_ENTREGA, "qa_entrega_quieto")
+
+    def test_pieza_viva_y_llena_pasa(self):
+        # muestra T1-T4 re-renderizada en HEAD: racha 0.25 s, ocupacion 0.44
+        self.assertEqual(self.mod._defectos_movimiento(0.25, 0.44), [])
+
+    def test_congelado_largo_falla(self):
+        # video real del catalogo: 3.0 s congelado en un rotulo inferior
+        fallos = self.mod._defectos_movimiento(3.0, 0.45)
+        self.assertEqual(len(fallos), 1)
+        self.assertIn("3.0", fallos[0])
+
+    def test_banda_chica_falla(self):
+        self.assertEqual(len(self.mod._defectos_movimiento(0.0, 0.10)), 1)
+
+    def test_medicion_vieja_sin_las_claves_no_falla(self):
+        self.assertEqual(self.mod._defectos_movimiento(None, None), [])
+
+    def test_los_umbrales_son_los_del_medidor(self):
+        """Un umbral = un numero: la puerta no puede divergir del medidor."""
+        def const(ruta, nombre):
+            with open(ruta, encoding="utf-8") as f:
+                return float(re.search(rf"^{nombre}\s*=\s*([\d.]+)", f.read(), re.M).group(1))
+        self.assertEqual(self.mod.QUIETO_MAX, const(os.path.join(SCRIPTS, "auto_qa.py"), "FROZEN_MAX"))
+        self.assertEqual(self.mod.OCUPACION_MIN,
+                         const(os.path.join(SCRIPTS, "medir_animacion.py"), "OCUPACION_MIN"))
+
+
 class TestConteoDelEncabezado(unittest.TestCase):
     """El encabezado de mapa.md no puede quedarse viejo."""
 

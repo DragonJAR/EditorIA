@@ -151,5 +151,71 @@ class TestSistemaDeMovimiento(unittest.TestCase):
                          f"escenas cuyo kicker no cae en rotulo_y(): {malas}")
 
 
+class TestPopsDeUnVideo(unittest.TestCase):
+    """Un video no trae las zonas de cifra del motor (`zonas_cifra`): el
+    medidor marcaba como pop el digito nuevo de un contador ("8" -> "11" en
+    el gauge, 20.43 s del plan de muestra) y la puerta `pops == 0` de
+    qa_entrega fallaba. Un contador que suma un digito no es una aparicion
+    (es la misma regla que las zonas de cifra); un objeto que aparece, si."""
+
+    def setUp(self):
+        import sys
+        sys.path.insert(0, SCRIPTS)
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        import numpy as np
+        import medir_animacion as M
+        self.np, self.M = np, M
+
+    def _video(self, pintar, n=24):
+        """n frames (lado corto 180) con un fondo liso y lo que pinta pintar(i)."""
+        np = self.np
+        F = np.full((n, 320, 180), 12.0, np.float32)
+        for i in range(n):
+            pintar(F[i], i)
+        return F
+
+    def _digito(self, f, x, y, v):
+        # un "digito": un bloque texturado de 30x50 px cuyo dibujo depende de v
+        rng = self.np.random.default_rng(v)
+        f[y:y + 50, x:x + 30] = rng.choice([12.0, 245.0], size=(50, 30))
+
+    def test_un_contador_que_suma_un_digito_no_es_pop(self):
+        def pintar(f, i):
+            v = i * 2
+            self._digito(f, 95, 130, v)                 # las unidades cambian siempre
+            if i >= 12:
+                self._digito(f, 65, 130, 1000 + v)      # aparece la decena pegada
+        F = self._video(pintar)
+        self.assertEqual(self.M.metricas(F, 30, 2.0)["pops"], [])
+
+    def test_un_objeto_que_aparece_sigue_siendo_pop(self):
+        def pintar(f, i):
+            self._digito(f, 95, 130, i * 2)
+            if i >= 12:   # una tarjeta lejos del contador
+                f[230:290, 40:140] = 240.0
+                f[240:280, 50:130] = 30.0
+        F = self._video(pintar)
+        self.assertEqual(self.M.metricas(F, 30, 2.0)["pops"], [0.4])
+
+    def test_el_gauge_del_plan_de_muestra_sin_pops_como_video(self):
+        """El gauge real compuesto y medido SIN zonas de cifra (como un MP4)."""
+        import copy
+        import json
+        import render_plan as R
+        np = self.np
+        R.formato(1080, 1920)
+        R.aplicar_globales({"escenas": []})
+        R._ESCALA.clear()
+        ctx = R.Ctx()
+        with open(os.path.join(SCRIPTS, "escenas_muestra.json"), encoding="utf-8") as fh:
+            e = copy.deepcopy(json.load(fh)["escenas"]["gauge"])
+        e = R.completar_escena(dict(e, tipo="gauge"), 0)
+        fps = 30
+        F = np.array([np.asarray(R.componer(ctx, [e], e["to"], i / fps, set())
+                                 .convert("L").resize((180, 320)), np.float32)
+                      for i in range(int(0.5 * fps), int(2.2 * fps))])   # la cuenta entera
+        self.assertEqual(self.M.metricas(F, fps, len(F) / fps + 0.6)["pops"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -8,7 +8,8 @@ una pieza antes de entregarse y devuelve UN veredicto:
   2. lint_copy.py      copy: longitudes, tells de genero, cifras sin fuente
   3. auto_qa.py        el render: frames negros, congelados, flashes, audio
   4. delivery_check.py el spec de la plataforma (reels, linkedin, youtube...)
-  5. medir_animacion.py  coherencia de movimiento: nota, pops y tirones
+  5. medir_animacion.py  coherencia de movimiento: nota, pops, tirones,
+                         cuadro congelado sin grano y ocupacion de la zona segura
   6. medir_animacion.py --plan  composicion: letra real, zona segura, solapes
   7. subtitulos declarados en piezas narradas para reels/tiktok/shorts
      (con --plan: "subtitulos" en el plan o --subtitulos archivo)
@@ -40,6 +41,9 @@ SCRIPTS = os.path.join(BASE, "scripts")
 NOTA_MINIMA = 90.0     # nota de movimiento minima para dar la pieza por buena
 LETRA_MIN = 26         # px: por debajo, el texto no se lee en un telefono (mismo LETRA_MIN del motor)
 ZONA_MIN = 0.70        # el motor escala hasta 0.70: si toca el piso, el texto sale de la zona segura
+QUIETO_MAX = 1.0       # s: racha congelada maxima (= auto_qa.FROZEN_MAX; checklist-qa.md:
+                       # "ningun hold > 0.6 s salvo el CTA final", frozen <= 1 s por cada 30 s)
+OCUPACION_MIN = 0.20   # caja de contenido / zona segura (= medir_animacion.OCUPACION_MIN)
 
 
 def _correr(args):
@@ -100,9 +104,33 @@ def _paso_medir(video):
     nota = float(res[0].get("nota", 0))
     pops = len(res[0].get("pops") or [])
     tirones = int(res[0].get("tirones") or 0)
-    ok = nota >= NOTA_MINIMA and pops == 0
-    return {"nombre": "movimiento", "ok": ok,
-            "detalle": f"nota {nota} (min {NOTA_MINIMA:g}) · {pops} pops · {tirones} tirones"}
+    quieto_max, ocup = res[0].get("quieto_max"), res[0].get("ocupacion")
+    fallos = _defectos_movimiento(quieto_max, ocup)
+    ok = nota >= NOTA_MINIMA and pops == 0 and not fallos
+    detalle = f"nota {nota} (min {NOTA_MINIMA:g}) · {pops} pops · {tirones} tirones"
+    if quieto_max is not None and ocup is not None:
+        detalle += f" · congelado max {quieto_max} s (max {QUIETO_MAX:g}) · ocupacion {ocup} (min {OCUPACION_MIN:g})"
+    if fallos:
+        detalle += " — " + "; ".join(fallos)
+    return {"nombre": "movimiento", "ok": ok, "detalle": detalle}
+
+
+def _defectos_movimiento(quieto_max, ocupacion):
+    """Congelado largo y banda chica, con su motivo. Puro: sin video.
+
+    `quieto_max` es la racha congelada medida SIN grano (medir_animacion
+    `quietud`): auto_qa la mide con la diff de cuadro entero y el grano del
+    MP4 la tapa. `ocupacion` es la caja del contenido sobre la zona segura.
+    Una medicion vieja sin las claves no falla (no se inventa el defecto).
+    """
+    fallos = []
+    if quieto_max is not None and quieto_max > QUIETO_MAX:
+        fallos.append(f"cuadro congelado {quieto_max} s (> {QUIETO_MAX:g} s sin nada que se mueva: "
+                      "fondo vivo o camara, fluidez.md)")
+    if ocupacion is not None and ocupacion < OCUPACION_MIN:
+        fallos.append(f"el contenido ocupa {ocupacion:.2f} de la zona segura (< {OCUPACION_MIN:g}): "
+                      "banda chica en un lienzo grande, componer para llenar (animacion.md)")
+    return fallos
 
 
 def _fps(video):

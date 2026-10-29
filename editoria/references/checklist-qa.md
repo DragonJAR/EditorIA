@@ -151,7 +151,9 @@ Números, no sensaciones:
 
 - **Frozen time**: ≤1s por cada 30s de video (frozen = frame idéntico al
   anterior: nada se mueve en toda la imagen; un elemento estático sobre fondo
-  vivo no es frozen); ningún hold >0.6s salvo el CTA final.
+  vivo no es frozen); ningún hold >0.6s salvo el CTA final. Con grano,
+  `auto_qa` no lo ve entero: lo mide `medir_animacion` (`quieto`, sin grano)
+  y la puerta falla una racha > 1 s que no sea el cierre.
 - **Loudness**: −14 LUFS (enérgico) / −16 LUFS (calmo), TP −1.5 dB (tolerancia hasta −1), LRA 11 objetivo (mínimo ~3 LU).
   SFX −18…−12 dB bajo la voz, nunca por encima de la narración.
 - **Contraste de texto**: WCAG AA en todo texto sobre video (la paleta de un

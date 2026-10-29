@@ -33,7 +33,12 @@ Regla de cierre de la elección: la técnica se verifica como el resto de la
 pieza — preview de instantes antes de pagar el render, y la puerta al final
 (`references/qa-entrega.md`). Lo que se mueve se mide
 (`scripts/medir_animacion.py`): un movimiento que no se puede medir es un
-movimiento que no se puede corregir.
+movimiento que no se puede corregir. Mide también lo que la pieza NO hace:
+`quieto` (el cuadro congelado, medido sin el grano: por bloques, con un
+umbral que solo sube si el grano medido de la pieza lo exige) y `ocupacion`
+(cuánto de la zona segura cubre el contenido: la banda chica en un lienzo
+enorme tiene número). La puerta falla un congelado de más de 1 s que no sea
+el cierre, o una pieza que ocupa menos de 0.20 de la zona segura.
 
 ### 0b. Catálogo único: cuándo, cómo pedir, cómo adaptar
 
@@ -136,7 +141,10 @@ amortiguación a mano**: un resorte fuera del catálogo es un gesto sin
 nombre, y el guard de `scripts/_tests/test_movimiento.py` lo hace fallar.
 
 **La regla que da forma al conjunto**: lo que rebota fuerte (`pop`) es lo
-que quiere que lo mires; todo lo demás se asienta con calma. Un elemento
+que quiere que lo mires; todo lo demás se asienta con calma. El gesto vale
+también para lo que se REVELA: `titular` y `rotulo` entran por máscara
+(`_revela_clip`, §6) con el resorte de su rol, no con una curva propia; una
+lista entra en cascada a paso `STAGGER` (`escalonado`, §4). Un elemento
 que aparece y desaparece sin más gesto es ruido, no información.
 
 ### Lo que se dibuja va por tiempo, no por resorte
@@ -166,7 +174,11 @@ ninguno.
 
 - **Stagger** de listas y grillas: 40–90 ms entre elementos. Menos parece
   simultáneo; más, lento. Orden de lectura (izq→der, arriba→abajo) o desde
-  el foco hacia afuera.
+  el foco hacia afuera. En el motor es UNA cifra, `STAGGER` (0.06 s), y un
+  helper, `escalonado(at, "item", i, base)`: el `at` explícito del plan
+  manda, y si el plan solo fija `item0` el resto lo sigue a paso `STAGGER`.
+  Los beats que se LEEN (hitos de `timeline`, pasos, notificaciones) no son
+  cascada: llevan su propio tiempo con nombre.
 - **Titulares**: palabra por palabra anclada a la palabra que se oye; la
   palabra de acento llega con más energía (escala 1.16→1 con resorte) y las
   de apoyo con elevación suave.
@@ -180,7 +192,17 @@ ninguno.
 El movimiento de cámara convierte un layout plano en un espacio.
 
 - **Push-in lento** (escala 1.00→1.04–1.08 durante la escena) en planos de
-  contemplación: añade tensión sin que se note.
+  contemplación: añade tensión sin que se note. En el motor es `EMPUJE`
+  (6 %) a lo largo de toda la escena con `ease_in_out` (antes 1 %/s con
+  tope 5 %: en una escena de 3 s, un 3 % que no se veía). El push-in
+  TERMINA donde el contenido llena la zona segura: si no hay sitio, la toma
+  arranca un poco más abierta y llega a su encaje, así que nunca se sale.
+  Exentas: `CAMARA_PROPIA`, overlays y `respira: false`. Las que se leen
+  quietas (`QUIETAS`: el rótulo inferior) no empujan pero tampoco se
+  congelan: llevan la **vida en reposo** (`vida`), la misma flotación de la
+  cámara (`FLOTA_CAM` = 6 px a `FLOTA_HZ` = 0.3 Hz), también como overlay.
+  Medido sobre fondo quieto: un hold de 3 s pasó de `quieto_max` 3.27 s a
+  0.47 s. `final`, `kenburns` y `demo` ya se mueven solas y no la llevan.
 - **Paralaje 2.5D**: separar en 3–4 capas (fondo, medio, foco, partículas
   delante). Al mover la cámara, cada capa se desplaza en proporción a su
   profundidad (fondo 0.2×, medio 0.5×, foco 1×, primer plano 1.4×).
@@ -190,6 +212,30 @@ El movimiento de cámara convierte un layout plano en un espacio.
   exponencial. Nunca continuo.
 - **Un movimiento por plano** (`direccion.md`): push-in *o* paneo *o*
   paralaje, no los tres.
+- **El lienzo se llena**: la medición de `escala_segura` también hace
+  crecer una escena chica (tope `LLENA_MAX` = 1.35, dejando sitio al
+  push-in) y la centra en la zona segura (`llenado`). No crecen las
+  escenas a sangre, los overlays, las de zona declarada ni las de
+  trayectoria global de cámara. El crecimiento amplía el raster: la letra
+  legible se gana subiendo la escala de la escena, no solo creciendo. Red,
+  llenado y cámara se aplican en UNA transformación (`encuadrar`). Medido
+  sobre la muestra: casi todo el catálogo ya llega al ancho seguro, así que
+  el llenado solo hace crecer las escenas angostas (stats ×1.10); las de
+  solo tipo (apertura, cartel) siguen siendo una banda (ocupación 0.17–0.18
+  frente a 0.50–0.86 de las de datos) y `medir_animacion` las señala.
+- **Composición vertical**: en la misma transformación, una escena que es
+  una banda (alto ≤ `BANDA_MAX` = 0.5 de la zona segura), crezca o no, lleva
+  el centro de su bbox medido al **centro óptico** de la zona
+  (`CENTRO_OPTICO` = 0.46 de su altura, un poco sobre el geométrico), sin
+  salirse. Es función pura del bbox: el mismo desplazamiento en toda la
+  escena. No se mueven las que tienen sitio propio (`SITIO_PROPIO`: a
+  sangre, overlays y `ANCLADAS` abajo por su rol —constancia, cadena,
+  cartel—) ni las de `y` o `zona` declaradas; una escena más alta que media
+  zona ya la compone y tampoco se toca. El centrado deja sitio al push-in
+  y a la flotación (una escena crecida no queda pegada arriba) y la holgura
+  del push-in se mide sobre el bbox ya colocado y descuenta `FLOTA_CAM`. Lo que NO arregla: la
+  ocupación de una escena de solo tipo limitada por el ancho (apertura) no
+  sube al centrarla; eso es copy o escala de la escena.
 - **Vuelo continuo (una pieza, un solo recorrido)**: la cámara no salta de
   plano en plano: viaja. En 2D eso es un **dolly con paneo**: el mundo se
   escala y se desliza mientras la cámara se queda con el punto de interés
@@ -211,6 +257,13 @@ El movimiento de cámara convierte un layout plano en un espacio.
   y se cierran a su valor final: elegancia sin coste.
 - **Revelado por máscara**: el texto sube desde detrás de una línea
   invisible (clip), no aparece por fade. Es la firma de los títulos de cine.
+  En el motor lo hace UN helper, `_revela_clip`, con el resorte del rol que
+  entra (sin curva nueva): lo usan `titular` (palabra a palabra) y `rotulo`
+  (línea a línea). La línea de clip es la base de la línea (base +
+  descendente) y el fundido acompaña al resorte (alfa = k): con un fundido
+  corto (k·3) la tinta que el clip destapa en un frame de un titular de
+  124 px era un pop según la altura de la escena (3 de 5 alturas medidas;
+  con alfa = k, 0 de 11).
 - **Pesos variables**: con fuentes variables (las empaquetadas en
   `assets/fonts/` lo son) el peso puede animar 400→800 en la palabra clave.
 - **Kerning y ortografía**: revisar pares problemáticos en tamaños
@@ -246,7 +299,14 @@ El acabado digital perfectamente limpio no es lo que se premia
 3. Contact sheet (`scripts/auto_qa.py --sheet`) + frames de cada golpe a
    resolución completa: el frame en pleno movimiento debe mostrar motion
    blur y el frame asentado, nitidez total.
-4. Puntuar con `rubrica-premios.md`. Si algún eje queda por debajo de 4, se
+4. `scripts/medir_animacion.py --video final.mp4 --plan plan.json`: además
+   de pops y tirones, `quieto` (racha congelada sin grano, en s) y
+   `ocupacion` por escena. Un congelado > 1 s fuera del cierre es un fondo
+   o una cámara que se pararon; una escena bajo 0.20 es una banda chica.
+   En un video no hay zonas de cifra del motor: el dígito nuevo de un
+   contador ("8" → "11") pegado a las cifras que cuentan se infiere
+   (`_digito_nuevo`) y no es pop; un objeto que aparece lejos, sí.
+5. Puntuar con `rubrica-premios.md`. Si algún eje queda por debajo de 4, se
    corrige y se vuelve a renderizar antes de entregar.
 
 ## 10. La excepción: cuando el personaje está dibujado

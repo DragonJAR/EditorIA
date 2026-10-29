@@ -26,6 +26,7 @@
   "test_comandos_doc.py",
   "test_compilar_reel.py",
   "test_componer.py",
+  "test_composicion_vertical.py",
   "test_core_and_scenes.py",
   "test_datos_y_critico.py",
   "test_direccion_arte.py",
@@ -39,9 +40,11 @@
   "test_hand_draw.py",
   "test_letra_y_composicion.py",
   "test_libass.py",
+  "test_lienzo_y_camara.py",
   "test_lint_copy.py",
   "test_marca_fondo.py",
   "test_marco_y_deplecion.py",
+  "test_medir_animacion_quieto.py",
   "test_medir_contraste.py",
   "test_mezclar_audio.py",
   "test_motion_ui.py",
@@ -56,10 +59,12 @@
   "test_repertorio.py",
   "test_sincronizar_instalada.py",
   "test_speech_estimate_cifras.py",
+  "test_stagger_y_revelado.py",
   "test_tmp_unico.py",
   "test_track_y_picos.py",
   "test_verificar_ritmo.py",
   "test_verticales.py",
+  "test_vida_en_reposo.py",
   "test_voz_local.py"
  ]
 }
