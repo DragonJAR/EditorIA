@@ -250,31 +250,42 @@ def _cmd_receta(args):
 
 
 def main(argv=None):
+    # El texto de las opciones se dice UNA vez: --json aparece en tres
+    # subcomandos y la puerta exige que toda opcion se explique en --help.
+    ayuda_json = "salida en JSON, para leerla desde otra herramienta"
+
     p = argparse.ArgumentParser(
         description="Selector de efectos talking-head (fuente: data/efectos_talking_head.json)"
     )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     pl = sub.add_parser("listar", help="lista el catálogo")
-    pl.add_argument("--preferir", choices=("externo", "nativo", "ambos"))
-    pl.add_argument("--json", action="store_true")
+    pl.add_argument("--preferir", choices=("externo", "nativo", "ambos"),
+                    help="filtra por preferencia: externo, nativo o ambos")
+    pl.add_argument("--json", action="store_true", help=ayuda_json)
     pl.set_defaults(func=_cmd_listar)
 
     ps = sub.add_parser("sugerir", help="empareja un pedido en prosa")
-    ps.add_argument("--pedido", required=True)
-    ps.add_argument("--limite", type=int, default=5)
-    ps.add_argument("--json", action="store_true")
+    ps.add_argument("--pedido", required=True,
+                    help="el pedido en prosa que se empareja con el catálogo")
+    ps.add_argument("--limite", type=int, default=5,
+                    help="máximo de sugerencias que devuelve")
+    ps.add_argument("--json", action="store_true", help=ayuda_json)
     ps.set_defaults(func=_cmd_sugerir)
 
     pv = sub.add_parser("validar", help="integridad del JSON")
-    pv.add_argument("--json", action="store_true")
+    pv.add_argument("--json", action="store_true", help=ayuda_json)
     pv.set_defaults(func=_cmd_validar)
 
     pr = sub.add_parser("receta", help="comandos para clonar en /tmp y renderizar")
-    pr.add_argument("--fx", required=True)
-    pr.add_argument("--start", type=float, default=None)
-    pr.add_argument("--end", type=float, default=None)
-    pr.add_argument("--video", default="entrada.mp4")
+    pr.add_argument("--fx", required=True,
+                    help="id del efecto del catálogo (ver listar)")
+    pr.add_argument("--start", type=float, default=None,
+                    help="segundo en que empieza el efecto")
+    pr.add_argument("--end", type=float, default=None,
+                    help="segundo en que termina el efecto")
+    pr.add_argument("--video", default="entrada.mp4",
+                    help="video de entrada al que se aplica el efecto")
     pr.set_defaults(func=_cmd_receta)
 
     args = p.parse_args(argv)

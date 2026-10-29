@@ -620,12 +620,16 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
 
+    # El texto de las opciones se dice UNA vez: --json aparece en cinco
+    # subcomandos y la puerta exige que toda opcion se explique en --help.
+    ayuda_json = "salida en JSON, para leerla desde otra herramienta"
+
     p = sub.add_parser("listar", help="catálogo único por intención (escena+efecto+gesto)")
     p.add_argument("--todo", action="store_true",
                    help="añade paletas, direcciones, tonos, modos y SFX")
     p.add_argument("--solo-escenas", action="store_true",
                    help="solo el subset del motor de planes (compat)")
-    p.add_argument("--json", action="store_true")
+    p.add_argument("--json", action="store_true", help=ayuda_json)
 
     p = sub.add_parser("sugerir", help="elige del catálogo único")
     p.add_argument("--intenciones", default="",
@@ -635,21 +639,25 @@ def main():
     p.add_argument("--limite", type=int, default=5, help="top-N con --pedido sin intenciones")
     p.add_argument("--completo", action="store_true",
                    help="con --intenciones, rota también efectos y gestos (no solo escenas)")
-    p.add_argument("--anterior", action="append", default=[])
-    p.add_argument("--evitar", default="")
-    p.add_argument("--semilla", type=int, default=0)
-    p.add_argument("--json", action="store_true")
+    p.add_argument("--anterior", action="append", default=[],
+                   help="plan.json de una pieza anterior; se repite y sus tipos se evitan")
+    p.add_argument("--evitar", default="",
+                   help="ids de tipos que no deben salir, separados por comas")
+    p.add_argument("--semilla", type=int, default=0,
+                   help="semilla de la rotación: la misma semilla da la misma mano")
+    p.add_argument("--json", action="store_true", help=ayuda_json)
 
     p = sub.add_parser("resolver", help="id/alias → motor interno y cómo producir")
     p.add_argument("--id", required=True, help="apertura | orbit | offset-delay | …")
-    p.add_argument("--json", action="store_true")
+    p.add_argument("--json", action="store_true", help=ayuda_json)
 
     p = sub.add_parser("cobertura", help="cobertura de un plan contra escenas + no_aplica")
-    p.add_argument("planes", nargs="+")
-    p.add_argument("--json", action="store_true")
+    p.add_argument("planes", nargs="+",
+                   help="uno o mas plan.json contra los que medir la cobertura")
+    p.add_argument("--json", action="store_true", help=ayuda_json)
 
     p = sub.add_parser("validar", help="integridad del catálogo único")
-    p.add_argument("--json", action="store_true")
+    p.add_argument("--json", action="store_true", help=ayuda_json)
 
     a = ap.parse_args()
 

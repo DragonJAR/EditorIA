@@ -16,7 +16,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 
 ## Critical
 
-- **Language rule**: Respond to the user in the exact language the user writes in. `SKILL.md` is written in English for global routing, while `plan.json` schema keys (`escenas`, `duracion`, `rotulo`, `tamano`), `references/*.md`, and CLI scripts preserve their canonical Spanish identifiers as defined in the codebase. Skill content (transcripts, captions, voice-overs) works in any source language, and the default TTS voice matches the user's language (`es` for Spanish, `en` for English). Full policy in `references/i18n.md`.
+- **Language rule**: Respond to the user in the exact language the user writes in. `SKILL.md` is written in English for global routing; `plan.json` keys, `references/*.md` and the CLIs keep their canonical Spanish identifiers. Content (transcripts, captions, voice-overs) works in any language, and the default TTS voice matches the user's. Full policy in `references/i18n.md`.
 - **White-label brand rule**: Identity is never hardcoded in code; it lives in a brand pack (`brand/*.json`, spec in `references/brand-packs.md`).
   - When the user names a brand, load its pack (`brand/dragonjar.json` is the included example). The pack fixes colors, fonts, logos, voices, and rules; the brief provides the content.
   - When the user does not name a brand, use free mode: **choose the palette, don't inherit one**. Pick one from the catalog in `references/paleta.md` according to the brief (topic, sector, emotion) and color theory, and declare it in the plan (`"paleta": "menta"`) or with `--paleta`. The free-mode fallback is a cold, identity-free blue — a piece without a brand must not look like one (notably: not like the example pack's red).
@@ -25,8 +25,12 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
   - Environment capabilities pass via `python scripts/check_env.py` (`references/capacidades.md`).
   - Every scene `from`/`to` window and `voz` duration passes `python scripts/auditar_plan.py plan.json`.
   - The copy passes `python scripts/lint_copy.py plan.json`: text that the engine cannot place is a render defect, and copy that reads as generated is a quality defect (`references/copy.md`).
-  - No credentials or API keys appear in `plan.json` or `brand/*.json` (`$ELEVENLABS_API_KEY` is read from `~/.secrets.env`): `auditar_plan.py` fails with an ERROR if it finds one — the plan ships with the piece.
+  - No credentials or API keys appear in `plan.json` or `brand/*.json` (`$ELEVENLABS_API_KEY` is read from `~/.secrets.env`): `auditar_plan.py` fails with an ERROR if it finds one.
 - **Best-result rule**: the bar is the quality of the result, not the comfort
+  of the environment. When a piece needs a capability that is not there,
+  **say so in the first answer**, with the command that installs it, and
+  deliver the best version possible meanwhile. Never deliver less in silence
+  (`references/capacidades.md`).
   of the environment. When a piece needs a capability that is not there (3D,
   Remotion, HyperFrames, Canvas, Drawn, local transcription), **say so in the
   first answer**, with the command that installs it, and deliver the best
@@ -40,22 +44,21 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 
 | Brief | Motor |
 |---|---|
-| "What color should this be?" / no brand named | **Palette**: `references/paleta.md` (the free-mode color catalog, the color-theory rules and how to pick one from the brief; declare it as `"paleta"` in the plan or `--paleta`) |
-| "Where is X documented?" / what does this word mean | **Map**: `references/mapa.md` (the index of this skill: one canonical source per idea, the reading path per task, and the rule that no file is an island) and `references/glosario.md` (the skill's own vocabulary) |
+| "What color should this be?" / no brand named | **Palette**: `references/paleta.md` (free-mode catalog and color rules; declare as `"paleta"` in the plan or `--paleta`) |
+| "Where is X documented?" / what does this word mean | **Map**: `references/mapa.md` (the index: one canonical source per idea, the reading path per task) + `references/glosario.md` (the vocabulary) |
 | Resume, continue, or pick up a video project | **Memory**: `python scripts/proyecto.py {carpeta}` (BRIEF, TRATAMIENTO, PROGRESO, TIMELINE; never overwrites) |
 | "Is this piece good enough to ship?" | **Awards gate**: `python scripts/puntuar.py final.mp4 --plan plan.json` (four axes measured, four of judgment, gate: no axis under 4 and mean 4.3) |
-| "Which scene / effect / gesture fits this idea?" | **Index**: `references/intencion-escena.md` + **Repertoire**: `scripts/repertorio.py sugerir` (one catalog: intent → option → internal motor; vague request → option → how to produce) |
-| "Use the whole catalog, don't repeat last piece's route" | **Repertoire**: `scripts/repertorio.py listar/sugerir/resolver/cobertura/validar` (single choice surface: 45 plan scenes + talking-head overlays + UI gestures; rotation, coverage with `no_aplica`, no orphan options; motors are metadata, not parallel menus) |
-| Write or check the on-screen copy | **Copy**: `references/copy.md` + `scripts/lint_copy.py` (the copy is authored before the plan and checked against the engine's own auto-fit) |
-| Check the piece before delivering | **Gate**: `scripts/qa_entrega.py` (plan, copy, render, spec and motion in one verdict; `references/qa-entrega.md`) |
+| "Which scene / effect / gesture fits this idea?" / "don't repeat the last piece's route" | **Repertoire**: `scripts/repertorio.py listar/sugerir/resolver/cobertura/validar` (one catalog: intent → option → motor; the index is `references/intencion-escena.md`) |
+| Write or check the on-screen copy | **Copy**: `references/copy.md` + `scripts/lint_copy.py` (authored before the plan, checked against the engine's auto-fit) |
+| Check the piece before delivering | **Gate**: `scripts/qa_entrega.py` (plan, copy, render, spec and motion in one verdict) |
 | Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (45 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
-| Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles from `references/estilos.md`, then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline with its own scripts (`references/pipeline-resumen.md`) is legacy |
+| Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles (`references/estilos.md`), then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline is legacy |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
-| See what the engine can draw (the 45 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog: `references/escenas.md`) |
+| See what the engine can draw (the 45 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog) |
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the prose publishes; `--check` only reports) |
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
-| Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable, the published tree and the working tree agree) |
-| Keep the installed copy in sync | **Install**: `scripts/sincronizar_instalada.py` (extracts what is published and deletes the bytecode cache, so the copy never runs code that no longer exists) |
+| Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable) |
+| Keep the installed copy in sync | **Install**: `scripts/sincronizar_instalada.py` (extracts what is published and deletes the bytecode cache) |
 | Quick kinetic card (one phrase) | **Quick**: recipe `quick-kinetic` in `references/modos-rapidos.md` |
 | Clip assembly with music | **Quick**: recipe `quick-montage` in `references/modos-rapidos.md` |
 | Trim or adapt an existing video | **Quick**: recipe `quick-cut` in `references/modos-rapidos.md` |
@@ -65,25 +68,25 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Video + voice-over + music with ducking | Step 4: `mezclar_audio.py` → `loudness.py` (music ducks under voice; `musica.py mix` alone is not the delivery path) |
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
 | Copy that writes itself word by word, a dial that fills, a record of what is confirmed | **Scenes**: `references/escenas.md` (`frase`, `constancia`, `gauge` with `forma: "anillo"`) |
-| Type over real footage (the typography ON the video, with depth) | **Compose**: `scripts/ffmpeg_tools/componer.py` (the blur mask comes from the layer's ALPHA, so the background defocuses ONLY behind the type; `--marco "x,y,w,h"` frames the clip in a box) |
+| Type over real footage (the typography ON the video, with depth) | **Compose**: `scripts/ffmpeg_tools/componer.py` (the blur mask comes from the layer's ALPHA: the background defocuses ONLY behind the type) |
 | "Make one like this video" / clone or adapt a reference (file or link) | **Reference**: Step 7 below + `references/referencia-video.md` (project memory, ingestion, word-labeled grids, ANALYSIS/TIMELINE, transformation lenses) |
-| Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format and which tool serves it), combined with the motor that renders it |
+| Podcast, street interview, ranking, talking head, explainer, narration, short drama, music or lyric video | **Formats**: `references/formatos.md` (what carries each format), combined with the motor that renders it |
 | New piece with no brand pack, or a piece that looks generic / "AI-made" | **Art direction**: Step 2 + `references/direccion-de-arte.md` (idea from the subject, dealt directions, tells registry) |
 | "Make it bolder / calmer / simpler", polish, animate, retype, recolor, adapt | **Passes**: `references/pasadas.md` (scoped refinements that change only what was named) |
 | Verify deliverable against platform spec | **Delivery**: `scripts/ffmpeg_tools/delivery_check.py final.mp4 --platform reels` (specs in `scripts/ffmpeg_tools/_delivery.py`; CLI contract in `references/cli-contract.md`) |
 | Complex programmatic animation | **Remotion**: `references/remotion.md` |
 | Deterministic HTML piece or data re-render | **HyperFrames**: `references/hyperframes.md` |
-| 3D object, product or scene as material | **3D**: `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay, the engine does not change) |
+| 3D object, product or scene as material | **3D**: `references/3d.md` (Blender via MCP, or a reference image rebuilt as Three.js code; it enters as an alpha overlay) |
 | Painted material: watercolor, brush strokes, generative doodle, lyric video | **Canvas**: `references/canvas.md` (p5.js + Chrome headless) |
 | Hand-drawn character animation, rotoscope, sand animation, pop-up paper | **Drawn**: `references/dibujado.md` (whole redrawn poses, exposure sheets, the five looks; the kit is cloned and declared, never vendored) |
-| Hand-drawn strokes / whiteboard overlay (smooth paths, PNG with alpha) | **Hand draw**: `references/hand-draw.md` + `scripts/hand_draw.py` (offline Pillow path; live camera capture needs MediaPipe — declare it, never ship an empty overlay in silence) |
+| Hand-drawn strokes / whiteboard overlay (smooth paths, PNG with alpha) | **Hand draw**: `references/hand-draw.md` + `scripts/hand_draw.py` (offline Pillow path; live camera capture needs MediaPipe — declare it) |
 | Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
-| "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles with their signature, their techniques with numbers and the engine that serves each; plus the cinema catalogue — sources declared) |
+| "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles: signature, techniques, the engine that serves each; plus the cinema catalogue) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` (Familia 7) + `references/recetas-ai-video.md` (§7) |
-| Animate a scene, a logo, a title, or one element (which technique, how to ask for it) | **Animation selector**: `references/animacion.md` §0 (plan engine, canvas, Remotion, HyperFrames, 3D, hybrid, diagrams — what fits when, and how each one is requested), then the chosen technique's reference |
-| Soft UI / product-site motion, or talking-head overlays that track the face (stagger, morph, parallax, orbit, spotlight, glass, LED, grid…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (UI gestures and face-track overlays are options in the one catalog; produce via the option's motor — plan / HyperFrames / `scripts/efectos_talking_head.py receta` clones CVE under `/tmp` when needed — never parallel menus, never vendor CVE, never add types to `SCENES`. Internal detail: `references/motion-ui.md`, `references/efectos-talking-head.md`) |
-| Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (the pack spec plus the operational checklist: assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
-| Viralizar: prepare a piece to be discovered and shared (hook, captions, platform format, A/B variants, publish copy) | **Publish flow**: `references/share-copy.md` (the whole chain: moment, triple hook, burned captions, platform spec, hook×body variantes, poster, share copy), ending at the same gate |
+| Animate a scene, a logo, a title, or one element | **Animation selector**: `references/animacion.md` §0 (what fits when, and how each one is requested), then the technique's reference |
+| Soft UI / product-site motion, or talking-head overlays that track the face (stagger, morph, parallax, orbit, glass, LED…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (produce via the option's motor — never vendor CVE, never add types to `SCENES`. Detail: `references/motion-ui.md`, `references/efectos-talking-head.md`) |
+| Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
+| Viralizar: prepare a piece to be discovered and shared | **Publish flow**: `references/share-copy.md` (moment, triple hook, burned captions, platform spec, A/B variants, poster, share copy), ending at the same gate |
 
 Complete skill architecture map: `references/arquitectura.md`.
 
@@ -131,7 +134,7 @@ Then author the plan: write `plan.json` following `references/plan-video.md` (45
 
 Before writing the scenes, write the argument: one claim per scene with the proof that carries it, in plain text (`references/copy.md` §1). The order of that list is the order of the video, and it is what keeps a piece from falling into the stock sequence.
 
-Then pick from the **one catalog by intent, not by provenance**: `references/intencion-escena.md` is the reverse index (what the client asks for → which option → how to produce). The agent does not choose “scenes vs talking-head vs Motion UI”: `scripts/repertorio.py` is the single choice surface (plan scenes + face-track overlays + UI gestures). Motors are metadata on the option. `scripts/demo_plan.json` is one worked example, not the template — deal the hand first, then let the argument adjust it. To adapt a dealt plan scene, follow `references/intencion-escena.md` §2c; for any option, `repertorio.py resolver --id …` says how to produce.
+Then pick from the **one catalog by intent, not by provenance**: `references/intencion-escena.md` is the reverse index (what the client asks for → which option → how to produce). `scripts/repertorio.py` is the single choice surface (plan scenes + face-track overlays + UI gestures); motors are metadata on the option. `scripts/demo_plan.json` is one worked example, not the template — deal the hand first, then let the argument adjust it. For any option, `repertorio.py resolver --id …` says how to produce.
 
 ```bash
 python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre --anterior ../previous-piece/plan.json
@@ -139,13 +142,13 @@ python scripts/repertorio.py sugerir --pedido "reels orbitando mi cara / cascada
 python scripts/repertorio.py resolver --id orbit
 ```
 
-`sugerir --intenciones` rotates each intent's **plan-scene** family by default (same `--semilla`, same hand) and avoids previous pieces' types; `--pedido` scores the full family (scenes + overlays + gestures); `--completo` rotates the full family. When a family is exhausted it says so (`reutilizada`). Declare intents and `no_aplica` in the plan; verify with `python scripts/repertorio.py cobertura plan.json`. Audit against the previous piece too — without `--anterior` the auditor can only see inside this piece:
+`sugerir --intenciones` rotates each intent's **plan-scene** family by default (same `--semilla`, same hand) and avoids previous pieces' types; `--pedido` scores the full family; `--completo` rotates it. When a family is exhausted it says so (`reutilizada`). Declare intents and `no_aplica` in the plan; verify with `python scripts/repertorio.py cobertura plan.json`. Audit against the previous piece too — without `--anterior` the auditor sees only inside this piece:
 
 ```bash
 python scripts/auditar_plan.py plan.json --anterior ../previous-piece/plan.json
 ```
 
-It warns `poco-repertorio` when a whole piece uses only a few types or one type in half the scenes, `ruta-repetida` when this piece repeats the previous one's dominant type or most of its types, and `intencion-sin-escena` / `intencion-olvidada` when the declared intents are not covered or not declared.
+It warns `poco-repertorio` (a piece with few types), `ruta-repetida` (it repeats the previous one's route) and `intencion-sin-escena` / `intencion-olvidada` (declared intents uncovered or undeclared).
 
 If you delegate a part (a scene, a block, a batch of scenes to a subagent or to a later pass), the order is written first: `references/brief.md` is the contract of that part — what, where, with what, with what budget, how it is reviewed before it counts as done, and what comes back. Its ownership rule is the one that keeps the parts talking: a missing helper is written private, a bug in a shared file is reported, not silently patched.
 
@@ -200,9 +203,9 @@ python scripts/ffmpeg_tools/loudness.py con_sub.mp4 -o final.mp4 -I -14 --tp -1.
 # sin subtítulos: loudness.py mezclado.mp4 -o final.mp4 ...
 ```
 
-For a narrated social piece the captions are part of the piece: burn them from the aligned words (`caption.py --palabras ... --karaoke --plan plan.json`: cues stay within scene cuts, in the reserved bottom band) and declare `"subtitulos": true` in the plan — the delivery gate asks for that declaration on reels/tiktok/shorts. Without an API key the music bed is procedural and free (`musica.py cama`; details in `references/sonido.md`). **Gate the deliverable** (`final.mp4`), never an intermediate (`mezclado.mp4` / a pre-loudness caption file).
+For a narrated social piece the captions are part of the piece: burn them from the aligned words (`caption.py --palabras ... --karaoke --plan plan.json`: cues stay in the reserved bottom band) and declare `"subtitulos": true` in the plan — the delivery gate asks for that declaration on reels/tiktok/shorts. Without an API key the music bed is procedural and free (`musica.py cama`; details in `references/sonido.md`). **Gate the deliverable** (`final.mp4`), never an intermediate (`mezclado.mp4` / a pre-loudness caption file).
 
-**The loudness step is part of the mix, not an extra**: the mixer sums voices, music and cues but does not normalize, so `loudness.py` closes the pipeline — run it on the file you will deliver, before the gate, not after.
+**The loudness step is part of the mix, not an extra**: the mixer sums voices, music and cues but does not normalize, so `loudness.py` closes the pipeline — run it on the file you deliver, before the gate.
 
 **Without an API key**: `voz_off.py` stops and says so; there is no silent fallback to a robotic voice. `scripts/voz_local.py` does the same job with the same contract, as a **draft** voice (no emotional direction: the system voice cannot read `[slowly]`) — and that is said to the user. See `references/sonido.md`.
 

@@ -228,7 +228,7 @@ primero se elige, después se edita.
 ## Reglas comunes
 
 - **Todo quick cierra en la puerta**: `python scripts/qa_entrega.py final.mp4`
-  y `python scripts/puntuar.py final.mp4 --ejes "…"`, más la versión corta de
+  y `python scripts/puntuar.py final.mp4 --ejes "1=4,2=5,4=4,5=4,7=4"`, más la versión corta de
   `checklist-qa.md` (3 frames). Una pieza rápida no es una pieza sin medir:
   son las mismas reglas, sin el ritual. Sin plan, el eje 4 va a ojo en `--ejes`.
 - Si el quick crece (más de 3 textos, narración, escenas), migrar a plan.

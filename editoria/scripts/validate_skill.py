@@ -179,7 +179,13 @@ md_files = [os.path.join(BASE, "SKILL.md")] + \
 bad_tags = []
 for mf in md_files:
     for i, line in enumerate(open(mf, encoding="utf-8"), 1):
-        if re.search(r"<[A-Za-z/!][^>]*>", line):
+        # Un COMENTARIO html no se renderiza: no es un tag. Los marcadores de
+        # la tabla derivada ("<!-- REPERTORIO_TABLA_INI -->") los usa
+        # scripts/repertorio.py para reescribirla y el guard para detectar que
+        # alguien la edito a mano. El patron se ACOTA para no marcar lo que
+        # esta bien (un detector que llora se desactiva): los tags de verdad se
+        # siguen cazando, solo se quitan los comentarios.
+        if re.search(r"<[A-Za-z/!][^>]*>", re.sub(r"<!--.*?-->", "", line)):
             bad_tags.append(f"{os.path.basename(mf)}:{i}")
 check(not bad_tags, f"sin angle brackets en markdown ({len(bad_tags)} hallados)")
 for b in bad_tags[:5]:
