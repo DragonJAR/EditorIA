@@ -404,8 +404,8 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
 
         for k, seg in enumerate(segmentos):
             rol = seg["rol"]
-            opciones = FAMILIAS_ESCENAS.get(rol, ["titular"])
-            # Alternar tipo de escena según variante y normalizar a catálogo de 39 escenas
+            opciones = FAMILIAS_ESCENAS.get(rol, ["apertura"])
+            # Alternar tipo de escena según variante y normalizar al catálogo (45)
             raw_tipo = opciones[(v_idx - 1) % len(opciones)]
             tipo = MAPEO_ESCENAS_VALIDAS.get(raw_tipo, raw_tipo)
 

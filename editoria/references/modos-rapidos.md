@@ -53,10 +53,14 @@ python scripts/ffmpeg_tools/montaje.py escala c2.mp4 --tamano 1080x1920 -o c2v.m
 python scripts/ffmpeg_tools/montaje.py unir c1v.mp4 c2v.mp4 -o montaje.mp4
 
 # 4. la música debajo, con su fade de salida
-python scripts/musica.py musiconly -v montaje.mp4 -m mus.mp3 -o final.mp4
+python scripts/musica.py musiconly -v montaje.mp4 -m mus.mp3 -o mezclado.mp4
 
-# 5. la puerta
+# 5. loudness cierra la mezcla (sin esto la puerta falla ~−18 LUFS)
+python scripts/ffmpeg_tools/loudness.py mezclado.mp4 -o final.mp4 -I -14 --tp -1.5
+
+# 6. la puerta (siempre; puntuar también — la fila del selector acaba en la puerta)
 python scripts/qa_entrega.py final.mp4
+python scripts/puntuar.py final.mp4 --ejes "1=4,2=4,4=4,5=4,7=4"
 ```
 
 1. **Normalizar clips**: misma resolución/fps
@@ -224,9 +228,9 @@ primero se elige, después se edita.
 ## Reglas comunes
 
 - **Todo quick cierra en la puerta**: `python scripts/qa_entrega.py final.mp4`
-  (y `scripts/puntuar.py` si la pieza compite por premios), más la versión
-  corta de `checklist-qa.md` (3 frames). Una pieza rápida no es una pieza sin
-  medir: son las mismas reglas, sin el ritual.
+  y `python scripts/puntuar.py final.mp4 --ejes "…"`, más la versión corta de
+  `checklist-qa.md` (3 frames). Una pieza rápida no es una pieza sin medir:
+  son las mismas reglas, sin el ritual. Sin plan, el eje 4 va a ojo en `--ejes`.
 - Si el quick crece (más de 3 textos, narración, escenas), migrar a plan.
 - Documentar el fix en `reglas-tecnicas.md` igual que un build grande.
 

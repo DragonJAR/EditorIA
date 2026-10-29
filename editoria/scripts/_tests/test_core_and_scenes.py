@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests unitarios deterministas de utilidades core, frontmatter, nombres,
-subtítulos y catálogo de escenas (39 escenas, primitivas DRY de Ronda 4, 5 y 6).
+subtítulos y catálogo de escenas (45 escenas, primitivas DRY de Ronda 4, 5 y 6).
 
 Se ejecutan con: python3 -m unittest discover -s editoria/scripts/_tests -v
 """

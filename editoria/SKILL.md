@@ -61,8 +61,8 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Trim or adapt an existing video | **Quick**: recipe `quick-cut` in `references/modos-rapidos.md` |
 | Vertical short from a long video | **Shorts**: `shorts-plan.json` (schema in `references/shorts-plan-schema.md`) + `scripts/ffmpeg_tools/shorts_plan.py` |
 | Real video + animation complementing it | **Hybrid**: `references/modos-produccion.md` (bridges, layers, continuity) |
-| Existing video + background music | `scripts/musica.py musiconly -v video.mp4 -m mus.mp3 -o final.mp4` |
-| Video + voice-over + music with ducking | `scripts/musica.py gen` then `mix` (music breathes under voice) |
+| Existing video + background music | `scripts/musica.py musiconly` then `scripts/ffmpeg_tools/loudness.py` (Step 4 closes the mix; without loudness the gate fails ~−18 LUFS) |
+| Video + voice-over + music with ducking | Step 4: `mezclar_audio.py` → `loudness.py` (music ducks under voice; `musica.py mix` alone is not the delivery path) |
 | Clip editing (join, cut, fade, PiP, split screen, GIF, etc.) | **Montaje**: `scripts/ffmpeg_tools/montaje.py` (19 operations in `references/montaje.md`) |
 | Copy that writes itself word by word, a dial that fills, a record of what is confirmed | **Scenes**: `references/escenas.md` (`frase`, `constancia`, `gauge` with `forma: "anillo"`) |
 | Type over real footage (the typography ON the video, with depth) | **Compose**: `scripts/ffmpeg_tools/componer.py` (the blur mask comes from the layer's ALPHA, so the background defocuses ONLY behind the type; `--marco "x,y,w,h"` frames the clip in a box) |
@@ -153,7 +153,7 @@ python scripts/speech_estimate.py plan.json
 python scripts/lint_copy.py plan.json
 ```
 
-Expected output: `PLAN VALIDO` with zero overlapping voice segments or missing required scene fields, and `COPY: 0 fallos` (warnings are deliverable; failures mean the engine cannot place the text, or that the plan asks for more than the engine draws). `auditar_plan.py` also warns about generated-look tells (marketing jargon, emoji as icons, placeholders, uncited social proof, long headlines, repeated scenes, uniform cadence); a deliberate exception is declared in the plan's `tells_ok`.
+Expected output: `PLAN VALIDO` (the script prints `OK · PLAN VALIDO: N escenas auditadas` when there are zero findings). Warnings only still exit 0 and are listed (decide or declare `tells_ok`); exit 1 only on ERROR. Then `COPY: 0 fallos` from `lint_copy.py` (failures mean the engine cannot place the text, or the plan asks for more than the engine draws).
 
 
 ### Step 3: Render Video with Fluidity Motor
@@ -181,23 +181,26 @@ When the brief includes narration, synthesize voice-over (`references/sonido.md`
 ```bash
 python scripts/sfx.py -o assets/sfx/                          # pack de efectos (una vez)
 python scripts/voz_off.py plan.json -o voz.mp3 --guion guion.txt   # un segmento por escena + el guion hablado
+# sin API key: python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt  (maqueta; dilo al usuario)
 python scripts/alinear.py voz.mp3 guion.txt -o voz.palabras.json
 python scripts/musica.py gen --prompt "modern upbeat electronic" --dur 30 -o mus.mp3
+# sin API key: python scripts/musica.py cama -o mus.wav --dur 30 --bpm 100
 python scripts/beat_grid.py mus.mp3 --json grid.json          # para anclar por beat y por pico
 # el camino inverso: si el BEAT se autora primero, la musica nace de el
 python scripts/beat_file.py --bpm 120 --duracion 30 -o beat.json  # el beat se autorea primero
 python scripts/mezclar_audio.py plan.json --video out.mp4 \
     --voz voz.mp3 --voz-palabras voz.palabras.json \
     --grid grid.json --pack assets/sfx --musica mus.mp3 -o mezclado.mp4
-python scripts/ffmpeg_tools/loudness.py mezclado.mp4 -o final.mp4 -I -14 --tp -1.5
-python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3
-# subtitulos de la pieza narrada (reels/tiktok/shorts): karaoke desde las palabras reales
-python scripts/ffmpeg_tools/caption.py final.mp4 --palabras voz.palabras.json --karaoke --animate pop --plan plan.json -o final_sub.mp4
+python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3          # jerarquía de pistas, no el master
+# subtítulos (reels/tiktok/shorts): quemar ANTES del loudness; un solo archivo final
+python scripts/ffmpeg_tools/caption.py mezclado.mp4 --palabras voz.palabras.json --karaoke --animate pop --plan plan.json -o con_sub.mp4
+python scripts/ffmpeg_tools/loudness.py con_sub.mp4 -o final.mp4 -I -14 --tp -1.5
+# sin subtítulos: loudness.py mezclado.mp4 -o final.mp4 ...
 ```
 
-For a narrated social piece the captions are part of the piece: burn them from the aligned words (`caption.py --palabras ... --karaoke --plan plan.json`: cues stay within scene cuts, in the reserved bottom band) and declare `"subtitulos": true` in the plan — the delivery gate asks for that declaration on reels/tiktok/shorts. Without an API key the music bed is procedural and free (`musica.py cama`; details in `references/sonido.md`).
+For a narrated social piece the captions are part of the piece: burn them from the aligned words (`caption.py --palabras ... --karaoke --plan plan.json`: cues stay within scene cuts, in the reserved bottom band) and declare `"subtitulos": true` in the plan — the delivery gate asks for that declaration on reels/tiktok/shorts. Without an API key the music bed is procedural and free (`musica.py cama`; details in `references/sonido.md`). **Gate the deliverable** (`final.mp4`), never an intermediate (`mezclado.mp4` / a pre-loudness caption file).
 
-**The loudness step is part of the mix, not an extra**: the mixer sums voices, music and cues but does not normalize, so `loudness.py` closes the pipeline — run it before the gate, not after.
+**The loudness step is part of the mix, not an extra**: the mixer sums voices, music and cues but does not normalize, so `loudness.py` closes the pipeline — run it on the file you will deliver, before the gate, not after.
 
 **Without an API key**: `voz_off.py` stops and says so; there is no silent fallback to a robotic voice. `scripts/voz_local.py` does the same job with the same contract, as a **draft** voice (no emotional direction: the system voice cannot read `[slowly]`) — and that is said to the user. See `references/sonido.md`.
 
@@ -263,7 +266,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 2. Ingest: `python scripts/clonar_video.py analizar --url "{url}" -o referencias/{name}` (download via `scripts/referencia.py`, metadata, audio, cuts, draft `ANALYSIS.md`, `plantilla.json`).
 3. Make time visible: `python scripts/alinear.py fuente.mp4 -o fuente.palabras.json` (no script = word-timed transcript), then `python scripts/contact_sheet.py --video fuente.mp4 --cada 1 --palabras fuente.palabras.json --filas 4 -o hoja.png` (spoken words under each tile; `--alrededor "{phrase}"` for a passage, `--todos-los-frames` for motion).
 4. Read the whole piece and each visual/sound system (content, placement, entry, behavior, persistence, exit, what it does for the viewer) into `ANALYSIS.md` and `TIMELINE.md`.
-5. Transform: keep each element's role, recreate its form for the new person, product or language; anchor events to the new script's words, not the old seconds. Then build with Steps 2-5 and compare source and result by function at corresponding words.
+5. Transform: keep each element's role, recreate its form for the new person, product or language; anchor events to the new script's words, not the old seconds. Then build with Steps 2-5, compare source and result by function at corresponding words, and close at the gate (`qa_entrega.py` + `puntuar.py`; see `references/referencia-video.md` §10).
 
 ## Output Contract and Success Criteria
 
@@ -287,9 +290,9 @@ User says: "Make me a 30-second vertical ad for my SaaS product launch"
 Actions:
 
 1. Run `python scripts/check_env.py` to confirm environment capabilities.
-2. Author `plan.json` using scenes `hero`, `bento`, `stats`, and `final` per `references/plan-video.md` and `references/scene-patterns-from-internet.md`.
+2. Deal scenes by intent: `python scripts/repertorio.py sugerir --intenciones gancho,dato,proceso,cierre` (do not pick types from memory), then author `plan.json` per `references/plan-video.md`.
 3. Audit timing and voice fit with `python scripts/auditar_plan.py plan.json`.
-4. Render with `python scripts/render_plan.py plan.json -o ad.mp4 --blur 5`.
+4. Preview cheap frames, then render: `python scripts/render_plan.py plan.json --preview 0,2.5,5` and `python scripts/render_plan.py plan.json -o ad.mp4 --blur 5`.
 5. Run the gate: `python scripts/qa_entrega.py ad.mp4 --plan plan.json`, then `python scripts/puntuar.py ad.mp4 --plan plan.json --ejes "1=4,2=5,5=4,7=4"`.
 
 Result: `ad.mp4` (30s, 1080x1920 @30fps, H.264 `yuv420p`) passing visual and delivery QA.
@@ -313,11 +316,12 @@ User says: "Add background music to this video"
 
 Actions:
 
-1. Generate music with `python scripts/musica.py gen --prompt "cinematic warm ambient" --dur 30 -o mus.mp3`.
-2. Mix with fade-out using `python scripts/musica.py musiconly -v video.mp4 -m mus.mp3 -o final.mp4`.
-3. Close at the gate: `python scripts/qa_entrega.py final.mp4` (it checks the platform spec and the loudness of the new mix) and deliver `final.mp4`.
+1. Generate music with `python scripts/musica.py gen --prompt "cinematic warm ambient" --dur 30 -o mus.mp3` (without an API key: `musica.py cama`).
+2. Mix with fade-out: `python scripts/musica.py musiconly -v video.mp4 -m mus.mp3 -o mezclado.mp4`.
+3. Close the mix: `python scripts/ffmpeg_tools/loudness.py mezclado.mp4 -o final.mp4 -I -14 --tp -1.5` (without this step the gate fails ~−18 LUFS).
+4. Close at the gate: `python scripts/qa_entrega.py final.mp4` and `python scripts/puntuar.py final.mp4 --ejes "1=4,2=4,4=4,5=4,7=4"`.
 
-Result: `final.mp4` with balanced background music and smooth fade-out, approved by the gate.
+Result: `final.mp4` with balanced background music, platform loudness, and gate approval.
 
 ### Example 4: Iterate on a QA Defect
 
@@ -326,10 +330,10 @@ User says: "Fix the clipped title in scene 2"
 Actions:
 
 1. Adjust the scene copy or renderer layout (`references/reglas-tecnicas.md`) and re-run `python scripts/render_plan.py plan.json -o ad.mp4`.
-2. Record the lesson with `python scripts/registrar_aprendizaje.py --titulo "Que aprendimos" --detalle "Lo que se vio y por que"`.
-3. Verify with `python scripts/validate_skill.py`.
+2. Re-gate the piece: `python scripts/qa_entrega.py ad.mp4 --plan plan.json` (and `puntuar.py` with the same axes as before).
+3. Record the lesson with `python scripts/registrar_aprendizaje.py --titulo "Que aprendimos" --detalle "Lo que se vio y por que"`.
 
-Result: Defect resolved, lesson logged, and `SKILL VALIDO` confirmed.
+Result: Defect resolved, piece re-gated, lesson logged.
 
 ## Triggering and Evaluation Tests
 

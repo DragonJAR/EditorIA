@@ -435,7 +435,7 @@ RUTAS_CON_ENTREGABLE = ("CREAR", "EDITAR", "clonar", "resumen",
 
 
 def _chequear_verticales(problemas):
-    """Las CUATRO verticales de la skill tienen que estar de verdad.
+    """Las CINCO verticales de la skill tienen que estar de verdad.
 
     Las verticales estan declaradas como DATOS (scripts/data/verticales.json),
     no como prosa: en la prosa una lista se queda vieja en silencio (nadie
@@ -472,6 +472,23 @@ def _chequear_verticales(problemas):
                           "archivo": "scripts/data/verticales.json",
                           "msg": "no hay verticales declaradas"})
         return
+
+    # la prosa DENTRO del JSON (motivos sin_test, _que_es) tambien envejece:
+    # «39 escenas» en un motivo pasaba el --check verde porque el barrido
+    # solo miraba markdown. Misma regla FORMAS_CATALOGO que el resto.
+    n_escenas = _n_escenas(os.path.join(BASE, "scripts"))
+    try:
+        with open(ruta, encoding="utf-8") as fh:
+            prosa_vert = fh.read()
+    except OSError:
+        prosa_vert = ""
+    for h in _cifras_del_catalogo(prosa_vert):
+        if h["exclusion"] or h["cifra"] == n_escenas:
+            continue
+        problemas.append({
+            "tipo": "conteo obsoleto", "archivo": "scripts/data/verticales.json",
+            "msg": f"dice {h['cifra']} escenas del catalogo y hay {n_escenas} "
+                   f"({h['fragmento'][:40]})"})
 
     # las rutas de lectura del mapa
     mapa_p = os.path.join(REFS, "mapa.md")

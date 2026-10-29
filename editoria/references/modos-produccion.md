@@ -304,6 +304,21 @@ El resto (la promo montada con el motor y con el overlay del website) sigue
 siendo el camino de esta skill: el website se renderiza con alfa y se compone
 como cualquier otra capa (`references/3d.md`).
 
+## Cierre en la puerta
+
+Sea el modo real, animado o híbrido, el entregable pasa por la misma puerta
+que el resto de la skill (Motor Selector: «Every row ends at the gate»):
+
+```bash
+python scripts/qa_entrega.py final.mp4 --plan plan.json   # con plan (capa animada)
+python scripts/qa_entrega.py final.mp4                    # solo footage / montaje
+python scripts/puntuar.py final.mp4 --plan plan.json --ejes "1=4,2=5,5=4,7=4"
+# sin plan: eje 4 a ojo → --ejes "1=4,2=4,4=4,5=4,7=4"
+```
+
+Si hubo mezcla de audio, `loudness.py` va **antes** de la puerta
+(`references/audio.md`). Un híbrido sin puerta es un montaje sin medir.
+
 ---
 
 → Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-rapidos.md`, `references/media-hard-rules.md`, `references/prompt-motion-graphics.md`
