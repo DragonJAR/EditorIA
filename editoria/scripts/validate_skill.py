@@ -677,7 +677,10 @@ check(not _sobran_m, f"escenas_muestra.json sin tipos inexistentes ({', '.join(_
 #    en 9:16 y 16:9, compuestas DENTRO de la zona segura (sin que escala_segura las encoja)
 import render_plan as R  # noqa: E402
 cu = [R.cuenta_up(0, 3.5, 0.3, 0), R.cuenta_up(0, 3.5, 9, 0), R.cuenta_up(0, 1500, 9, 0)]
-check(cu[1] == "3.5" and len(cu[0]) == 3 and cu[2] == "1,500", f"cuenta_up con decimales ({cu})")
+# las cifras salen en el locale del motor (es por defecto: 3,5 · 1.500)
+_sep = R.NUMEROS
+check(cu[1] == f"3{_sep['decimal']}5" and len(cu[0]) == 3 and cu[2] == f"1{_sep['miles']}500",
+      f"cuenta_up con decimales ({cu})")
 try:
     import numpy as _np
     from PIL import Image as _Im
@@ -839,25 +842,15 @@ try:
         # métricas de movimiento. Y lo mismo con COPY LARGO (cada texto ×2): un
         # agente escribe marcas, montos y títulos más largos que la muestra; la
         # escena debe encoger o partir su texto, no salirse ni pisarse
+        # solo se duplica el COPY (los campos token del motor quedan intactos:
+        # "serie serie" no es un color y su die() cortaba todo este bloque)
         import medir_animacion as _MAs
-        _NO = {"canal", "de", "tipo", "captura", "imagen", "url", "formato", "transicion",
-               "moneda", "fecha", "hora", "codigo"}
-
-        def _x2(n_, k_="", _no=_NO):
-            if isinstance(n_, dict):
-                return {a_: (b_ if a_ in _no else _x2(b_, a_, _no)) for a_, b_ in n_.items()}
-            if isinstance(n_, list):
-                return [_x2(x_, k_, _no) for x_ in n_]
-            if isinstance(n_, str) and len(n_) > 1 and not n_.endswith((".png", ".jpg")) \
-                    and not n_.startswith("#"):
-                return n_ + " " + n_.replace("*", "")
-            return n_
         pisados, largos = set(), []
         for nombre in R.SCENES:
             for copia in ("", "x2"):
                 e = dict(muestras[nombre], tipo=nombre)
                 if copia:
-                    e = dict(_x2(e), tipo=nombre)
+                    e = dict(_MAs.copy_x2(R, e), tipo=nombre)
                 if "imagen" in e:
                     e["imagen"] = foto
                 R._ESCALA.clear()
@@ -866,7 +859,7 @@ try:
                                    for x_ in _MAs.solapes(R, ctx, [e], e["to"] + 5))
                     if copia and R.escala_segura(ctx, e, 0) < 0.9:
                         largos.append(nombre)
-                except Exception as ex:
+                except (Exception, SystemExit) as ex:   # un die() del motor es un fallo, no el fin
                     largos.append(f"{nombre} {type(ex).__name__}: {ex}")
         # plan de agente: SIN `at` toda escena compone (tiempos desde la muestra,
         # escalados a su duración); un campo de contenido que falta da un error

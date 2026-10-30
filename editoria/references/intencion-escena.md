@@ -209,8 +209,8 @@ sean alcanzables).
 **Dónde poner cada escena (criterio fino):** además de la familia, cada
 escena del plan declara `ocasion` + `firma` en
 `repertorio.json → detalle_escenas` (misma superficie que efectos/gestos;
-no es un menú paralelo). `repertorio.py resolver --id <escena>` y
-`opciones(<intencion>)` las exponen. Si el pedido es vago, §2 nombra; si ya
+no es un menú paralelo). `repertorio.py resolver --id …` (el id de la escena) y
+`opciones(…)` (la intención) las exponen. Si el pedido es vago, §2 nombra; si ya
 sabes la intención, mira `ocasion` antes de inventar otra.
 
 <!-- REPERTORIO_TABLA_INI -->

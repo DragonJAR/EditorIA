@@ -490,6 +490,21 @@ def metricas(F, fps, dur, zonas_cifra=None, k_=1.0, caja=None):
             "muerto": round(muerto, 3), "densidad": round(densidad, 2), **quieto, "ocupacion": ocup}
 
 
+def copy_x2(R, nodo, clave=""):
+    """La escena con cada TEXTO duplicado ("a" -> "a a"): un agente escribe
+    marcas, montos y títulos más largos que la muestra. Solo el copy: un campo
+    token del motor (`R.CAMPOS_TOKEN`: "serie", "$", un canal, una ruta) se
+    deja intacto — "serie serie" no es un color y terminaba el proceso."""
+    if isinstance(nodo, dict):
+        return {k: (v if k in R.CAMPOS_TOKEN else copy_x2(R, v, k)) for k, v in nodo.items()}
+    if isinstance(nodo, list):
+        return [copy_x2(R, x, clave) for x in nodo]
+    if isinstance(nodo, str) and len(nodo) > 1 and not nodo.endswith((".png", ".jpg")) \
+            and not nodo.startswith("#"):
+        return nodo + " " + nodo.replace("*", "")
+    return nodo
+
+
 def solapes(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
     """Textos visibles que se pisan con cada escena ASENTADA (a 55 % y 80 % de
     su duración). Caja de TINTA real (la tipográfica de “ abarca aire), alfa

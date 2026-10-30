@@ -670,6 +670,9 @@ SOLAPE_PRE=0.0   # s de fundido de salida ANTES del corte (0: sale desde el cort
 # que salía se iba antes de que la siguiente empezara a mostrar contenido.
 SOLAPE_SECO=0.25
 SOLAPE_PRE_SECO=0.03
+# lo que instala la regla "libre": aplicar_brand fija el par en los DOS
+# sentidos (un pack corte_seco no deja su solape para el resto del proceso)
+SOLAPE_LIBRE,SOLAPE_PRE_LIBRE=SOLAPE,SOLAPE_PRE
 
 def capa_salida(layer,t,to_):
     """Salida que se SOLAPA con la escena siguiente: empieza SOLAPE_PRE s antes
@@ -6419,8 +6422,8 @@ def aplicar_brand(brand_path):
     TRANSICIONES = (d.get("reglas") or {}).get("transiciones", "libre")
     # "corte_seco" es una REGLA del pack: el solape entre escenas se reduce a un
     # micro-fade (sin disolvencia de 0.45 s entre dos pantallas de texto).
-    if TRANSICIONES == "corte_seco":
-        SOLAPE, SOLAPE_PRE = SOLAPE_SECO, SOLAPE_PRE_SECO
+    SOLAPE, SOLAPE_PRE = ((SOLAPE_SECO, SOLAPE_PRE_SECO) if TRANSICIONES == "corte_seco"
+                          else (SOLAPE_LIBRE, SOLAPE_PRE_LIBRE))
     print(f"brand pack: {d.get('nombre', brand_path)} — acento #%02X%02X%02X" % ACENTO, flush=True)
 
 COLUMNA={"chat","leads","handoff"}   # se leen como columna (conversación, tabla, ficha)
@@ -7042,6 +7045,11 @@ def completar_escena(e,i=0):
     return e
 
 COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}
+# Campos cuyo valor es un TOKEN que el motor interpreta (color, canal, quién
+# habla, ruta, separador, archivo), no copy que el espectador lee. Una lista:
+# quien estresa el copy (validate_skill, copy x2) recorre solo el texto.
+CAMPOS_TOKEN=COMUNES|{"canal","de","captura","imagen","url","formato","moneda","miles","decimal",
+                      "fecha","hora","codigo","colores","color","ruta","archivo","numeros","lado"}
 _CAMPOS={}
 def campos_de(tipo):
     """Campos que una escena LEE, sacados de su propio codigo (e["x"] /

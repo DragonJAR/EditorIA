@@ -155,6 +155,31 @@ class TestCifrasDelMotor(unittest.TestCase):
                 self.assertNotIn("salida anticipada 0", txt.lower())
                 self.assertIn(seg, txt, f"{donde} no cita la salida del motor ({seg} s)")
 
+    def test_ninguna_referencia_cita_un_hecho_viejo_del_motor(self):
+        """Toda la prosa, no solo los dos documentos que alguien recordó: la
+        salida anticipada de 0,5 s (T11 la cambió por la cruzada desde el
+        corte), `lineup` como escena (no existe: solo es idea futura en
+        escenas.md) y `"en"` como locale por defecto (el motor es `es`)."""
+        viejos = (
+            (re.compile(r"(?<!sin )salida anticipada|empieza a salir \d", re.I), "salida anticipada"),
+            (re.compile(r"`lineup`"), "lineup"),
+            (re.compile(r"`\"en\"`\s*\(default", re.I), "numeros en por defecto"),
+        )
+        self.assertEqual(self.R.NUMEROS, self.R.LOCALES["es"], "si el default vuelve a en, la prosa también")
+        malos = []
+        for n in sorted(os.listdir(REFS)):
+            if not n.endswith(".md"):
+                continue
+            txt = _leer(REFS, n)
+            for pat, que in viejos:
+                for m in pat.finditer(txt):
+                    linea = txt[:m.start()].count("\n") + 1
+                    # escenas.md lista `lineup` entre las ideas FUTURAS (no escenas)
+                    if que == "lineup" and n == "escenas.md" and "futur" in txt[max(0, m.start() - 600):m.start()].lower():
+                        continue
+                    malos.append(f"{n}:{linea} {que}")
+        self.assertEqual(malos, [], "la prosa cita hechos del motor que ya no son")
+
 
 if __name__ == "__main__":
     unittest.main()

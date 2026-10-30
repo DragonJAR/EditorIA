@@ -107,7 +107,7 @@ que viven en `scripts/render_plan.py`:
 | `cuenta_up(desde, hasta, t, t0, dur, fmt)` | número animado `desde`→`hasta` (acepta strings) | `bars`, `gauge`, `ranking`, `stats`, `remate` |
 | `arco(d, cx, cy, r, desde, hasta, color, grosor)` | arco de círculo | `gauge`, `pie` (futuro) |
 | `particulas(d, t, t0, cx, cy, n, color, semilla)` | confeti determinista (seeded) | `confetti` |
-| `cuadricula(x0, y0, ancho, alto, cols, n)` | layout en grilla | `stats`, `bento`, `lineup` (futuro) |
+| `cuadricula(x0, y0, ancho, alto, cols, n)` | layout en grilla | `stats`, `bento` |
 | `linewrap(text, fnt, max_width, tmp)` | word-wrap con medida real | `quote`, `versus`, `stats` |
 | `text_reveal(d, text, fnt, x, y, t, t0, dur, color)` | typewriter (carácter a carácter) | `typewriter` |
 | `kenburns(img, t, t0, dur, zoom_from, zoom_to, pan_x, pan_y)` | zoom + paneo progresivo (afín sub-píxel: no tiembla) | `kenburns`, `demo` |

@@ -501,6 +501,7 @@ class TestContraste(unittest.TestCase):
         R.aplicar_brand(DJ)
         R.aplicar_globales({"escenas": []})
         R._ESCALA.clear()
+        self.addCleanup(R.aplicar_brand, None)   # el pack entero (fuentes, solape), no solo los colores
         self.addCleanup(R._instalar_tokens, dict(acento=R.NEUTRO["acento"],
                                                   acento_oscuro=R.NEUTRO["acento_oscuro"],
                                                   negro=R.NEUTRO["negro"], blanco=R.NEUTRO["blanco"],

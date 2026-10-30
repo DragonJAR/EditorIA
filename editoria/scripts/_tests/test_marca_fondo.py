@@ -35,6 +35,7 @@ class MarcaFondo(unittest.TestCase):
         self.ctx = R.Ctx()
 
     def tearDown(self):
+        R.aplicar_brand(None)   # desinstala TODO el pack (solape incluido), no solo tres globales
         R.ISOTIPO, R.ACENTO, R.TRANSICIONES = self._guardado
 
     def _capa(self):

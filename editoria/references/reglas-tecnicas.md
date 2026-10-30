@@ -4,7 +4,8 @@
 - QA: mirar SIEMPRE los fotogramas en los tiempos clave antes del render completo.
 - Dos escenas a pantalla completa seguidas: solapar la siguiente ~0,4s; si no,
   asoma el fondo entre ambas.
-- Salida anticipada: cada escena empieza a salir 0,5s antes de su fin.
+- Salida cruzada: cada escena sale DESDE su corte en 0,32 s (`SOLAPE`), debajo
+  de la entrante; ninguna empieza a salir antes de su fin.
 - Titular cinético: las palabras de énfasis seguidas van en UN grupo (no partir
   el bloque de color con un salto de línea).
 - Cifra protagonista: grande, en acento, con impacto desde el fotograma 0

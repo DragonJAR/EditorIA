@@ -104,9 +104,9 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   contenido esencial, el render falla en < 1 s diciendo escena, campo y un
   ejemplo completo para copiar.
 - `"transicion": "mancha"` = barrido orgánico al entrar la escena.
-- **Cifras**: `"numeros": "es"` (1.240 · 4,8), `"en"` (default: 1,240 · 4.8),
+- **Cifras**: `"numeros": "es"` (default: 1.240 · 4,8), `"en"` (opt-in: 1,240 · 4.8),
   `"fr"` o `{"miles": ".", "decimal": ","}` a nivel de plan: aplica a toda
-  cifra animada y a los precios que no fijen los suyos. Público hispano → `"es"`.
+  cifra animada y a los precios que no fijen los suyos. Público angloparlante → `"en"`.
 - **Voz (estimación)**: `"idioma": "es"|"en"` y `"ritmo_voz": "slow"|"normal"|"fast"`
   a nivel de plan fijan cómo `scripts/auditar_plan.py` estima si cada `voz`
   cabe antes de la voz siguiente (sílabas habladas con cifras expandidas,
@@ -149,7 +149,8 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   flotación) en esa escena; útil para una escena que debe quedar clavada
   (un dato que se lee quieto). Sin ese campo toda escena asentada respira.
 - Escenas contiguas: el `to` de una = el `from` de la siguiente (la transición
-  la maneja el renderizador con la salida anticipada).
+  la maneja el renderizador: la saliente sale DESDE el corte, debajo de la
+  entrante, en 0,32 s (`SOLAPE`; sin salida anticipada).
 - **Marca**: el plan puede declarar `"brand": "brand/dragonjar.json"` (ruta
   absoluta, relativa al directorio actual o a la carpeta de la skill); el
   motor hereda de ahí colores, tipografías, logos y reglas. Sin `"brand"`,

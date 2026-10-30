@@ -71,7 +71,7 @@ timan las escenas a ojo y se espera que la voz encaje.
 ## Lecciones del sistema original (`sistema-editor-videos-ia.zip`)
 Adaptadas de su `CLAUDE.md` (Windows/Remotion; lo portable a este entorno Linux):
 - Catálogo de escenas reutilizable: `revealStat` (cifra heroica), `bars` (comparativa),
-  `lineup` (fichas), `pasos`, `notificacion`, `buscador`, `comentario`, `outro`.
+  fichas (en el motor: `pasos`), `notificacion`, `buscador`, `comentario`, `outro`.
 - Música ~15 dB bajo la voz (verificado con `medir_mezcla.py`); SFX sutiles alineados al fotograma del golpe.
 - Miniatura: cara a la derecha, izquierda vacía y oscura, texto ≤4 palabras
   (ver `references/thumbnails.md` — el QA de thumbnails manda sobre esta nota).
