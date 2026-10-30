@@ -208,8 +208,10 @@ ninguno.
 
 **El marco no viaja con la cámara.** El rótulo canónico (`rotulo_y()`) y la
 línea de fuente (`pie_fuente`) van en la CAPA FIJA de la escena
-(`pintar_partes` → `capa_fija`): el encuadre (`_crecer`, el push-in, la
-flotación) escala y desplaza solo el contenido, y el sitio donde el
+(`pintar_partes` → `capa_fija`): el encuadre (`_crecer`, el push-in)
+escala y desplaza solo el contenido; el marco solo respira con la flotación
+de la cámara (misma fase en toda escena, 0 en el corte: sin ella el hold de
+`timeline`, `chat` o `buscador` caía bajo el umbral de `muerto`), y el sitio donde el
 contenido crece descuenta el marco medido (`_marco_libre`, `AIRE_MARCO`).
 Medido antes: el tope del rótulo caía a 210-252, 371-401 o 522 px según la
 escena y la fuente terminaba entre 1466 y 1496 (borde seguro 1498).

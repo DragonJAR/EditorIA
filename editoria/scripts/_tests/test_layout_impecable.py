@@ -4,10 +4,11 @@
 Cada clase fija UNA causa raíz, medida sobre el frame que se entrega:
 
 - R5.4 CAPA FIJA: el rótulo (`rotulo_y()`) y la línea de fuente
-  (`pie_fuente`) van en una capa que NO escala ni se desplaza con el
-  encuadre (`_crecer`, push-in, flotación): el rótulo cae a la misma altura
-  de pantalla en toda escena y en todo instante, y la fuente sobre UNA línea
-  base por encima del borde seguro inferior.
+  (`pie_fuente`) van en una capa que NO escala ni sigue el encaje del
+  contenido (`_crecer`, push-in): solo respira con la flotación de la
+  cámara (misma fase en toda escena, 0 en el corte). El rótulo cae a la
+  misma altura de pantalla en toda escena y la fuente sobre UNA línea base
+  por encima del borde seguro inferior.
 - R5.1 APILAR MEDIDO: lo que va debajo se coloca bajo la tinta MEDIDA de lo
   de arriba (`apila`, `tinta`), no en `rotulo_y()+N`: la cifra de `hoy` no
   toca sus tarjetas, las tarjetas de `pago` y del PAGADO de `recupera`
@@ -121,7 +122,9 @@ class TestCapaFija(unittest.TestCase):
         # la tinta de "L" y de "d" no empieza a la misma altura: se mide el
         # desplazamiento de pantalla frente al layout de la escena
         f0 = _filas(_magenta(_compuesto(R, e, t, "rotulo", crudo=True)))
-        return f[0] - f0[0]
+        # el marco respira con la cámara (la flotación, la misma fase en
+        # toda escena): lo que no puede es escalar ni seguir al contenido
+        return round(f[0] - f0[0] - R.respiracion(e, t)[1])
 
     def _formato(self, ancho, alto):
         R = _motor(ancho, alto)
@@ -151,9 +154,10 @@ class TestCapaFija(unittest.TestCase):
                     continue
                 e["from"], e["to"] = 0.0, e["to"] - e["from"]
                 R._ESCALA.clear()
-                f = _filas(_magenta(_compuesto(R, e, e["to"] - 0.5, "fuente")))
+                t = e["to"] - 0.5
+                f = _filas(_magenta(_compuesto(R, e, t, "fuente")))
                 self.assertIsNotNone(f, f"{tipo}: sin línea de fuente")
-                fondos[tipo] = f[1]
+                fondos[tipo] = round(f[1] - R.respiracion(e, t)[1])
             self.assertGreaterEqual(len(fondos), 3)
             self.assertLessEqual(max(fondos.values()) - min(fondos.values()), 2,
                                  f"{ancho}x{alto}: la línea de fuente no comparte base: {fondos}")

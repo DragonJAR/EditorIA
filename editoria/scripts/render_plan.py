@@ -6712,7 +6712,10 @@ def encuadre(ctx,e,idx,t,ts=None):
     (rótulo y fuente) compuesto ENCIMA, sin escalar ni desplazar."""
     capa,fija=pintar_partes(ctx,e,t if ts is None else ts)
     out=encuadrar(ctx,e,idx,t,capa)
-    out.alpha_composite(fija)
+    # el marco RESPIRA con la cámara (su flotación: la misma fase en toda
+    # escena, 0 en el corte) pero no escala ni sigue el encaje del contenido
+    _,fy,fx=respiracion(e,t)
+    out.alpha_composite(encajar(fija,1.0,fy,fx))
     return out
 
 def componer(ctx,escenas,dur,t,manchas_ok):
