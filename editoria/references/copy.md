@@ -175,7 +175,7 @@ render va a usar. Un **fallo** es texto que el motor no puede colocar; un
 **aviso** es copy que se lee como generado o que se va a encoger de mas.
 
 **El piso de lectura** lo comprueba `auditar_plan.py`: un texto necesita
-`0.3 s x palabras + 0.5 s` en pantalla, con un minimo de 0.8 s (una etiqueta
+`0.3 s x palabras + 0.5 s` en pantalla, y nunca menos de 0.8 s (una etiqueta
 corta). La formula vive en `_copy.tiempo_lectura` (una sola, la misma que
 describe `references/ritmo.md` y `references/animacion.md`) y el aviso lleva
 los dos numeros —lo que el texto necesita y lo que tiene— para que corregir

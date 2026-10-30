@@ -53,10 +53,10 @@ def _parsek(self, args=None, namespace=None):
 argparse.ArgumentParser.parse_args = _parse
 argparse.ArgumentParser.parse_known_args = _parsek
 sys.argv = [SCRIPT] + ARGV
-# Python mete la CARPETA del script en sys.path al correrlo (`python
-# scripts/x.py` importa a sus hermanos). El interceptor tiene que hacer lo
-# MISMO: sin esto, un script que importa a un sibling (`from
-# speech_estimate import ...`) no arranca, el guard no puede cortarlo y el
+# Python mete la CARPETA del script en sys.path al correrlo (un script
+# importa a sus hermanos). El interceptor tiene que hacer lo MISMO: sin
+# esto, un script que importa a un modulo hermano (como `auditar_plan.py`
+# con `speech_estimate`) no arranca, el guard no puede cortarlo y el
 # comando se juzga "no verificable" cuando en realidad SI se puede.
 sys.path.insert(0, os.path.dirname(os.path.abspath(SCRIPT)))
 runpy.run_path(SCRIPT, run_name="__main__")

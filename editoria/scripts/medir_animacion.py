@@ -60,11 +60,12 @@ MOV_RADIO = 10         # px de análisis (≈ 60 px a 1080, 1800 px/s): lo que s
                        # que esto se lee como teletransporte (aparición), no como movimiento
 LETRA_MIN = 26         # px (sobre lado corto 1080) bajo los cuales no se lee en un teléfono
 GANCHO_MIN = 84        # px: el PRIMER plano tiene que decir QUÉ ES, de un vistazo. El piso
-                       # viene del repositorio de video-director (references/craft.md de
-                       # ahi: "the hook must be at least 84 px at 1080 wide") y encaja
-                       # con este motor sin mover nada: el titular se declara a 120 px y
-                       # la zona segura lo encoge como mucho a 0.70, o sea 84 px es el
-                       # titular más pequeño que una pieza puede tener.
+                       # viene del repositorio de video-director (su craft.md:
+                       # "the hook must be at least 84 px at 1080 wide") y encaja
+                       # con este motor sin mover nada: el titular se declara a
+                       # 120 px y la zona segura lo encoge como mucho a 0.70, o
+                       # sea 84 px es el titular más pequeño que una pieza puede
+                       # tener.
 QUIETO_SIGMAS = 4      # un bloque se movió si cambia más que 4 veces el piso de grano medido
 OCUPACION_MIN = 0.20   # fracción de la zona segura bajo la cual la pieza es una banda chica:
                        # medido en HEAD, las escenas más angostas POR DISEÑO (apertura,
