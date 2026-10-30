@@ -91,7 +91,7 @@ class TestSincronizarInstalada(unittest.TestCase):
 
     def test_limpia_el_cache(self):
         pyc = self._pyc_fantasma()
-        r = _corre(self.destino)
+        r = _corre(self.destino, "--replace")
         self.assertEqual(r.returncode, 0, f"la sincronizacion fallo:\n{r.stdout}\n{r.stderr}")
         self.assertFalse(os.path.exists(pyc), "el bytecode fantasma tiene que quedar borrado")
         self.assertFalse(os.path.exists(os.path.dirname(pyc)), "el __pycache__ tiene que quedar borrado")
@@ -100,6 +100,52 @@ class TestSincronizarInstalada(unittest.TestCase):
         r = _corre(self.destino, "--check")
         self.assertEqual(r.returncode, 0, f"sin fantasma deberia salir limpio:\n{r.stdout}")
         self.assertIn("sin bytecode fantasma", r.stdout)
+
+    def test_replace_rechaza_enlaces_internos_sin_escribir_fuera(self):
+        externo = os.path.join(self.dir, "archivo_usuario.txt")
+        with open(externo, "w", encoding="utf-8") as f:
+            f.write("conservar")
+        link = os.path.join(self.destino, "editoria", "archivo_enlace")
+        os.symlink(externo, link)
+        r = _corre(self.destino, "--replace")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("enlaces simbolicos", r.stdout)
+        with open(externo, encoding="utf-8") as f:
+            self.assertEqual(f.read(), "conservar")
+
+    def test_replace_rechaza_destino_que_se_resuelve_al_arbol_fuente(self):
+        repo = os.path.join(self.dir, "repo_overlap")
+        skill = os.path.join(repo, "editoria")
+        scripts = os.path.join(skill, "scripts")
+        os.makedirs(scripts)
+        shutil.copy(HERRAMIENTA, os.path.join(scripts, "sincronizar_instalada.py"))
+        with open(os.path.join(skill, "SKILL.md"), "w", encoding="utf-8") as f:
+            f.write("published skill\n")
+
+        def git(*args):
+            return subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+
+        git("init", "-q")
+        git("config", "user.email", "test@local")
+        git("config", "user.name", "test")
+        git("add", "-A")
+        git("commit", "-q", "-m", "published")
+        personalizado = os.path.join(skill, "local.user-data")
+        with open(personalizado, "w", encoding="utf-8") as f:
+            f.write("working tree data")
+        alias = os.path.join(self.dir, "source-parent-alias")
+        os.symlink(repo, alias, target_is_directory=True)
+
+        for parent in (repo, alias):
+            with self.subTest(parent=parent):
+                r = subprocess.run(
+                    [sys.executable, os.path.join(scripts, "sincronizar_instalada.py"),
+                     "--destino", parent, "--replace"],
+                    capture_output=True, text=True, timeout=30)
+                self.assertEqual(r.returncode, 2, f"debe rechazarse el solapamiento:\n{r.stdout}")
+                self.assertIn("solapa", r.stdout)
+                with open(personalizado, encoding="utf-8") as f:
+                    self.assertEqual(f.read(), "working tree data")
 
     def test_un_pyc_recien_compilado_no_es_fantasma(self):
         # al compilar, el .pyc nace con la hora de ahora y el .py puede
@@ -121,7 +167,7 @@ class TestSincronizarInstalada(unittest.TestCase):
         self.assertIn("sin bytecode fantasma", r.stdout)
 
     def test_sincroniza_desde_head(self):
-        # con repo: la copia queda con lo publicado, y lo que sobra se va
+        # sin consentimiento, el sincronizador conserva la copia existente
         repo = os.path.join(self.dir, "repo")
         skill = os.path.join(repo, "editoria")
         _copia_skill(skill)
@@ -139,6 +185,9 @@ class TestSincronizarInstalada(unittest.TestCase):
         # un archivo que solo existe en el arbol de trabajo, no en HEAD
         with open(os.path.join(skill, "references", "mapa.md"), "a", encoding="utf-8") as f:
             f.write("\n<!-- solo en el arbol -->\n")
+        destino_mapa = os.path.join(self.destino, "editoria", "references", "mapa.md")
+        with open(destino_mapa, "a", encoding="utf-8") as f:
+            f.write("\n<!-- personalizacion de usuario -->\n")
         sobra = os.path.join(skill, "references", "mapa.md")
 
         # la copia instalada es OTRO sitio, y la herramienta se ejecuta
@@ -147,14 +196,24 @@ class TestSincronizarInstalada(unittest.TestCase):
             [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
              "--destino", self.destino],
             capture_output=True, text=True, timeout=300, cwd=skill)
-        self.assertEqual(r.returncode, 0, f"la sincronizacion fallo:\n{r.stdout}\n{r.stderr}")
-        destino_mapa = os.path.join(self.destino, "editoria", "references", "mapa.md")
         with open(destino_mapa, encoding="utf-8") as f:
             txt = f.read()
-        self.assertIn("marcador del commit", txt,
-                      "la copia tiene que quedar con lo publicado")
-        self.assertNotIn("solo en el arbol", txt,
-                         "lo que no esta publicado no puede quedar en la copia")
+        self.assertNotIn("marcador del commit", txt,
+                         "el contenido de HEAD no se debe copiar por defecto")
+        self.assertIn("personalizacion de usuario", txt,
+                      "los cambios del usuario deben sobrevivir sin --replace")
+        self.assertIn("--replace", r.stdout,
+                      "el diagnóstico debe indicar cómo autorizar el reemplazo")
+
+        r = subprocess.run(
+            [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
+             "--destino", self.destino, "--replace"],
+            capture_output=True, text=True, timeout=300, cwd=skill)
+        self.assertEqual(r.returncode, 0, f"la sincronizacion autorizada fallo:\n{r.stdout}\n{r.stderr}")
+        with open(destino_mapa, encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("marcador del commit", txt)
+        self.assertNotIn("solo en el arbol", txt)
 
     def test_detecta_y_limpia_un_directorio_vacio_que_sobra(self):
         # `git archive` NO guarda los directorios vacios (git no los puede
@@ -179,7 +238,7 @@ class TestSincronizarInstalada(unittest.TestCase):
         # la copia se deja como esta el repo (sin directorios vacios)
         r = subprocess.run(
             [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
-             "--destino", self.destino],
+             "--destino", self.destino, "--replace"],
             capture_output=True, text=True, timeout=300, cwd=skill)
         self.assertEqual(r.returncode, 0, f"la sincronizacion fallo:\n{r.stdout}\n{r.stderr}")
 
@@ -198,7 +257,7 @@ class TestSincronizarInstalada(unittest.TestCase):
 
         r = subprocess.run(
             [sys.executable, os.path.join(skill, "scripts", "sincronizar_instalada.py"),
-             "--destino", self.destino],
+             "--destino", self.destino, "--replace"],
             capture_output=True, text=True, timeout=300, cwd=skill)
         self.assertEqual(r.returncode, 0, f"la sincronizacion fallo:\n{r.stdout}\n{r.stderr}")
         self.assertFalse(os.path.exists(sobra),

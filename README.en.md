@@ -44,11 +44,15 @@ EditorIA turns an agent into a complete video editor. It can:
 
 ```bash
 git clone https://github.com/DragonJAR/EditorIA.git
-mkdir -p ~/.claude/skills/
-cp -R EditorIA/editoria ~/.claude/skills/editoria
+python3 EditorIA/editoria/scripts/install_skill.py --destination ~/.claude/skills/editoria
 # For OpenCode / ~/.agents:
-# mkdir -p ~/.agents/skills/ && cp -R EditorIA/editoria ~/.agents/skills/editoria
+# python3 EditorIA/editoria/scripts/install_skill.py --destination ~/.agents/skills/editoria
+# On Windows or systems without symlink support, add --copy.
 ```
+
+The installer creates a link to the local source (or a copy with `--copy`) and
+is safe to rerun. It stops if the destination already contains files. A broken
+link is repaired only when `--repair-broken-link` is explicitly selected.
 
 ### Verification
 
@@ -408,13 +412,18 @@ you keep copies in skill directories (e.g.
 `~/.claude/skills/editoria/` or `~/.config/opencode/skills/editoria/`),
 resync them from the `editoria/` subfolder after pulling:
 
+For a linked installation, `git pull` updates the source automatically. For an
+independent copy, inspect differences first and explicitly authorize replacing
+or removing files:
+
 ```bash
-git -C /path/to/EditorIA pull
-rsync -a --delete --exclude '__pycache__' --exclude '.pytest_cache' \
-  /path/to/EditorIA/editoria/ ~/.claude/skills/editoria/
+python3 editoria/scripts/sincronizar_instalada.py --check --destino ~/.claude/skills
+python3 editoria/scripts/sincronizar_instalada.py --replace --destino ~/.claude/skills
 ```
 
-Unsynchronized copies will silently drift out of date.
+Without `--replace`, the synchronizer does not change existing files or remove
+customizations. Destinations that are unrelated or broken symlinks are rejected
+to avoid writing into another tree.
 
 ## 🤝 Contributing
 

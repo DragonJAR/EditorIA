@@ -22,9 +22,12 @@ desfasada.
 contenido compilado; esta herramienta lo PREVIENE (lo borra) y sincroniza.
 
 Uso:
-    python scripts/sincronizar_instalada.py             # sincroniza y limpia
-    python scripts/sincronizar_instalada.py --check     # solo informa
-    python scripts/sincronizar_instalada.py --destino /ruta
+    python scripts/sincronizar_instalada.py --check --destino /ruta
+    python scripts/sincronizar_instalada.py --replace --destino /ruta
+
+Sin --replace la herramienta solo informa; los reemplazos y eliminaciones
+requieren consentimiento explicito. Para instalar la skill por primera vez,
+usa scripts/install_skill.py.
 """
 import argparse
 import os
@@ -56,6 +59,30 @@ def _caches(base):
                 out.append(os.path.join(d, sub))
                 dirs.remove(sub)
     return out
+
+
+def _enlaces_en(base):
+    """Symlinks inside a copy can redirect writes outside its destination."""
+    if not os.path.isdir(base):
+        return []
+    encontrados = []
+    for directorio, dirs, files in os.walk(base, followlinks=False):
+        for nombre in dirs + files:
+            ruta = os.path.join(directorio, nombre)
+            if os.path.islink(ruta):
+                encontrados.append(ruta)
+        dirs[:] = [d for d in dirs if not os.path.islink(os.path.join(directorio, d))]
+    return encontrados
+
+
+def _rutas_solapan(a, b):
+    """Whether canonical paths are equal or one contains the other."""
+    a, b = os.path.normcase(os.path.realpath(a)), os.path.normcase(os.path.realpath(b))
+    try:
+        comun = os.path.normcase(os.path.commonpath([a, b]))
+    except ValueError:  # different Windows drives
+        return False
+    return comun == a or comun == b
 
 
 def _codigo_del_pyc(ruta):
@@ -183,17 +210,37 @@ def _comparar(base_head, base_copia):
 def main():
     ap = argparse.ArgumentParser(description="Sincroniza la copia instalada con lo publicado")
     ap.add_argument("--check", action="store_true", help="solo informa (no escribe)")
+    ap.add_argument("--replace", action="store_true",
+                    help="autoriza sobrescribir y quitar archivos de la copia instalada")
     ap.add_argument("--destino", default=DESTINO_POR_DEFECTO,
                     help="donde vive la copia instalada (def: ~/.minimax/skills)")
     args = ap.parse_args()
-    escribir = not args.check
+    escribir = args.replace and not args.check
     destino = os.path.abspath(os.path.expanduser(args.destino))
     copia = os.path.join(destino, os.path.basename(BASE))
 
     print(f"copia instalada: {copia}")
+    if os.path.islink(copia):
+        if os.path.realpath(copia) == os.path.realpath(BASE):
+            print("la copia ya es un enlace a la fuente; no se sincroniza sobre el original")
+            return 0
+        print(f"ERROR: destino es un enlace simbolico ajeno o roto: {copia}; no se modifico")
+        return 2
+    if escribir:
+        enlaces = _enlaces_en(copia)
+        if enlaces:
+            print("ERROR: la copia contiene enlaces simbolicos; no se sincronizo para evitar "
+                  "escrituras fuera del destino:")
+            for enlace in enlaces:
+                print(f"  {os.path.relpath(enlace, copia)}")
+            return 2
     raiz = _raiz_git()
     if raiz:
         print(f"repo: {raiz}")
+        if escribir and _rutas_solapan(BASE, copia):
+            print("ERROR: destino y fuente se solapan despues de resolver enlaces y rutas canonicas; "
+                  "no se sincronizo para proteger el arbol de trabajo")
+            return 2
         import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             base_head = _exportar_head(tmp, raiz)
@@ -217,6 +264,7 @@ def main():
                 else:
                     print("la copia coincide con lo publicado")
                 if escribir:
+                    os.makedirs(os.path.dirname(copia), exist_ok=True)
                     for rel in solo_copia:
                         ruta = os.path.join(copia, rel)
                         if os.path.isfile(ruta):
@@ -234,9 +282,18 @@ def main():
                             except OSError:
                                 pass
                     print("copia actualizada con lo publicado")
+                elif (solo_head or solo_copia or distintos or solo_dirs_copia or solo_dirs_head) and not args.check:
+                    print("no se modifico la copia: revisa personalizaciones y repite con --replace "
+                          "para autorizar reemplazos y eliminaciones")
     else:
         print("sin repo: la copia ES lo publicado; solo se comprueba y se limpia")
 
+    if not os.path.isdir(copia):
+        if not args.check and escribir and raiz:
+            print("la copia no existe; se creara con el contenido publicado")
+        else:
+            print("la copia instalada no existe; instala primero con scripts/install_skill.py")
+            return 2
     fantasmas = list(_bytecode_fantasma(copia))
     caches = _borrar_cache(copia, escribir)
     if fantasmas:

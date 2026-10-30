@@ -58,7 +58,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the prose publishes; `--check` only reports) |
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable) |
-| Keep the installed copy in sync | **Install**: `scripts/sincronizar_instalada.py` (extracts what is published and deletes the bytecode cache) |
+| Keep the installed copy in sync | **Install**: `scripts/install_skill.py` (creates a portable link or copy without overwriting user files); `scripts/sincronizar_instalada.py --replace` explicitly authorizes syncing an independent copy and cleaning its cache |
 | Quick kinetic card (one phrase) | **Quick**: recipe `quick-kinetic` in `references/modos-rapidos.md` |
 | Clip assembly with music | **Quick**: recipe `quick-montage` in `references/modos-rapidos.md` |
 | Trim or adapt an existing video | **Quick**: recipe `quick-cut` in `references/modos-rapidos.md` |
