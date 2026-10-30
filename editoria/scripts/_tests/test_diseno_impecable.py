@@ -7,6 +7,10 @@ Cada clase fija UNA causa raíz, medida sobre el frame que se entrega:
   kerning), el punto de display se acerca a su letra, el texto con alfa se
   mezcla con la tarjeta (no la perfora), las cajas de resalte tienen el
   mismo aire a los dos lados y el "me gusta" no es un emoji.
+- R2 ALFA: una sola primitiva de capa propia (`sobre_capa`): el brillo de
+  la insignia 3D suma luz (no perfora), el filo del cristal sigue la
+  esquina, la barra es UNA píldora, los círculos y el CTA tienen antialias,
+  el foco de `demo` multiplica por negro y el borde de la mancha es suave.
 - R3 MONO: la mono se resuelve por NOMBRE antes que por directorio (la
   preferida gana a la de último recurso), la empaquetada (IBM Plex Mono,
   OFL) es la del motor, el peso pedido se respeta y las etiquetas mono se
@@ -230,6 +234,83 @@ class TestTexto(unittest.TestCase):
         src = open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8").read()
         self.assertNotIn("\u2764", src)
         self.assertNotIn("❤", src)
+
+
+class TestCapaPropia(unittest.TestCase):
+    """R2: lo translúcido se compone, no reemplaza el pixel."""
+
+    def setUp(self):
+        self.R = _motor()
+
+    def _tarjeta(self, w=400, h=300):
+        capa = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        ImageDraw.Draw(capa).rectangle([0, 0, w, h], fill=(30, 30, 30, 255))
+        return capa
+
+    def test_la_insignia_3d_no_perfora_su_tarjeta(self):
+        capa = self._tarjeta()
+        self.R.insignia_3d(ImageDraw.Draw(capa), 200, 140, 60, "1", self.R.Ctx().fT(34, 800))
+        a = np.asarray(capa)
+        self.assertEqual(int(a[..., 3].min()), 255, "el brillo o la sombra perforaron la tarjeta")
+        # el brillo SUMA luz a la cara: el centro del reflejo es más claro que la cara
+        cara = a[140 + 30, 200, :3].astype(int).sum()
+        brillo = a[140 - 27, 200, :3].astype(int).sum()
+        self.assertGreater(brillo, cara, "el reflejo oscurece la cara en vez de iluminarla")
+
+    def test_el_filo_del_cristal_sigue_la_esquina(self):
+        capa = self._tarjeta(500, 400)
+        x, y, w, h, r = 50, 50, 400, 300, 28
+        self.R.tarjeta_cristal(None, capa, x, y, w, h, radio=r)
+        self.assertEqual(int(np.asarray(capa)[..., 3].min()), 255, "el cristal perforó lo de abajo")
+        a = np.asarray(capa.convert("RGB")).astype(int).sum(axis=2)
+        # el punto del arco a 45° (sobre el trazo de 2 px) frente al borde superior
+        k = r * (1 - 0.7071)
+        esquina = max(a[int(y + k + dy), int(x + k + dx)] for dy in (0, 1) for dx in (0, 1))
+        borde = max(a[y + dy, int(x + w * 0.12)] for dy in (0, 1, 2))
+        self.assertGreaterEqual(esquina, borde * 0.85,
+                                f"el filo no sigue la esquina ({esquina} vs {borde})")
+
+    def test_la_barra_es_una_pildora(self):
+        capa = Image.new("RGBA", (400, 60), (0, 0, 0, 0))
+        self.R.barra_h(ImageDraw.Draw(capa), 10, 10, 300, 30, 0.5, (255, 0, 0, 255))
+        a = np.asarray(capa)
+        fin = 10 + 150
+        self.assertLess(int(a[11, fin - 2, 0]) - int(a[11, fin - 2, 1]), 120,
+                        "el relleno termina en esquina CUADRADA dentro de la pista redondeada")
+
+    def test_circulos_y_cta_con_antialias(self):
+        capa = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+        self.R.circulo(ImageDraw.Draw(capa), 100, 100, 30, fill=(255, 255, 255, 255))
+        al = np.asarray(capa)[..., 3]
+        self.assertGreater(int(((al > 20) & (al < 235)).sum()), 40, "el círculo sale dentado")
+        capa = Image.new("RGBA", (600, 200), (0, 0, 0, 0))
+        self.R.boton_halo(ImageDraw.Draw(capa), 300, 100, 400, 92, "", self.R.Ctx().fX(36, 800), 0.0, 0.0)
+        al = np.asarray(capa)[..., 3]
+        self.assertGreater(len(np.unique(al[al > 0])), 6, "el aro del CTA sale dentado")
+
+    def test_el_foco_de_demo_multiplica_por_negro(self):
+        R = self.R
+        with tempfile.TemporaryDirectory() as tmp:
+            cap = os.path.join(tmp, "cap.png")
+            Image.new("RGB", (1200, 800), (250, 250, 250)).save(cap)
+            e = _muestra("demo")
+            e["captura"] = cap
+            for p_ in e.get("pasos", []):
+                p_.pop("captura", None)
+            e = R.completar_escena(e, 0)
+            p_ = e["pasos"][0]
+            im = _frame(R, e, p_["at"] + 1.0)   # el foco ya asentado
+        lum = im.sum(axis=2) / 3
+        claros = lum[lum > 40]
+        # fuera del foco la captura blanca baja de verdad (antes un velo gris ~132)
+        self.assertLess(float(np.median(claros)), 120,
+                        "el foco deja un velo gris: debe multiplicar por negro")
+        self.assertGreater(float(claros.max()), 230, "el foco no deja la zona clara a la vista")
+
+    def test_el_borde_de_la_mancha_tiene_antialias(self):
+        R = self.R
+        m = np.asarray(R.mancha_mask(R.Ctx(), 0.35, 0.0))
+        self.assertGreater(int(((m > 0) & (m < 255)).sum()), 500, "el borde de la mancha es duro")
 
 
 class TestMono(unittest.TestCase):

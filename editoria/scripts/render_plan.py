@@ -490,14 +490,17 @@ def mancha_mask(ctx,t,t0,dur=0.7,fx=0.5,fy=0.45):
     p=clamp01((t-t0)/dur); e=ease_in_out(p)
     maxr=math.hypot(W,H)*0.75
     r=maxr*e
-    mask=Image.new("L",(W,H),0); d=ImageDraw.Draw(mask)
+    # el borde con ANTIALIAS: el polígono va a media resolución y sube con
+    # bilineal (borde de ~2 px); duro y dentado cortaba los glifos en astillas
+    q=2
+    mask=Image.new("L",(-(-W//q),-(-H//q)),0); d=ImageDraw.Draw(mask)
     pts=[]
-    for i in range(72):
-        a=i/72*math.pi*2
+    for i in range(144):
+        a=i/144*math.pi*2
         rr=r*(1+0.22*math.sin(a*4+t*6)+0.10*math.sin(a*7-t*4))
-        pts.append((W*fx+rr*math.cos(a),H*fy+rr*math.sin(a)))
+        pts.append(((W*fx+rr*math.cos(a))/q,(H*fy+rr*math.sin(a))/q))
     d.polygon(pts,fill=255)
-    return mask
+    return mask.resize((W,H),Image.BILINEAR)
 
 
 def marca_fondo(ctx, layer, cx, cy, r, t, t0, dur=0.7, color=None, alpha=90):
@@ -768,6 +771,60 @@ def bajo_rotulo(y,tam=None,aire=0.45):
     fracción fija de H: en 16:9 H*0.04 son 43 px y el rótulo mide ~55."""
     return y+(ESCALA["rotulo"] if tam is None else tam)*(1.2+aire)
 
+# ---------- UNA primitiva de capa propia ----------
+SS=3   # sobremuestreo de las formas chicas (círculos, píldoras, biseles)
+
+def _plano(c):
+    out=[]
+    for v in c:
+        if isinstance(v,(tuple,list)): out+=_plano(v)
+        else: out.append(v)
+    return out
+
+def sobre_capa(destino,bbox,*pasos,ss=1,alfa=255):
+    """Dibuja `pasos` en una capa PROPIA y la COMPONE sobre `destino`.
+
+    `ImageDraw` REEMPLAZA el pixel: un brillo con alfa 75 encima de la cara
+    de una insignia la perforaba (el agujero oscuro de `camino`/`bento`), una
+    sombra de contacto agujereaba la tarjeta de cristal que tenía debajo y
+    un círculo chico salía dentado. Aquí cada paso se pinta en su subcapa
+    vacía y se compone sobre el anterior (un brillo SUMA luz a la cara), el
+    grupo entero se reduce de `ss`× (antialias real: BOX = media de área) y
+    entra con UN alfa (`alfa`), así un elemento que se funde no deja ver sus
+    capas internas.
+
+    `paso(d, q, s)`: `q(...)` lleva coordenadas del destino a las de la capa
+    (acepta números, pares o listas) y `s` = `ss` para grosores y radios.
+    `destino`: una Image RGBA o su ImageDraw. `bbox`: la caja a cubrir."""
+    dest=getattr(destino,"_image",destino)
+    if dest is None or alfa<=0: return
+    x0,y0=int(math.floor(bbox[0]))-2,int(math.floor(bbox[1]))-2
+    x1,y1=int(math.ceil(bbox[2]))+2,int(math.ceil(bbox[3]))+2
+    w,h=x1-x0,y1-y0
+    if w<=0 or h<=0: return
+    def q(*c):
+        v=_plano(c)
+        return [(u-(x0 if i%2==0 else y0))*ss for i,u in enumerate(v)]
+    g=Image.new("RGBA",(w*ss,h*ss),(0,0,0,0))
+    for paso in pasos:
+        capa=Image.new("RGBA",g.size,(0,0,0,0))
+        paso(ImageDraw.Draw(capa),q,ss)
+        g.alpha_composite(capa)
+    if ss>1: g=g.resize((w,h),Image.BOX)
+    if alfa<255: g.putalpha(g.split()[3].point(lambda v:v*int(alfa)//255))
+    cx0,cy0=max(0,-x0),max(0,-y0)
+    cx1,cy1=min(w,dest.width-x0),min(h,dest.height-y0)
+    if cx1>cx0 and cy1>cy0:
+        dest.alpha_composite(g,(x0+cx0,y0+cy0),(cx0,cy0,cx1,cy1))
+
+def circulo(d,cx,cy,r,fill=None,outline=None,width=1):
+    """Un círculo con antialias (los de PIL salen dentados a radio chico:
+    el avatar del `comentario`, la viñeta del `buscador`)."""
+    sobre_capa(d,(cx-r-width,cy-r-width,cx+r+width,cy+r+width),
+               lambda d_,q,s:d_.ellipse(q(cx-r,cy-r,cx+r,cy+r),fill=fill,outline=outline,
+                                         width=max(1,int(round(width*s))) if outline else 0),
+               ss=SS)
+
 def tarjeta(ctx,img,x,y,w,h,radio=28,alpha=255):
     d=ImageDraw.Draw(img)
     borde=(255,255,255,int(28*alpha/255))   # el borde funde con la tarjeta (antes saltaba a 28)
@@ -781,22 +838,41 @@ def tarjeta(ctx,img,x,y,w,h,radio=28,alpha=255):
 
 def tarjeta_cristal(ctx, img, x, y, w, h, radio=28, alpha=255, tinte=None, brillo=1.0):
     """Superficie Liquid Glass (inspirada en glass.samasante.com, MIT):
-    panel translúcido esmerilado con tinte sutil, reflejo diagonal y borde
-    especular superior-izquierdo (liseré spéculaire). DRY: `hero`, `bento`."""
-    d = ImageDraw.Draw(img)
+    panel translúcido esmerilado con tinte sutil y filo especular arriba a la
+    izquierda. DRY: `hero`, `bento`, `buscador`, `notificacion`, `comentario`.
+
+    UN radio (`r_`) para el cuerpo, el borde y el filo. El filo era dos
+    líneas RECTAS que ignoraban la esquina y paraban al 55 % del alto: ahora
+    es el MISMO contorno redondeado, con una rampa que lo apaga hacia abajo y
+    a la derecha, en su propia subcapa (`sobre_capa`: no perfora el cuerpo)."""
     col_t = tinte or ACENTO
-    base_r = int(PANEL[0] * 0.82 + col_t[0] * 0.18)
-    base_g = int(PANEL[1] * 0.82 + col_t[1] * 0.18)
-    base_b = int(PANEL[2] * 0.82 + col_t[2] * 0.18)
+    base = tuple(int(PANEL[i] * 0.82 + col_t[i] * 0.18) for i in range(3))
     fill_a = int(min(242, 218 * alpha / 255))
-    borde_suave = (255, 255, 255, int(44 * alpha / 255 * brillo))
-    borde_especular = (255, 255, 255, int(115 * alpha / 255 * brillo))
-    r_ = min(radio, max(1, int(min(w, h) // 2)))
-    d.rounded_rectangle([x, y, x + w, y + h], radius=r_, fill=(base_r, base_g, base_b, fill_a),
-                        outline=borde_suave, width=2)
-    if w > 2 * r_ + 16 and h > 24:
-        d.line([(x + r_, y + 1.5), (x + w - r_, y + 1.5)], fill=borde_especular, width=2)
-        d.line([(x + 1.5, y + r_), (x + 1.5, y + h * 0.55)], fill=borde_especular, width=2)
+    r_ = radio_de(radio, w, h)
+    caja = [x, y, x + w, y + h]
+
+    def cuerpo(d, q, s):
+        d.rounded_rectangle(q(caja), radius=r_ * s, fill=base + (fill_a,),
+                            outline=(255, 255, 255, int(44 * alpha / 255 * brillo)), width=2 * s)
+
+    def filo(d, q, s):
+        d.rounded_rectangle(q(caja), radius=r_ * s,
+                            outline=(255, 255, 255, int(115 * alpha / 255 * brillo)), width=2 * s)
+        im = d._image
+        ox, oy = q(x, y)
+        xx = (np.arange(im.width, dtype=np.float32)[None, :] - ox) / (w * s * 0.6)
+        yy = (np.arange(im.height, dtype=np.float32)[:, None] - oy) / (h * s * 0.55)
+        rampa = np.clip(1 - (xx + yy) * 0.75, 0, 1)
+        a = np.asarray(im.split()[3], np.float32) * rampa
+        im.putalpha(Image.fromarray(a.astype(np.uint8), "L"))
+
+    sobre_capa(img, caja, cuerpo, filo, ss=2)
+
+
+def radio_de(radio, w, h):
+    """El radio de una superficie, recortado a la mitad del lado corto (una
+    píldora): el MISMO número para todo lo que dibuja esa superficie."""
+    return min(radio, max(1, int(min(w, h) // 2)))
 
 
 def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
@@ -814,21 +890,30 @@ def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
     pulso = 0.5 + 0.5 * math.sin(max(0.0, t - t0) * 3.6)
     exp = 6 + 6 * pulso
     halo_a = int((38 + 34 * pulso) * alpha / 255)
-    d.rounded_rectangle([cx - w / 2 - exp, cy - h / 2 - exp, cx + w / 2 + exp, cy + h / 2 + exp],
-                        radius=int((h + 2 * exp) // 2), outline=col + (halo_a,), width=3)
+    aro = [cx - w / 2 - exp, cy - h / 2 - exp, cx + w / 2 + exp, cy + h / 2 + exp]
+    pildora = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]
+
+    def anillo(d, q, s):
+        d.rounded_rectangle(q(aro), radius=(h / 2 + exp) * s, outline=col + (halo_a,), width=3 * s)
+
+    def cuerpo(d, q, s):
+        if hecho:
+            d.rounded_rectangle(q(pildora), radius=r_ * s, fill=(255, 255, 255, 255))
+        else:
+            d.rounded_rectangle(q(pildora), radius=r_ * s, fill=col + (255,),
+                                outline=(255, 255, 255, 95), width=2 * s)
+    # anillo y píldora con antialias; la píldora entra con UN alfa (su marco
+    # no se ve a través de ella al fundirse)
+    sobre_capa(d, aro, anillo, ss=SS)
+    sobre_capa(d, pildora, cuerpo, ss=SS, alfa=int(alpha))
     if hecho:
         # estado "hecho": la misma píldora, en blanco, con el check de acento
-        d.rounded_rectangle([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], radius=r_,
-                            fill=(255, 255, 255, int(alpha)))
         fh = fnt_hecho or fnt
         tw = d.textlength(hecho, font=fh)
         ca = col + (int(alpha),)
         check(d, cx - tw / 2 - 10, cy, 13, ca, 6)
         pon_texto(d, (cx + 16, cy), hecho, font=fh, fill=ca, anchor="mm")
         return
-    d.rounded_rectangle([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2],
-                        radius=r_, fill=col + (int(alpha),),
-                        outline=(255, 255, 255, int(95 * alpha / 255)), width=2)
     pon_texto(d, (cx, cy), texto, font=fnt, fill=BLANCO + (int(alpha),), anchor="mm")
 
 
@@ -840,20 +925,20 @@ def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
     claro = tuple(min(255, int(c + (255 - c) * 0.42)) for c in col)
     dy = flota(t, 0.0, amp=3.5, freq=0.55)
     cy_f = cy + dy
-    # sombra de contacto
-    d.ellipse([cx - r * 0.82, cy + r * 0.78, cx + r * 0.82, cy + r * 1.12],
-              fill=(0, 0, 0, int(90 * alpha / 255)))
-    # extrusión inferior (volumen 3D)
     rr = max(8, int(r * 0.42))
-    d.rounded_rectangle([cx - r, cy_f - r + 7, cx + r, cy_f + r + 7],
-                        radius=rr, fill=osc + (int(alpha),))
-    # cara principal
-    d.rounded_rectangle([cx - r, cy_f - r, cx + r, cy_f + r],
-                        radius=rr, fill=col + (int(alpha),),
-                        outline=claro + (int(140 * alpha / 255),), width=2)
-    # reflejo especular superior
-    d.ellipse([cx - r * 0.55, cy_f - r * 0.72, cx + r * 0.55, cy_f - r * 0.18],
-              fill=claro + (int(75 * alpha / 255),))
+
+    def sombra(d, q, s):      # contacto: bajo la pieza, sin perforar lo de abajo
+        d.ellipse(q(cx - r * 0.82, cy + r * 0.78, cx + r * 0.82, cy + r * 1.12), fill=(0, 0, 0, 90))
+
+    def cuerpo(d, q, s):      # extrusión (volumen) + cara
+        d.rounded_rectangle(q(cx - r, cy_f - r + 7, cx + r, cy_f + r + 7), radius=rr * s, fill=osc + (255,))
+        d.rounded_rectangle(q(cx - r, cy_f - r, cx + r, cy_f + r), radius=rr * s, fill=col + (255,),
+                            outline=claro + (140,), width=2 * s)
+
+    def reflejo(d, q, s):     # el brillo SUMA luz a la cara (antes la perforaba)
+        d.ellipse(q(cx - r * 0.55, cy_f - r * 0.72, cx + r * 0.55, cy_f - r * 0.18), fill=claro + (75,))
+    sobre_capa(d, (cx - r, cy_f - r, cx + r, max(cy_f + r + 7, cy + r * 1.12)),
+               sombra, cuerpo, reflejo, ss=SS, alfa=int(alpha))
     if icono:
         pon_texto(d, (cx, cy_f), str(icono)[:3], font=fnt, fill=BLANCO + (int(alpha),), anchor="mm")
 
@@ -863,6 +948,7 @@ def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
 
 def barra_h(d, x, y, ancho, alto, fraccion, color, radio=None, pista=18, min_px=None):
     """Barra horizontal rellenable: track + fill con esquinas redondeadas.
+    `pista`: alfa del blanco de la pista, o un color RGBA.
     `fraccion` ∈ [0, 1] controla el porcentaje visible (la animación lo interpola).
     `min_px`: piso visual del fill cuando fraccion>0 (un 6/48 no puede verse
     como un punto: en ranking quedaba un “nub” ilegible). None = alto (una
@@ -871,29 +957,22 @@ def barra_h(d, x, y, ancho, alto, fraccion, color, radio=None, pista=18, min_px=
     radio = radio or alto // 2
     if ancho < 2 * radio or alto < 2 * radio:
         radio = min(radio, min(ancho, alto) // 2)
-    # track
-    d.rounded_rectangle([x, y, x + ancho, y + alto], radius=radio, fill=(255, 255, 255, int(pista)))
-    # fill
     f = clamp01(fraccion)
-    if f <= 0:
-        return
     # el piso visual crece CON la fraccion (no salta a min_px en el frame 1:
     # eso seria un pop). En reposo (f≈1) un valor chico no queda en un “nub”.
-    raw = max(1, int(ancho * f))
-    if min_px:
-        piso_vivo = max(1, int(float(min_px) * f))
-        fill_w = min(int(ancho), max(raw, piso_vivo))
-    else:
-        fill_w = raw
-    if fill_w < 2 * radio:   # nace de 0: una píldora más angosta, no una entera de golpe
-        r_ = max(0, fill_w // 2)
-        d.rounded_rectangle([x, y, x + fill_w, y + alto], radius=r_, fill=color)
-    elif fill_w >= ancho - 2:
-        d.rounded_rectangle([x, y, x + fill_w, y + alto], radius=radio, fill=color)
-    else:
-        d.rectangle([x, y, x + fill_w, y + alto], fill=color)
-        d.pieslice([x, y, x + 2 * radio, y + 2 * radio], 90, 270, fill=color)
-        d.pieslice([x + fill_w - 2 * radio, y, x + fill_w, y + 2 * radio], 270, 90, fill=color)
+    raw = ancho * f
+    fill_w = min(ancho, max(raw, float(min_px) * f)) if min_px else raw
+    pista_c = pista if isinstance(pista, tuple) else (255, 255, 255, int(pista))
+
+    def dibujar(d_, q, s):
+        d_.rounded_rectangle(q(x, y, x + ancho, y + alto), radius=radio * s, fill=pista_c)
+        if fill_w > 0:
+            # UNA píldora: nace angosta (radio = mitad de su ancho) y crece con
+            # su radio; antes el tramo medio era un rectángulo + dos gajos, con
+            # esquinas CUADRADAS dentro de la pista redondeada
+            d_.rounded_rectangle(q(x, y, x + fill_w, y + alto),
+                                 radius=min(radio, fill_w / 2) * s, fill=color)
+    sobre_capa(d, (x, y, x + ancho, y + alto), dibujar, ss=SS)
 
 
 def decimales_de(v):
@@ -2306,10 +2385,8 @@ def sc_leads(ctx,e,t):
         bw=(f["puntaje"]/100)*bmax
         bx=zx1-bmax-24
         by_bar=yy+alto_fila/2-12
-        ds.rounded_rectangle([bx,by_bar,bx+bmax,by_bar+24],radius=12,fill=(60,60,60,255))
         g_=smoothstep(clamp01((t-t_f)/0.8))
-        if bw*g_>=24:
-            ds.rounded_rectangle([bx,by_bar,bx+bw*g_,by_bar+24],radius=12,fill=color_temp(f)+(255,))
+        barra_h(ds,bx,by_bar,bmax,24,bw*g_/bmax,color_temp(f)+(255,),radio=12,pista=(60,60,60,255))
         fundir(layer,sub,k,dy=-50)
     return capa_salida(layer,t,e["to"])
 
@@ -4836,12 +4913,17 @@ def sc_demo(ctx, e, t):
     # con el alfa del resorte la luminancia saltaba 80 en 0.2 s (flash en auto_qa)
     a_v = int(255 * smoothstep(clamp01((t - at.get("ventana", e["from"] + 0.2)) / 1.0)))
     if foco > 0:   # spotlight: atenuar todo menos el foco
-        mask = Image.new("L", (bw, bh), int(120 * foco))
+        mask = Image.new("L", (bw, bh), int(160 * foco))
         r_f = 150 * z
         ImageDraw.Draw(mask).ellipse([(fxp - cx_) * z - r_f, (fyp - cy_) * z - r_f,
                                       (fxp - cx_) * z + r_f, (fyp - cy_) * z + r_f], fill=0)
-        vista.paste(Image.new("RGBA", (bw, bh), (0, 0, 0, 255)), (0, 0),
-                    mask.filter(ImageFilter.GaussianBlur(30)))
+        # multiplicación por NEGRO sobre el color (el alfa de la captura se
+        # queda): pegar un negro con máscara dejaba un velo GRIS plano sobre
+        # una captura clara (niebla) y opacaba lo transparente
+        m_ = np.asarray(mask.filter(ImageFilter.GaussianBlur(30)), np.float32)[..., None] / 255.0
+        v_ = np.asarray(vista, np.float32)
+        v_[..., :3] *= 1.0 - m_
+        vista = Image.fromarray(v_.astype(np.uint8), "RGBA")
     marco = Image.new("RGBA", (bw, bh + barra), (0, 0, 0, 0))
     dm = ImageDraw.Draw(marco)
     dm.rounded_rectangle([0, 0, bw, bh + barra], radius=28, fill=PANEL + (255,))
@@ -5159,8 +5241,7 @@ def sc_buscador(ctx, e, t):
     lupa_x = xb + 36
     lupa_y = yb + hb / 2
     r_lupa = int(hb * 0.18)
-    d.ellipse([lupa_x - r_lupa, lupa_y - r_lupa, lupa_x + r_lupa, lupa_y + r_lupa],
-              outline=ACENTO + (al_bar,), width=3)
+    circulo(d, lupa_x, lupa_y, r_lupa, outline=ACENTO + (al_bar,), width=3)
     d.line([lupa_x + int(r_lupa * 0.7), lupa_y + int(r_lupa * 0.7),
             lupa_x + int(r_lupa * 1.4), lupa_y + int(r_lupa * 1.4)],
            fill=ACENTO + (al_bar,), width=3)
@@ -5209,7 +5290,7 @@ def sc_buscador(ctx, e, t):
                 dot_col = (210, 210, 210, int(220 * clamp01(kr)))
             d.rounded_rectangle([xb, yr, xb + wb, yr + hr_item], radius=18,
                                 fill=bg_col, outline=borde_col, width=2)
-            d.ellipse([xb + 24, yr + hr_item / 2 - 6, xb + 36, yr + hr_item / 2 + 6], fill=dot_col)
+            circulo(d, xb + 30, yr + hr_item / 2, 6, fill=dot_col)
             
             t_res_txt = res.get("texto", "")
             max_w_t = wb - 80
@@ -5255,17 +5336,21 @@ def sc_notificacion(ctx, e, t):
         y_i = y_base + despues * (h_card + gap) + (1 - min(1, k)) * -40 + flota(t, t_in + 0.5, 6, 0.40 + i * 0.06)
         al = int(255 * clamp01(k * 1.4))
         
-        tarjeta_cristal(ctx, layer, x0, y_i, ancho_card, h_card, radio=24, alpha=int(220 * clamp01(k)))
-        d.rounded_rectangle([x0, y_i, x0 + ancho_card, y_i + h_card], radius=28,
-                            outline=(255, 255, 255, int(45 * clamp01(k))), width=2)
+        # UN contorno, el de la tarjeta (antes un segundo borde de radio 28
+        # sobre la de 24: dos esquinas que no coincidían); más brillo en vez
+        # de otro trazo
+        tarjeta_cristal(ctx, layer, x0, y_i, ancho_card, h_card, radio=24,
+                        alpha=int(220 * clamp01(k)), brillo=1.5)
         
         app = it.get("app", "App")
         # icono de la notificación tope (última) late: hold vivo sin gesto nuevo
         r_ico = int(h_card * 0.28 * (latido(t, t_in + 0.6, 1.5, 0.08) if i == n - 1 else 1.0))
         ico_x = x0 + 26
         ico_y = y_i + (h_card - r_ico * 2) / 2
-        d.rounded_rectangle([ico_x, ico_y, ico_x + r_ico * 2, ico_y + r_ico * 2], radius=14,
-                            fill=ACENTO + (al,))
+        sobre_capa(d, (ico_x, ico_y, ico_x + r_ico * 2, ico_y + r_ico * 2),
+                   lambda d_, q, s: d_.rounded_rectangle(q(ico_x, ico_y, ico_x + r_ico * 2, ico_y + r_ico * 2),
+                                                         radius=14 * s, fill=ACENTO + (255,)),
+                   ss=SS, alfa=al)
         ico_char = it.get("icono", app[:1].upper())
         fnt_ico = ctx.fT(int(r_ico * 1.0), 800)
         pon_texto(d, (ico_x + r_ico, ico_y + r_ico), ico_char, font=fnt_ico, fill=BLANCO + (al,), anchor="mm")
@@ -5330,7 +5415,7 @@ def sc_comentario(ctx, e, t):
     r_av = 38
     av_x = xc + 36 + r_av
     av_y = yc + 36 + r_av
-    d.ellipse([av_x - r_av, av_y - r_av, av_x + r_av, av_y + r_av], fill=ACENTO + (al,))
+    circulo(d, av_x, av_y, r_av, fill=ACENTO + (al,))
     ini = e.get("iniciales") or "".join(w[:1].upper() for w in e.get("autor", "User").split()[:2])
     pon_texto(d, (av_x, av_y), ini, font=ctx.fT(34, 800), fill=BLANCO + (al,), anchor="mm")
     
@@ -5343,7 +5428,7 @@ def sc_comentario(ctx, e, t):
     if e.get("verificado", True):
         w_nom = ctx.tmp.textlength(e.get("autor", ""), font=fnt_nom)
         bv_x = nom_x + w_nom + 12
-        d.ellipse([bv_x, av_y - 20, bv_x + 18, av_y - 2], fill=ACENTO + (al,))
+        circulo(d, bv_x + 9, av_y - 11, 9, fill=ACENTO + (al,))
         pon_texto(d, (bv_x + 9, av_y - 11), "✓", font=ctx.fX(TAM_CHECK, 800), fill=BLANCO + (al,), anchor="mm")
     
     usr = e.get("usuario", "@cliente")
