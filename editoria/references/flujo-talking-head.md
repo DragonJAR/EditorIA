@@ -30,7 +30,7 @@ Comandos típicos (pieza narrada vertical):
 ```bash
 python scripts/ffmpeg_tools/silence.py bruto.mp4 -o sin_sil.mp4
 python scripts/retakes.py segmentos.json   # tras transcribir / alinear
-python scripts/ffmpeg_tools/aplicar_edl.py …
+python scripts/ffmpeg_tools/aplicar_edl.py corte.mp4 --edl cortes.edl -o sin_cortes.mp4
 python scripts/alinear.py corte.mp4 -o palabras.json
 python scripts/repertorio.py sugerir --pedido "karaoke vertical talking head"
 python scripts/repertorio.py resolver --id cap-rail-karaoke

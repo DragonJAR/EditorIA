@@ -59,6 +59,7 @@ EJECUTABLES = {
     "scripts/clonar_video.py",
     "scripts/contact_sheet.py",
     "scripts/direccion_arte.py",
+    "scripts/ffmpeg_tools/aplicar_edl.py",
     "scripts/ffmpeg_tools/caption.py",
     "scripts/ffmpeg_tools/componer.py",
     "scripts/ffmpeg_tools/delivery_check.py",
@@ -278,6 +279,16 @@ def _assets(tmp, skill_dir):
     with open(srt, "w", encoding="utf-8") as fh:
         fh.write("1\n00:00:00,000 --> 00:00:01,000\nHola\n\n")
     a["srt"] = srt
+    # El EDL es un fichero de texto: una linea "START-END" por rango, en
+    # segundos. Con el video de prueba (1 s) el rango cabe. Con este asset,
+    # `aplicar_edl.py video.mp4 --edl cortes.edl` se copia y se EJECUTA de
+    # verdad: antes solo se podía declarar con un motivo, porque el EDL del
+    # usuario no se puede inventar... pero el formato es una linea, y una
+    # linea se puede escribir.
+    edl = os.path.join(tmp, "cortes.edl")
+    with open(edl, "w", encoding="utf-8") as fh:
+        fh.write("0.000-0.800\n")
+    a["edl"] = edl
     a["plantilla"] = _plantilla(os.path.join(tmp, "plantilla.json"))
     # trazos a mano: JSON mínimo para hand_draw.py suavizar/pintar
     trazos = os.path.join(tmp, "trazos.json")
@@ -338,7 +349,7 @@ _SUFIJOS = {
     ".mp4": "video", ".mov": "video", ".webm": "video", ".mkv": "video",
     ".mp3": "mp3", ".wav": "audio", ".m4a": "audio", ".aac": "audio",
     ".png": "imagen", ".jpg": "imagen", ".jpeg": "imagen",
-    ".txt": "texto", ".csv": "csv", ".srt": "srt",
+    ".txt": "texto", ".csv": "csv", ".srt": "srt", ".edl": "edl",
 }
 
 # Un marcador que nadie sustituye: "..." o algo entre < > o { }. Los que si

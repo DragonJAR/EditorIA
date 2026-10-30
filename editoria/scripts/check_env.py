@@ -5,7 +5,18 @@ Revisa: herramientas locales (ffmpeg, python, libs), assets del skill
 puede hacer EditorIA en este entorno. Sale 0 si lo esencial está, 1 si
 falta algo crítico. Uso: python scripts/check_env.py
 """
-import glob, json, os, shutil, sys, subprocess, platform
+import argparse, glob, json, os, shutil, sys, subprocess, platform
+
+# Los argumentos se parsean ANTES de los chequeos: `--help` tiene que ser
+# instantaneo (un agente lo lee para aprender la herramienta, y el verificador
+# de comandos documentados corta en el primer parse_args para no lanzar el
+# chequeo entero). Es la misma regla que `reglas-tecnicas.md`: parsea antes
+# del trabajo caro.
+_ap = argparse.ArgumentParser(
+    prog="check_env.py",
+    description="Comprueba que el entorno tiene lo necesario para editar y "
+                "renderizar (ffmpeg, fuentes, librerias, API keys).")
+_ap.parse_args()
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
