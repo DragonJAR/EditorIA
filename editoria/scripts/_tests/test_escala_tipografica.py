@@ -10,7 +10,7 @@ Este test fija el contrato para que no vuelva a dispersarse:
 
 1. La escala existe, tiene sus cinco roles y es monótona.
 2. El piso de letra del motor es el mismo que mide el QA (26).
-3. El auto-fit no puede dejar texto por debajo de ese piso.
+3. El auto-fit no puede dejar texto por debajo de ese piso (su piso ES MIN_LETRA).
 4. Ningún texto de overlay usa un tamaño literal fuera de la escala.
 5. La elevación de entrada es una sola cifra.
 6. Las superficies comparten radio.
@@ -80,24 +80,27 @@ class TestEscalaTipografica(unittest.TestCase):
                          "el piso del motor y el del QA deben ser el mismo numero")
 
     def test_el_autofit_no_puede_bajar_del_piso(self):
-        """El auto-fit tiene SU piso, y no es el de legibilidad.
+        """El auto-fit no deja letra por debajo del piso legible.
 
-        Medido: con el piso del auto-fit en 26 (el de legibilidad), un copy
-        largo se sale de su caja y la escena entera se va al piso de la zona
-        segura (x0.72 con copy x2). El auto-fit existe para que el texto
-        QUEPA; el que juzga la legibilidad es el QA (LETRA_MIN = 26), y lo
-        que se acorta cuando el texto no cabe es el COPY, no la letra.
+        Antes su piso era 18 ("no microscópico") y el QA juzgaba después: en
+        hero..audiowave trece llamadas encogían copy a 18-22 px que el QA
+        rechazaba. Ahora el piso POR DEFECTO de los dos auto-fit es MIN_LETRA
+        (= LETRA_MIN del QA) y ninguna llamada del catálogo puede pedir uno
+        menor: si en el piso el texto no cabe, cede el COPY (`recorta_para`,
+        anotado) o el layout (se parte), no la letra. Que eso no saque a
+        ninguna escena de su caja lo mide test_diseno_impecable (TestEscala).
         """
-        m = re.search(r"def fuente_que_cabe\([^)]*minimo=(\d+)", self.src, re.S)
-        self.assertIsNotNone(m, "fuente_que_cabe debe declarar su piso")
-        piso_auto = int(m.group(1))
+        for f in ("fuente_que_cabe", "texto_que_cabe"):
+            m = re.search(rf"def {f}\([^)]*minimo=None", self.src, re.S)
+            self.assertIsNotNone(m, f"{f} debe tomar su piso de MIN_LETRA (minimo=None)")
+            cuerpo = self.src.split(f"def {f}(", 1)[1].split("\ndef ", 1)[0]
+            self.assertIn("minimo = MIN_LETRA if minimo is None else minimo", cuerpo,
+                          f"{f}: el piso por defecto debe ser MIN_LETRA")
+        bajos = [int(v) for v in re.findall(r"minimo=(\d+)(?![.\d])", self.src) if int(v) < 26]
+        self.assertEqual(bajos, [], f"ninguna llamada puede pedir un piso bajo el legible: {bajos}")
         with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
             qa = f.read()
         letra_min = int(re.search(r"LETRA_MIN\s*=\s*(\d+)", qa).group(1))
-        self.assertLess(piso_auto, letra_min,
-                        "el piso del auto-fit debe ser MENOR que el de legibilidad: "
-                        "el auto-fit hace que el texto quepa, el QA juzga si se lee")
-        # y el piso de legibilidad es el mismo número en los dos lados
         m2 = re.search(r"^MIN_LETRA\s*=\s*(\d+)", self.src, re.M)
         self.assertIsNotNone(m2, "el motor debe declarar MIN_LETRA")
         self.assertEqual(int(m2.group(1)), letra_min,

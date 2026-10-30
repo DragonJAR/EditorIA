@@ -1554,18 +1554,19 @@ def cifra(d, xy, texto, font, fill, anchor="mm", final=None):
         x += w_c
 
 
-def fuente_que_cabe(fabrica, texto, tam, ancho_max, peso=800, minimo=18, tabular=False):
+def fuente_que_cabe(fabrica, texto, tam, ancho_max, peso=800, minimo=None, tabular=False):
     """La fuente más grande (<= tam) con la que `texto` cabe en `ancho_max`.
     `fabrica` es ctx.fT o ctx.fX. Una cifra o etiqueta nunca se sale de su
     tarjeta: se encoge (y nunca por debajo de `minimo`).
 
-    El piso de aquí (18) NO es el piso de legibilidad (26, MIN_LETRA): es el
-    mínimo de "no microscópico". El auto-fit existe para que el texto QUEPA
-    — si el piso fuera 26, un copy largo se saldría de su caja y la escena
-    entera se iría al piso de la zona segura (medido: x0.72 con copy x2).
-    El que juzga la legibilidad es el QA (`medir_animacion`, LETRA_MIN): si
-    el texto queda por debajo de 26, la pieza no se entrega y se acorta el
-    copy, no se achica la letra (references/copy.md)."""
+    El piso por defecto ES el de legibilidad (MIN_LETRA = LETRA_MIN del QA):
+    antes era 18 y el auto-fit dejaba letra que el QA rechazaba. Si en el
+    piso el texto todavía no cabe, lo que cede es el COPY o el layout, no la
+    letra: la escena lo PARTE (`texto_que_cabe`) o lo RECORTA con aviso
+    (`recorta_para`, anotado en RECORTES) para que no se salga de su caja (un
+    texto que se sale empuja a toda la escena al piso de la zona segura).
+    Un `minimo` explícito más alto (un rol de la escala) sigue mandando."""
+    minimo = MIN_LETRA if minimo is None else minimo
     tam = int(tam)
     while tam > minimo and largo(texto, fabrica(tam, peso), tabular) > ancho_max:
         tam = max(minimo, int(tam * 0.92))
@@ -1595,14 +1596,17 @@ def circulo_numero(d, cx, cy, radio, texto, color, color_texto, ctx, alpha=255):
     cifra(d, (cx, cy), texto, fnt, tinta, anchor="mm", final=texto)
 
 
-def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minimo=18):
+def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minimo=None):
     """Ajusta un texto a un ancho PARTIÉNDOLO antes de encogerlo.
 
     Partir es mejor que encoger: el texto partido conserva el tamaño de la
     escala (se lee igual), mientras que encogerlo lo deja ilegible. Si aun
-    partido en `max_lineas` no cabe, se encoge (hasta `minimo`).
+    partido en `max_lineas` no cabe, se encoge (hasta `minimo`, por defecto
+    el piso legible MIN_LETRA) y, en el piso, la última línea se RECORTA con
+    … (anotado en RECORTES: antes las líneas de más se perdían sin aviso).
     Devuelve (fuente, lineas).
     """
+    minimo = MIN_LETRA if minimo is None else minimo
     tam = int(tam)
     fnt = fabrica(tam, peso)
     lineas = linewrap(texto, fnt, ancho_max)
@@ -1615,7 +1619,10 @@ def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minim
         lineas = linewrap(texto, fnt, ancho_max)
         if len(lineas) <= max_lineas:
             break
-    return fnt, lineas[:max_lineas]
+    if len(lineas) > max_lineas:
+        resto = " ".join(lineas[max_lineas - 1:])
+        lineas = lineas[:max_lineas - 1] + [recorta_para(resto, fnt, ancho_max)]
+    return fnt, lineas
 
 
 def columnas_grilla(n):
@@ -2180,7 +2187,12 @@ def sc_medianoche(ctx,e,t):
     if k>0:
         tw,th=560,1140
         _,_,_,zy1=caja_segura(); arriba=rotulo_y()+80          # bajo el rótulo, sobre la UI
-        sc=min(0.82,(zy1-arriba)*0.96/th)*(0.8+0.2*min(1,k)); cy_tel=(arriba+zy1)/2
+        sc0=min(0.82,(zy1-arriba)*0.96/th)   # escala asentada del teléfono
+        sc=sc0*(0.8+0.2*min(1,k)); cy_tel=(arriba+zy1)/2
+        # la letra del teléfono se dibuja para que, YA REDUCIDA, quede en el
+        # piso legible: en 16:9 el teléfono baja a ×0.65 y su "nota" salía a
+        # ~18 px. `esc` agranda la letra (y lo que la contiene), no el teléfono.
+        esc=max(1.0,MIN_LETRA/(ESCALA["nota"]*sc0))
         ph=Image.new("RGBA",(tw,th),(0,0,0,0)); dp=ImageDraw.Draw(ph)
         dp.rounded_rectangle([0,0,tw,th],radius=86,fill=(12,12,12,255))
         dp.rounded_rectangle([18,18,tw-18,th-18],radius=70,fill=(16,22,34,255))
@@ -2195,27 +2207,29 @@ def sc_medianoche(ctx,e,t):
         brillo.putalpha(ImageChops.multiply(brillo.getchannel("A"),masc))
         ph.alpha_composite(brillo)
         dp.rounded_rectangle([tw/2-85,42,tw/2+85,90],radius=24,fill=(0,0,0,255))
-        pon_texto(dp, (tw/2,160),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],600),fill=(255,255,255,200),anchor="ma")
+        pon_texto(dp, (tw/2,160),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"]*esc,600),fill=(255,255,255,200),anchor="ma")
         pon_texto(dp, (tw/2,280),e["hora"],font=ctx.fT(150,700),fill=BLANCO,anchor="ma")   # dígitos hasta y≈438
         nots=e["notificaciones"]
+        # la tarjeta de la notificación se mide con su letra
+        f_tit=ctx.fX(ESCALA["nota"]*esc,800); fnt_n=ctx.fX(ESCALA["nota"]*esc,400)
+        h_t,h_b=sum(f_tit.getmetrics()),sum(fnt_n.getmetrics())
+        hn=int(max(140,2*22+h_t+4+h_b)); paso_n=hn+30
         for i,n in enumerate(nots):
             kn=entra(t, n["at"], "suave")
             if kn<=0: continue
             # cada notificación nueva EMPUJA a las anteriores con resorte (antes
             # saltaban 170 px en un frame: el conteo era un escalón)
             despues=sum(min(1.0,entra(t, m["at"], "suave")) for m in nots[i+1:])
-            ny=480+despues*170+(1-min(1,kn))*-24   # baja apenas: nunca cruza la hora
-            nw=Image.new("RGBA",(tw-44,140),(0,0,0,0)); dn=ImageDraw.Draw(nw)
-            dn.rounded_rectangle([0,0,tw-44,140],radius=28,fill=(255,255,255,36))
-            dn.ellipse([22,38,86,102],fill=ACENTO+(255,))
-            pon_texto(dn, (54,70),n["canal"][0].upper(),font=ctx.fT(34,800),fill=BLANCO,anchor="mm")
-            pon_texto(dn, (110,52),n["titulo"],font=ctx.fX(ESCALA["nota"],800),fill=BLANCO)
-            # el cuerpo de la notificación es un "nota" de la escala (28 px):
-            # antes 24 px, por DEBAJO del piso legible, y con recorte por
-            # caracteres. Ahora la letra es la de la escala y el copy se
-            # recorta al ancho real de la tarjeta.
-            fnt_n=ctx.fX(ESCALA["nota"],400)
-            pon_texto(dn, (110,92),recorta_para(n["texto"],fnt_n,tw-44-110-14,ctx.tmp),
+            ny=480+despues*paso_n+(1-min(1,kn))*-24   # baja apenas: nunca cruza la hora
+            nw=Image.new("RGBA",(tw-44,hn),(0,0,0,0)); dn=ImageDraw.Draw(nw)
+            dn.rounded_rectangle([0,0,tw-44,hn],radius=28,fill=(255,255,255,36))
+            dn.ellipse([22,hn/2-32,86,hn/2+32],fill=ACENTO+(255,))
+            pon_texto(dn, (54,hn/2),n["canal"][0].upper(),font=ctx.fT(34*esc,800),fill=BLANCO,anchor="mm")
+            y_t=(hn-h_t-4-h_b)/2
+            pon_texto(dn, (110,y_t),recorta_para(n["titulo"],f_tit,tw-44-110-14,ctx.tmp),font=f_tit,fill=BLANCO)
+            # el cuerpo es un "nota" de la escala (por `esc`, ya reducido
+            # sigue en el piso) y el copy se recorta al ancho real
+            pon_texto(dn, (110,y_t+h_t+4),recorta_para(n["texto"],fnt_n,tw-44-110-14,ctx.tmp),
                     font=fnt_n,fill=(255,255,255,190))
             a=nw.split()[3].point(lambda v, _kn=kn:int(v*clamp01(_kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
@@ -2556,7 +2570,8 @@ def sc_hoy(ctx,e,t):
             al_al = min(255, int(255 * latido(t, t_tj + 0.5, 1.5, 0.12)))
             ds.rounded_rectangle([x,yy,x+cw,yy+ALTO_TJ],radius=28,outline=ACENTO+(al_al,),width=4)
         ancho_txt=cw-(110 if tj.get("n") else 50)
-        pon_texto(ds, (x+30,yy+28),tj["titulo"],font=fuente_que_cabe(ctx.fX,tj["titulo"],ESCALA["dato"],ancho_txt,800),fill=BLANCO)
+        _ft,_tl=_encaja_una_linea(ctx.fX,tj["titulo"],ESCALA["dato"],ancho_txt,800)
+        pon_texto(ds, (x+30,yy+28),_tl,font=_ft,fill=BLANCO)
         # el detalle se PARTE (hasta 2 lineas) antes de encogerse: conserva el
         # tamaño de la escala y no se sale de la tarjeta (references/copy.md)
         _fdet,_ldet=texto_que_cabe(ctx.fX,tj["detalle"],ESCALA["secundario"],ancho_txt,400,max_lineas=2)
@@ -5104,7 +5119,7 @@ def sc_hero(ctx, e, t):
         # el subtítulo se PARTE antes de encogerse: encogerlo para que quepa en
         # UNA línea lo dejaba en 18 px (ilegible) para después partirlo en dos.
         fs, lns_s = texto_que_cabe(ctx.fX, sub_txt, ESCALA["secundario"],
-                                   int(ancho_u * 0.90), 600, max_lineas=2, minimo=18)
+                                   int(ancho_u * 0.90), 600, max_lineas=2)
         ys = bajo_rotulo(yt, ESCALA["rotulo"], aire=1.15)
         for li, ln_s in enumerate(lns_s):
             pon_texto(ImageDraw.Draw(layer), (W / 2, ys + li * int(fs.size * 1.22)), ln_s,
@@ -5174,7 +5189,7 @@ def sc_bento(ctx, e, t):
         tarjeta_cristal(ctx, sub, cx0, cy0, cw, ch, radio=26, alpha=255,
                         tinte=ACENTO if es_ac else PANEL2, brillo=br)
         r_ico = min(38, max(26, int(min(cw, ch) * 0.20)))
-        f_ico = ctx.fM(max(24, int(r_ico * 0.78)), 700)
+        f_ico = ctx.fM(max(MIN_LETRA, int(r_ico * 0.78)), 700)
         ico_txt = it.get("icono") or f"{i + 1:02d}"
         tit_i = it.get("titulo", "")
         txt_i = it.get("texto", "")
@@ -5185,29 +5200,30 @@ def sc_bento(ctx, e, t):
                         color=ACENTO if es_ac else PANEL2, t=t - t_i)
             tx0 = ix + r_ico + 26
             tw_max = max(80, cw - (tx0 - cx0) - 24)
-            ft = fuente_que_cabe(ctx.fT, tit_i, ESCALA["secundario"], tw_max, 800)
-            fx = fuente_que_cabe(ctx.fX, txt_i, ESCALA["nota"], tw_max, 600)
-            pon_texto(ds, (tx0, cy0 + ch * 0.36), tit_i, font=ft, fill=BLANCO + (255,), anchor="lm")
-            pon_texto(ds, (tx0, cy0 + ch * 0.68), txt_i, font=fx, fill=GRIS + (255,), anchor="lm")
+            # una línea cada uno: en el piso, cede el copy (no la letra)
+            ft, tit_l = _encaja_una_linea(ctx.fT, tit_i, ESCALA["secundario"], tw_max, 800)
+            fx, txt_l = _encaja_una_linea(ctx.fX, txt_i, ESCALA["nota"], tw_max, 600)
+            pon_texto(ds, (tx0, cy0 + ch * 0.36), tit_l, font=ft, fill=BLANCO + (255,), anchor="lm")
+            pon_texto(ds, (tx0, cy0 + ch * 0.68), txt_l, font=fx, fill=GRIS + (255,), anchor="lm")
         else:
             ix = cx0 + cw / 2
             iy = cy0 + ch * 0.30
             insignia_3d(ds, ix, iy, r_ico, ico_txt, f_ico,
                         color=ACENTO if es_ac else PANEL2, t=t - t_i)
             tw_max = max(80, cw - 36)
-            ft = fuente_que_cabe(ctx.fT, tit_i, ESCALA["secundario"], tw_max, 800)
-            fx = fuente_que_cabe(ctx.fX, txt_i, ESCALA["nota"], tw_max, 600)
-            pon_texto(ds, (ix, cy0 + ch * 0.64), tit_i, font=ft, fill=BLANCO + (255,), anchor="mm")
-            pon_texto(ds, (ix, cy0 + ch * 0.83), txt_i, font=fx, fill=GRIS + (255,), anchor="mm")
+            ft, tit_l = _encaja_una_linea(ctx.fT, tit_i, ESCALA["secundario"], tw_max, 800)
+            fx, txt_l = _encaja_una_linea(ctx.fX, txt_i, ESCALA["nota"], tw_max, 600)
+            pon_texto(ds, (ix, cy0 + ch * 0.64), tit_l, font=ft, fill=BLANCO + (255,), anchor="mm")
+            pon_texto(ds, (ix, cy0 + ch * 0.83), txt_l, font=fx, fill=GRIS + (255,), anchor="mm")
         fundir(layer, sub, ki, dy=22)
     pie_txt = e.get("pie", "")
     t_pie = at.get("pie", e["from"] + 0.8 + n * 0.35)
     if pie_txt and t >= t_pie:
         kp = entra(t, t_pie, "suave")
         alp = int(255 * clamp01(kp * 1.4))
-        fp = fuente_que_cabe(ctx.fM, pie_txt.upper(), ESCALA["nota"], x1 - x0 - 20, 700)
+        fp, pie_l = _encaja_una_linea(ctx.fM, pie_txt.upper(), ESCALA["nota"], x1 - x0 - 20, 700)
         pon_texto(ImageDraw.Draw(layer), (W / 2, y1 - 24 - (46 if e.get("fuente") else 0)),
-                                   pie_txt.upper(), font=fp,
+                                   pie_l, font=fp,
                                    fill=ACENTO + (alp,), anchor="mb")
     if e.get("fuente"):
         pie_fuente(ctx, ImageDraw.Draw(layer), e, t, at.get("fuente", e["from"] + 1.5))
@@ -5247,7 +5263,7 @@ def sc_buscador(ctx, e, t):
            fill=ACENTO + (al_bar,), width=3)
     
     max_w_q = wb - 120
-    tam_q = fuente_que_cabe(ctx.fX, query, int(hb * 0.40), max_w_q, 600, minimo=18).size
+    tam_q = fuente_que_cabe(ctx.fX, query, ESCALA["dato"], max_w_q, 600).size
     fnt_q = ctx.fX(tam_q, 600)
     query = recorta_para(query, fnt_q, max_w_q, ctx.tmp)
     dur_q = max(0.4, len(query) * 0.045)
@@ -5264,7 +5280,12 @@ def sc_buscador(ctx, e, t):
         y_r0 = yb + hb + 18
         # filas más altas + gap: el resultado secundario se lee y ocupa zona
         # (antes ocup~0.29; panel blanco@22 sobre negro era casi invisible)
-        hr_item = int(unidad() * 0.10 if W > H else 100)
+        # el alto de la fila sale de su letra (título "secundario" + detalle
+        # "nota" + aire): con 100 px fijos el detalle quedaba a 5 px del borde
+        PAD_ITEM = 16
+        hr_item = max(int(unidad() * 0.10 if W > H else 100),
+                      2 * PAD_ITEM + 4 + sum(ctx.fX(ESCALA["secundario"], 700).getmetrics())
+                      + sum(ctx.fX(ESCALA["nota"], 400).getmetrics()))
         gap_r = 14
         for i, res in enumerate(resultados):
             t_res = escalonado(at, "res", i, t_query + dur_q + 0.2)
@@ -5294,14 +5315,16 @@ def sc_buscador(ctx, e, t):
             
             t_res_txt = res.get("texto", "")
             max_w_t = wb - 80
-            fnt_rt = fuente_que_cabe(ctx.fX, t_res_txt, int(hr_item * 0.32), max_w_t, 700, minimo=18)
+            fnt_rt = fuente_que_cabe(ctx.fX, t_res_txt, ESCALA["secundario"], max_w_t, 700)
             t_res_txt = recorta_para(t_res_txt, fnt_rt, max_w_t, ctx.tmp)
-            pon_texto(d, (xb + 50, yr + 16), t_res_txt, font=fnt_rt, fill=col_tit)
+            pon_texto(d, (xb + 50, yr + PAD_ITEM), t_res_txt, font=fnt_rt, fill=col_tit)
             desc = res.get("desc", "")
-            if desc and hr_item >= 70:
-                fnt_rd = fuente_que_cabe(ctx.fX, desc, ESCALA["nota"], max_w_t, 400, minimo=18)
+            if desc:
+                fnt_rd = fuente_que_cabe(ctx.fX, desc, ESCALA["nota"], max_w_t, 400)
                 desc = recorta_para(desc, fnt_rd, max_w_t, ctx.tmp)
-                pon_texto(d, (xb + 50, yr + hr_item - 34), desc, font=fnt_rd, fill=col_desc)
+                # bajo el título, medido: antes a `hr_item - 34` fijos
+                pon_texto(d, (xb + 50, yr + PAD_ITEM + sum(fnt_rt.getmetrics()) + 4), desc,
+                          font=fnt_rd, fill=col_desc)
                 
     pie_fuente(ctx, d, e, t, at.get("rotulo", e["from"]) + 2.0)
     return capa_salida(layer, t, e["to"])
@@ -5352,7 +5375,7 @@ def sc_notificacion(ctx, e, t):
                                                          radius=14 * s, fill=ACENTO + (255,)),
                    ss=SS, alfa=al)
         ico_char = it.get("icono", app[:1].upper())
-        fnt_ico = ctx.fT(int(r_ico * 1.0), 800)
+        fnt_ico = ctx.fT(max(MIN_LETRA, int(r_ico * 1.0)), 800)
         pon_texto(d, (ico_x + r_ico, ico_y + r_ico), ico_char, font=fnt_ico, fill=BLANCO + (al,), anchor="mm")
         
         tx_x = ico_x + r_ico * 2 + 20
@@ -5366,8 +5389,8 @@ def sc_notificacion(ctx, e, t):
 
         # título del item: un "secundario" de la escala. Antes int(h_card*0.22)
         # = 30 px, una cifra que no estaba en la escala.
-        fnt_tit = fuente_que_cabe(ctx.fX, it.get("titulo", ""), ESCALA["secundario"], tx_w, 800)
-        pon_texto(d, (tx_x, y_i + 18), it.get("titulo", ""), font=fnt_tit, fill=BLANCO + (al,))
+        fnt_tit, tit_l = _encaja_una_linea(ctx.fX, it.get("titulo", ""), ESCALA["secundario"], tx_w, 800)
+        pon_texto(d, (tx_x, y_i + 18), tit_l, font=fnt_tit, fill=BLANCO + (al,))
 
         texto_it = it.get("texto", "")
         max_w_txt = max(60, int(x0 + ancho_card - 26 - tx_x))
@@ -5375,7 +5398,7 @@ def sc_notificacion(ctx, e, t):
         # por debajo del piso legible, y con el auto-fit que lo encogia mas. Se
         # PARTE antes de encoger: la letra se queda, lo que se acorta es el copy.
         fnt_txt, lineas = texto_que_cabe(ctx.fX, texto_it, ESCALA["nota"], max_w_txt,
-                                          400, max_lineas=2, minimo=18)
+                                          400, max_lineas=2)
         for li, ln in enumerate(lineas[:2]):
             pon_texto(d, (tx_x, y_i + 20 + int(h_card * 0.28) + li * int(h_card * 0.24)), ln,
                    font=fnt_txt, fill=GRIS + (int(210 * clamp01(k)),))
@@ -5422,7 +5445,7 @@ def sc_comentario(ctx, e, t):
     nom_x = av_x + r_av + 20
     reserva_der = 230 if e.get("estrellas") else 60
     max_w_nom = max(120, wc - (nom_x - xc) - reserva_der)
-    fnt_nom = fuente_que_cabe(ctx.fX, e.get("autor", ""), 34, max_w_nom, 800, minimo=18)
+    fnt_nom = fuente_que_cabe(ctx.fX, e.get("autor", ""), ESCALA["dato"], max_w_nom, 800)
     pon_texto(d, (nom_x, av_y - 4), e.get("autor", ""), font=fnt_nom, fill=BLANCO + (al,), anchor="ls")
     
     if e.get("verificado", True):
@@ -5446,8 +5469,7 @@ def sc_comentario(ctx, e, t):
     # el cuerpo se PARTE antes de encogerse: antes se encogia para que el
     # parrafo entero quepa en UNA linea (18 px, ilegible) y luego se partia
     # en 4 lineas. Ahora mantiene el tamaño de la escala y se parte.
-    fnt_txt, lineas = texto_que_cabe(ctx.fT, texto, int(unidad() * 0.048 if W > H else 38),
-                                      wc - 72, 600, max_lineas=4, minimo=18)
+    fnt_txt, lineas = texto_que_cabe(ctx.fT, texto, ESCALA["dato"], wc - 72, 600, max_lineas=4)
     lh = fnt_txt.size * 1.35
     y_linea = av_y + r_av + 42
     for li, ln in enumerate(lineas[:4]):
@@ -5529,7 +5551,7 @@ def sc_pie(ctx, e, t):
     horizontal = W > H
     r = int(unidad() * 0.28 if horizontal else unidad() * 0.24)
     if horizontal:
-        fnt_et_test = ctx.fX(int(unidad() * 0.035), 600)
+        fnt_et_test = ctx.fX(ESCALA["secundario"], 600)
         max_et_w = max((ctx.tmp.textlength(p.get("etiqueta", ""), font=fnt_et_test) for p in porciones), default=100)
         w_legend = min(int((zx1 - zx0) * 0.45), int(22 + 14 + max_et_w + 30 + 80))
         gap_col = 60
@@ -5586,13 +5608,25 @@ def sc_pie(ctx, e, t):
     # el centro late en el hold: el donut ya no se mueve tras el barrido
     pulso_c = latido(t, t_pie + 1.2, 1.7, 0.07)
     al_c = min(255, int(255 * clamp01(k_pie * 1.4) * pulso_c))
-    dy_c = -r_in * 0.12 if centro_etq else 0
-    pon_texto(dp, (cx, cy + dy_c), centro_txt, font=fnt_c, fill=BLANCO + (al_c,), anchor="mm")
-    if centro_etq:   # la etiqueta de la porción del acento, chica, bajo la cifra
-        w_etq = r_in * 1.4
-        fnt_e = fuente_que_cabe(ctx.fX, centro_etq, int(r_in * 0.16), w_etq, 600, minimo=18)
-        pon_texto(dp, (cx, cy + dy_c + fnt_c.size * 0.42), recorta_para(centro_etq, fnt_e, w_etq, ctx.tmp),
-                font=fnt_e, fill=GRIS + (al_c,), anchor="ma")
+    # cifra + etiqueta: UNA pila medida (tinta de la cifra, aire, etiqueta
+    # "nota") centrada en el hueco. Antes la etiqueta iba a r_in·0.16 (~20 px,
+    # bajo el piso) colgada a 0.42·cuerpo de la cifra y tocaba el "55%"
+    # la etiqueta se PARTE en dos líneas antes que recortarse (cabe en la
+    # cuerda del hueco bajo la cifra)
+    w_etq = r_in * 1.3
+    fnt_e, lns_e = (texto_que_cabe(ctx.fX, centro_etq, ESCALA["nota"], w_etq, 600, max_lineas=2)
+                    if centro_etq else (None, []))
+    lh_e = ESCALA["nota"] * 1.15
+    sube = -fnt_c.getbbox(centro_txt, anchor="ls")[1]          # tinta sobre la base
+    h_e = (sum(fnt_e.getmetrics()) + lh_e * (len(lns_e) - 1)) if fnt_e else 0
+    aire = ESCALA["nota"] * 0.45 if fnt_e else 0
+    while fnt_e and sube + aire + h_e > r_in * 1.45 and fnt_c.size > ESCALA["dato"]:
+        fnt_c = ctx.fT(int(fnt_c.size * 0.92), 800)            # cede la cifra (display), no la etiqueta
+        sube = -fnt_c.getbbox(centro_txt, anchor="ls")[1]
+    y_base = cy + (sube - aire - h_e) / 2
+    pon_texto(dp, (cx, y_base), centro_txt, font=fnt_c, fill=BLANCO + (al_c,), anchor="ms")
+    for li, ln_e in enumerate(lns_e):   # la etiqueta de la porción del acento, bajo la cifra
+        pon_texto(dp, (cx, y_base + aire + li * lh_e), ln_e, font=fnt_e, fill=GRIS + (al_c,), anchor="ma")
     
     layer.alpha_composite(pie_layer)
     
@@ -5609,13 +5643,13 @@ def sc_pie(ctx, e, t):
         
         d.rounded_rectangle([ley_x, yi, ley_x + 22, yi + 22], radius=6, fill=col[:3] + (al_l,))
         etq = p.get("etiqueta", "")
-        fnt_et = ctx.fX(int(unidad() * 0.035 if horizontal else 30), 600)
+        fnt_et = ctx.fX(ESCALA["secundario"], 600)
         
         pct_txt = f"{int(p.get('valor', 0) / total * 100)}%"
         w_pct = ctx.tmp.textlength(pct_txt, font=fnt_et)
         max_w_et = (pct_x - w_pct - 24) - (ley_x + 36)
         if ctx.tmp.textlength(etq, font=fnt_et) > max_w_et:
-            fnt_et = fuente_que_cabe(ctx.fX, etq, fnt_et.size, max_w_et, 600, minimo=18)
+            fnt_et = fuente_que_cabe(ctx.fX, etq, fnt_et.size, max_w_et, 600)
             etq = recorta_para(etq, fnt_et, max_w_et, ctx.tmp)
                 
         pon_texto(d, (ley_x + 36, yi - 2), etq, font=fnt_et, fill=BLANCO + (al_l,))
@@ -5670,15 +5704,15 @@ def sc_orbita(ctx, e, t):
         tk = at.get("kicker", e["from"] + 0.2)
         kk = entra(t, tk, "bloque")
         if kk > 0:
-            fnt_k = ctx.fM(int(unidad() * 0.035 if W > H else 28), 700)
-            pon_texto(d, (cx, cy - r_orb - 50), kicker.upper(), font=fnt_k,
+            fnt_k, kick_l = _encaja_una_linea(ctx.fM, kicker.upper(), ESCALA["nota"], zx1 - zx0 - 60, 700)
+            pon_texto(d, (cx, cy - r_orb - 50), kick_l, font=fnt_k,
                    fill=ACENTO + (int(255 * clamp01(kk * 1.4)),), anchor="mm")
                    
     titulo = e.get("titulo", "")
     if titulo and k > 0:
         # el titulo se PARTE antes de encogerse (ver sc_comentario)
         fnt_tit, lineas = texto_que_cabe(ctx.fT, titulo, int(unidad() * 0.08 if W > H else 72),
-                                          zx1 - zx0 - 40, 800, max_lineas=3, minimo=18)
+                                          zx1 - zx0 - 40, 800, max_lineas=3)
         lh = fnt_tit.size * 1.25
         y_tit0 = cy - (len(lineas) * lh) / 2
         for li, ln in enumerate(lineas):
@@ -5690,9 +5724,9 @@ def sc_orbita(ctx, e, t):
         ts = at.get("subtitulo", t_in + 0.8)
         ks = entra(t, ts, "bloque")
         if ks > 0:
-            fnt_sub = fuente_que_cabe(ctx.fX, subtitulo, int(unidad() * 0.04 if W > H else 34), zx1 - zx0 - 60, 400)
+            fnt_sub, sub_l = _encaja_una_linea(ctx.fX, subtitulo, ESCALA["secundario"], zx1 - zx0 - 60, 400)
             # subtítulo más claro: GRIS@220 sobre negro perdía jerarquía
-            pon_texto(d, (cx, cy + r_orb + 50), subtitulo, font=fnt_sub,
+            pon_texto(d, (cx, cy + r_orb + 50), sub_l, font=fnt_sub,
                    fill=(200, 200, 200, int(240 * clamp01(ks * 1.4))), anchor="mm")
                    
     return capa_salida(layer, t, e["to"])
@@ -5737,7 +5771,7 @@ def sc_audiowave(ctx, e, t):
     w_est = ctx.tmp.textlength(est, font=fnt_est)
     
     max_w_header = (xc + wc - 36 - w_est - 24) - (px + r_play + 18)
-    fnt_hab = fuente_que_cabe(ctx.fX, hab, int(unidad() * 0.028 if W > H else 30), max_w_header, 700, minimo=18)
+    fnt_hab = fuente_que_cabe(ctx.fX, hab, ESCALA["secundario"], max_w_header, 700)
     hab = recorta_para(hab, fnt_hab, max_w_header, ctx.tmp)
     pon_texto(d, (px + r_play + 18, py - 6), hab, font=fnt_hab, fill=BLANCO + (al,), anchor="ls")
 
@@ -5792,7 +5826,7 @@ def sc_audiowave(ctx, e, t):
         dur_tr = max(0.5, len(trans) * 0.04)
         # la transcripcion es un `nota` de la escala (28): a 26 nacia justo
         # en el piso legible y la rubrica penalizaba la pieza por diseno
-        fnt_tr = fuente_que_cabe(ctx.fX, trans, ESCALA["nota"], wc - 72, 400)
+        fnt_tr, trans = _encaja_una_linea(ctx.fX, trans, ESCALA["nota"], wc - 72, 400)
         text_reveal(d, trans, fnt_tr, xc + 36, prog_y + 18, t, t_tr, dur_tr, GRIS)
         
     return capa_salida(layer, t, e["to"])
@@ -6049,9 +6083,9 @@ def sc_orbOpen(ctx, e, t):
         t_sb = at.get("subtitulo", t_t + 0.35)
         k_sb = entra(t, t_sb, "suave")
         if k_sb > 0:
-            fs = fuente_que_cabe(ctx.fX, e["subtitulo"], ESCALA["secundario"], zx1 - zx0 - 60, 600)
+            fs, sub_l = _encaja_una_linea(ctx.fX, e["subtitulo"], ESCALA["secundario"], zx1 - zx0 - 60, 600)
             y_sb = y_tit + ESCALA["titular"] + 34
-            pon_texto(d, (cx, y_sb), e["subtitulo"], font=fs,
+            pon_texto(d, (cx, y_sb), sub_l, font=fs,
                    fill=GRIS + (int(255 * clamp01(k_sb * 1.4)),), anchor="ma")
     return capa_salida(layer, t, e["to"])
 

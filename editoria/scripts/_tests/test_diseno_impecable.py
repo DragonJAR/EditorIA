@@ -11,6 +11,10 @@ Cada clase fija UNA causa raíz, medida sobre el frame que se entrega:
   la insignia 3D suma luz (no perfora), el filo del cristal sigue la
   esquina, la barra es UNA píldora, los círculos y el CTA tienen antialias,
   el foco de `demo` multiplica por negro y el borde de la mancha es suave.
+- R4 ESCALA: el auto-fit no baja del piso legible (MIN_LETRA); hero..
+  audiowave, el centro del `pie` y el teléfono de `medianoche` en 16:9
+  dibujan su letra en roles de ESCALA sin quedar bajo el piso, y ninguna
+  escena se sale de su caja por eso (la escala segura no cae).
 - R3 MONO: la mono se resuelve por NOMBRE antes que por directorio (la
   preferida gana a la de último recurso), la empaquetada (IBM Plex Mono,
   OFL) es la del motor, el peso pedido se respeta y las etiquetas mono se
@@ -311,6 +315,103 @@ class TestCapaPropia(unittest.TestCase):
         R = self.R
         m = np.asarray(R.mancha_mask(R.Ctx(), 0.35, 0.0))
         self.assertGreater(int(((m > 0) & (m < 255)).sum()), 500, "el borde de la mancha es duro")
+
+
+ESCENAS_R4 = ("hero", "bento", "buscador", "notificacion", "comentario", "pie", "orbita", "audiowave")
+
+
+def _espia_textos(R, e, ts):
+    """[(texto, tamaño, tamaño del lienzo, caja)] de cada texto dibujado."""
+    reg = []
+    orig = ImageDraw.ImageDraw.text
+
+    def espia(s, xy, text, fill=None, font=None, *a, **k):
+        img = getattr(s, "_image", None)
+        if font is not None and any(c.isalnum() for c in str(text)):
+            alfa = fill[3] if isinstance(fill, tuple) and len(fill) > 3 else 255
+            if alfa >= 128:
+                reg.append((str(text), float(font.size), img.size if img is not None else None,
+                            s.textbbox(xy, text, font=font, *a, **k)))
+        return orig(s, xy, text, fill, font, *a, **k)
+    ImageDraw.ImageDraw.text = espia
+    try:
+        ctx = R.Ctx()
+        for t in ts:
+            R.pintar(ctx, e, t)
+    finally:
+        ImageDraw.ImageDraw.text = orig
+    return reg
+
+
+class TestEscala(unittest.TestCase):
+    """R4: la letra del catálogo vive en ESCALA y no baja del piso."""
+
+    def test_el_autofit_se_queda_en_el_piso_y_cede_el_copy(self):
+        R = _motor()
+        ctx = R.Ctx()
+        largo = "una frase larguísima que no cabe de ninguna manera en tan poco ancho " * 3
+        self.assertEqual(R.fuente_que_cabe(ctx.fX, largo, 36, 120).size, R.MIN_LETRA)
+        R.RECORTES.clear()
+        fnt, lineas = R.texto_que_cabe(ctx.fX, largo, 32, 300, max_lineas=2)
+        self.assertEqual(fnt.size, R.MIN_LETRA)
+        self.assertEqual(len(lineas), 2)
+        self.assertTrue(lineas[-1].endswith("…"), "la línea que no cabe se recorta con …")
+        self.assertTrue(R.RECORTES, "el recorte se anota")
+
+    def test_hero_a_audiowave_no_bajan_del_piso(self):
+        fallos = []
+        for ancho, alto in ((1080, 1920), (1920, 1080)):
+            for tipo in ESCENAS_R4:
+                R = _motor(ancho, alto)
+                e = R.completar_escena(_muestra(tipo), 0)
+                ts = [e["from"] + (e["to"] - e["from"]) * f for f in (0.5, 0.85)]
+                for txt, tam, _, _ in _espia_textos(R, e, ts):
+                    if tam < R.MIN_LETRA:
+                        fallos.append(f"{tipo} {ancho}x{alto}: '{txt[:24]}' a {tam:.0f} px")
+        self.assertEqual(sorted(set(fallos)), [], "letra bajo el piso:\n  " + "\n  ".join(sorted(set(fallos))))
+
+    def test_el_centro_del_pie_no_toca_su_cifra(self):
+        for ancho, alto in ((1080, 1920), (1920, 1080)):
+            R = _motor(ancho, alto)
+            e = R.completar_escena(_muestra("pie"), 0)
+            cifra, etq = R.centro_del_pie(e)
+            self.assertTrue(etq, "la muestra del pie debe traer etiqueta de centro")
+            reg = _espia_textos(R, e, [e["to"] - 0.5])
+            # la cifra del centro es la MÁS grande con ese texto (la leyenda repite el %)
+            c = sorted((r for r in reg if r[0] == cifra), key=lambda r: r[1])
+            self.assertTrue(c)
+            cx_c = (c[-1][3][0] + c[-1][3][2]) / 2
+            # la etiqueta del centro: su texto (o su recorte) y centrada bajo la cifra
+            l_ = [r for r in reg if r[0] != cifra and r[0].rstrip("…") in etq
+                  and abs((r[3][0] + r[3][2]) / 2 - cx_c) < 20]   # sus líneas (se parte)
+            l_.sort(key=lambda r: r[3][1])
+            self.assertTrue(l_, f"{ancho}x{alto}: no hay etiqueta bajo la cifra del centro")
+            self.assertGreaterEqual(min(r[1] for r in l_), R.MIN_LETRA, "la etiqueta del centro está bajo el piso")
+            # la caja de la cifra termina antes de que empiece la de la etiqueta
+            self.assertGreaterEqual(l_[0][3][1] - c[-1][3][3], 4,
+                                    f"la etiqueta toca la cifra del centro: {c[-1][3]} / {l_[0][3]}")
+
+    def test_medianoche_en_16_9_deja_la_nota_en_el_piso(self):
+        R = _motor(1920, 1080)
+        e = R.completar_escena(_muestra("medianoche"), 0)
+        zy1 = R.caja_segura()[3]
+        sc0 = min(0.82, (zy1 - (R.rotulo_y() + 80)) * 0.96 / 1140)   # el layout del teléfono
+        reg = _espia_textos(R, e, [e["to"] - 0.4])
+        dentro = [(txt, tam) for txt, tam, lienzo, _ in reg if lienzo and lienzo[1] != R.H]
+        self.assertTrue(dentro, "no se dibujó texto dentro del teléfono")
+        bajos = [(txt, round(tam * sc0, 1)) for txt, tam in dentro if tam * sc0 < R.MIN_LETRA - 0.5]
+        self.assertEqual(bajos, [], f"letra del teléfono reducida bajo el piso: {bajos}")
+
+    def test_ninguna_escena_se_sale_de_su_caja(self):
+        for ancho, alto in ((1080, 1920), (1920, 1080)):
+            R = _motor(ancho, alto)
+            ctx = R.Ctx()
+            with open(os.path.join(SCRIPTS, "escenas_muestra.json"), encoding="utf-8") as fh:
+                orden = list(json.load(fh)["escenas"])
+            for tipo in ESCENAS_R4 + ("medianoche",):
+                e = R.completar_escena(_muestra(tipo), 0)
+                self.assertGreaterEqual(R.escala_segura(ctx, e, orden.index(tipo)), 0.99,
+                                        f"{tipo} {ancho}x{alto}: la letra empujó la escena fuera")
 
 
 class TestMono(unittest.TestCase):

@@ -117,11 +117,18 @@ validador la renderiza en cada corrida y exige que quepa en la zona segura
   en `W` (W*0.055 son 59 px en 9:16 y 105 px en 16:9).
 - `pila(alturas, y0, y1)`: apila bloques medidos y, si no caben, encoge todo
   junto en vez de dejar que se pisen (oferta, cita).
-- `fuente_que_cabe()`: encoge cifras y etiquetas a su caja; el tamaño lo
-  fija el valor FINAL (no salta mientras cuenta).
+- `fuente_que_cabe()`: encoge cifras y etiquetas a su caja, nunca bajo el
+  piso legible (`MIN_LETRA`, 26 px = el `LETRA_MIN` del QA); el tamaño lo
+  fija el valor FINAL (no salta mientras cuenta). En el piso, si no cabe,
+  cede el copy (`recorta_para`, anotado) o se parte (`texto_que_cabe`).
+- `pon_texto()`: la puerta de todo texto (un texto con alfa se mezcla con su
+  tarjeta, no la perfora; el punto de display se acerca a su letra);
+  `draw_seg()` respeta toda ancla de PIL y dibuja tramos enteros.
+- `sobre_capa()`: UNA capa propia para lo translúcido y lo chico (insignia,
+  cristal, barra, círculos, CTA): cada paso se compone, con antialias.
 - `columnas_grilla()` / `cuadricula()`: 1 columna en 9:16 hasta 3 tarjetas.
 - `pie_fuente()`: la fuente del dato en el borde inferior de la zona segura.
-- **Copy largo**: todo texto encoge para caber en su caja (`fuente_que_cabe`)
+- **Copy largo**: todo texto encoge hasta el piso legible para caber en su caja (`fuente_que_cabe`)
   y el rótulo, si ni a 30 px cabe, se parte en dos líneas equilibradas
   (`partir_segs`, conserva el énfasis). El validador renderiza cada escena con
   cada texto ×2 en los dos formatos: sin solapes y sin que la red encoja bajo
