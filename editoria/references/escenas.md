@@ -191,8 +191,12 @@ markup (`segmentos_resalte` en `_comun`) lo leen también los titulares
 cinéticos (`apertura`, `remate`, `pildoras`…): no hay un parser por escena.
 
 Params: `frase`, `clave?`, `seleccion?`, `cps?` (palabras por segundo, 1.6),
-`tam?`, `y?` (fraccion del alto donde queda la ultima palabra), `ventana?`
-(5), `itálica?` (usa el display en italica si el pack la trae), `at{rotulo}`.
+`tam?` (0,6 del titular: 72 px), `y?` (fraccion del alto donde queda la ultima
+palabra; sin `y` el bloque se centra en su zona), `ventana?` (5: las ultimas
+palabras en foco; lo dicho antes baja a la PISTA, 0,30, y no deja huecos en
+la linea), `itálica?` (usa el display en italica si el pack la trae), `at{rotulo}`.
+La medida es la columna del catalogo (`ancho_columna`) y el salto de linea se
+decide en tamaño de pantalla: el push-in no cambia una palabra de linea.
 
 El copy se ENCOGE solo hasta el piso de letra (26 px de tinta) y, si aun
 así no cabe, se ACORTA el copy: la letra no baja de 26 px (no se lee en un
@@ -294,8 +298,8 @@ anuncio superior en cristal (`badge`, inspirada en `navbar.gallery` Announcement
 y `supahero.io`), titular cinético con palabra clave en acento (`titulo`) y
 subtítulo (`subtitulo`), tarjeta central Liquid Glass (`tarjeta_cristal`,
 `glass.samasante.com`) con métrica destacada (`metrica`, `etiqueta_metrica`) y
-botón CTA en píldora con anillo de halo pulsante (`boton_halo`, `cta.gallery` +
-`scrolltide.co` Glow Ring Button). `badge?`, `titulo`, `subtitulo?`,
+botón CTA en píldora que respira (`boton_halo`: escala 1→1,025, sin aro de
+halo: el neón alrededor es un tell; origen `cta.gallery` + `scrolltide.co`). `badge?`, `titulo`, `subtitulo?`,
 `metrica?`, `etiqueta_metrica?`, `cta?`, `at{badge, titulo, card, cta}`.
 
 **`bento`** — Grilla Bento de 2–4 tarjetas Liquid Glass (`tarjeta_cristal`),

@@ -955,7 +955,7 @@ def radio_de(radio, w, h):
 
 def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
                hecho=None, fnt_hecho=None):
-    """Botón CTA de la casa: píldora con marco blanco fino y halo que late.
+    """Botón CTA de la casa: píldora con marco blanco fino que RESPIRA.
 
     UN componente para toda la pieza (hero, final, pago, demo): el mismo
     aspecto en todas las escenas; solo cambian el texto y, en `pago`, el
@@ -964,15 +964,13 @@ def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
     (con halo y marco, solo halo, o nada) rompen el sistema de componentes.
     """
     col = color or ACENTO
-    r_ = int(h // 2)
-    pulso = 0.5 + 0.5 * math.sin(max(0.0, t - t0) * 3.6)
-    exp = 6 + 6 * pulso
-    halo_a = int((38 + 34 * pulso) * alpha / 255)
-    aro = [cx - w / 2 - exp, cy - h / 2 - exp, cx + w / 2 + exp, cy + h / 2 + exp]
+    # la vida en el hold es la píldora que respira (escala 1 -> 1,025), no un
+    # aro de color que late alrededor: un halo de neón sin desplazamiento es
+    # decoración (direccion-de-arte.md, «resplandor o halo de neón»)
+    pulso = 0.5 - 0.5 * math.cos(max(0.0, t - t0) * 3.6)
+    w, h = w * (1 + 0.025 * pulso), h * (1 + 0.025 * pulso)
+    r_ = h / 2
     pildora = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]
-
-    def anillo(d, q, s):
-        d.rounded_rectangle(q(aro), radius=(h / 2 + exp) * s, outline=col + (halo_a,), width=3 * s)
 
     def cuerpo(d, q, s):
         if hecho:
@@ -980,9 +978,8 @@ def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
         else:
             d.rounded_rectangle(q(pildora), radius=r_ * s, fill=col + (255,),
                                 outline=(255, 255, 255, 95), width=2 * s)
-    # anillo y píldora con antialias; la píldora entra con UN alfa (su marco
-    # no se ve a través de ella al fundirse)
-    sobre_capa(d, aro, anillo, ss=SS)
+    # la píldora con antialias y con UN alfa (su marco no se ve a través de
+    # ella al fundirse)
     sobre_capa(d, pildora, cuerpo, ss=SS, alfa=int(alpha))
     if hecho:
         # estado "hecho": la misma píldora, en blanco, con el check de acento
@@ -1985,8 +1982,35 @@ def trazado(layer, puntos, color, grosor=6, progreso=1.0, desvanecer=0.25,
     """
     if not puntos or len(puntos) < 2:
         return
-    sub = Image.new("RGBA", layer.size, (0, 0, 0, 0))
+    # SUPERMUESTREO: el trazo se pinta a SS× en la caja de sus puntos y se
+    # reduce (BOX, alfa premultiplicado). A 1× los bordes de un trazo en
+    # diagonal o en curva salían en escalera (camino, la S de 9:16).
+    SS = 3
+    pad = grosor * (3.2 if brillo else 1.0) / 2 + 2
+    xs_, ys_ = [p[0] for p in puntos], [p[1] for p in puntos]
+    ox = max(0, int(math.floor(min(xs_) - pad)))
+    oy = max(0, int(math.floor(min(ys_) - pad)))
+    ex = min(layer.size[0], int(math.ceil(max(xs_) + pad)))
+    ey = min(layer.size[1], int(math.ceil(max(ys_) + pad)))
+    if ex <= ox or ey <= oy:
+        return
+    sub = Image.new("RGBA", ((ex - ox) * SS, (ey - oy) * SS), (0, 0, 0, 0))
     ds = ImageDraw.Draw(sub)
+
+    def _p(x, y):
+        return (x - ox) * SS, (y - oy) * SS
+
+    def _tramo(ax, ay, bx, by, fill, ancho, union):
+        """Un tramo; `union`: un disco en su extremo final, la UNIÓN redonda
+        con el siguiente (sin ella, los tramos cortos de una curva dejaban
+        muescas en el borde). Los extremos del trazo quedan rectos: el
+        trazo empieza y acaba donde dicen sus puntos y su progreso."""
+        (pa, qa), (pb, qb) = _p(ax, ay), _p(bx, by)
+        w_ = max(1, int(round(ancho * SS)))
+        ds.line([pa, qa, pb, qb], fill=fill, width=w_)
+        if union:
+            r_ = w_ / 2
+            ds.ellipse([pb - r_, qb - r_, pb + r_, qb + r_], fill=fill)
     # la longitud acumulada de cada tramo (para saber cuanto se ha escrito)
     largos = [0.0]
     for i in range(1, len(puntos)):
@@ -2002,6 +2026,7 @@ def trazado(layer, puntos, color, grosor=6, progreso=1.0, desvanecer=0.25,
     # de color son por PUNTO, no por tramo (con un tramo solo —una recta—
     # la cola entera se apagaba o no se apagaba nunca)
     paso = max(2.0, float(grosor))
+    tramos = []
     for i in range(1, len(puntos)):
         x0, y0 = puntos[i - 1]
         x1, y1 = puntos[i]
@@ -2030,11 +2055,17 @@ def trazado(layer, puntos, color, grosor=6, progreso=1.0, desvanecer=0.25,
                 idx = int((pos / total) * len(cola))
                 col = cola[max(0, min(len(cola) - 1, idx))]
             rgb = tuple(int(c) for c in col[:3])     # el alfa lo pone el trazo
-            if brillo:
-                ds.line([ax, ay, bx, by], fill=rgb + (int(a * 0.18),),
-                        width=int(grosor * 3.2))
-            ds.line([ax, ay, bx, by], fill=rgb + (a,), width=int(grosor))
-    layer.alpha_composite(sub)
+            tramos.append((ax, ay, bx, by, rgb, a))
+    # el halo entero PRIMERO y el núcleo encima: con ImageDraw el píxel se
+    # reemplaza, y el halo del tramo siguiente agujereaba el núcleo del anterior
+    ult = len(tramos) - 1
+    if brillo:
+        for j, (ax, ay, bx, by, rgb, a) in enumerate(tramos):
+            _tramo(ax, ay, bx, by, rgb + (int(a * 0.18),), grosor * 3.2, j < ult)
+    for j, (ax, ay, bx, by, rgb, a) in enumerate(tramos):
+        _tramo(ax, ay, bx, by, rgb + (a,), grosor, j < ult)
+    sub = sub.convert("RGBa").resize((ex - ox, ey - oy), Image.BOX).convert("RGBA")
+    layer.alpha_composite(sub, (ox, oy))
 
 
 def puntos_de_ruta(x0, y0, x1, y1, forma="recta", n=48, amp=0.18):
@@ -2594,11 +2625,23 @@ def sc_handoff(ctx,e,t):
     rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     k=entra(t, at["persona"], "bloque")
     fy=flota(t, at["persona"]+0.9, 5, 0.36)
-    y_card = vy(0.30) + fy
+    # ficha y contexto APILADOS y centrados en el sitio que deja el rótulo
+    # (antes la ficha en vy(0.30) y el contexto colgando 270 px debajo: en
+    # 9:16 quedaba un tercio vacío abajo). Una flotación para el grupo.
+    zx0,_,zx1,zy1=caja_segura()
+    ALTO_CARD,PASO_CTX=220,96
+    n_ctx=len(e["contexto"])
+    f_k,f_v=ctx.fM(ESCALA["secundario"],700),ctx.fX(ESCALA["secundario"],400)
+    h_ctx=(n_ctx-1)*PASO_CTX+40+tinta(f_v,"Ág")[1] if n_ctx else 0
+    # el grupo, con SU aire (SEPARA: el reparto lo partía en dos islas), en el
+    # centro óptico del sitio libre
+    y_libre=bajo_rotulo(rotulo_y()); total=ALTO_CARD+SEPARA+h_ctx
+    y0_=max(y_libre,y_libre+CENTRO_OPTICO*(zy1-y_libre)-total/2)
+    top_card,top_ctx=apila([ALTO_CARD,h_ctx],y0_)
+    y_card=top_card+fy
     if k>0:   # la ficha entera entra junta
         sub,ds=grupo()
-        zx0,_,zx1,_=caja_segura()   # dentro de la zona segura: la letra conserva su tamaño
-        tarjeta(ctx,sub,zx0,y_card,zx1-zx0,220)
+        tarjeta(ctx,sub,zx0,y_card,zx1-zx0,ALTO_CARD)   # dentro de la zona segura: la letra conserva su tamaño
         # halo del avatar late en el hold (la ficha no se congela)
         pulso=latido(t, at["persona"]+0.6, 1.6, 0.08)
         r_av=50*pulso
@@ -2610,14 +2653,13 @@ def sc_handoff(ctx,e,t):
         pon_texto(ds, (zx0+170,y_card+102),e.get("temp",""),font=ctx.fM(ESCALA["nota"],700),fill=_legible(color_de_temperatura(e),PANEL))   # el token, con luz para leerse en la tarjeta
         pon_texto(ds, (zx0+170,y_card+142),e.get("nota",""),font=fuente_que_cabe(ctx.fX,e.get("nota",""),ESCALA["nota"],at_,400),fill=GRIS)
         fundir(layer,sub,k)
-    y=y_card+270
-    zx0,_,zx1,_=caja_segura()
+    y=top_ctx+fy
     for i,c in enumerate(e["contexto"]):
         kc=entra(t, escalonado({}, "contexto", i, at["contexto"]), "elemento")
         if kc<=0: continue
-        yy=y+i*96+(1-min(1,kc))*ELEV
+        yy=y+i*PASO_CTX+(1-min(1,kc))*ELEV
         al=int(255*clamp01(kc*1.4))
-        pon_texto(d, (zx0+30,yy),c["k"],font=ctx.fM(ESCALA["secundario"],700),fill=ACENTO+(al,))
+        pon_texto(d, (zx0+30,yy),c["k"],font=f_k,fill=ACENTO+(al,))
         pon_texto(d, (zx0+30,yy+40),c["v"],font=fuente_que_cabe(ctx.fX,c["v"],ESCALA["secundario"],zx1-zx0-60,400),fill=BLANCO+(al,))
     return capa_salida(layer,t,e["to"])
 
@@ -2853,9 +2895,12 @@ def sc_remate(ctx,e,t):
         fnt=ctx.fT(int(tam_g*sc*latido(t,g+0.6,1.8,0.03)),800)
         bb=fnt.getbbox(e["gigante"],anchor="mm")
         a_g=smoothstep(clamp01((t-g)/0.35))
+        # el brillo es del MOMENTO firma: sube con el golpe y se recoge a un
+        # rastro (antes 110 de alfa todo el hold: un halo de neón fijo)
+        brillo=a_g*(0.25+0.75*math.exp(-max(0.0,t-(g+0.35))/0.5))
         resplandor(layer,(W/2+bb[0],yc+bb[1],W/2+bb[2],yc+bb[3]),ACENTO,30,
                    dibujar=lambda d_,ox,oy: d_.text((W/2-ox,yc-oy),e["gigante"],font=fnt,
-                                                    fill=ACENTO+(int(110*a_g),),anchor="mm"))
+                                                    fill=ACENTO+(int(90*brillo),),anchor="mm"))
         pon_texto(d, (W/2,yc),e["gigante"],font=fnt,fill=BLANCO+(int(255*a_g),),anchor="mm")
         if e.get("subtexto_gigante") and k > 0:
             fnt_s = fuente_que_cabe(ctx.fX, e["subtexto_gigante"], 60, (zx1 - zx0) * 0.86, 500)
@@ -3643,17 +3688,27 @@ def sc_typewriter(ctx, e, t):
 AZUL_SELECCION=(43,127,255)
 
 
-def _frase_layout(ctx, e, tam, visibles=None, max_lineas=None):
+def _frase_layout(ctx, e, tam, visibles=None, max_lineas=None, tam_corte=None):
     """(palabras, lineas, linea_de, ancho_de, gap, lh) de una frase cinetica.
 
     El flujo de palabras y su salto de linea se calculan UNA vez y los usan
     las escenas que la dibujan (la frase suelta y el dial que lleva la frase
     encima): dos copias de este calculo serian dos copias que se desvanecan.
+
+    `tam_corte`: el tamaño EN PANTALLA con el que se decide dónde salta cada
+    línea (el ancho de la zona es de pantalla). Las posiciones salen con `tam`
+    (el de la capa, compensado por la cámara). Si el salto se decidía con el
+    tamaño de la capa, el push-in cambiaba ese tamaño frame a frame y una
+    palabra saltaba de línea a mitad del hold (medido: 4 tirones).
     """
     zx0, _zy0, zx1, _zy1 = caja_segura()
-    maxw = zx1 - zx0 - 40
+    tam_corte = tam_corte or tam
+    # la medida es la COLUMNA del catálogo (`ancho_columna`): en 16:9 la zona
+    # entera (1578 px) dejaba líneas de 60 caracteres y una viuda («solo.»)
+    maxw = min(zx1 - zx0 - 40, ancho_columna())
     fnt = ctx.fX(tam, 500)
     fnt_b = ctx.fX(tam, 800)     # la palabra clave va en negrita: es MAS ANCHA
+    fnt_c, fnt_cb = ctx.fX(tam_corte, 500), ctx.fX(tam_corte, 800)
     # el hueco entre palabras: el ancho del espacio tipográfico + un aire
     # mínimo. Antes era tam*0.24 (~15 px extra a 64): el bloque se leía
     # disperso y con tracking irregular (medido en muestra: gaps visuales
@@ -3665,7 +3720,7 @@ def _frase_layout(ctx, e, tam, visibles=None, max_lineas=None):
         palabras = [palabras[i] for i in visibles]
     clave = (e.get("clave") or "").strip().lower()
 
-    def _ancho_de(w_):
+    def _ancho_de(w_, reg=fnt, neg=fnt_b):
         """El ancho REAL de la palabra, con la fuente con la que se dibuja.
 
         Medir todas las palabras con la misma fuente y dibujar la clave con
@@ -3675,14 +3730,15 @@ def _frase_layout(ctx, e, tam, visibles=None, max_lineas=None):
         """
         es_clave = ("*" in w_) or (bool(clave) and
                                   w_.replace("*", "").strip(",.;:!?\u00bf\u00a1\"'").lower() == clave)
-        return ctx.tmp.textlength(w_.replace("*", ""), font=(fnt_b if es_clave else fnt))
+        return ctx.tmp.textlength(w_.replace("*", ""), font=(neg if es_clave else reg))
 
-    lineas, cur, x = [], [], 0.0
+    gap_c = ctx.tmp.textlength(" ", font=fnt_c) + tam_corte * 0.06
+    lineas, cur, x, xc = [], [], 0.0, 0.0
     for i, w_ in enumerate(palabras):
-        ww = _ancho_de(w_)
-        if cur and x + ww > maxw:
-            lineas.append(cur); cur = []; x = 0.0
-        cur.append((i, x, ww)); x += ww + gap
+        ww, wc = _ancho_de(w_), _ancho_de(w_, fnt_c, fnt_cb)
+        if cur and xc + wc > maxw:
+            lineas.append(cur); cur = []; x = xc = 0.0
+        cur.append((i, x, ww)); x += ww + gap; xc += wc + gap_c
     if cur:
         lineas.append(cur)
     if max_lineas is not None and len(lineas) > max_lineas:
@@ -3724,6 +3780,9 @@ def y_de_pantalla(e, t, y_destino):
     return cy + (y_destino - cy - dy) / fr
 
 
+PISTA = 0.30   # opacidad del copy que no está en foco (por delante o ya dicho)
+
+
 def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     """Dibuja la frase cinetica: el copy entra PALABRA a PALABRA y el bloque
     sube para que la ultima palabra quede siempre en la misma zona.
@@ -3740,28 +3799,31 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     if not texto:
         return 0
     t_in = at.get("rotulo", e.get("from", 0.0))
-    tam_pantalla = int(tam or e.get("tam", unidad() * 0.055))
+    # el tamaño del rol: 0,6 del titular (72 px). Con 59 px la frase era una
+    # banda chica arriba (ocupación 0,19 < OCUPACION_MIN en 9:16)
+    tam_pantalla = int(tam or e.get("tam", ESCALA["titular"] * 0.6))
     # el copy se queda del MISMO TAMANO en pantalla: la camara escala la
     # capa, asi que el tamano en la capa se divide por el factor de camara.
     # (si no, el texto crecia y menguaba con el zoom, y las lineas se
     # rozaban: un texto pisa a otro)
     fr_cam, _dy_cam, _dx_cam = respiracion(e, t)
-    tam = max(18, int(round(tam_pantalla / max(0.2, fr_cam))))
+    # el AUTO-FIT se decide EN PANTALLA (tam_pantalla, la zona de pantalla) y
+    # luego se compensa la cámara: decidido con el tamaño de la capa, el
+    # push-in cambiaba líneas y tamaño a mitad del hold
+    tam = tam_pantalla
     # el AUTO-FIT: la frase se encoge hasta que cabe en la zona segura (en
     # ANCHO y en ALTO). Sin esto, un copy largo se sale del cuadro y la
     # escena entera baja al piso de la zona segura (medido: x0.72 con el
     # copy x2, y con la banda de subtitulos todavia menos).
     zx0, zy0, zx1, zy1 = caja_segura()
-    ancho_max = (zx1 - zx0) - 40
     # el bloque crece hacia ARRIBA desde el ancla: el sitio que tiene es el
     # de ARRIBA del ancla, no toda la zona segura (si no, con el copy x2 el
     # bloque se sale por arriba y la escena baja al piso de la zona)
     # la posicion la da vy(): remapea la fraccion de H a la caja segura
     # ACTUAL (con la banda de subtitulos, la caja se comprime y la frase
     # sube en vez de que la red la encoja entera)
-    y_frase = vy(float(e.get("y", 0.20)))
+    y_frase = y_ancla   # el ancla que recibe (sc_frase o el dial): el sitio de ARRIBA
     alto_max = max(60.0, y_frase - zy0)
-    palabras_txt = (e.get("frase") or e.get("texto") or "").split()
     # el piso es el de LEGIBILIDAD (26 px), no un piso de "no microscopico":
     # una letra por debajo de 26 no se lee en un telefono (medido: con el copy
     # x2 el auto-fit bajaba la frase a 13 px y la puerta lo rechazaba). Si
@@ -3773,17 +3835,19 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     # (medido: la puerta rechazaba 22 px con el copy x2)
     piso_fuente = int(MIN_LETRA * 1.45)
     while tam > piso_fuente:
-        _f = (ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fX)(tam, 500)
-        _lineas = linewrap(" ".join(palabras_txt), _f, ancho_max, ctx.tmp)
+        # las líneas con el MISMO corte que se dibuja (_frase_layout)
+        _lineas = _frase_layout(ctx, e, tam)[1]
         if (len(_lineas) * tam * 1.52) <= alto_max:
             max_lineas = len(_lineas)
             break
         tam = max(piso_fuente, int(tam * 0.92))
     else:
         # con la letra en su MINIMO todavia no cabe: se acorta el copy
-        _f = (ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fX)(tam, 500)
-        _lineas = linewrap(" ".join(palabras_txt), _f, ancho_max, ctx.tmp)
         max_lineas = max(1, int(alto_max // max(1, tam * 1.52)))
+    tam_corte = tam   # el tamaño en pantalla: decide los saltos de línea
+    # fraccionario (font() va a 1/4 px): redondeado a 1 px, cada salto de
+    # tamaño corría el bloque entero de golpe (tirones a mitad del hold)
+    tam = max(18.0, tam / max(0.2, fr_cam))
     # la ITALICA del display (el reel de referencia escribe en itálica): si la
     # escena la pide y el pack la trae, se usa; si no, la redonda.
     fab = ctx.fTi if (e.get("itálica") or e.get("italica")) else ctx.fX
@@ -3838,7 +3902,7 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
     # recompone, el bloque salta de sitio y el medidor lo cuenta como un pop:
     # 10 pops, todos en el instante de anadir palabra).
     palabras, lineas, linea_de, ancho_de, gap, maxw = _frase_layout(
-        ctx, e, tam, max_lineas=max_lineas)
+        ctx, e, tam, max_lineas=max_lineas, tam_corte=tam_corte)
     # el interlineado se compensa con la camara: si no, el copy crecia y
     # menguaba con el zoom (la camara escala la capa entera).
     lh = tam * 1.52      # en la capa: con la camara, sale a 1,52 en pantalla
@@ -3860,7 +3924,9 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
         if not pos:
             return None
         ultimo = max(layout_linea_de.values()) if layout_linea_de else 0
-        return (zx0 + (maxw - layout_ancho.get(li, 0)) / 2.0 + pos[0][1],
+        # centrada en el eje del cuadro (la cámara escala alrededor de W/2):
+        # zx0 + (maxw - ancho)/2 dejaba la línea 20 px a la izquierda
+        return (W / 2.0 - layout_ancho.get(li, 0) / 2.0 + pos[0][1],
                 y_ancla + (li - ultimo) * lh)
 
     # EL ESTADO DE CADA PALABRA (teleprompter legible, no nube dispersa):
@@ -3883,13 +3949,16 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
         activa = (i == k - 1)
         edad = k - 1 - i
         if not alcanzada:
-            fade = 0.30                 # pista del copy por delante, no protagonista
+            fade = PISTA                # pista del copy por delante, no protagonista
         elif edad == 0:
             fade = 1.0
         else:
-            # dentro de la ventana: piso 0,45 (legible); fuera: se apaga
+            # dentro de la ventana: piso 0,45 (legible); fuera: baja a la
+            # PISTA, no a cero. El layout es el de la frase entera: si lo dicho
+            # desaparecía, la primera línea visible empezaba a media medida
+            # (huecos donde estaban las palabras) y el bloque se encogía.
             crudo = max(0.0, 1.0 - (edad - 1) / float(max(1, ventana)))
-            fade = max(0.45, crudo) if edad < ventana else crudo
+            fade = max(0.45, crudo) if edad < ventana else max(PISTA, crudo)
         if es_clave:
             fade = max(fade, 0.92)       # la clave no se apaga: es el mensaje
         if activa:
@@ -3914,11 +3983,18 @@ def dibuja_frase(ctx, d, e, t, y_ancla, tam=None):
         else:
             col = GRIS
             fade = max(fade, 0.36)      # pista visible (a>80) sin robar foco
-        tam_p = max(10, int(round(tam * escala_p)))
+        tam_p = max(10.0, tam * escala_p)   # fraccionario, como `tam`
         f = fab(tam_p, 800) if (es_clave or tipo_caja) else fab(tam_p, 500)
         al = int(255 * fade)
         if al <= 2:
             continue
+        if escala_p < 1.0:
+            # la activa crece desde el CENTRO de su sitio y sobre la misma
+            # línea base: crecida desde la esquina dejaba un hueco a su
+            # derecha y la palabra flotaba sobre la línea
+            f1 = fab(tam, 800) if (es_clave or tipo_caja) else fab(tam, 500)
+            x += (ctx.tmp.textlength(texto_w, font=f1) - ctx.tmp.textlength(texto_w, font=f)) / 2
+            y += f1.getmetrics()[0] - f.getmetrics()[0]
         if tipo_caja:
             # la CAJA DE RESALTE, detras del texto: roja con texto blanco o
             # blanca con texto oscuro (medido: 8-12 px de radio, el relleno
@@ -3971,7 +4047,7 @@ def sc_frase(ctx, e, t):
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    dibuja_frase(ctx, d, e, t, vy(float(e.get("y", 0.20))))
+    dibuja_frase(ctx, d, e, t, vy(float(e.get("y", 0.7))))
     pie_fuente(ctx, d, e, t, e["from"] + 2.5)
     return capa_salida(layer, t, e["to"])
 
@@ -4663,13 +4739,19 @@ def sc_subrayado(ctx, e, t):
         # pack la tinta bajaba 78 px y la linea se comia el texto)
         bb = sub_t.getbbox()
         if bb:
-            y_linea = int(bb[3]) + 18
+            # el HALO de la línea (3,2× el grosor) no toca la tinta: su radio
+            # más 4 px de aire bajo la letra
+            y_linea = int(bb[3]) + max(18, int(e.get("grosor", 12) * 1.6) + 4)
         layer.alpha_composite(sub_t)
 
-    # la linea casi a ancho de zona segura: más celdas con textura (colores)
-    pad_lin = int((zx1 - zx0) * 0.02)
-    x0 = zx0 + pad_lin
-    x1 = zx1 - pad_lin
+    # la linea es la BASE del lema: su ancho sigue al del texto (la línea más
+    # ancha) con un vuelo de un cuarto de cuerpo a cada lado. A ancho de zona
+    # segura, en 16:9 sobraba ~20 % por cada lado y se leía como una regla
+    # suelta, no como el subrayado del texto.
+    vuelo = tam * 0.25
+    ancho_txt = max(ctx.tmp.textlength(ln, font=fnt) for ln in lineas)
+    x0 = max(zx0, W / 2 - ancho_txt / 2 - vuelo)
+    x1 = min(zx1, W / 2 + ancho_txt / 2 + vuelo)
     k_lin = entra(t, at.get("linea", e["from"] + 0.8), "bloque")
     if k_lin > 0:
         sub_l = Image.new("RGBA", (W, H), (0, 0, 0, 0))

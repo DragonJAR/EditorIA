@@ -285,7 +285,10 @@ El movimiento de cámara convierte un layout plano en un espacio.
   (una línea que revela el logotipo, llena la barra, se enrosca, baja bajo
   el lema...), se dibuja con UNA función compartida (`trazado`) y cada uso
   cambia solo sus puntos. Un trazo dibujado de cinco maneras son cinco
-  trazos que se desincronizan.
+  trazos que se desincronizan. `trazado` pinta a 3× en la caja de sus
+  puntos y reduce (borde suave en diagonal y curva), con uniones redondas y
+  el halo entero DEBAJO del núcleo (el halo de un tramo no agujerea el
+  anterior).
 
 ## 6. Tipografía en movimiento
 
@@ -315,6 +318,14 @@ El movimiento de cámara convierte un layout plano en un espacio.
 - Transiciones "de efecto" (mancha, glitch, zoom-blur) como máximo 1–2 por
   pieza, y motivadas por la historia. `render_plan.py` aplica el
   presupuesto automáticamente.
+- Lo que una máscara (iris, mancha) revela es la ENTRANTE desde su primer
+  `at`: 42 de 45 muestras ya arrancan a ≤ 0,3 s (el rótulo, a 0,2 s). No se
+  adelanta la coreografía por defecto tras una máscara: el contenido
+  entraría A LA VEZ que la máscara abre (dos movimientos en el mismo
+  instante, no un momento) y movería tiempos que el plan sincroniza con la
+  voz. Las tres que abren más tarde (`listo` 0,4 s, `orbOpen` 0,8 s,
+  `final` 0,9 s) lo hacen a propósito; si la pieza las pone tras una
+  máscara, el plan les fija un `at` temprano.
 - Sonido: toda transición visible lleva su evento sonoro (whoosh, golpe o
   silencio deliberado; ver `sfx.md`).
 
@@ -324,7 +335,9 @@ El acabado digital perfectamente limpio no es lo que se premia
 (`dramaturgia.md`):
 - Grano fino animado (alfa 6–10/255, cambia cada frame).
 - Viñeta suave; gradientes con dither (sin bandas).
-- Glow/bloom solo en el acento y en el momento firma.
+- Glow/bloom solo en el acento y en el momento firma (`resplandor`): el
+  gigante de `remate` brilla con el golpe y se recoge a un rastro (25 %) en
+  el hold; el botón de la casa respira sin aro de halo.
 - Aberración cromática / glitch: un solo golpe dramático, nunca ambiente.
 
 ## 9. Protocolo de revisión de animación

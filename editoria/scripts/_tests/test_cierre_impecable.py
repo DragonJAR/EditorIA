@@ -11,6 +11,9 @@ Cada clase fija UNA causa, medida sobre el motor o sobre el frame:
 - POP DE CONTADOR: en un video (sin zonas de cifra del motor) la cifra
   nueva de un contador se agrupa con las que cuentan en 2D, no por fila: un
   contador desplazado en vertical (recentrado) daba pop a ciertas alturas.
+- FRASE: lo dicho baja a la pista (no a cero: sin huecos a media medida), la
+  frase se centra en su zona a 0,6 del titular y supera la ocupación mínima.
+- SUBRAYADO: la línea sigue el ancho del texto (no el de la zona segura).
 - PACK SIN FUGA: `aplicar_brand` fija el solape de su regla en los DOS
   sentidos; un pack `corte_seco` dejaba SOLAPE=0.25 instalado para el resto
   del proceso y un test de prosa fallaba según el orden.
@@ -112,6 +115,164 @@ class TestPopContadorDesplazado(unittest.TestCase):
         for dy in (0, 4, 14):
             with self.subTest(dy=dy):
                 self.assertEqual(M.metricas(self._video(dy, True), 30, 2.0)["pops"], [0.4])
+
+
+def _cuadros(R, e, ts, lado=180):
+    """Frames en gris a la escala de análisis del medidor (lado corto 180)."""
+    ctx = R.Ctx()
+    out = []
+    for t in ts:
+        im = R.componer(ctx, [e], e["to"], t, set()).convert("L")
+        k = lado / min(im.size)
+        out.append(np.asarray(im.resize((round(im.width * k), round(im.height * k))), np.float32))
+    return np.array(out)
+
+
+class TestFrase(unittest.TestCase):
+    """R7 frase: lo dicho no deja huecos y la frase llena su zona."""
+
+    def test_lo_dicho_queda_en_su_sitio(self):
+        """Al final de la escena se dibujan TODAS las palabras (lo dicho baja
+        a la pista, no a cero): la primera línea no empieza a media medida."""
+        R = _motor()
+        e = R.completar_escena(_muestra("frase"), 0)
+        dibujadas = []
+        orig = R.pon_texto
+
+        def espia(d, xy, texto, *a, **k):
+            fill = k.get("fill")
+            if not (isinstance(fill, tuple) and len(fill) == 4 and fill[3] <= 2):
+                dibujadas.append(str(texto))
+            return orig(d, xy, texto, *a, **k)
+        R.pon_texto = espia
+        try:
+            # 0,3 s después de que entró la última palabra alcanzada (la que
+            # entra en ese instante aún está en fundido: no cuenta)
+            R.pintar(R.Ctx(), e, e["to"] - 0.5)
+        finally:
+            R.pon_texto = orig
+        palabras = [w.replace("*", "") for w in e["frase"].split()]
+        self.assertEqual([w for w in palabras if w not in dibujadas], [],
+                         "palabras dichas desaparecen y dejan su hueco en la línea")
+
+    def test_la_frase_supera_la_ocupacion_minima(self):
+        """La misma medida que la puerta (`medir_animacion.medir`, escena sola)."""
+        import medir_animacion as M
+        M._init()
+        for f in ("v", "h"):
+            with self.subTest(formato=f):
+                e = _muestra("frase")
+                r = M.medir(("frase", f, [e], e["to"], 15))
+                # con margen: la frase de antes daba 0,19-0,21 según el muestreo
+                # (al filo de la puerta, pasaba o no según los fps)
+                self.assertGreater(r["ocupacion"], M.OCUPACION_MIN * 1.5)
+
+
+def _tinta_x(capa, umbral=40):
+    """(x0, x1) de la tinta de una capa RGBA (alfa > umbral)."""
+    a = np.asarray(capa.getchannel("A"))
+    xs = np.where((a > umbral).any(axis=0))[0]
+    return (int(xs.min()), int(xs.max())) if len(xs) else None
+
+
+class TestSubrayado(unittest.TestCase):
+    """R7 subrayado: la línea es la base del TEXTO, no una regla de zona."""
+
+    def test_la_linea_sigue_el_ancho_del_texto(self):
+        for ancho, alto in ((1920, 1080), (1080, 1920)):
+            with self.subTest(formato=f"{ancho}x{alto}"):
+                R = _motor(ancho, alto)
+                e = _muestra("subrayado")
+                solo_texto = _tinta_x(R.pintar(R.Ctx(), e, e["at"]["linea"] - 0.05))
+                todo = _tinta_x(R.pintar(R.Ctx(), e, e["to"] - 1.0))
+                vuelo = max(solo_texto[0] - todo[0], todo[1] - solo_texto[1])
+                # un cuarto de cuerpo (72 px) por lado + el remate redondo del
+                # trazo (grosor 12) y el apoyo lateral del glifo
+                self.assertLessEqual(vuelo, 72 * 0.25 + 12, f"la línea vuela {vuelo} px más allá del texto")
+
+
+class TestHandoff(unittest.TestCase):
+    """R7 handoff: ficha y contexto son UN grupo apilado (SEPARA) en el
+    centro óptico del sitio que deja el rótulo, no colgados de vy(0.30)."""
+
+    def test_el_grupo_va_en_el_centro_optico(self):
+        for ancho, alto in ((1080, 1920), (1920, 1080)):
+            with self.subTest(formato=f"{ancho}x{alto}"):
+                R = _motor(ancho, alto)
+                e = _muestra("handoff")
+                t = e["to"] - 1.0
+                contenido, _fija = R.pintar_partes(R.Ctx(), e, t)
+                a = np.asarray(contenido.getchannel("A"))
+                ys = np.where((a > 40).any(axis=1))[0]
+                libre = R.bajo_rotulo(R.rotulo_y())
+                zy1 = R.caja_segura()[3]
+                optico = libre + R.CENTRO_OPTICO * (zy1 - libre)
+                centro = (ys.min() + ys.max()) / 2
+                # la flotación del grupo (5 px) y la tinta del texto: 12 px
+                self.assertLess(abs(centro - optico), 12,
+                                f"el grupo cae a {centro:.0f}, el centro óptico es {optico:.0f}")
+
+
+class TestTrazadoSuave(unittest.TestCase):
+    """R7 camino: el trazo de `trazado` (camino, subrayado, la S) sale con
+    borde suavizado (supermuestreo) y uniones redondas, no en escalera."""
+
+    def test_el_borde_de_un_trazo_diagonal_tiene_medios_tonos(self):
+        from PIL import Image
+        R = _motor()
+        capa = Image.new("RGBA", (600, 800), (0, 0, 0, 0))
+        R.trazado(capa, [(100, 100), (420, 700)], (255, 255, 255), grosor=12,
+                  desvanecer=0.0, brillo=False)
+        a = np.asarray(capa.getchannel("A"))
+        medios = np.unique(a[(a > 8) & (a < 247)])
+        self.assertGreaterEqual(len(medios), 5, "el borde del trazo es una escalera de 0/255")
+
+    def test_el_nucleo_no_tiene_agujeros_en_las_uniones(self):
+        from PIL import Image
+        R = _motor()
+        capa = Image.new("RGBA", (400, 400), (0, 0, 0, 0))
+        pts = [(50 + i * 6, 200 + 80 * np.sin(i / 8)) for i in range(50)]
+        R.trazado(capa, pts, (255, 255, 255), grosor=10, desvanecer=0.0, brillo=True)
+        a = np.asarray(capa.getchannel("A"))
+        nucleo = [a[int(round(y)), int(round(x))] for x, y in pts]
+        self.assertGreaterEqual(min(nucleo), 240, "el halo del tramo siguiente agujerea el núcleo")
+
+
+class TestSinHaloDeNeon(unittest.TestCase):
+    """R7: el halo de neón es un tell. El botón respira sin aro; el brillo
+    del gigante de `remate` es del momento firma y se recoge en el hold."""
+
+    def test_el_boton_no_pinta_fuera_de_su_pildora(self):
+        from PIL import Image, ImageDraw
+        R = _motor()
+        w, h = 400, 100
+        for t in np.arange(0.0, 2.0, 0.1):
+            capa = Image.new("RGBA", (800, 400), (0, 0, 0, 0))
+            R.boton_halo(ImageDraw.Draw(capa), 400, 200, w, h, "Compra ya",
+                         R.Ctx().fX(36, 800), float(t), 0.0)
+            a = np.asarray(capa.getchannel("A"))
+            ys, xs = np.nonzero(a > 10)
+            with self.subTest(t=round(float(t), 1)):
+                # la respiración (2,5 %) más el antialias: nada de aro alrededor
+                self.assertLessEqual(xs.max() - xs.min(), w * 1.025 + 4)
+                self.assertLessEqual(ys.max() - ys.min(), h * 1.025 + 4)
+
+    def test_el_brillo_del_gigante_se_recoge_en_el_hold(self):
+        R = _motor()
+        e = R.completar_escena(_muestra("remate"), 0)
+        g = e["at"]["gigante"]
+
+        def halo(t):
+            orig = R.pon_texto   # sin la letra: lo que queda es el brillo
+            R.pon_texto = lambda *a, **k: None
+            try:
+                capa = R.pintar(R.Ctx(), e, t)
+            finally:
+                R.pon_texto = orig
+            a = np.asarray(capa.getchannel("A")).astype(float)
+            return a[int(R.H * 0.5):].sum()
+        pico, hold = halo(g + 0.4), halo(e["to"] - 0.8)
+        self.assertLess(hold, 0.5 * pico, f"el brillo sigue encendido en el hold ({hold:.0f} vs {pico:.0f})")
 
 
 class TestPackSinFuga(unittest.TestCase):

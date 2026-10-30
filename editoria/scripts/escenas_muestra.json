@@ -844,8 +844,6 @@
    "fuente": "Demo con datos ficticios",
    "cps": 2.0,
    "ventana": 5,
-   "tam": 64,
-   "y": 0.24,
    "at": {
     "rotulo": 0.2,
     "fuente": 3.8
