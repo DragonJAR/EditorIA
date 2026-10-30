@@ -44,6 +44,7 @@
   "test_guard_doctrina.py",
   "test_guard_entorno.py",
   "test_hand_draw.py",
+  "test_layout_impecable.py",
   "test_letra_y_composicion.py",
   "test_libass.py",
   "test_lienzo_y_camara.py",

@@ -239,6 +239,18 @@ ciegas: una página rica con recursos de plantilla le ganó siempre a una limpia
 pero delgada. El mismo riesgo existe en video: el paso de *sustancia* de
 `auto-qa.md` está para que la pieza no pierda contenido al perder tells.
 
+## Layout medido, no a ojo
+
+Lo que va debajo se coloca bajo la caja MEDIDA de lo de arriba, nunca con
+`rotulo_y()+N`: `tinta(fnt, txt)` mide la tinta real y `apila(alturas, y0,
+gap)` apila. Los aires son tokens: `PAD` (32 px, el aire interior de toda
+tarjeta, igual arriba y abajo), `SEPARA` (40 px entre bloques),
+`techo_fuente(ctx, e)` (el contenido termina a `SEPARA` de la fuente) y
+`ancho_columna()` (la columna de 16:9, 1,25 unidades). El glifo de un canal
+sale de `GLIFOS_CANAL` (WhatsApp "W", Web un globo, correo "@"): la inicial
+no distingue canales. Las cifras van en el idioma del copy: `numeros` del
+plan, por defecto `es` (1.240 · 3,5).
+
 ## Dónde sigue
 
 - Crítica de lo renderizado: `references/auto-qa.md` (pasadas) y `references/rubrica-premios.md` (topes).

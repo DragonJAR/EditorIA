@@ -195,7 +195,24 @@ ninguno.
 - **Nunca** keyframes idénticos en toda una frase o lista: varía timing o
   amplitud ±10–15% para que respire como algo vivo.
 
+- **La entrada es UNA**: todo grupo sube `ELEV` (30 px) con su resorte
+  (`fundir(..., dy=ELEV)` por defecto). Ninguna entrada cae desde arriba ni
+  trae su cifra (antes 18/20/22/26 px subiendo y -24/-40/-50/-80 cayendo).
+- **La vida en reposo mueve un GRUPO ya compuesto, nunca el layout**: una
+  lista flota con UNA `flota` (las tarjetas de `canales` y `notificacion`
+  flotaban cada una con su fase y los huecos iban de 21 a 27 px) y un icono
+  que late escala alrededor de su centro (su radio corría la columna de
+  texto de `notificacion` 6 px).
+
 ## 5. Cámara virtual
+
+**El marco no viaja con la cámara.** El rótulo canónico (`rotulo_y()`) y la
+línea de fuente (`pie_fuente`) van en la CAPA FIJA de la escena
+(`pintar_partes` → `capa_fija`): el encuadre (`_crecer`, el push-in, la
+flotación) escala y desplaza solo el contenido, y el sitio donde el
+contenido crece descuenta el marco medido (`_marco_libre`, `AIRE_MARCO`).
+Medido antes: el tope del rótulo caía a 210-252, 371-401 o 522 px según la
+escena y la fuente terminaba entre 1466 y 1496 (borde seguro 1498).
 
 El movimiento de cámara convierte un layout plano en un espacio.
 

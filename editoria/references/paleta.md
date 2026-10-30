@@ -43,6 +43,18 @@ la pieza, para quién es y si es urgente o Informativo. Elegirlo a ciegas
    de luz hasta leerse sobre el fondo (4.5:1). Un pack puede declararlos en
    `colores.serie` / `colores.exito` / `colores.aviso` y entonces mandan.
    Nunca un RGB suelto en una escena.
+8. **El acento que se escribe pasa por UNA regla** (`acento_legible(fondo,
+   tam)`): a 4.5:1 (3:1 desde `DISPLAY_MIN` = 48 px) el acento va tal cual;
+   si no llega, su paso más claro del mismo tono; si ese paso ya es casi
+   blanco, el énfasis cae a la tinta de la pieza. La usan el énfasis del
+   rótulo, el kicker de `orbita`, el estado REC de `audiowave` y el énfasis
+   sobre la placa del `callout` (medido antes: rojo de DragonJAR 1.33:1 en la
+   placa gris y 3.23:1 en un kicker chico). La fuente sobre una captura clara
+   va en la misma placa (`placa_texto`).
+9. **Una decoración nunca pasa detrás de una letra** (`deco_bajo_texto`): el
+   logo de fondo de la apertura y las partículas de `orbita` se apagan bajo
+   la tinta del texto (dilatada) y, si el texto las tapa casi enteras, se
+   funden: ni contraste perdido ni esquirlas de logo entre letras.
 
 ## 3. El catálogo
 
