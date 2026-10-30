@@ -148,7 +148,14 @@ lee sin sonido), un plano clave y el **ultimo cuadro** (el loop empalma).
 El ritmo alto viene del movimiento rápido, las transiciones ágiles y los
 cortes ajustados — NUNCA de retirar texto antes de que se pueda leer. Todo
 elemento de texto que el espectador deba leer necesita su tiempo asentado
-(ya entró, aún no sale):
+(ya entró, aún no sale).
+
+**La cifra vive en `_copy.tiempo_lectura` (una sola) y la comprueba
+`auditar_plan.py`**: 0.3 s por palabra + 0.5 s, con un mínimo de 0.8 s
+(una etiqueta corta necesita un instante, no un segundo y medio). El aviso
+lleva los dos números —lo que el texto necesita y lo que tiene en pantalla—
+para que corregir sea corregir, no adivinar. Antes esta misma idea vivía en
+dos referencias con dos constantes distintas y no la comprobaba nadie.
 
 - Etiqueta corta o línea de 1–3 palabras: **~0.8 s asentada**.
 - Titular o frase completa: **~0.3 s por palabra**, mínimo ~1.2 s. La línea

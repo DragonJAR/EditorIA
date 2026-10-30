@@ -59,6 +59,12 @@ POP_PROPORCION = 0.35  # fracción de bloques abruptos sin origen para llamarlo 
 MOV_RADIO = 10         # px de análisis (≈ 60 px a 1080, 1800 px/s): lo que se mueve más rápido
                        # que esto se lee como teletransporte (aparición), no como movimiento
 LETRA_MIN = 26         # px (sobre lado corto 1080) bajo los cuales no se lee en un teléfono
+GANCHO_MIN = 84        # px: el PRIMER plano tiene que decir QUÉ ES, de un vistazo. El piso
+                       # viene del repositorio de video-director (references/craft.md de
+                       # ahi: "the hook must be at least 84 px at 1080 wide") y encaja
+                       # con este motor sin mover nada: el titular se declara a 120 px y
+                       # la zona segura lo encoge como mucho a 0.70, o sea 84 px es el
+                       # titular más pequeño que una pieza puede tener.
 QUIETO_SIGMAS = 4      # un bloque se movió si cambia más que 4 veces el piso de grano medido
 OCUPACION_MIN = 0.20   # fracción de la zona segura bajo la cual la pieza es una banda chica:
                        # medido en HEAD, las escenas más angostas POR DISEÑO (apertura,
@@ -190,7 +196,14 @@ def medir(job):
 
     def espia(self, xy, text, fill=None, font=None, *a, **k):
         if font is not None and str(text).strip() and en_hold[0]:
-            if self.im.size == (R.W, R.H):   # solo lo que va al cuadro, no capas auxiliares
+            # NO se mide solo lo que va al cuadro. El titular se dibuja en una
+            # capa POR PALABRA (el efecto de la mancha) y se compone tal cual
+            # (1:1): su tamano de fuente ES su tamano en pantalla. Lo que hay
+            # que excluir es el RASPADOR (las imagenes en "L": la medicion y las
+            # mascaras), no las capas RGBA. Excluir todas dejaba al texto MAS
+            # GRANDE de la pieza (el titular) sin medir NUNCA: ni el piso de
+            # letra lo miraba, ni el gancho tenia dato.
+            if self.im.mode == "RGBA" or self.im.size == (R.W, R.H):
                 t = str(text)
                 # un simbolo no es una letra: el "✓" de una tarjeta dibujado a
                 # 14 px no es "texto ilegible", es un check. Los numeros si
@@ -256,6 +269,12 @@ def medir(job):
           "letra_px": int(tam * 1080 / min(w, h))}
          for (num, tipo, texto), tam in ultimos_escena.items()),
         key=lambda d: d["letra_px"])
+    # EL GANCHO: lo primero que dice la pieza. Se mide el texto MÁS GRANDE del
+    # primer plano, porque el piso de letra juzga el texto más PEQUEÑO: si el
+    # titular está encogido (auto-fit o zona segura), el gancho deja de leerse
+    # de un vistazo y el piso de letra no lo ve.
+    gancho_px = max([d["letra_px"] for d in letra_por_escena
+                     if d["escena"].startswith("1:")], default=0)
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # se LEE quieta (render_plan.QUIETAS)
         # su flotación (render_plan.vida) no llega al umbral de `muerto` (diff de
@@ -263,7 +282,7 @@ def medir(job):
         m["muerto"] = 0.0
         m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
-                letra_por_escena=letra_por_escena, costo=round(costo, 3))
+                letra_por_escena=letra_por_escena, gancho_px=gancho_px, costo=round(costo, 3))
 
 
 def _rejilla(A):
@@ -782,6 +801,10 @@ def main():
                 if d["letra_px"] < LETRA_MIN:
                     print(f"  LETRA {r['formato']} escena {d['escena']}: «{d['texto']}» "
                           f"{d['letra_px']} px (< {LETRA_MIN}) — acorta ese texto o alarga su escena")
+            if r.get("gancho_px") is not None and r["gancho_px"] < GANCHO_MIN:
+                print(f"  GANCHO {r['formato']}: el primer plano se queda en {r['gancho_px']} px "
+                      f"(< {GANCHO_MIN}) — la pieza no dice qué es de un vistazo: acorta el "
+                      f"gancho o dale un plano propio")
         global_ = round(float(np.mean([r["nota"] for r in res])), 2)
         minima = min(res, key=lambda r: r["nota"])
         if a.plan and plan.get("musica"):   # edición al ritmo: tiempos reales del plan vs la rejilla

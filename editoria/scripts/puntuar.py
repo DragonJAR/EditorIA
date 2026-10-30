@@ -55,6 +55,7 @@ UMBRAL_EJE = 4
 UMBRAL_MEDIA = 4.3
 DENSIDAD_OK = (0.8, 1.5)
 LETRA_OK = 26            # el mismo LETRA_MIN del motor
+GANCHO_OK = medir_animacion.GANCHO_MIN   # el mismo piso del gancho (vive en quien mide)
 
 
 def _puntuar_animacion(m):
@@ -83,6 +84,7 @@ def _puntuar_composicion(plan_m):
     solapes = len(plan_m.get("solapes") or [])
     zona = float(plan_m.get("zona", 1.0))
     letra = int(plan_m.get("letra_min", 0) or 0)
+    gancho = plan_m.get("gancho_px")
     s = 5.0
     s -= min(2.5, solapes * 1.5)
     if zona < 1.0:
@@ -93,9 +95,16 @@ def _puntuar_composicion(plan_m):
         # telefono, la tipografia no puede recibir un 4. La puerta de entrega
         # falla esta misma pieza; las dos no pueden decir cosas distintas.
         s = min(s, 3.5)
+    if gancho is not None and gancho < GANCHO_OK:
+        s -= round((GANCHO_OK - gancho) * 0.1, 1)
+        # el gancho tambien es una REGLA DURA (la puerta de entrega falla la
+        # misma pieza): si el primer plano no dice que es, no hay pieza.
+        s = min(s, 3.5)
     return max(1.0, round(s, 1)), (
         f"{solapes} solapes · zona segura x{zona} · letra minima {letra or '?'} px"
         + (" (bajo el piso de 26)" if letra and letra < LETRA_OK else "")
+        + (f" · gancho {gancho} px (bajo el piso de {GANCHO_OK})"
+           if gancho is not None and gancho < GANCHO_OK else "")
         + (": " + "; ".join(str(x) for x in (plan_m.get("solapes") or [])[:3])
            if solapes else ""))
 

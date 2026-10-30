@@ -38,6 +38,9 @@ import tempfile
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(BASE, "scripts")
+sys.path.insert(0, SCRIPTS)
+from medir_animacion import GANCHO_MIN  # noqa: E402  (el piso vive en quien mide: una sola cifra)
+
 NOTA_MINIMA = 90.0     # nota de movimiento minima para dar la pieza por buena
 LETRA_MIN = 26         # px: por debajo, el texto no se lee en un telefono (mismo LETRA_MIN del motor)
 ZONA_MIN = 0.70        # el motor escala hasta 0.70: si toca el piso, el texto sale de la zona segura
@@ -144,7 +147,8 @@ def _fps(video):
         return 30
 
 
-def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None):
+def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None,
+                          gancho=None):
     """Los fallos de composicion, con su motivo Y su dueno. Puro: sin video ni plan.
 
     Un «2 textos se pisan» sin escena ni instante no es accionable: obligaba
@@ -160,6 +164,15 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
                 f"escena {d['escena']} «{d['texto']}» {d['letra_px']} px"
                 for d in culpables_letra[:3])
         fallos.append(f)
+    if gancho is not None and gancho < GANCHO_MIN:
+        # El gancho es la OBLIGACION de la pieza, no un gusto: si el primer
+        # plano no dice que es con letra grande, no hay pieza. El piso de
+        # letra no lo ve (juzga el texto mas pequeno, no el mayor).
+        if gancho <= 0:
+            fallos.append("el primer plano no lleva texto: la pieza no dice qué es")
+        else:
+            fallos.append(f"el gancho se queda en {gancho} px (< {GANCHO_MIN}): "
+                          "la pieza no dice qué es de un vistazo")
     if zona <= ZONA_MIN:
         f = (f"la escena tocó el piso de la zona segura (x{zona:.3f}): "
              "el texto sale debajo de la UI")
@@ -270,6 +283,8 @@ def _paso_composicion(plan, video):
         letra = min((r.get("letra_min") or 0) for r in res)
         zona = min(float(r.get("zona", 1.0)) for r in res)
         solapes = [x for r in res for x in (r.get("solapes") or [])]
+        ganchos = [int(r["gancho_px"]) for r in res if r.get("gancho_px") is not None]
+        gancho = min(ganchos) if ganchos else None
         # La pasada con alcance necesita la ESCENA culpable, no solo la
         # cifra global: medir_animacion ya la trae por escena y por solape.
         culpables_letra = [d for r in res for d in (r.get("letra_por_escena") or [])
@@ -277,8 +292,9 @@ def _paso_composicion(plan, video):
         culpables_zona = [{"escena": r.get("escena", "?"), "zona": float(r.get("zona", 1.0))}
                           for r in res if float(r.get("zona", 1.0)) <= ZONA_MIN]
         fallos = _defectos_composicion(letra, zona, solapes,
-                                       culpables_letra, culpables_zona)
-        detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
+                                       culpables_letra, culpables_zona, gancho)
+        detalle = (f"letra {letra or '?'} px (min {LETRA_MIN}) · gancho {gancho if gancho is not None else '?'} px "
+                   f"(min {GANCHO_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes")
         if fallos:
             detalle = "; ".join(fallos)
         return {"nombre": "composicion", "ok": not fallos, "detalle": detalle}
