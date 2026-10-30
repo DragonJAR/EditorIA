@@ -18,6 +18,11 @@ Cada clase fija UNA causa raíz, medida sobre el frame que se entrega:
   el layout: el icono que late no corre la columna de texto de
   `notificacion` y una lista flota con UNA flotación (huecos constantes).
 - R5.3 ENTRADA: toda entrada sube ELEV px (una cifra, una dirección).
+- R5.5 TOKENS: glifo de canal por tabla (WhatsApp y Web no son ambos "W"),
+  cifras en es (1.240 · 3,5) por defecto, una columna de 16:9
+  (`ancho_columna`), el pedido del chat en la columna de las burbujas, los
+  extremos del timeline con la tinta simétrica y el contenido a SEPARA de
+  la línea de fuente (`techo_fuente`).
 
 Run: python3 -m pytest -q -p no:cacheprovider _tests/test_layout_impecable.py
 """
@@ -329,6 +334,80 @@ class TestEntradaUnaDireccion(unittest.TestCase):
         malas = re.findall(r"fundir\([^)]*dy\s*=\s*-?[1-9][0-9]*", src)
         malas += re.findall(r"\(1\s*-\s*min\(1,\s*k\w*\)\)\s*\*\s*-\s*\d+", src)
         self.assertEqual(malas, [], "entradas con cifra propia o desde arriba (usar ELEV)")
+
+
+class TestTokens(unittest.TestCase):
+    """R5.5: un token por relación."""
+
+    def test_cada_canal_con_su_glifo(self):
+        R = _motor()
+        for tipo, clave in (("canales", "canales"), ("medianoche", "notificaciones")):
+            e = _muestra(tipo)
+            glifos = [R.glifo_canal(c.get("canal"), c.get("icono")) for c in e[clave]]
+            with self.subTest(tipo=tipo):
+                self.assertEqual(len(set(map(str, glifos))), len(glifos), f"{tipo}: {glifos}")
+
+    def test_cifras_en_espanol_por_defecto(self):
+        R = _motor()
+        self.assertEqual(R.cuenta_up(0, 3.5, 1e9, 0), "3,5")
+        self.assertEqual(R.cuenta_up(0, 450000, 1e9, 0), "450.000")
+
+    def test_una_columna_en_16x9(self):
+        import re
+        R = _motor(1920, 1080)
+        with open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertEqual(len(re.findall(r"unidad\(\) \* 1\.25 if W > H", src)), 1,
+                         "el ancho de columna se escribe una vez (ancho_columna)")
+        self.assertEqual(R.ancho_columna(), int(R.unidad() * 1.25))
+
+    def test_el_pedido_del_chat_va_en_la_columna_de_las_burbujas(self):
+        for ancho, alto in ((1080, 1920), (1920, 1080)):
+            R = _motor(ancho, alto)
+            e = _muestra("chat")
+            if not e.get("link"):
+                self.skipTest("la muestra de chat no trae link")
+            cajas = []
+            orig = R.ImageDraw.ImageDraw.rounded_rectangle
+
+            def espia(self_, xy, *a, **k):
+                cajas.append((tuple(float(v) for v in xy), k.get("fill")))
+                return orig(self_, xy, *a, **k)
+            R.ImageDraw.ImageDraw.rounded_rectangle = espia
+            try:
+                R.pintar(R.Ctx(), e, e["to"] - 0.5)
+            finally:
+                R.ImageDraw.ImageDraw.rounded_rectangle = orig
+            acento = tuple(R.ACENTO)
+            link = [c for c, f in cajas if f and tuple(f[:3]) == acento]
+            burbujas = [c for c, f in cajas if f and tuple(f[:3]) != acento]
+            with self.subTest(formato=(ancho, alto)):
+                self.assertTrue(link and burbujas)
+                self.assertAlmostEqual(link[-1][0], min(b[0] for b in burbujas), delta=2)
+                self.assertAlmostEqual(link[-1][2], max(b[2] for b in burbujas), delta=2)
+
+    def test_los_extremos_del_timeline_simetricos_en_16x9(self):
+        R = _motor(1920, 1080)
+        e = _muestra("timeline")
+        capa = R.pintar_partes(R.Ctx(), e, e["to"] - 0.5)[0]
+        cols = np.where((np.asarray(capa.getchannel("A")) > 110).any(axis=0))[0]
+        self.assertLessEqual(abs((cols.min() + cols.max()) / 2 - R.W / 2), 6,
+                             f"la tinta va de {cols.min()} a {cols.max()}")
+
+    def test_el_contenido_respira_sobre_la_fuente(self):
+        for ancho, alto in ((1080, 1920), (1920, 1080)):
+            R = _motor(ancho, alto)
+            for tipo in ("oferta", "index", "bars", "stats", "timeline", "gauge"):
+                e = _muestra(tipo)
+                if not e.get("fuente"):
+                    continue
+                capa, fija = R.pintar_partes(R.Ctx(), e, e["to"] - 0.5)
+                fondo = _filas(np.asarray(capa.getchannel("A")) > 110)[1]
+                techo = _filas(np.asarray(fija.getchannel("A")) > 110)
+                techo = [y for y in range(techo[0], techo[1] + 1)
+                         if (np.asarray(fija.getchannel("A"))[y] > 110).any() and y > R.H * 0.6][0]
+                with self.subTest(tipo=tipo, formato=(ancho, alto)):
+                    self.assertGreaterEqual(techo - fondo, 32, f"{tipo}: contenido a {techo - fondo} px de la fuente")
 
 
 if __name__ == "__main__":

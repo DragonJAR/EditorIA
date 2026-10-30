@@ -205,8 +205,16 @@ class TestCliHelpAndModularImports(unittest.TestCase):
         self.assertEqual(AL.normalizar_palabras("¡Hola, Vídeo 100%!"), ["hola", "video", "100"])
         emp = AL.emparejar(["hola", "mundo"], [("Hola!", 0.1, 0.4, 0.9), ("mundo.", 0.5, 0.9, 0.8)])
         self.assertEqual(emp, [("hola", 0.1, 0.4, 0.9), ("mundo", 0.5, 0.9, 0.8)])
-        self.assertEqual(RP.cuenta_up(0, 3.5, 9.0, 0.0), "3.5")
-        self.assertEqual(RP.cuenta_up(0, 1500, 9.0, 0.0), "1,500")
+        # cifras en es por defecto (W-B: como el copy del catálogo); "en" a pedido
+        RP.aplicar_globales({"escenas": []})
+        self.assertEqual(RP.cuenta_up(0, 3.5, 9.0, 0.0), "3,5")
+        self.assertEqual(RP.cuenta_up(0, 1500, 9.0, 0.0), "1.500")
+        RP.aplicar_globales({"escenas": [], "numeros": "en"})
+        try:
+            self.assertEqual(RP.cuenta_up(0, 3.5, 9.0, 0.0), "3.5")
+            self.assertEqual(RP.cuenta_up(0, 1500, 9.0, 0.0), "1,500")
+        finally:
+            RP.aplicar_globales({"escenas": []})
         faltan = set()
         res = RP.sustituir({"n": "{n}", "s": "Hola {nombre}", "m": "{x}"}, {"n": "42", "nombre": "Ana"}, faltan)
         self.assertEqual(res, {"n": 42, "s": "Hola Ana", "m": "{x}"})

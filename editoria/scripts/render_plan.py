@@ -997,7 +997,8 @@ def decimales_de(v):
     return min(3, len(repr(float(v)).split(".")[1]))
 
 
-NUMEROS = {"miles": ",", "decimal": "."}   # separadores de toda cifra; el plan los fija con "numeros"
+NUMEROS = {"miles": ".", "decimal": ","}   # separadores de toda cifra (es: como el copy del
+                                           # catálogo, "$450.000" y "3,5"); el plan los fija con "numeros"
 LOCALES = {"es": {"miles": ".", "decimal": ","}, "en": {"miles": ",", "decimal": "."},
            "fr": {"miles": "\u202f", "decimal": ","}}
 
@@ -1008,13 +1009,13 @@ BANDA_SUBTITULOS = 0.12
 
 def aplicar_globales(plan):
     """Ajustes de TODO el plan, en una sola puerta (render, workers, banco):
-    - `"numeros": "es"` (1.240 · 4,8), "en" (1,240 · 4.8), "fr" o
+    - `"numeros": "es"` (default: 1.240 · 4,8), "en" (1,240 · 4.8), "fr" o
       {"miles": ".", "decimal": ","}: separadores de toda cifra.
     - `"subtitulos": true`: reserva una banda abajo (12 % del alto) sobre la
       zona segura; toda escena compone encima y los subtítulos no pisan nada."""
     BANDA_SUBS["fraccion"] = BANDA_SUBTITULOS if plan.get("subtitulos") else 0.0
-    v = plan.get("numeros", "en")
-    NUMEROS.update(LOCALES.get(v, LOCALES["en"]) if isinstance(v, str) else
+    v = plan.get("numeros", "es")
+    NUMEROS.update(LOCALES.get(v, LOCALES["es"]) if isinstance(v, str) else
                    {k: str(v.get(k, NUMEROS[k])) for k in ("miles", "decimal")})
     _preparar_camara(plan)
     _preparar_deplecion(plan)
@@ -1487,6 +1488,43 @@ def caja_segura():
     return SAFE["left"], SAFE["top"], W - SAFE["right"], H - SAFE["bottom"]
 
 
+def ancho_columna():
+    """Ancho de la COLUMNA de contenido (tarjetas, listas, la ventana de una
+    búsqueda): en 9:16, el 92 % de la zona segura; en 16:9, 1,25 unidades.
+    Antes cada escena traía su ancho y en 16:9 iban de 1200 a 1724 px."""
+    zx0, _, zx1, _ = caja_segura()
+    return int(min(zx1 - zx0 - 30, unidad() * 1.25 if W > H else (zx1 - zx0) * 0.92))
+
+
+# GLIFO DE CANAL: la letra inicial no distingue canales ("W" para WhatsApp y
+# para Web). Una tabla; lo que no está en ella usa su inicial. ("icono", n)
+# dibuja el icono de línea `n` en vez de letras.
+# UN carácter (en el disco de 64 px de `medianoche`, dos letras bajaban del
+# piso legible): la Web es un globo y el correo una arroba, así la "W" queda
+# para WhatsApp.
+GLIFOS_CANAL = {"correo": "@", "email": "@", "mail": "@", "web": ("icono", "globo"),
+                "sitio": ("icono", "globo"), "linkedin": "in"}
+
+
+def glifo_canal(canal, icono=None):
+    """El glifo de un canal: `icono` explícito > la tabla > la inicial."""
+    if icono:
+        return str(icono)
+    c = str(canal or "").strip()
+    clave = c.lower().translate(str.maketrans("áéíóú", "aeiou"))
+    return GLIFOS_CANAL.get(clave, c[:1].upper() or "?")
+
+
+def pinta_glifo_canal(ctx, d, canal, cx, cy, r, color, icono=None, tam=None):
+    """Dibuja el glifo del canal centrado en (cx, cy) dentro de un disco de radio r."""
+    g = glifo_canal(canal, icono)
+    if isinstance(g, tuple):
+        icono_linea(d, g[1], cx, cy, int(r * 0.62), color)
+        return
+    fnt = fuente_que_cabe(ctx.fT, g, tam or r * 1.1, r * 1.5, 800)
+    pon_texto(d, (cx, cy), g, font=fnt, fill=color, anchor="mm")
+
+
 def pie_fuente(ctx, d, e, t, t_def):
     """La fuente de un dato, en el borde inferior de la zona segura (toda
     cifra lleva su fuente; nunca bajo la UI de la plataforma)."""
@@ -1494,17 +1532,37 @@ def pie_fuente(ctx, d, e, t, t_def):
     if e.get("fuente") and t >= t0:
         if _FIJA:
             d = ImageDraw.Draw(_FIJA[-1])   # marco de la escena: no escala con el contenido
-        x0, _, x1, y1 = caja_segura()
-        txt = f"Fuente: {e['fuente']}"
-        # el piso de la fuente es el rol `nota` de la escala, no el minimo
-        # legible del QA: a 26 px la pieza nacia justo en el piso y la
-        # rubrica la penalizaba por construccion; si no cabe, parte en dos
-        fnt = fuente_que_cabe(ctx.fX, txt, ESCALA["nota"], x1 - x0, 400, minimo=ESCALA["nota"])
+        _, _, _, y1 = caja_segura()
+        fnt, lineas = _lineas_fuente(ctx, e)
         al = int(255 * prog(t, t0, t0 + 0.3, smoothstep))   # entra fundida, no de golpe
-        lineas = partir_segs([(txt, False)], fnt, x1 - x0)   # una fuente larga: dos líneas
         for i, ln in enumerate(reversed(lineas)):            # de abajo hacia arriba
-            pon_texto(d, (W / 2, y1 - 24 - i * (fnt.size * 1.2)), "".join(t_ for t_, _ in ln).strip(), font=fnt,
+            pon_texto(d, (W / 2, y1 - BASE_FUENTE - i * (fnt.size * 1.2)), ln, font=fnt,
                    fill=GRIS + (al,), anchor="mb")
+
+
+BASE_FUENTE = 24   # px de la línea base de la fuente sobre el borde seguro inferior
+
+
+def _lineas_fuente(ctx, e):
+    """(fuente, líneas) de la línea de fuente: el piso es el rol `nota` de la
+    escala, no el mínimo del QA (a 26 px la rúbrica la penalizaba por
+    construcción); si no cabe, parte en dos."""
+    x0, _, x1, _ = caja_segura()
+    txt = f"Fuente: {e['fuente']}"
+    fnt = fuente_que_cabe(ctx.fX, txt, ESCALA["nota"], x1 - x0, 400, minimo=ESCALA["nota"])
+    return fnt, ["".join(t_ for t_, _ in ln).strip() for ln in partir_segs([(txt, False)], fnt, x1 - x0)]
+
+
+def techo_fuente(ctx, e, aire=SEPARA):
+    """El y más bajo que puede ocupar el contenido de una escena con fuente:
+    la tinta de la fuente menos `aire`. Antes cada escena reservaba su cifra
+    (46, 60) y en 16:9 el CTA de `oferta` quedaba a ~20 px de la fuente."""
+    _, _, _, y1 = caja_segura()
+    if not e.get("fuente"):
+        return y1
+    fnt, lineas = _lineas_fuente(ctx, e)
+    base = y1 - BASE_FUENTE - (len(lineas) - 1) * fnt.size * 1.2
+    return base + fnt.getbbox(lineas[0], anchor="ls")[1] - aire
 
 
 def cuadricula(x0, y0, ancho_total, alto_total, cols, n, alto_hueco=None):
@@ -2210,10 +2268,8 @@ def sc_canales(ctx,e,t):
         # icono canal (círculo con inicial) — centrado vertical exacto (62 = 124/2)
         al_ico=min(255,int(255*latido(t,c["at"]+0.8,1.5,0.08))) if junta>0.85 else 255
         dc.ellipse([28,24,104,100],fill=ACENTO+(al_ico,))
-        # icono: `icono` del canal o la inicial de su NOMBRE (WhatsApp y Web no son ambos "W")
-        ico=str(c.get("icono") or (c.get("nombre") or c["canal"])[:1]).strip()
-        pon_texto(dc, (66,62),ico.upper() if len(ico)==1 else ico,font=fuente_que_cabe(ctx.fT,ico,44,60,800),
-                fill=BLANCO,anchor="mm")
+        # el glifo del canal (tabla GLIFOS_CANAL: WhatsApp "WA", Web un globo)
+        pinta_glifo_canal(ctx,dc,c.get("canal") or c.get("nombre"),66,62,38,BLANCO,icono=c.get("icono"),tam=40)
         # el NOMBRE del canal entra con su tarjeta (sin él, 2 s de tarjetas vacías:
         # parecían placeholders); el mensaje se revela al asentar la bandeja y el
         # nombre sube a hacerle lugar
@@ -2273,7 +2329,7 @@ def sc_medianoche(ctx,e,t):
             nw=Image.new("RGBA",(tw-44,hn),(0,0,0,0)); dn=ImageDraw.Draw(nw)
             dn.rounded_rectangle([0,0,tw-44,hn],radius=28,fill=(255,255,255,36))
             dn.ellipse([22,hn/2-32,86,hn/2+32],fill=ACENTO+(255,))
-            pon_texto(dn, (54,hn/2),n["canal"][0].upper(),font=ctx.fT(34*esc,800),fill=BLANCO,anchor="mm")
+            pinta_glifo_canal(ctx,dn,n["canal"],54,hn/2,32,BLANCO,icono=n.get("icono"),tam=34*esc)
             y_t=(hn-h_t-4-h_b)/2
             pon_texto(dn, (110,y_t),recorta_para(n["titulo"],f_tit,tw-44-110-14,ctx.tmp),font=f_tit,fill=BLANCO)
             # el cuerpo es un "nota" de la escala (por `esc`, ya reducido
@@ -2378,7 +2434,9 @@ def sc_chat(ctx,e,t):
         y+=(hh+GAP)*min(1,k)
     if lk and t>=lk.get("at",1e9):
         k=entra(t, lk["at"], "bloque")
-        cw,chh=min(760,zx1-zx0),150; x=(W-cw)/2
+        # el pedido va en la MISMA columna que las burbujas (antes centrado a
+        # 760 px: su borde caía 66 px dentro de la columna)
+        x=zx0+12; cw,chh=(zx1-12)-x,150
         # flota + latido alfa del link: hold tras CTA (muerto 0.10)
         fy=flota(t, lk["at"]+0.4, 8, 0.34)
         yy=min(H*0.72,caja_segura()[3]-chh-10)+(1-min(1,k))*ELEV+fy
@@ -2862,7 +2920,7 @@ def sc_gauge(ctx, e, t):
     rotulo(ctx, layer, t, e.get("titulo", ""), at.get("rotulo", e["from"]), y=rotulo_y())
     # el arco cabe entre el rótulo y el borde seguro (en 16:9 tapaba el título)
     _, _, _, zy1 = caja_segura()
-    arriba, abajo = rotulo_y() + 80, zy1 - 150          # abajo: etiqueta bajo el arco
+    arriba, abajo = rotulo_y() + 80, min(zy1 - 150, techo_fuente(ctx, e) - 90)   # abajo: etiqueta bajo el arco
     r = min(unidad() * 0.34, (abajo - arriba) / 1.707)  # 270°: arriba r, abajo r·sin45°
     cx, cy = W / 2, arriba + r
     grosor = 26
@@ -3156,12 +3214,22 @@ def sc_timeline(ctx, e, t):
                 max_tw = max(max_tw, ctx.tmp.textlength(it["fecha"], font=fnt_d))
         total_w = 18 + 50 + max_tw
         x_l = max(zx0 + 30, (W - total_w) / 2 + 18)
-        a0, a1 = rotulo_y() + 110, zy1 - 100
+        a0, a1 = rotulo_y() + 110, min(zy1 - 100, techo_fuente(ctx, e) - 60)
         pos = [(x_l, a0 + (a1 - a0) * i / max(1, n - 1)) for i in range(n)]
     else:
         cy = H * 0.54
-        w_tramo = min(zx1 - zx0 - 160, int(W * 0.70))
-        a0, a1 = (W - w_tramo) / 2, (W + w_tramo) / 2
+        # la COLUMNA (no el tramo) se centra: los extremos se meten la mitad
+        # de SU etiqueta, así la tinta de "Idea" y la de "10k usuarios"
+        # quedan a la misma distancia del borde (antes la línea centrada
+        # dejaba la etiqueta larga a 26 px del borde y la corta a 65)
+        def _medio(it):
+            ws = [ctx.tmp.textlength(ln, font=fnt) for ln in linewrap(it.get("etiqueta", ""), fnt, zx1 - zx0)]
+            if it.get("fecha"):
+                ws.append(ctx.tmp.textlength(it["fecha"], font=fnt_d))
+            return max(ws or [0]) / 2
+        col = ancho_columna()
+        a0 = (W - col) / 2 + _medio(items[0])
+        a1 = (W + col) / 2 - _medio(items[-1])
         pos = [(a0 + (a1 - a0) * i / max(1, n - 1), cy) for i in range(n)]
     HITO = 0.4   # un hito se lee (la línea llega a cada punto): es un beat, no una cascada
     t_ins = [at.get(f"item{i}", e["from"] + 0.2 + i * HITO) for i in range(n)]
@@ -3342,7 +3410,7 @@ def sc_versus(ctx, e, t):
     n = max(1, *(len(l[0].get("items", [])) for l in lados))
     y_label = H * 0.29
     y_items = H * 0.38
-    fila_h = min(150, (y1 - 40 - y_items - (60 if e.get("fuente") else 0)) / n)
+    fila_h = min(150, (min(y1 - 40, techo_fuente(ctx, e)) - y_items) / n)
     todos = [it for l in lados for it in l[0].get("items", [])] or [""]
     largo = max(todos, key=lambda x: ctx.tmp.textlength(x, font=ctx.fX(40, 600)))
     fnt = fuente_que_cabe(ctx.fX, largo, min(56, fila_h * 0.42), col_w - 20, 600)
@@ -4617,9 +4685,8 @@ def sc_pasos(ctx, e, t):
         # columna
         _, _, _, zy1 = caja_segura()
         y0 = rotulo_y() + 90
-        _res = 60 if e.get("fuente") else 0
-        fila_h = min(260, (zy1 - y0 - _res) / n)
-        y0 += ((zy1 - y0 - _res) - fila_h * n) / 2
+        fila_h = min(260, (techo_fuente(ctx, e, 0) - y0) / n)
+        y0 += ((techo_fuente(ctx, e, 0) - y0) - fila_h * n) / 2
         cx = W / 2
         # el ACTIVO es el último ya asentado (o el marcado): antes TODOS los
         # entrados brillaban en acento y no se leía el "ahora" del proceso
@@ -4826,7 +4893,7 @@ def sc_oferta(ctx, e, t):
     bloques = [b for b in bloques if b[1]]
     top_pila = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=0.3) if e.get("rotulo") else zy0 + 20
     ys, f = pila([a for _, a in bloques], top_pila,
-                zy1 - (60 if e.get("fuente") else 10), gap=26)
+                techo_fuente(ctx, e) if e.get("fuente") else zy1 - 10, gap=26)
     Y = {n: y for (n, _), y in zip(bloques, ys)}
     px = lambda v: max(MIN_LETRA, int(v * f))   # noqa: E731  (nunca ilegible)
     t_d = at.get("descuento", fr + 0.4)
@@ -5313,7 +5380,7 @@ def sc_buscador(ctx, e, t):
         return capa_salida(layer, t, e["to"])
     
     ancho_max = zx1 - zx0
-    wb = min(ancho_max - 30, int(unidad() * 1.25 if W > H else (zx1 - zx0) * 0.92))
+    wb = ancho_columna()
     hb = int(unidad() * 0.09 if W > H else 94)
     xb = (W - wb) / 2
     yb = rotulo_y() + (90 if H > W else 70) + flota(t, t_query + 0.8, 4, 0.35)
@@ -5410,7 +5477,7 @@ def sc_notificacion(ctx, e, t):
     if not items:
         return capa_salida(layer, t, e["to"])
     n = len(items)
-    ancho_card = min(zx1 - zx0 - 30, int(unidad() * 1.25 if W > H else (zx1 - zx0) * 0.92))
+    ancho_card = ancho_columna()
     x0 = (W - ancho_card) / 2
     h_card = int(unidad() * 0.13 if W > H else 140)
     gap = 18
@@ -5500,7 +5567,7 @@ def sc_comentario(ctx, e, t):
         return capa_salida(layer, t, e["to"])
     al = int(255 * clamp01(kc * 1.4))
     
-    wc = min(zx1 - zx0 - 30, int(unidad() * 1.25 if W > H else (zx1 - zx0) * 0.92))
+    wc = ancho_columna()
     hc = int(unidad() * 0.50 if W > H else 440)
     xc = (W - wc) / 2
     yc = (zy0 + zy1 - hc) / 2 + 20 + flota(t, t_card + 0.8, 7, 0.45)
@@ -5820,7 +5887,7 @@ def sc_audiowave(ctx, e, t):
         return capa_salida(layer, t, e["to"])
     al = int(255 * clamp01(kc * 1.4))
     
-    wc = min(zx1 - zx0 - 30, int(unidad() * 1.25 if W > H else (zx1 - zx0) * 0.92))
+    wc = ancho_columna()
     hc = int(unidad() * 0.48 if W > H else 420)
     xc = (W - wc) / 2
     yc = (zy0 + zy1 - hc) / 2 + 20 + flota(t, t_card + 0.8, 7, 0.45)
@@ -6035,7 +6102,7 @@ def sc_index(ctx, e, t):
     zx0, zy0, zx1, zy1 = caja_segura()
     n = len(items)
     top = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=1.15)
-    alto = zy1 - top - (60 if e.get("fuente") else 20)
+    alto = (techo_fuente(ctx, e) if e.get("fuente") else zy1 - 20) - top
     fila_h = min(int(alto / max(1, n)), 150)
     y0 = top + max(0, (alto - fila_h * n) // 2)
     # el bloque entero flota en el hold: el latido solo de alfa no alcanza
