@@ -1456,6 +1456,31 @@ def pila(alturas, y0, y1, gap=24):
     return centros, f
 
 
+# TOKENS DE LAYOUT: un aire por relación, no una cifra por escena.
+PAD=32      # aire interior de toda tarjeta: arriba = abajo = a los lados
+SEPARA=40   # aire entre bloques apilados (cifra y grilla, marca y tarjetas)
+
+
+def tinta(fnt, txt, anchor="la"):
+    """(arriba, abajo) de la TINTA de `txt` respecto a su punto de anclaje:
+    lo que de verdad ocupa (un "$" baja, una "x" no sube a la ascendente)."""
+    b = fnt.getbbox(txt or " ", anchor=anchor)
+    return b[1], b[3]
+
+
+def apila(alturas, y0, gap=SEPARA):
+    """Topes de bloques de `alturas` px apilados desde y0: cada uno empieza
+    bajo la caja MEDIDA del anterior + `gap` (un número o uno por hueco).
+    Lo de debajo nunca se coloca con `rotulo_y()+N`: con una cifra o una
+    letra más grandes, N ya no alcanza y los bloques se pisan."""
+    gaps = gap if isinstance(gap, (list, tuple)) else [gap] * max(0, len(alturas) - 1)
+    out, y = [], y0
+    for i, a in enumerate(alturas):
+        out.append(y)
+        y += a + (gaps[i] if i < len(gaps) else 0)
+    return out
+
+
 def caja_segura():
     """(x0, y0, x1, y1) de la zona segura de la plataforma: el contenido se
     COMPONE dentro (escala_segura es la red, no el diseño)."""
@@ -1967,9 +1992,11 @@ def grupo():
     return sub, ImageDraw.Draw(sub)
 
 
-def fundir(layer, sub, k, dy=24):
+def fundir(layer, sub, k, dy=ELEV):
     """Entrada de un grupo: fundido + elevación con el resorte k. La regla
-    "nada aparece de golpe" en una sola primitiva (no un alfa por elemento)."""
+    "nada aparece de golpe" en una sola primitiva (no un alfa por elemento).
+    La elevación es ELEV y SUBE (una cifra y una dirección para toda la
+    pieza: antes 18/20/22/26 px subiendo y -50 px cayendo desde arriba)."""
     if k <= 0:
         return
     a = clamp01(k * 1.4)
@@ -2132,13 +2159,19 @@ def sc_canales(ctx,e,t):
     at=e["at"]; junta=prog(t,at["junta"]-0.4,at["junta"]+0.6)   # 1 s: las tarjetas no barren >60 px/frame
     rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     # marca que sube y se encoge (grupo logo+texto centrado)
+    # el layout FINAL (marca + tarjetas) se apila por su alto medido y se
+    # centra bajo el rótulo; la bandeja entera flota con UNA flotación
+    zx0_,_,zx1_,zy1_=caja_segura()
+    iso_ok=ctx.iso is not None and es_marca_del_pack(e["marca"])
+    ancho110=ctx.tmp.textlength(e["marca"],font=ctx.fT(110,800))+(176 if iso_ok else 0)
+    a_m,b_m=tinta(ctx.fT(110*0.55*min(1.0,(zx1_-zx0_)*0.94/ancho110),800),e["marca"],"lm")
+    n_c=len(e["canales"]); H_TJ=124
+    centros,_=pila([max(b_m-a_m,int(150*0.55) if iso_ok else 0)]+[H_TJ]*n_c,bajo_rotulo(rotulo_y()),zy1_,gap=SEPARA-16)
+    fl=flota(t,at["junta"]+0.6,5,0.36)
     k=entra(t, at["marca"], "lento")
     if k>0:
-        my=lerp(vy(0.52),vy(0.36),junta)
-        iso_ok=ctx.iso is not None and es_marca_del_pack(e["marca"])
+        my=lerp(vy(0.52),centros[0],junta)+fl
         # una marca larga encoge para caber (factor FIJO de la escena: sin saltos)
-        zx0_,_,zx1_,_=caja_segura()
-        ancho110=ctx.tmp.textlength(e["marca"],font=ctx.fT(110,800))+(176 if iso_ok else 0)
         sc=lerp(1.0,0.55,junta)*k*min(1.0,(zx1_-zx0_)*0.94/ancho110)
         fnt_m=ctx.fT(110*sc,800)   # tamaño fraccionario: escala sin saltos de 1 px
         tw=ctx.tmp.textlength(e["marca"],font=fnt_m)
@@ -2165,7 +2198,7 @@ def sc_canales(ctx,e,t):
         # una 96 px más abajo, el nombre de la anterior sigue a la vista
         cascada=96 if 3*300+32>zx1-zx0 else 0
         sx,sy=W/2+ang*abre,vy(0.68)+(i-1)*cascada
-        fy=vy(0.58)-120+i*150
+        fy=centros[i+1] if i+1<len(centros) else centros[-1]
         x=lerp(sx,W/2,junta); y=lerp(sy,fy,junta)
         w=lerp(300,min(840,zx1-zx0-24),junta); h=124
         sc2=k2
@@ -2193,8 +2226,7 @@ def sc_canales(ctx,e,t):
             pon_texto(dc, (130,74),c["texto"][:34],font=ctx.fX(ESCALA["nota"],400),fill=GRIS+(int(255*at_),))
         # rotación más suave (6°): menos riesgo de zona < 1
         card=card.rotate((1-junta)*ang*6,expand=True,resample=Image.BICUBIC)
-        fy_float=flota(t,c["at"]+1.2,5,0.36) if junta>0.9 else 0
-        layer.alpha_composite(card,(int(x-card.width/2),int(y-card.height/2+fy_float)))
+        layer.alpha_composite(card,(int(x-card.width/2),int(y-card.height/2+fl)))
     return capa_salida(layer,t,e["to"])
 
 def sc_medianoche(ctx,e,t):
@@ -2237,7 +2269,7 @@ def sc_medianoche(ctx,e,t):
             # cada notificación nueva EMPUJA a las anteriores con resorte (antes
             # saltaban 170 px en un frame: el conteo era un escalón)
             despues=sum(min(1.0,entra(t, m["at"], "suave")) for m in nots[i+1:])
-            ny=480+despues*paso_n+(1-min(1,kn))*-24   # baja apenas: nunca cruza la hora
+            ny=480+despues*paso_n+(1-min(1,kn))*ELEV   # sube ELEV como toda entrada
             nw=Image.new("RGBA",(tw-44,hn),(0,0,0,0)); dn=ImageDraw.Draw(nw)
             dn.rounded_rectangle([0,0,tw-44,hn],radius=28,fill=(255,255,255,36))
             dn.ellipse([22,hn/2-32,86,hn/2+32],fill=ACENTO+(255,))
@@ -2418,7 +2450,7 @@ def sc_leads(ctx,e,t):
         by_bar=yy+alto_fila/2-12
         g_=smoothstep(clamp01((t-t_f)/0.8))
         barra_h(ds,bx,by_bar,bmax,24,bw*g_/bmax,color_temp(f)+(255,),radio=12,pista=(60,60,60,255))
-        fundir(layer,sub,k,dy=-50)
+        fundir(layer,sub,k)
     return capa_salida(layer,t,e["to"])
 
 def sc_handoff(ctx,e,t):
@@ -2448,7 +2480,7 @@ def sc_handoff(ctx,e,t):
     for i,c in enumerate(e["contexto"]):
         kc=entra(t, escalonado({}, "contexto", i, at["contexto"]), "elemento")
         if kc<=0: continue
-        yy=y+i*96+(1-min(1,kc))*-40
+        yy=y+i*96+(1-min(1,kc))*ELEV
         al=int(255*clamp01(kc*1.4))
         pon_texto(d, (zx0+30,yy),c["k"],font=ctx.fM(ESCALA["secundario"],700),fill=ACENTO+(al,))
         pon_texto(d, (zx0+30,yy+40),c["v"],font=fuente_que_cabe(ctx.fX,c["v"],ESCALA["secundario"],zx1-zx0-60,400),fill=BLANCO+(al,))
@@ -2460,21 +2492,29 @@ def sc_pago(ctx,e,t):
     rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     k=entra(t, at["comprobante"], "bloque")
     zx0,_,zx1,zy1=caja_segura()
-    cw,chh=min(720,zx1-zx0),420; x=(W-cw)/2; y_card=H*0.36 if H>W else H*0.30
+    cw=min(720,zx1-zx0); x=(W-cw)/2
+    util=cw-2*PAD   # todo cabe en la tarjeta (un monto o un nombre largo encoge, no se sale)
+    # el comprobante se APILA desde la tinta medida de cada fila (antes yy+80,
+    # +190, +240: 112 px de aire arriba, 22 abajo y el monto a 7 px del nombre)
+    filas=[(e["monto"],fuente_que_cabe(ctx.fT,e["monto"],96,util,800,tabular=True),BLANCO),
+           (e["cliente"],fuente_que_cabe(ctx.fX,e["cliente"],ESCALA["dato"],util,600),BLANCO),
+           (e.get("detalle",""),fuente_que_cabe(ctx.fX,e.get("detalle",""),ESCALA["nota"],util,400),GRIS)]
+    tintas=[tinta(f_,tx,"ma") for tx,f_,_ in filas]
+    H_BOTON=76
+    alturas=[b-a for a,b in tintas]+[2,H_BOTON]   # filas, filete, botón
+    huecos=[28,14,PAD,PAD]
+    chh=2*PAD+sum(alturas)+sum(huecos)
+    y_card=pila([chh],bajo_rotulo(rotulo_y()),zy1)[0][0]-chh/2   # centrada bajo el rótulo
     if k>0:
-        yy=y_card+(1-min(1,k))*-80
+        yy=y_card+(1-min(1,k))*ELEV
         tarjeta(ctx,layer,x,yy,cw,chh,radio=32,alpha=int(255*min(1,k)))
         ak=int(255*min(1,k))   # el contenido entra con su tarjeta, no antes
-        util=cw-64   # todo cabe en la tarjeta (un monto o un nombre largo encoge, no se sale)
-        pon_texto(d, (W/2,yy+80),e["monto"],font=fuente_que_cabe(ctx.fT,e["monto"],96,util,800,tabular=True),
-               fill=BLANCO+(ak,),anchor="ma")
-        pon_texto(d, (W/2,yy+190),e["cliente"],font=fuente_que_cabe(ctx.fX,e["cliente"],ESCALA["dato"],util,600),
-               fill=BLANCO+(ak,),anchor="ma")
-        pon_texto(d, (W/2,yy+240),e.get("detalle",""),font=fuente_que_cabe(ctx.fX,e.get("detalle",""),ESCALA["nota"],util,400),
-               fill=GRIS+(ak,),anchor="ma")
-        d.line([(x+80,yy+300),(x+cw-80,yy+300)],fill=(255,255,255,int(40*ak/255)),width=2)
+        tops=apila(alturas,yy+PAD,huecos)
+        for (tx,f_,col),(a_,_),y_ in zip(filas,tintas,tops):
+            pon_texto(d, (W/2,y_-a_),tx,font=f_,fill=col+(ak,),anchor="ma")
+        d.line([(x+80,tops[3]),(x+cw-80,tops[3])],fill=(255,255,255,int(40*ak/255)),width=2)
         # botón que el cursor pulsa: el toque TIENE consecuencia (pasa a confirmado)
-        bx0,bx1,by0,by1=x+cw*0.2,x+cw*0.8,yy+322,yy+398
+        bx0,bx1,by0,by1=x+cw*0.2,x+cw*0.8,tops[4],tops[4]+H_BOTON
         sc=1-0.06*math.sin(math.pi*clamp01((t-at["toque"])/0.18)) if t>=at["toque"] else 1.0
         mx,my=(bx0+bx1)/2,(by0+by1)/2; hw,hh=(bx1-bx0)/2*sc,(by1-by0)/2*sc
         al=int(255*min(1,k))
@@ -2490,7 +2530,7 @@ def sc_pago(ctx,e,t):
         # cursor que se mueve y pulsa
         ck=prog(t,at["cursor"],at["toque"],smoothstep)   # UNA curva (antes ease sobre ease: saltaba 85 px/frame)
         # del borde de la zona segura al pie del comprobante (el toque cae SOBRE él)
-        cx=lerp(x+cw*0.15,x+cw*0.7,ck); cy=lerp(zy1-40,y_card+360,ck)
+        cx=lerp(x+cw*0.15,x+cw*0.7,ck); cy=lerp(zy1-40,y_card+chh-PAD-H_BOTON/2,ck)
         pk=onda_clic(d,cx,cy,t,at["toque"])
         cursor(d,cx,cy,1+0.25*math.sin((t-at["toque"])*20)*pk,alpha=255*smoothstep(clamp01((t-at["cursor"])/0.25)))
     return capa_salida(layer,t,e["to"])
@@ -2561,18 +2601,25 @@ def sc_hoy(ctx,e,t):
         pon_texto(ImageDraw.Draw(capa_fija(layer)), (W/2,bajo_rotulo(rotulo_y(),aire=0.0)+(1-min(1,kr))*ELEV),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],400),
                fill=GRIS+(int(255*clamp01(kr*1.5)),),anchor="ma")
     ck=prog(t,at["cuenta"],at["cuenta"]+0.8,ease_out)   # una sola curva
+    tarjetas=e["tarjetas"]; n=len(tarjetas)
+    zx0,_,zx1,zy1=caja_segura()
+    cols=2 if vertical else min(n, 3 if n <= 3 else 4)
+    filas_=(n+cols-1)//cols
+    ALTO_TJ=196   # la tarjeta lleva el titulo en `dato` y el detalle en `secundario`:
+                  # a 32/28 px el cuerpo no se leia en un movil
+    # cifra y grilla APILADAS por su caja medida y centradas en el sitio que
+    # deja el rótulo (antes rotulo_y()+125 / +270: en 16:9 las tarjetas
+    # tapaban media cifra y en 9:16 quedaban a 6 px)
+    f_c=ctx.fT(130,800); final=str(e["cuenta"]); tc=tinta(f_c,final,"ma")
+    h_grid=filas_*(ALTO_TJ+24)-24
+    libre=bajo_rotulo(rotulo_y(),aire=0)+ESCALA["secundario"]*1.2+SEPARA   # bajo la fecha
+    (c_cifra,c_grid),_=pila([tc[1]-tc[0],h_grid],libre,zy1,gap=SEPARA)
     # la cifra late en el hold (antes se congelaba al llegar al tope)
     pulso_c = latido(t, at["cuenta"] + 0.9, 1.7, 0.06) if t >= at["cuenta"] + 0.9 else 1.0
     if t>=at["cuenta"]:
-        cifra(d,(W/2,rotulo_y()+125 if vertical else rotulo_y()+95),str(int(e["cuenta"]*ck)),
-              ctx.fT(130,800),ACENTO+(min(255,int(255*clamp01(ck*3)*pulso_c)),),anchor="ma")
-    tarjetas=e["tarjetas"]; n=len(tarjetas)
-    zx0,_,zx1,_=caja_segura()
-    cols=2 if vertical else min(n, 3 if n <= 3 else 4)
-    filas_=(n+cols-1)//cols
-    y0=rotulo_y()+270 if vertical else rotulo_y()+210
-    ALTO_TJ=196   # la tarjeta lleva el titulo en `dato` y el detalle en `secundario`:
-                  # a 32/28 px el cuerpo no se leia en un movil
+        cifra(d,(W/2,c_cifra-(tc[1]-tc[0])/2-tc[0]),str(int(e["cuenta"]*ck)),
+              f_c,ACENTO+(min(255,int(255*clamp01(ck*3)*pulso_c)),),anchor="ma",final=final)
+    y0=c_grid-h_grid/2
     fy = flota(t, e["from"] + 1.8, 4, 0.38)
     for i,(x,yb,cw,_) in enumerate(cuadricula(zx0,y0,zx1-zx0,filas_*(ALTO_TJ+24),cols,n)):
         tj=tarjetas[i]
@@ -2597,7 +2644,7 @@ def sc_hoy(ctx,e,t):
         if tj.get("n"):
             ds.ellipse([x+cw-90,yy+28,x+cw-30,yy+88],fill=ACENTO+(255,))
             pon_texto(ds, (x+cw-60,yy+58),str(tj["n"]),font=ctx.fT(ESCALA["secundario"],800),fill=BLANCO,anchor="mm")
-        fundir(layer,sub,k,dy=-50)
+        fundir(layer,sub,k)
     return capa_salida(layer,t,e["to"])
 
 def sc_recupera(ctx,e,t):
@@ -2635,10 +2682,15 @@ def sc_recupera(ctx,e,t):
         pon_texto(d, (W/2,yc+140+sube),e.get("hace",""),font=ctx.fX(ESCALA["nota"],400),fill=GRIS+(al_cli,),anchor="ma")
     if k_pag > 0:
         al_pag = int(255 * min(1, k_pag))
-        tarjeta(ctx,layer,bx,yc,bw,240,radio=30,alpha=al_pag)
-        pon_texto(d, (W/2,yc+52),e.get("hecho","PAGADO"),font=ctx.fT(64,800),
-               fill=EXITO+(al_pag,),anchor="ma")   # éxito: pago hecho
-        pon_texto(d, (W/2,yc+142),e["monto"],font=ctx.fT(54,800),fill=BLANCO+(al_pag,),anchor="ma")
+        # PAGADO y el monto apilados por su tinta, con PAD arriba y abajo
+        # (antes yc+52 / yc+142 en 240 px: 71 px de aire arriba y 37 abajo)
+        filas=[(e.get("hecho","PAGADO"),ctx.fT(64,800),EXITO),(e["monto"],ctx.fT(54,800),BLANCO)]
+        tintas=[tinta(f_,tx,"ma") for tx,f_,_ in filas]
+        alturas=[b-a for a,b in tintas]
+        hc=2*PAD+sum(alturas)+28
+        tarjeta(ctx,layer,bx,yc,bw,hc,radio=30,alpha=al_pag)
+        for (tx,f_,col),(a_,_),y_ in zip(filas,tintas,apila(alturas,yc+PAD,28)):
+            pon_texto(d, (W/2,y_-a_),tx,font=f_,fill=col+(al_pag,),anchor="ma")   # éxito: pago hecho
     return capa_salida(layer,t,e["to"])
 
 def sc_remate(ctx,e,t):
@@ -5122,7 +5174,7 @@ def sc_hero(ctx, e, t):
         start_x = W / 2 - bloque_w / 2
         ds.ellipse([start_x, yb - r_dot, start_x + r_dot * 2, yb + r_dot], fill=ACENTO + (255,))
         pon_texto(ds, (start_x + r_dot * 2 + gap_b, yb), badge_txt.upper(), font=fb, fill=BLANCO + (255,), anchor="lm")
-        fundir(layer, sub, kb, dy=18)
+        fundir(layer, sub, kb)
     # 2. Titular + subtítulo (supahero.io + scrolltide.co Focus Reveal)
     t_t = at.get("titulo", e["from"] + 0.45)
     # el kicker cae en la MISMA altura que en las demas escenas (rotulo_y): un
@@ -5156,7 +5208,7 @@ def sc_hero(ctx, e, t):
         fe = fuente_que_cabe(ctx.fX, str(etq), ESCALA["secundario"], int(wc * 0.86), 600)
         pon_texto(ds, (W / 2, yc - hc * 0.14), str(met), font=fm, fill=ACENTO + (255,), anchor="mm")
         pon_texto(ds, (W / 2, yc + hc * 0.24), str(etq), font=fe, fill=BLANCO + (255,), anchor="mm")
-        fundir(layer, sub, kc, dy=26)
+        fundir(layer, sub, kc)
     # 4. CTA con anillo de halo pulsante (cta.gallery + scrolltide.co)
     t_cta = at.get("cta", e["from"] + 1.75)
     cta_txt = e.get("cta", "Empieza hoy")
@@ -5168,7 +5220,7 @@ def sc_hero(ctx, e, t):
         w_cta = min(int(ancho_u - 32), max(280, int(largo(cta_txt, f_cta) + 88)))
         h_cta = max(68, int(f_cta.size * 2.1))
         boton_halo(ds, W / 2, y_cta, w_cta, h_cta, cta_txt, f_cta, t, t_cta)
-        fundir(layer, sub, k_cta, dy=20)
+        fundir(layer, sub, k_cta)
     return capa_salida(layer, t, e["to"])
 
 
@@ -5232,7 +5284,7 @@ def sc_bento(ctx, e, t):
             fx, txt_l = _encaja_una_linea(ctx.fX, txt_i, ESCALA["nota"], tw_max, 600)
             pon_texto(ds, (ix, cy0 + ch * 0.64), tit_l, font=ft, fill=BLANCO + (255,), anchor="mm")
             pon_texto(ds, (ix, cy0 + ch * 0.83), txt_l, font=fx, fill=GRIS + (255,), anchor="mm")
-        fundir(layer, sub, ki, dy=22)
+        fundir(layer, sub, ki)
     pie_txt = e.get("pie", "")
     t_pie = at.get("pie", e["from"] + 0.8 + n * 0.35)
     if pie_txt and t >= t_pie:
@@ -5373,7 +5425,9 @@ def sc_notificacion(ctx, e, t):
             continue
         despues = sum(min(1.0, entra(t, at.get(f"item{j}", e["from"] + 0.4 + j * LLEGA), "suave"))
                       for j in range(i + 1, n))
-        y_i = y_base + despues * (h_card + gap) + (1 - min(1, k)) * -40 + flota(t, t_in + 0.5, 6, 0.40 + i * 0.06)
+        # la pila flota ENTERA (y_base): una flotación por tarjeta abría y
+        # cerraba los huecos (medido 27 vs 21 px)
+        y_i = y_base + despues * (h_card + gap) + (1 - min(1, k)) * ELEV
         al = int(255 * clamp01(k * 1.4))
         
         # UN contorno, el de la tarjeta (antes un segundo borde de radio 28
@@ -5384,17 +5438,20 @@ def sc_notificacion(ctx, e, t):
         
         app = it.get("app", "App")
         # icono de la notificación tope (última) late: hold vivo sin gesto nuevo
-        r_ico = int(h_card * 0.28 * (latido(t, t_in + 0.6, 1.5, 0.08) if i == n - 1 else 1.0))
+        # el layout sale del icono BASE; el latido escala el icono alrededor
+        # de su propio centro (antes su radio corría la columna de texto 6 px)
+        r_ico = int(h_card * 0.28)
+        r_vivo = r_ico * (latido(t, t_in + 0.6, 1.5, 0.08) if i == n - 1 else 1.0)
         ico_x = x0 + 26
-        ico_y = y_i + (h_card - r_ico * 2) / 2
-        sobre_capa(d, (ico_x, ico_y, ico_x + r_ico * 2, ico_y + r_ico * 2),
-                   lambda d_, q, s: d_.rounded_rectangle(q(ico_x, ico_y, ico_x + r_ico * 2, ico_y + r_ico * 2),
+        icx, icy = ico_x + r_ico, y_i + h_card / 2
+        sobre_capa(d, (icx - r_vivo, icy - r_vivo, icx + r_vivo, icy + r_vivo),
+                   lambda d_, q, s: d_.rounded_rectangle(q(icx - r_vivo, icy - r_vivo, icx + r_vivo, icy + r_vivo),
                                                          radius=14 * s, fill=ACENTO + (255,)),
                    ss=SS, alfa=al)
         ico_char = it.get("icono", app[:1].upper())
         fnt_ico = ctx.fT(max(MIN_LETRA, int(r_ico * 1.0)), 800)
-        pon_texto(d, (ico_x + r_ico, ico_y + r_ico), ico_char, font=fnt_ico, fill=BLANCO + (al,), anchor="mm")
-        
+        pon_texto(d, (icx, icy), ico_char, font=fnt_ico, fill=BLANCO + (al,), anchor="mm")
+
         tx_x = ico_x + r_ico * 2 + 20
         # la hora va en la MISMA linea que el titulo (derecha): el ancho del
         # titulo reserva el de la hora REAL. Con una reserva fija (110 px) y la
@@ -5984,6 +6041,14 @@ def sc_index(ctx, e, t):
     # el bloque entero flota en el hold: el latido solo de alfa no alcanza
     # el umbral de densidad (medido dens 0.45 < banda 0.5)
     fy = flota(t, e["from"] + 1.4, 5, 0.42)
+    # la lista es UN bloque centrado en el eje del título: su ancho se mide
+    # (insignia + aire + el texto más largo); antes colgaba del borde izquierdo
+    radio_n = max(22, min(28, int(fila_h * 0.24)))
+    fnts = [fuente_que_cabe(ctx.fX, str(it.get("texto", "")), ESCALA["secundario"], zx1 - zx0 - 120, 600)
+            for it in items]
+    ancho_bloque = 2 * radio_n + 20 + max(ctx.tmp.textlength(str(it.get("texto", "")), font=f_)
+                                          for it, f_ in zip(items, fnts))
+    bx0 = max(zx0, (W - ancho_bloque) / 2)
     for i, it in enumerate(items):
         t_i = escalonado(at, "item", i, e["from"] + 0.3)
         k = entra(t, t_i, "elemento")
@@ -5992,7 +6057,7 @@ def sc_index(ctx, e, t):
         texto = str(it.get("texto", ""))
         activo = bool(it.get("activo")) or (i == n - 1 and not any(
             it2.get("activo") for it2 in items))
-        fnt = fuente_que_cabe(ctx.fX, texto, ESCALA["secundario"], zx1 - zx0 - 120, 600)
+        fnt = fnts[i]
         y = y0 + i * fila_h + fy
         num = cuenta_up(1, i + 1, t, t_i, 0.4)
         al = int(255 * clamp01(k * 1.4))
@@ -6007,11 +6072,10 @@ def sc_index(ctx, e, t):
         # blanco atenuado sobre gris, no gris sobre gris (no se leia).
         # El radio del badge es FIJO (si late, fuente_que_cabe baja la letra
         # bajo LETRA_MIN=26). El latido va al alfa y al subrayado.
-        radio_n = max(22, min(28, int(fila_h * 0.24)))
-        circulo_numero(d, zx0 + radio_n, y, radio_n, num,
+        circulo_numero(d, bx0 + radio_n, y, radio_n, num,
                        ACENTO if activo else (60, 60, 60, 255), BLANCO, ctx,
                        alpha=min(255, int(al * pulso)) if activo else al)
-        x_texto = zx0 + 2 * radio_n + 20
+        x_texto = bx0 + 2 * radio_n + 20
         pon_texto(d, (x_texto, y), texto, font=fnt, fill=col, anchor="lm")
         if activo:
             d.line([(x_texto, y + 22), (x_texto + ctx.tmp.textlength(texto, font=fnt),
