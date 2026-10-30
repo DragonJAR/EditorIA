@@ -16,7 +16,7 @@ except ModuleNotFoundError as _e_dep:
 # ---------- identidad: defaults NEUTROS; el brand pack los sobreescribe ----------
 # Sin pack (modo libre) nada de marca: acento neutro y fuentes empaquetadas.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
-from _plataforma import resolver_fuente
+from _plataforma import resolver_fuente, variante_de_peso
 from _comun import NEUTRO, aplicar_grano, segmentos_enfasis, segmentos_resalte  # paleta, grano y markup * ~ ^
 ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
@@ -82,7 +82,8 @@ def colores_de(valor):
 FJ=resolver_fuente("Plus Jakarta Sans", generica="sans-bold")
 FJI=None   # display en itálica: la trae el pack si la declara ("titulares_itálica")
 FM=resolver_fuente("Montserrat", generica="sans")
-MONO=resolver_fuente("DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
+MONO_FAMILIA="IBM Plex Mono"   # empaquetada (OFL): la mono del motor y la de respaldo del pack
+MONO=resolver_fuente(MONO_FAMILIA, "DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
 LOGO=None; ISOTIPO=None; MARCA_NOMBRE=None
 TRANSICIONES="libre"   # idioma de transición; el pack puede fijar "corte_seco"
 ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida por alfa)
@@ -165,7 +166,9 @@ def font(p,s,w=700):
     # que escala (palabras, slams, la marca) avanzara a saltos de 1 px
     s=max(8.0,round(s*4)/4); key=(p,s,w)
     if key in _FONT_CACHE: return _FONT_CACHE[key]
-    try: f=ImageFont.truetype(p,s) if p else _fuente_minima(s)
+    # una familia ESTÁTICA respeta el peso eligiendo su archivo hermano
+    # (IBMPlexMono-SemiBold para 700); una variable lo hace con su eje wght
+    try: f=ImageFont.truetype(variante_de_peso(p,w),s) if p else _fuente_minima(s)
     except OSError: f=_fuente_minima(s)
     _FONT_CACHE[key]=f
     try: f.set_variation_by_axes([w])
@@ -5909,7 +5912,7 @@ def aplicar_brand(brand_path):
     global FJI
     for rol, glob, defecto, gen in (("titulares", "FJ", "Plus Jakarta Sans", "sans-bold"),
                                     ("texto", "FM", "Montserrat", "sans"),
-                                    ("etiquetas_mono", "MONO", "DejaVu Sans Mono", "mono"),
+                                    ("etiquetas_mono", "MONO", MONO_FAMILIA, "mono"),
                                     ("titulares_itálica", "FJI", "Plus Jakarta Sans", "sans-bold")):
         hit = fuente_marca(brand_path, rol, defecto, gen)
         if hit: globals()[glob] = hit

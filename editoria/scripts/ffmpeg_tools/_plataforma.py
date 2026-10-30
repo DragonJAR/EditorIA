@@ -56,7 +56,43 @@ ALIAS_SKILL = {
     "jakarta.ttf": "PlusJakartaSans-wght.ttf",
     "montserrat": "Montserrat-wght.ttf",
     "montserrat.ttf": "Montserrat-wght.ttf",
+    # La mono del motor (etiquetas, datos, medidas). Antes no había mono
+    # empaquetada y en macOS salía Courier New: un trazo tan fino que la
+    # etiqueta se leía a ~3:1 aunque su color pasara AA. Dos pesos:
+    # assets/fonts/IBMPlexMono-Regular.ttf y assets/fonts/IBMPlexMono-SemiBold.ttf
+    # (el 700 que pide el motor sale del SemiBold: `variante_de_peso`).
+    "ibm plex mono": "IBMPlexMono-Regular.ttf",
+    "plex mono": "IBMPlexMono-Regular.ttf",
 }
+
+# Pesos de una familia ESTÁTICA (un archivo por peso, "<familia>-<Peso>.ttf").
+# Una variable resuelve el peso con su eje wght; una estática solo lo respeta
+# si se elige el archivo hermano. Sin esto, pedir 700 a una estática dibujaba
+# el 400 en silencio.
+PESOS_ESTATICOS = {"Thin": 100, "ExtraLight": 200, "Light": 300, "Regular": 400,
+                   "Medium": 500, "SemiBold": 600, "Bold": 700, "ExtraBold": 800,
+                   "Black": 900}
+
+
+def variante_de_peso(ruta: Optional[str], peso: int) -> Optional[str]:
+    """El archivo hermano de `ruta` más cercano al `peso` pedido.
+
+    Solo para familias estáticas nombradas "<familia>-<Peso>.<ext>" (la
+    convención de casi todas las OFL). Una variable o un archivo sin peso
+    en el nombre se devuelve igual. A igual distancia gana el más pesado
+    (pedir 700 con 600 y 800 a mano da 800: el texto pidió énfasis)."""
+    if not ruta:
+        return ruta
+    p = Path(ruta)
+    familia, _, actual = p.stem.rpartition("-")
+    if not familia or actual not in PESOS_ESTATICOS:
+        return ruta
+    hermanos = [(abs(v - peso), -v, p.with_name(f"{familia}-{n}{p.suffix}"))
+                for n, v in PESOS_ESTATICOS.items()]
+    for _, _, cand in sorted(hermanos, key=lambda h: (h[0], h[1])):
+        if cand.exists():
+            return str(cand)
+    return ruta
 
 
 def fuente_skill(nombre: str) -> Optional[str]:
@@ -117,13 +153,21 @@ FUENTES_GENERICAS = {
 
 
 def _buscar_en_dirs(nombres: List[str]) -> Optional[str]:
-    for d in dirs_fuentes():
-        for n in nombres:
-            p = Path(n)
-            if p.is_absolute():
-                if p.suffix.lower() in (".ttf", ".ttc", ".otf") and p.exists():
-                    return str(p)
-                continue
+    """El PRIMER nombre que exista en algún directorio.
+
+    El orden de `nombres` es el de preferencia y manda sobre el de los
+    directorios: con el bucle al revés, el primer directorio del SO
+    (/System/Library/Fonts/Supplemental en macOS) imponía su candidato de
+    último recurso (Courier New) aunque la preferida (Menlo) estuviera en
+    el siguiente."""
+    dirs = dirs_fuentes()
+    for n in nombres:
+        p = Path(n)
+        if p.is_absolute():
+            if p.suffix.lower() in (".ttf", ".ttc", ".otf") and p.exists():
+                return str(p)
+            continue
+        for d in dirs:
             # Búsqueda recursiva: las fuentes suelen estar en subdirectorios
             # (ej. truetype/dejavu/DejaVuSans.ttf)
             for cand in d.rglob(n):
