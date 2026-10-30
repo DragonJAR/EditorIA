@@ -381,20 +381,47 @@ def ocupacion_por_escena(F, fps, escenas, caja=None):
     return out
 
 
+def _manchas(m):
+    """Componentes conexos (vecindad 8) de una máscara 2D bool: [[(y, x), ...]]."""
+    visto = np.zeros_like(m)
+    out = []
+    for y0, x0 in zip(*np.nonzero(m)):
+        if visto[y0, x0]:
+            continue
+        pila, comp = [(y0, x0)], []
+        visto[y0, x0] = True
+        while pila:
+            y, x = pila.pop()
+            comp.append((y, x))
+            for yy in range(max(0, y - 1), min(m.shape[0], y + 2)):
+                for xx in range(max(0, x - 1), min(m.shape[1], x + 2)):
+                    if m[yy, xx] and not visto[yy, xx]:
+                        visto[yy, xx] = True
+                        pila.append((yy, xx))
+        out.append(comp)
+    return out
+
+
 def _digito_nuevo(candidatos, cambia):
     """(n, hb, wb) bool: los candidatos a pop que son el DÍGITO NUEVO de un
     contador. Un contador que suma un dígito ("8" -> "11") deja bloques que
-    pasan de fondo a tinta pegados en la misma fila a bloques con tinta que
-    cambian de golpe a otra tinta (las cifras que cuentan). Con el motor eso
-    lo dicen las zonas de cifra; en un video no hay motor, y el gauge del plan
-    de muestra marcaba un pop en 20.43 s que la medición por escena no ve.
-    Un objeto que aparece lejos de una cifra que cuenta sigue siendo pop."""
+    pasan de fondo a tinta PEGADOS a bloques con tinta que cambian de golpe a
+    otra tinta (las cifras que cuentan). Con el motor eso lo dicen las zonas de
+    cifra; en un video no hay motor, y el gauge del plan de muestra marcaba un
+    pop en 20.43 s que la medición por escena no ve.
+
+    La mancha es 2D (vecindad 8), no la fila: con el contador desplazado en
+    vertical (recentrado del encuadre) la rejilla corta las cifras por otra
+    altura y la fila de su borde solo trae tinta nueva a medias (sin bloque de
+    cifra que cambie): el mismo contador dejaba de ser contador a ciertos
+    desplazamientos (pop a dy 40 y 85 px, ninguno a 0 y 120). Un objeto que
+    aparece SEPARADO de una cifra que cuenta sigue siendo pop."""
     out = np.zeros_like(candidatos)
-    for i, y in zip(*np.nonzero((candidatos & ~cambia).any(axis=2))):
-        fila = candidatos[i, y] | cambia[i, y]
-        for a, b in _rachas(fila):   # tramos contiguos de la fila: si uno trae cifra, es contador
-            if cambia[i, y, a:b].any():
-                out[i, y, a:b] = candidatos[i, y, a:b]
+    for i in np.nonzero((candidatos & ~cambia).any(axis=(1, 2)))[0]:
+        for comp in _manchas(candidatos[i] | cambia[i]):
+            ys, xs = zip(*comp)
+            if cambia[i][ys, xs].any():   # la mancha trae una cifra que cuenta: es contador
+                out[i][ys, xs] = candidatos[i][ys, xs]
     return out
 
 

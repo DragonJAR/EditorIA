@@ -8,6 +8,9 @@ Cada clase fija UNA causa, medida sobre el motor o sobre el frame:
   `render_plan.CAMPOS_TOKEN`): duplicar `colores: "serie"` a "serie serie"
   terminaba el proceso (die -> SystemExit) y el bloque de humo de escenas
   (copy x2, solapes) no corría nunca.
+- POP DE CONTADOR: en un video (sin zonas de cifra del motor) la cifra
+  nueva de un contador se agrupa con las que cuentan en 2D, no por fila: un
+  contador desplazado en vertical (recentrado) daba pop a ciertas alturas.
 - PACK SIN FUGA: `aplicar_brand` fija el solape de su regla en los DOS
   sentidos; un pack `corte_seco` dejaba SOLAPE=0.25 instalado para el resto
   del proceso y un test de prosa fallaba según el orden.
@@ -80,6 +83,35 @@ class TestCopyX2(unittest.TestCase):
                 except BaseException as ex:   # noqa: B036 - un die() es SystemExit
                     caidas.append(f"{nombre} {ancho}x{alto}: {type(ex).__name__}: {ex}")
         self.assertEqual(caidas, [], "el humo de copy x2 se corta en una escena")
+
+
+class TestPopContadorDesplazado(unittest.TestCase):
+    """Un contador movido en grupo (recentrado vertical) no es un pop: el
+    detector de video agrupa la cifra nueva con las que cuentan en 2D, no
+    por fila de la rejilla (antes: pop a ciertas alturas, 0 a otras)."""
+
+    def _video(self, dy, aparece_lejos=False, n=24):
+        F = np.full((n, 320, 180), 12.0, np.float32)
+        for i in range(n):
+            for x, v in ((95, i * 2),) + (((65, 1000 + i * 2),) if i >= 12 else ()):
+                rng = np.random.default_rng(v)
+                F[i, 130 + dy:180 + dy, x:x + 30] = rng.choice([12.0, 245.0], size=(50, 30))
+            if aparece_lejos and i >= 12:
+                F[i, 250:300, 20:120] = 240.0
+                F[i, 260:290, 30:110] = 30.0
+        return F
+
+    def test_el_contador_a_cualquier_altura_no_es_pop(self):
+        import medir_animacion as M
+        pops = {dy: M.metricas(self._video(dy), 30, 2.0)["pops"] for dy in range(0, 20)}
+        self.assertEqual({dy: p for dy, p in pops.items() if p}, {},
+                         "la cifra nueva de un contador desplazado se mide como aparición")
+
+    def test_un_objeto_separado_sigue_siendo_pop(self):
+        import medir_animacion as M
+        for dy in (0, 4, 14):
+            with self.subTest(dy=dy):
+                self.assertEqual(M.metricas(self._video(dy, True), 30, 2.0)["pops"], [0.4])
 
 
 class TestPackSinFuga(unittest.TestCase):
