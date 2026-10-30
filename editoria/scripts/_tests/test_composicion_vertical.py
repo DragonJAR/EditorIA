@@ -62,7 +62,7 @@ class TestComposicionVertical(unittest.TestCase):
 
     def _bbox_final(self, e, idx, t):
         R = self.R
-        return self._tinta(R.encuadrar(self.ctx, e, idx, t, R.pintar(self.ctx, e, t).copy()))
+        return self._tinta(R.encuadre(self.ctx, e, idx, t))   # el frame real: contenido encuadrado + marco fijo
 
     def test_una_escena_alta_baja_al_centro_optico(self):
         R = self.R
@@ -114,7 +114,9 @@ class TestComposicionVertical(unittest.TestCase):
         centro optico quedaba pegada arriba: el push-in arrancaba 4.5 % mas
         abierto (holgura 1.001) y la ocupacion bajo de 0.81 a 0.75."""
         R = self.R
-        e = R.completar_escena(_muestra("stats"), 0)
+        # stats ya no crece (W-B: su rótulo y su fuente son marco fijo y le
+        # quitan alto a la zona del contenido); pasos sí crece (x1.2)
+        e = R.completar_escena(_muestra("pasos"), 0)
         g, _ = R.llenado(self.ctx, e, 0)
         self.assertGreater(g, 1.0)
         self.assertGreaterEqual(R._ESCALA[("holgura", 0)], 1 + R.EMPUJE - 1e-6)

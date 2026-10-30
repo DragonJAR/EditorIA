@@ -707,6 +707,20 @@ def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,max
             x+=ww+gap+2*pad
     return tam
 
+# CAPA FIJA: el rótulo canónico (`rotulo_y()`) y la línea de fuente
+# (`pie_fuente`) son el MARCO de la escena, no su contenido. Antes viajaban en
+# la capa que `encuadrar` escala y desplaza (`_crecer`, push-in, flotación):
+# medido, el tope del rótulo caía a 210-252, 371-401 o 522 px según la escena
+# y la fuente terminaba entre 1466 y 1496 (borde seguro 1498). `pintar_partes`
+# abre una capa fija por escena; lo que se dibuja en ella se compone DESPUÉS
+# del encuadre, a la misma altura de pantalla en todo el catálogo.
+_FIJA=[]
+
+def capa_fija(layer):
+    """La capa fija de la escena que se está pintando (o `layer` si nadie la
+    abrió: una escena pintada suelta, p. ej. en un test, lo dibuja todo junto)."""
+    return _FIJA[-1] if _FIJA else layer
+
 def rotulo_y():
     """Altura canónica unificada para rótulos según formato (H*0.20 en 9:16, H*0.16 en 16:9).
     Garantiza coherencia espacial y retícula uniforme entre escenas (references/coherencia-espacial.md)."""
@@ -727,6 +741,7 @@ def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=None):
     while tam>TAM_MIN_ROTULO and seg_width(sg,fnt)>ancho:
         tam-=2; fnt=ctx.fX(tam,700)
     yy=rotulo_y() if y is None else y
+    if abs(yy-rotulo_y())<0.5: layer=capa_fija(layer)   # el kicker canónico no viaja con el encuadre
     asc,desc=fnt.getmetrics(); aire=int(tam*0.12)   # aire arriba para el overshoot
     for i,ln in enumerate(partir_segs(sg,fnt,ancho)):   # si ni a 30 px cabe: dos líneas
         y_ln=yy+i*tam*1.2
@@ -1452,6 +1467,8 @@ def pie_fuente(ctx, d, e, t, t_def):
     cifra lleva su fuente; nunca bajo la UI de la plataforma)."""
     t0 = e.get("at", {}).get("fuente", t_def)
     if e.get("fuente") and t >= t0:
+        if _FIJA:
+            d = ImageDraw.Draw(_FIJA[-1])   # marco de la escena: no escala con el contenido
         x0, _, x1, y1 = caja_segura()
         txt = f"Fuente: {e['fuente']}"
         # el piso de la fuente es el rol `nota` de la escala, no el minimo
@@ -2364,8 +2381,8 @@ def sc_leads(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
     kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
-    if kr>0:   # el total entra con su rótulo
-        pon_texto(d, (W/2,bajo_rotulo(rotulo_y(),aire=0.15)),e.get("total",""),font=ctx.fM(ESCALA["dato"],700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
+    if kr>0:   # el total entra con su rótulo (y va en su marco fijo)
+        pon_texto(ImageDraw.Draw(capa_fija(layer)), (W/2,bajo_rotulo(rotulo_y(),aire=0.15)),e.get("total",""),font=ctx.fM(ESCALA["dato"],700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
     filas=e["filas"]; n=len(filas)
     zx0,_,zx1,zy1=caja_segura()   # compuesta DENTRO de la zona segura: no se encoge
     y0=rotulo_y()+140
@@ -2540,8 +2557,8 @@ def sc_hoy(ctx,e,t):
     vertical=H>W
     # rótulo y fecha apilados y la fecha entra con el rótulo
     kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
-    if kr>0:
-        pon_texto(d, (W/2,rotulo_y()+54+(1-min(1,kr))*ELEV),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],400),
+    if kr>0:   # la fecha es parte del rótulo: va en su marco fijo
+        pon_texto(ImageDraw.Draw(capa_fija(layer)), (W/2,bajo_rotulo(rotulo_y(),aire=0.0)+(1-min(1,kr))*ELEV),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],400),
                fill=GRIS+(int(255*clamp01(kr*1.5)),),anchor="ma")
     ck=prog(t,at["cuenta"],at["cuenta"]+0.8,ease_out)   # una sola curva
     # la cifra late en el hold (antes se congelaba al llegar al tope)
@@ -6192,21 +6209,40 @@ def aplicar_brand(brand_path):
 
 COLUMNA={"chat","leads","handoff"}   # se leen como columna (conversación, tabla, ficha)
 
-def pintar(ctx,e,t):
-    """Capa de la escena en el instante t. En horizontal, las escenas de
-    COLUMNA se componen en un lienzo virtual de 9:16-ancho (1080 px) centrado:
-    una conversación o una tabla de 1920 px de ancho no se lee."""
+def _pinta(ctx,e,t):
+    """(contenido, fija) de la escena con el W vigente."""
+    fija=Image.new("RGBA",(W,H),(0,0,0,0)); _FIJA.append(fija)
+    try:
+        capa=SCENES[e["tipo"]](ctx,e,t)
+    finally:
+        _FIJA.pop()
+    return capa,capa_salida(fija,t,e["to"])   # el marco sale con su escena
+
+def pintar_partes(ctx,e,t):
+    """(contenido, fija) de la escena en el instante t: el contenido va al
+    encuadre (`encuadrar`); la capa fija (rótulo y fuente) se compone encima
+    sin escalar. En horizontal, las escenas de COLUMNA se componen en un
+    lienzo virtual de 9:16-ancho (1080 px) centrado: una conversación o una
+    tabla de 1920 px de ancho no se lee."""
     global W,MARGEN
-    fn=SCENES[e["tipo"]]
-    if not (W>H and e["tipo"] in COLUMNA and W>1080): return fn(ctx,e,t)
+    if not (W>H and e["tipo"] in COLUMNA and W>1080): return _pinta(ctx,e,t)
     w_real,m_real=W,MARGEN
     W=1080; MARGEN=min(MARGEN,int(W*0.06))
     try:
-        capa=fn(ctx,e,t)
+        partes=_pinta(ctx,e,t)
     finally:
         W,MARGEN=w_real,m_real
-    out=Image.new("RGBA",(W,H),(0,0,0,0)); out.alpha_composite(capa,((W-1080)//2,0))
-    return out
+    out=[]
+    for p_ in partes:
+        o=Image.new("RGBA",(W,H),(0,0,0,0)); o.alpha_composite(p_,((W-1080)//2,0)); out.append(o)
+    return tuple(out)
+
+def pintar(ctx,e,t):
+    """Capa de la escena en el instante t, contenido y marco juntos (lo que
+    mide un test o el medidor de contraste). El frame usa `pintar_partes`."""
+    capa,fija=pintar_partes(ctx,e,t)
+    capa.alpha_composite(fija)
+    return capa
 
 _ESCALA={}
 A_SANGRE={"kenburns","confetti"}   # cubren el cuadro a propósito: no se miden ni encogen
@@ -6242,11 +6278,15 @@ def escala_segura(ctx,e,idx):
             return _ESCALA[idx]
     fr,to=e["from"],e["to"]
     xs0,xs1,ys0,ys1=W,0,H,0
+    marco=[SAFE["top"],H-SAFE["bottom"]]   # lo que el marco fijo deja libre al contenido
     for i in range(6):
         t=fr+0.25+(max(0.0,to-0.6-fr-0.25))*i/5
-        bb=pintar(ctx,e,t).split()[3].point(lambda v:255 if v>110 else 0).getbbox()
+        capa,fija=pintar_partes(ctx,e,t)
+        bb=capa.split()[3].point(lambda v:255 if v>110 else 0).getbbox()
         if bb:
             xs0=min(xs0,bb[0]); ys0=min(ys0,bb[1]); xs1=max(xs1,bb[2]); ys1=max(ys1,bb[3])
+        marco=_marco_libre(fija,marco)
+    _ESCALA[("marco",idx)]=tuple(marco)
     cx,cy=W/2,CENTRO_Y*H
     cabe=math.inf   # cuánto podría crecer el contenido alrededor del ancla y seguir dentro
     if xs1>xs0:
@@ -6255,11 +6295,12 @@ def escala_segura(ctx,e,idx):
     f=max(0.70,min(1.0,cabe))
     if f<0.995: print(f"  zona segura: escena {idx} ({e['tipo']}) escalada x{f:.3f}",flush=True)
     _ESCALA[idx]=f if f<0.995 else 1.0
-    llena=_crecer(e,(xs0,ys0,xs1,ys1)) if _ESCALA[idx]==1.0 and xs1>xs0 else (1.0,0.0)
+    llena=_crecer(e,(xs0,ys0,xs1,ys1),marco) if _ESCALA[idx]==1.0 and xs1>xs0 else (1.0,0.0)
     _ESCALA[("llena",idx)]=llena
     # holgura para el push-in: la que deja el contenido YA colocado (encogido,
     # crecido o llevado al centro óptico), medida desde el punto donde empuja
-    _ESCALA[("holgura",idx)]=(_holgura((xs0,ys0,xs1,ys1),_ESCALA[idx]*llena[0],llena[1])
+    # y dentro del sitio que deja el marco fijo (no empuja el contenido sobre el rótulo)
+    _ESCALA[("holgura",idx)]=(_holgura((xs0,ys0,xs1,ys1),_ESCALA[idx]*llena[0],llena[1],marco)
                               if xs1>xs0 else math.inf)
     return _ESCALA[idx]
 
@@ -6296,7 +6337,30 @@ def sitio_propio(e):
     anclada abajo con cara debajo."""
     return e["tipo"] in NO_CRECEN or (e["tipo"] in ANCLADAS and sobre_cara(e))
 
-def _crecer(e,bb):
+AIRE_MARCO=40   # px entre el marco fijo (rótulo, fuente) y el contenido
+
+def _marco_libre(fija,marco):
+    """[y0, y1] libre para el contenido bajo el rótulo fijo y sobre la fuente
+    fija: la tinta de la capa fija por encima del ancla (CENTRO_Y·H) sube el
+    techo, la de abajo baja el piso, con AIRE_MARCO de aire."""
+    a=np.asarray(fija.getchannel("A"))
+    filas=np.where((a>40).any(axis=1))[0]
+    if not len(filas): return marco
+    cy=CENTRO_Y*H
+    arriba=filas[filas<cy]; abajo=filas[filas>=cy]
+    y0,y1=marco
+    if len(arriba): y0=max(y0,int(arriba.max())+AIRE_MARCO)
+    if len(abajo): y1=min(y1,int(abajo.min())-AIRE_MARCO)
+    return [y0,y1]
+
+def _zona_contenido(marco=None):
+    """La caja segura menos el marco fijo: donde puede crecer el contenido."""
+    zx0,zy0,zx1,zy1=caja_segura()
+    if marco and marco[1]-marco[0]>0.25*(zy1-zy0):
+        zy0,zy1=max(zy0,marco[0]),min(zy1,marco[1])
+    return zx0,zy0,zx1,zy1
+
+def _crecer(e,bb,marco=None):
     """(factor, dy) del encuadre del bbox `bb`: crece alrededor de (W/2,
     CENTRO_Y·H) hasta llenar la zona segura (con tope) y dy lleva su centro
     vertical al centro óptico (CENTRO_OPTICO), sin salirse de la zona. Función
@@ -6307,29 +6371,41 @@ def _crecer(e,bb):
     if (ALFA or sitio_propio(e) or e.get("zona") or e.get("y") is not None
             or _CAMARA["activa"]): return (1.0,0.0)
     x0,y0,x1,y1=bb; cx,cy=W/2,CENTRO_Y*H
-    zx0,zy0,zx1,zy1=caja_segura()
-    g=min(LLENA_MAX,(cx-zx0)/max(1,cx-x0),(zx1-cx)/max(1,x1-cx),(zy1-zy0)/max(1,y1-y0))
+    zx0,zy0,zx1,zy1=_zona_contenido(marco)
+    if not (zy0<=cy<=zy1): return (1.0,0.0)   # el ancla quedó fuera del sitio libre: su diseño manda
+    g=min(LLENA_MAX,(cx-zx0)/max(1,cx-x0),(zx1-cx)/max(1,x1-cx),(zy1-zy0-2*FLOTA_CAM)/max(1,y1-y0))
     g/=1+EMPUJE   # el push-in de la cámara cabe dentro
     if g<LLENA_MIN: g=1.0
     alto=g*(y1-y0)
-    if g==1.0 and alto>BANDA_MAX*(zy1-zy0): return (1.0,0.0)   # ya compone la zona: es su diseño
+    # ya compone la zona (más de media zona LIBRE de contenido): es su diseño
+    if g==1.0 and alto>BANDA_MAX*(zy1-zy0): return (1.0,0.0)
     # el centro buscado, sujeto a que el bbox (crecido) quepa entero en la zona
     # CON el push-in y la flotación encima (si no, una escena crecida queda
     # pegada arriba y la cámara tiene que arrancar más abierta)
-    c=zy0+CENTRO_OPTICO*(zy1-zy0)
-    ocupa=min(zy1-zy0,alto*(1+EMPUJE)+2*FLOTA_CAM)
-    c=min(max(c,zy0+ocupa/2),zy1-ocupa/2)
-    # encajar: Y = cy + dy + g·(y - cy); el centro del bbox cae en c
-    dy=c-cy-g*((y0+y1)/2-cy)
+    def coloca(g):
+        c=zy0+CENTRO_OPTICO*(zy1-zy0)
+        ocupa=min(zy1-zy0,g*(y1-y0)*(1+EMPUJE)+2*FLOTA_CAM)
+        c=min(max(c,zy0+ocupa/2),zy1-ocupa/2)
+        # encajar: Y = cy + dy + g·(y - cy); el centro del bbox cae en c
+        return c-cy-g*((y0+y1)/2-cy)
+    dy=coloca(g)
+    # el push-in escala alrededor de cy+dy, no del centro del bbox: si una
+    # escena crecida se queda sin sitio para EMPUJE por un lado, crece menos
+    for _ in range(6):
+        if g<=1.0: break
+        h=_holgura(bb,g,dy,marco)
+        if h>=1+EMPUJE-1e-6: break
+        g=max(1.0,g*h/(1+EMPUJE)); dy=coloca(g)
+    if 1.0<g<LLENA_MIN: g=1.0; dy=coloca(g)
     return (g,dy) if g>1.0 or abs(dy)>=1.0 else (1.0,0.0)
 
-def _holgura(bb,f,dy):
+def _holgura(bb,f,dy,marco=None):
     """Cuánto puede empujar la cámara el bbox `bb` ya colocado (escala f y dy
     alrededor de (W/2, CENTRO_Y·H)) sin salirse de la zona segura: el push-in
     escala alrededor de (W/2, CENTRO_Y·H + dy) y la flotación (FLOTA_CAM) lo
     sube y lo baja encima (sin ella, medido, el gauge salía 5 px por abajo)."""
     x0,y0,x1,y1=bb; cx,cy=W/2,CENTRO_Y*H; py=cy+dy
-    zx0,zy0,zx1,zy1=caja_segura()
+    zx0,zy0,zx1,zy1=_zona_contenido(marco)
     return max(1.0,min((cx-zx0)/max(1,f*(cx-x0)),(zx1-cx)/max(1,f*(x1-cx)),
                        (py-zy0-FLOTA_CAM)/max(1,f*(cy-y0)),(zy1-py-FLOTA_CAM)/max(1,f*(y1-cy))))
 
@@ -6415,6 +6491,14 @@ def encuadrar(ctx,e,idx,t,capa):
         fr*=min(1.0,_ESCALA.get(("holgura",idx),1+EMPUJE)/(1+EMPUJE))
     return encajar(capa,escala_segura(ctx,e,idx)*g*fr,dy+dyl,dx)
 
+def encuadre(ctx,e,idx,t,ts=None):
+    """El contenido de la escena encuadrado (`encuadrar`) con su marco fijo
+    (rótulo y fuente) compuesto ENCIMA, sin escalar ni desplazar."""
+    capa,fija=pintar_partes(ctx,e,t if ts is None else ts)
+    out=encuadrar(ctx,e,idx,t,capa)
+    out.alpha_composite(fija)
+    return out
+
 def componer(ctx,escenas,dur,t,manchas_ok):
     """Compone el frame en el instante t (puede ser sub-frame, para el blur)."""
     t=max(0.0,min(t,dur-1e-6))
@@ -6426,11 +6510,11 @@ def componer(ctx,escenas,dur,t,manchas_ok):
     # fondo saltaba de lugar en cada corte)
     bg=Image.new("RGBA",(W,H),(0,0,0,0)) if ALFA else mundo(ctx,t,seed=1)
     ts=instante_saliente(s,t) if sale_por_mascara(escenas,si,manchas_ok) else t
-    layer=encuadrar(ctx,s,si,t,pintar(ctx,s,ts).copy())
+    layer=encuadre(ctx,s,si,t,ts)
     ep=escenas[si-1] if si>0 else None
     if s.get("transicion")=="iris" and si>0 and t-s["from"]<0.9:
         # IRIS: la escena nueva se abre en circulo desde un punto (la cara)
-        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,instante_saliente(ep,t)).copy())
+        prev=encuadre(ctx,ep,si-1,t,instante_saliente(ep,t))
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.38)
         mask=iris_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -6442,14 +6526,14 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         # creciente (un corte suave, sin mancha). Es la transicion mas neutra:
         # no pide atencion como la mancha ni ensucia con formas.
         kd=smoothstep(clamp01((t-s["from"])/SOLAPE_DISSOLVE))
-        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,instante_saliente(ep,t)).copy())
+        prev=encuadre(ctx,ep,si-1,t,instante_saliente(ep,t))
         prev.putalpha(prev.split()[3].point(lambda v:int(v*(1-kd))))   # cruza: la que sale baja lo que la otra sube
         bg.alpha_composite(prev)
         layer=layer.copy()
         layer.putalpha(layer.split()[3].point(lambda v:int(v*kd)))
         bg.alpha_composite(layer)
     elif si in manchas_ok and t-s["from"]<0.9:
-        prev=encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,instante_saliente(ep,t)).copy())
+        prev=encuadre(ctx,ep,si-1,t,instante_saliente(ep,t))
         fx=s.get("transicionX",0.5); fy=s.get("transicionY",0.45)
         mask=mancha_mask(ctx,t,s["from"],0.9,fx,fy)
         inv=Image.eval(mask,lambda v:255-v)
@@ -6458,7 +6542,7 @@ def componer(ctx,escenas,dur,t,manchas_ok):
         bg.alpha_composite(Image.composite(layer,nada,mask))
     else:
         if si>0 and t-s["from"]<SOLAPE:   # la anterior termina de irse DEBAJO de la nueva
-            bg.alpha_composite(encuadrar(ctx,ep,si-1,t,pintar(ctx,ep,t).copy()))
+            bg.alpha_composite(encuadre(ctx,ep,si-1,t))
         if si>0 and t-s["from"]<0.03:   # corte seco con micro-fade de 30 ms (sin pop)
             layer=capa_entrada(layer,t,s["from"])
         bg.alpha_composite(layer)
