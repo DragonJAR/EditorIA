@@ -23,6 +23,12 @@ Cada clase fija UNA causa raíz, medida sobre el frame que se entrega:
   (`ancho_columna`), el pedido del chat en la columna de las burbujas, los
   extremos del timeline con la tinta simétrica y el contenido a SEPARA de
   la línea de fuente (`techo_fuente`).
+- R6 CONTRASTE: UNA primitiva de decoración bajo texto (`deco_bajo_texto`:
+  el dragón de la apertura y las partículas de `orbita` se apagan bajo la
+  letra) y UNA regla de acento (`acento_legible`): el énfasis sobre una
+  placa, el kicker y el REC chicos sobre casi negro llegan a 4.5:1; la
+  fuente sobre una captura clara va en placa. El "¡EN VIVO!" de countdown
+  no pasa el margen.
 
 Run: python3 -m pytest -q -p no:cacheprovider _tests/test_layout_impecable.py
 """
@@ -408,6 +414,192 @@ class TestTokens(unittest.TestCase):
                          if (np.asarray(fija.getchannel("A"))[y] > 110).any() and y > R.H * 0.6][0]
                 with self.subTest(tipo=tipo, formato=(ancho, alto)):
                     self.assertGreaterEqual(techo - fondo, 32, f"{tipo}: contenido a {techo - fondo} px de la fuente")
+
+
+DJ = os.path.join(os.path.dirname(SCRIPTS), "brand", "dragonjar.json")
+
+
+def _lum1(rgb):
+    c = np.asarray(rgb, np.float64) / 255.0
+    c = np.where(c <= 0.03928, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * c[..., 0] + 0.7152 * c[..., 1] + 0.0722 * c[..., 2]
+
+
+def _contrastes(R, e, t):
+    """[(texto, tamaño, ratio mediano)] de cada texto dibujado en el lienzo
+    entero, contra la escena dibujada SIN texto (la técnica de
+    medir_contraste: la superficie es lo que hay debajo)."""
+    import medir_contraste as MC
+    from PIL import ImageDraw
+    orig = ImageDraw.ImageDraw.text
+    ctx = R.Ctx()
+    ImageDraw.ImageDraw.text = MC._espia([], False, orig)
+    try:
+        sup = R.pintar(ctx, e, t)
+    finally:
+        ImageDraw.ImageDraw.text = orig
+    reg = []
+    espia = MC._espia(reg, True, orig)
+
+    def con_tam(self_, xy, text, fill=None, font=None, *a, **k):
+        n = len(reg)
+        r_ = espia(self_, xy, text, fill, font, *a, **k)
+        img = getattr(self_, "_image", None)
+        for x in reg[n:]:
+            x["tam"] = getattr(font, "size", 0)
+            if img is None or img.size != sup.size:
+                x["fill"] = None   # dibujado en una capa chica: sus coordenadas no son las del lienzo
+        return r_
+    ImageDraw.ImageDraw.text = con_tam
+    try:
+        R.pintar(ctx, e, t)
+    finally:
+        ImageDraw.ImageDraw.text = orig
+    base = Image.new("RGBA", sup.size, (10, 10, 10, 255))
+    base.alpha_composite(sup)
+    S = np.asarray(base.convert("RGB"), np.float64)
+    out = []
+    for r in reg:
+        f = r["fill"]
+        if not isinstance(f, (tuple, list)) or len(f) < 3 or (len(f) > 3 and f[3] < 200):
+            continue
+        x0, y0, x1, y1 = r["caja"]
+        x0, y0 = max(0, x0), max(0, y0)
+        m = np.asarray(r["msc"], np.float64)[: y1 - y0, : x1 - x0] > 127
+        zona = S[y0:y1, x0:x1][: m.shape[0], : m.shape[1]]
+        if not m.any() or zona.shape[:2] != m.shape:
+            continue
+        lt = _lum1(np.asarray(f[:3], np.float64))
+        ls = _lum1(zona[m])
+        rat = (np.maximum(lt, ls) + 0.05) / (np.minimum(lt, ls) + 0.05)
+        out.append((r["texto"], tuple(f[:3]), float(np.median(rat)), r.get("tam", 0)))
+    return out
+
+
+class TestContraste(unittest.TestCase):
+    """R6: decoración bajo texto y acento legible."""
+
+    @classmethod
+    def setUpClass(cls):
+        import tempfile
+        cls.tmp = tempfile.mkdtemp(prefix="wb_contraste_")
+        import galeria
+        galeria.assets(cls.tmp, (230, 80, 40))
+
+    def _callout(self):
+        e = _muestra("callout")
+        e["captura"] = os.path.join(self.tmp, os.path.basename(e["captura"]))
+        return e
+
+    def _con_marca(self, ancho=1080, alto=1920):
+        import render_plan as R
+        R.formato(ancho, alto)
+        R.aplicar_brand(DJ)
+        R.aplicar_globales({"escenas": []})
+        R._ESCALA.clear()
+        self.addCleanup(R._instalar_tokens, dict(acento=R.NEUTRO["acento"],
+                                                  acento_oscuro=R.NEUTRO["acento_oscuro"],
+                                                  negro=R.NEUTRO["negro"], blanco=R.NEUTRO["blanco"],
+                                                  gris=R.NEUTRO["gris"]))
+        return R
+
+    def test_el_dragon_no_pasa_detras_del_enfasis(self):
+        from PIL import ImageFilter
+        R = self._con_marca(1920, 1080)
+        e = _muestra("apertura")
+        ctx = R.Ctx()
+        t = e["to"] - 1.4   # "Ahora es / automático." asentado, el dragón detrás
+        capa = R.pintar(ctx, e, t)
+        orig = R.marca_fondo
+        R.marca_fondo = lambda *a, **k: True
+        try:
+            solo_texto = R.pintar(ctx, e, t)
+        finally:
+            R.marca_fondo = orig
+        F = Image.new("RGBA", capa.size, (10, 10, 10, 255))
+        F.alpha_composite(capa)
+        A = np.asarray(F.convert("RGB"), np.float64)
+        al = np.asarray(solo_texto.getchannel("A"))
+        texto, fuerte = al > 20, al > 230
+        self.assertGreater(fuerte.sum(), 500, "no se encontró el titular")
+        # la tinta del titular (la mediana: el énfasis rojo domina) contra lo
+        # MÁS claro que la rodea (p95 de un anillo de 7 px fuera de la letra)
+        S = Image.new("RGBA", solo_texto.size, (10, 10, 10, 255))
+        S.alpha_composite(solo_texto)
+        lt = np.median(_lum1(np.asarray(S.convert("RGB"), np.float64)[fuerte]))
+        cerca = np.asarray(Image.fromarray((fuerte * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(15))) > 0
+        lejos = np.asarray(Image.fromarray((texto * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))) > 0
+        fondo = np.percentile(_lum1(A[cerca & ~lejos]), 95)
+        ratio = (max(lt, fondo) + 0.05) / (min(lt, fondo) + 0.05)
+        self.assertGreaterEqual(ratio, 3.0, f"titular display contra lo que lo rodea: {ratio:.2f}:1")
+
+    def test_enfasis_sobre_placa_y_fuente_sobre_captura(self):
+        casos = [("marca", self._con_marca)]
+        def neutra():
+            R = _motor()
+            R._instalar_tokens(dict(acento=R.NEUTRO["acento"], acento_oscuro=R.NEUTRO["acento_oscuro"],
+                                    negro=R.NEUTRO["negro"], blanco=R.NEUTRO["blanco"], gris=R.NEUTRO["gris"]))
+            return R
+        for nombre, preparar in casos + [("neutra", neutra)]:
+            R = preparar()
+            e = self._callout()
+            res = _contrastes(R, e, e["to"] - 0.5)
+            self.assertTrue(res, "sin textos medidos")
+            for texto, fill, rat, _tam in res:
+                with self.subTest(pack=nombre, texto=texto):
+                    self.assertGreaterEqual(rat, 4.5, f"'{texto}' {fill} a {rat:.2f}:1")
+
+    def test_kicker_y_rec_chicos_se_leen(self):
+        for tipo in ("orbita", "audiowave"):
+            R = self._con_marca()
+            e = _muestra(tipo)
+            res = _contrastes(R, e, e["to"] - 0.5)
+            # el texto CHICO (bajo DISPLAY_MIN) de acento: kicker, REC, el
+            # énfasis del rótulo. El display se mide arriba (el dragón) y
+            # aquí la superficie no ve el apagado de `deco_bajo_texto`
+            acento = [r[:3] for r in res if r[1] != tuple(R.BLANCO[:3]) and r[1] != tuple(R.GRIS[:3])
+                      and 0 < r[3] < R.DISPLAY_MIN]
+            self.assertTrue(acento, f"{tipo}: sin texto de acento medido")
+            for texto, fill, rat in acento:
+                with self.subTest(tipo=tipo, texto=texto):
+                    self.assertGreaterEqual(rat, 4.5, f"{tipo} '{texto}' {fill} a {rat:.2f}:1")
+
+    def test_las_particulas_no_cruzan_el_titulo(self):
+        R = _motor()
+        e = _muestra("orbita")
+        for t in (1.2, 2.0, e["to"] - 0.5):
+            capa = R.pintar(R.Ctx(), e, t)
+            orig = R.ImageDraw.ImageDraw.ellipse
+            R.ImageDraw.ImageDraw.ellipse = lambda *a, **k: None
+            try:
+                sin = R.pintar(R.Ctx(), e, t)
+            finally:
+                R.ImageDraw.ImageDraw.ellipse = orig
+            from PIL import ImageFilter
+            titulo = (np.asarray(sin.getchannel("A")) > 200).astype(np.uint8) * 255
+            # zona de respeto: la letra y 6 px alrededor (un punto pegado a una
+            # letra se lee como un agujero o una tilde de más)
+            zona = np.asarray(Image.fromarray(titulo).filter(ImageFilter.MaxFilter(13))) > 0
+            def plano(c):
+                f = Image.new("RGBA", c.size, (10, 10, 10, 255))
+                f.alpha_composite(c)
+                return np.asarray(f.convert("RGB"), np.float64)
+            dif = np.abs(plano(capa) - plano(sin)).sum(-1) > 60
+            with self.subTest(t=t):
+                self.assertLess(int((dif & zona).sum()), 40, "partículas pegadas a la letra del título")
+
+    def test_en_vivo_no_pasa_el_margen(self):
+        for ancho, alto in ((1080, 1920), (1920, 1080)):
+            R = _motor(ancho, alto)
+            e = R.completar_escena(_muestra("countdown"), 0)
+            for t in np.arange(e["to"] - 1.1, e["to"] + 0.3, 0.05):
+                a = np.asarray(R.encuadre(R.Ctx(), e, 0, float(t)).getchannel("A")) > 110
+                cols = np.where(a.any(axis=0))[0]
+                if not len(cols):
+                    continue
+                with self.subTest(formato=(ancho, alto), t=round(float(t), 2)):
+                    self.assertGreaterEqual(cols.min(), R.SAFE["left"] - 2)
+                    self.assertLessEqual(cols.max(), R.W - R.SAFE["right"] + 2)
 
 
 if __name__ == "__main__":

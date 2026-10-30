@@ -503,6 +503,66 @@ def mancha_mask(ctx,t,t0,dur=0.7,fx=0.5,fy=0.45):
     return mask.resize((W,H),Image.BILINEAR)
 
 
+# ---------- contraste: UNA regla para el acento y UNA para la decoración ----------
+DISPLAY_MIN=48   # px desde los que una letra es "grande" (umbral 3:1); por debajo, 4.5:1
+
+def fondo_bajo(img, caja):
+    """El color que hay DEBAJO de `caja` en `img` (sobre el negro de la pieza):
+    la media de la zona, para elegir la tinta de lo que se va a escribir."""
+    x0, y0, x1, y1 = (int(round(v)) for v in caja)
+    x0, y0 = max(0, x0), max(0, y0); x1, y1 = min(img.width, x1), min(img.height, y1)
+    if x1 <= x0 or y1 <= y0:
+        return tuple(NEGRO[:3])
+    zona = Image.new("RGBA", (x1 - x0, y1 - y0), tuple(NEGRO[:3]) + (255,))
+    zona.alpha_composite(img.crop((x0, y0, x1, y1)).convert("RGBA"))
+    a = np.asarray(zona.convert("RGB"), np.float32).reshape(-1, 3)
+    return tuple(int(v) for v in a.mean(axis=0))
+
+def acento_legible(fondo, tam, acento=None):
+    """El acento con el que se escribe sobre `fondo` a `tam` px. UNA regla:
+    a 4.5:1 (3:1 en display, >= DISPLAY_MIN) el acento pasa tal cual; si no,
+    su paso más claro del mismo tono (`_legible`); si ese paso ya es casi
+    blanco, el énfasis cae a la tinta de la pieza (blanco sobre oscuro).
+    Medido: el rojo de DragonJAR sobre la placa gris del callout 1.33:1 y en
+    un kicker chico sobre casi negro 3.23:1."""
+    import colorsys
+    from _comun import contraste
+    a = tuple((acento or ACENTO)[:3]); f = tuple(fondo[:3])
+    umbral = 3.0 if tam >= DISPLAY_MIN else 4.5
+    if contraste(a, f) >= umbral:
+        return a
+    c = _legible(a, f, umbral + 0.3)   # +0.3: el fondo es una estimación (media, placa)
+    if contraste(c, f) >= umbral and colorsys.rgb_to_hls(*[v / 255 for v in c])[1] <= 0.80:
+        return c
+    return tinta_sobre(f)
+
+def deco_bajo_texto(destino, deco, texto, aire=18, resto=0.12):
+    """Compone una DECORACIÓN (logo de fondo, partículas, halo) y encima el
+    TEXTO sobre `destino`, apagando la decoración donde está la tinta del
+    texto (dilatada `aire` px y fundida) hasta `resto` de su alfa: la
+    decoración nunca pasa por detrás de una letra ni baja su contraste
+    (medido: "automático." rojo sobre el dragón 2.72:1; partículas negras
+    sobre el título de `orbita`). UNA primitiva para todo adorno vs texto."""
+    a = texto.getchannel("A")
+    if a.getbbox():
+        q = 4   # la máscara se dilata a 1/4: barata y ya suave al volver
+        m = a.resize((max(1, a.width // q), max(1, a.height // q)), Image.BILINEAR)
+        m = m.point(lambda v: 255 if v > 20 else 0).filter(ImageFilter.MaxFilter(2 * (aire // q) + 1))
+        m = m.filter(ImageFilter.GaussianBlur(max(1, aire // (2 * q)))).resize(a.size, Image.BILINEAR)
+        apaga = m.point(lambda v: int(255 - (1 - resto) * v))
+        da = deco.getchannel("A")
+        # una decoración casi entera DETRÁS del texto (el logo encogido tras
+        # "Ahora es") no se ve y deja esquirlas entre letras: se funde entera
+        # en proporción a lo que el texto le tapa
+        dn = np.asarray(da, np.float32)
+        tapa = float((dn * np.asarray(m, np.float32)).sum() / max(1.0, 255.0 * dn.sum()))
+        da = ImageChops.multiply(da, apaga)
+        if tapa > 0.2:
+            da = da.point(lambda v, f=max(0.0, 1 - (tapa - 0.2) / 0.4): int(v * f))
+        deco.putalpha(da)
+    destino.alpha_composite(deco)
+    destino.alpha_composite(texto)
+
 def marca_fondo(ctx, layer, cx, cy, r, t, t0, dur=0.7, color=None, alpha=90):
     """La MARCA del pack (el isotipo) como fondo que CRECE y se ENCOGE.
 
@@ -747,7 +807,7 @@ def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=None):
         y_ln=yy+i*tam*1.2
         bx0=int(W/2-seg_width(ln,fnt)/2)-4; by0=int(y_ln)-aire
         tile=Image.new("RGBA",(int(seg_width(ln,fnt))+10,aire+asc+desc+2),(0,0,0,0))
-        draw_seg(ImageDraw.Draw(tile),(W/2-bx0,y_ln-by0),ln,fnt,color+(255,),ACENTO+(255,),anchor="ma")
+        draw_seg(ImageDraw.Draw(tile),(W/2-bx0,y_ln-by0),ln,fnt,color+(255,),acento_legible(NEGRO,tam)+(255,),anchor="ma")
         _revela_clip(layer,tile,(bx0,by0),k)
     return k
 
@@ -1530,14 +1590,26 @@ def pie_fuente(ctx, d, e, t, t_def):
     cifra lleva su fuente; nunca bajo la UI de la plataforma)."""
     t0 = e.get("at", {}).get("fuente", t_def)
     if e.get("fuente") and t >= t0:
+        debajo = getattr(d, "_image", None)   # el contenido sobre el que se lee
         if _FIJA:
             d = ImageDraw.Draw(_FIJA[-1])   # marco de la escena: no escala con el contenido
         _, _, _, y1 = caja_segura()
         fnt, lineas = _lineas_fuente(ctx, e)
         al = int(255 * prog(t, t0, t0 + 0.3, smoothstep))   # entra fundida, no de golpe
+        from _comun import contraste
+        alto = len(lineas) * fnt.size * 1.2
+        ancho = max(largo_texto(ln, fnt) for ln in lineas)
+        caja = (W / 2 - ancho / 2 - 16, y1 - BASE_FUENTE - alto - 4, W / 2 + ancho / 2 + 16, y1 - BASE_FUENTE + 12)
+        tinta_f = GRIS
+        fondo_f = fondo_bajo(debajo, caja) if debajo is not None else tuple(NEGRO[:3])
+        if contraste(GRIS, fondo_f) < 4.5:
+            # sobre una captura clara la fuente va en la MISMA placa que el
+            # resto del texto (medido: 2.76:1 sobre la captura blanca)
+            placa_texto(d, *caja, alpha=int(175 * al / 255))
+            tinta_f = _legible(GRIS, tuple(int(v * (1 - 175 / 255)) for v in fondo_f), 4.8)
         for i, ln in enumerate(reversed(lineas)):            # de abajo hacia arriba
             pon_texto(d, (W / 2, y1 - BASE_FUENTE - i * (fnt.size * 1.2)), ln, font=fnt,
-                   fill=GRIS + (al,), anchor="mb")
+                   fill=tinta_f + (al,), anchor="mb")
 
 
 BASE_FUENTE = 24   # px de la línea base de la fuente sobre el borde seguro inferior
@@ -2185,14 +2257,15 @@ def estrellas(layer, cx, cy, valor, maximo=5, tam=46, k=1.0, color=None):
 
 # ================= ESCENAS =================
 def sc_apertura(ctx,e,t):
-    layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
+    layer=Image.new("RGBA",(W,H),(0,0,0,0))
+    deco,d=grupo()   # el fondo de marca va en su capa: se apaga bajo el titular
     cambio=e["at"]["cambio"]
     # fondo de entrada tras el titular (centrado con el titular: H*0.44)
     r=W*0.42*entra(t, e["from"], "lento")*(1-prog(t,cambio-0.15,cambio+0.35)*0.75)
     if r>4:
         # con isotipo en el pack, el fondo es la MARCA (crece y se encoge igual);
         # sin isotipo, el blob organico de cuatro lobulos de siempre
-        if not marca_fondo(ctx, layer, W/2, H*0.44, r, t, e["from"], 0.7):
+        if not marca_fondo(ctx, deco, W/2, H*0.44, r, t, e["from"], 0.7):
             pts=[]
             for i in range(72):
                 a=i/72*math.pi*2+t*0.8
@@ -2206,10 +2279,11 @@ def sc_apertura(ctx,e,t):
         sub,_=grupo()
         titular(ctx,sub,t,e["texto1"],e["at"]["p1"],tam=150,cy=cy)
         if ks>0: sub.putalpha(sub.split()[3].point(lambda v:int(v*(1-ks))))
-        layer.alpha_composite(sub)
     else:
         cy=vy(0.44)+flota(t,e["at"]["p2"][-1]+0.5,5,0.45)
-        titular(ctx,layer,t,e["texto2"],e["at"]["p2"],tam=124,cy=cy)
+        sub,_=grupo()
+        titular(ctx,sub,t,e["texto2"],e["at"]["p2"],tam=124,cy=cy)
+    deco_bajo_texto(layer,deco,sub)
     return capa_salida(layer,t,e["to"])
 
 def sc_canales(ctx,e,t):
@@ -5802,7 +5876,8 @@ def sc_pie(ctx, e, t):
 
 def sc_orbita(ctx, e, t):
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
+    deco, d = grupo()          # halo y partículas: se apagan bajo el texto
+    texto, dt = grupo()
     at = e["at"]
     zx0, zy0, zx1, zy1 = caja_segura()
     
@@ -5816,7 +5891,7 @@ def sc_orbita(ctx, e, t):
     r_core = min(int((zx1 - zx0) * 0.22), int(unidad() * 0.18))
     # pulso = latido DRY (antes seno suelto 3.5 Hz: nervioso vs el resto del catálogo)
     pulso = latido(t, e["from"], 1.6, 0.12)
-    resplandor(layer, (cx - r_core, cy - r_core, cx + r_core, cy + r_core), ACENTO,
+    resplandor(deco, (cx - r_core, cy - r_core, cx + r_core, cy + r_core), ACENTO,
                max(1, int(r_core * 0.45)), alfa=int(70 * pulso))
     
     n_part = 18
@@ -5846,8 +5921,8 @@ def sc_orbita(ctx, e, t):
         kk = entra(t, tk, "bloque")
         if kk > 0:
             fnt_k, kick_l = _encaja_una_linea(ctx.fM, kicker.upper(), ESCALA["nota"], zx1 - zx0 - 60, 700)
-            pon_texto(d, (cx, cy - r_orb - 50), kick_l, font=fnt_k,
-                   fill=ACENTO + (int(255 * clamp01(kk * 1.4)),), anchor="mm")
+            pon_texto(dt, (cx, cy - r_orb - 50), kick_l, font=fnt_k,
+                   fill=acento_legible(NEGRO, fnt_k.size) + (int(255 * clamp01(kk * 1.4)),), anchor="mm")
                    
     titulo = e.get("titulo", "")
     if titulo and k > 0:
@@ -5857,8 +5932,8 @@ def sc_orbita(ctx, e, t):
         lh = fnt_tit.size * 1.25
         y_tit0 = cy - (len(lineas) * lh) / 2
         for li, ln in enumerate(lineas):
-            draw_seg(d, (cx, y_tit0 + li * lh), segs(ln), fnt_tit,
-                     BLANCO + (al,), ACENTO + (al,), anchor="ma")
+            draw_seg(dt, (cx, y_tit0 + li * lh), segs(ln), fnt_tit,
+                     BLANCO + (al,), acento_legible(NEGRO, fnt_tit.size) + (al,), anchor="ma")
                      
     subtitulo = e.get("subtitulo", "")
     if subtitulo:
@@ -5867,9 +5942,10 @@ def sc_orbita(ctx, e, t):
         if ks > 0:
             fnt_sub, sub_l = _encaja_una_linea(ctx.fX, subtitulo, ESCALA["secundario"], zx1 - zx0 - 60, 400)
             # subtítulo más claro: GRIS@220 sobre negro perdía jerarquía
-            pon_texto(d, (cx, cy + r_orb + 50), sub_l, font=fnt_sub,
+            pon_texto(dt, (cx, cy + r_orb + 50), sub_l, font=fnt_sub,
                    fill=(200, 200, 200, int(240 * clamp01(ks * 1.4))), anchor="mm")
-                   
+
+    deco_bajo_texto(layer, deco, texto)
     return capa_salida(layer, t, e["to"])
 
 
@@ -5923,7 +5999,8 @@ def sc_audiowave(ctx, e, t):
     fnt_arch = ctx.fM(ESCALA["nota"], 400)
     arch = recorta_para(arch, fnt_arch, max_w_header, ctx.tmp)
     pon_texto(d, (px + r_play + 18, py + 8), arch, font=fnt_arch, fill=GRIS + (int(180 * clamp01(kc)),), anchor="la")
-    pon_texto(d, (xc + wc - 36, py), est, font=fnt_est, fill=ACENTO + (al,), anchor="rm")
+    col_est = acento_legible(fondo_bajo(layer, (xc + wc - 36 - w_est, py - 14, xc + wc - 36, py + 14)), fnt_est.size)
+    pon_texto(d, (xc + wc - 36, py), est, font=fnt_est, fill=col_est + (al,), anchor="rm")
     
     d.line([xc + 36, py + r_play + 22, xc + wc - 36, py + r_play + 22],
            fill=(255, 255, 255, int(25 * clamp01(kc))), width=1)
@@ -6020,11 +6097,13 @@ def sc_callout(ctx, e, t):
             dos_lineas = seg_width(sg, ctx.fX(TAM_MIN_ROTULO, 700)) > ancho
             y_r = rotulo_y() - 14
             al_r = int(255 * clamp01(k_r * 1.4))
+            w_pl = min(tw, ancho)
+            x_pl = W / 2 - w_pl / 2
+            alto_pl = ESCALA["rotulo"] * (2.1 if dos_lineas else 1.25)
+            fondo_r = fondo_bajo(layer, (x_pl, y_r, x_pl + w_pl, y_r + alto_pl))
             if e.get("captura"):
                 # la placa mide el texto REAL (rotulo lo encoge si no cabe)
-                w_pl = min(tw, ancho)
-                x_pl = W / 2 - w_pl / 2
-                alto_pl = ESCALA["rotulo"] * (2.1 if dos_lineas else 1.25)
+                fondo_r = tuple(int(v * (1 - 175 / 255)) for v in fondo_r)
                 # la placa entra con RAMPA (0.3 s), no con el resorte: es un
                 # bloque grande y oscuro, y con el resorte subia de golpe
                 # (medido: 2 pops en el callout, uno por cada placa)
@@ -6033,7 +6112,7 @@ def sc_callout(ctx, e, t):
             yy_r = y_r + (1 - min(1, k_r)) * ELEV
             for i, ln in enumerate(partir_segs(sg, fr, ancho)):
                 draw_seg(d, (W / 2, yy_r + i * ESCALA["rotulo"] * 1.2), ln, fr,
-                         BLANCO + (al_r,), ACENTO + (al_r,), anchor="ma")
+                         BLANCO + (al_r,), acento_legible(fondo_r, fr.size) + (al_r,), anchor="ma")
     # 4. la elipse que se dibuja + el punto exacto
     t_c = at.get("circulo", e["from"] + 0.35)
     k_c = entra(t, t_c, "elemento")
@@ -6065,16 +6144,22 @@ def sc_callout(ctx, e, t):
             ey = min(max(cy + ry + 38 + h_e / 2, zy0 + PAD + h_e / 2),
                      zy1 - PAD - h_e - aire - h_d + h_e / 2)
             ey_d = ey + h_e / 2 + aire + h_d / 2
+            tw_pl = max(tw, largo_texto(e["detalle"], fd) if fd else 0)
+            # la tinta se elige contra la placa YA puesta (su alfa final), no
+            # contra la rampa: un énfasis que cambia de color a mitad de la
+            # rampa sería un salto
+            fondo_e = fondo_bajo(layer, (ex, ey - h_e / 2, ex + tw_pl, ey + h_e / 2))
             if e.get("captura"):
                 # la placa entra CON el texto, con rampa (no de golpe): ver la
                 # placa del rotulo
-                tw_pl = max(tw, largo_texto(e["detalle"], fd) if fd else 0)
+                fondo_e = tuple(int(v * (1 - 175 / 255)) for v in fondo_e)
                 placa_texto(d, ex - PAD, ey - h_e / 2 - PAD, ex + tw_pl + PAD,
                             (ey_d + h_d / 2 if fd else ey + h_e / 2) + PAD,
                             alpha=int(175 * prog(t, t_e, t_e + 0.3, smoothstep)))
-            draw_seg(d, (ex, ey), sg_e, fnt, BLANCO + (al,), ACENTO + (al,), anchor="lm")
+            enf = acento_legible(fondo_e, fnt.size)
+            draw_seg(d, (ex, ey), sg_e, fnt, BLANCO + (al,), enf + (al,), anchor="lm")
             if fd:
-                pon_texto(d, (ex, ey_d), e["detalle"], font=fd, fill=GRIS + (al,), anchor="lm")
+                pon_texto(d, (ex, ey_d), e["detalle"], font=fd, fill=_legible(GRIS, fondo_e, 4.8) + (al,), anchor="lm")
             # el conector baja de la elipse a la etiqueta
             d.line([(cx, cy + ry + 4), (cx, ey - h_e / 2 - PAD)],
                    fill=ACENTO + (int(120 * k_e),), width=2)
