@@ -307,5 +307,60 @@ class TestUnaSolaRegla(unittest.TestCase):
                 f"auditar_plan dice {not errores_voz}. Son la misma regla.")
 
 
+class TestPisoDeLectura(unittest.TestCase):
+    """El copy tiene que tener tiempo de leerse.
+
+    El piso estaba en DOS referencias con DOS constantes distintas
+    (`references/ritmo.md` y `references/animacion.md`) y no lo comprobaba
+    nadie: era prosa, no un contrato. Ahora hay UNA formula (`_copy.
+    tiempo_lectura`) y la cuenta el auditor.
+    """
+
+    def _avisos_de_lectura(self, plan):
+        return [h["msg"] for h in AP.auditar_estructura(plan)
+                if "en pantalla" in h["msg"]]
+
+    def test_un_texto_corto_en_una_escena_normal_no_avisa(self):
+        plan = {"duracion": 4.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 4.0,
+                             "texto1": ["Hola"]}]}
+        self.assertEqual(self._avisos_de_lectura(plan), [])
+
+    def test_un_texto_largo_en_una_escena_corta_avisa(self):
+        plan = {"duracion": 1.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 1.0,
+                             "texto1": ["Una frase de gancho bastante larga "
+                                        "para que de verdad no quepa"]}]}
+        avisos = self._avisos_de_lectura(plan)
+        self.assertTrue(avisos, "un texto que no cabe en el tiempo tiene que avisar")
+        self.assertIn("acorta el texto", avisos[0])
+
+    def test_el_aviso_dice_los_dos_numeros(self):
+        """El numero va con el aviso: sin el, corregir es adivinar."""
+        plan = {"duracion": 1.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 1.0,
+                             "texto1": ["Una frase de gancho bastante larga "
+                                        "para que de verdad no quepa"]}]}
+        aviso = self._avisos_de_lectura(plan)[0]
+        self.assertIn("necesita", aviso)
+        self.assertIn("tiene", aviso)
+
+    def test_la_formula_es_una_sola_y_las_referencias_apuntan_a_ella(self):
+        """Dos referencias, una idea: el piso de lectura vive en `_copy`."""
+        import _copy as C
+        self.assertEqual(C.tiempo_lectura("Hola"), 0.8)
+        self.assertEqual(C.tiempo_lectura("Una frase con cuatro palabras"), 2.0)
+        refs = os.path.join(os.path.dirname(SCRIPTS), "references")
+        for nombre in ("ritmo.md", "animacion.md"):
+            ruta = os.path.join(refs, nombre)
+            if not os.path.isfile(ruta):
+                continue
+            with open(ruta, encoding="utf-8") as f:
+                txt = f.read()
+            self.assertIn("tiempo_lectura", txt,
+                          f"{nombre} describe el piso de lectura con sus propias "
+                          f"cifras: la formula vive en _copy.tiempo_lectura")
+
+
 if __name__ == "__main__":
     unittest.main()

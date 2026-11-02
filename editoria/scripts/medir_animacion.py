@@ -49,7 +49,7 @@ sys.path.insert(0, AQUI)
 sys.path.insert(0, os.path.join(AQUI, "ffmpeg_tools"))
 
 from _plataforma import dir_temp  # noqa: E402
-from _comun import LETRA_MIN, OCUPACION_MIN  # noqa: E402,F401  el piso legible y la ocupación: UNA cifra
+from _comun import LETRA_MIN, OCUPACION_MIN, GANCHO_MIN  # noqa: E402,F401  el piso legible, la ocupación y el gancho: UNA cifra
 from _comun import formato_de  # noqa: E402  v/h/c por el tamaño: la MISMA cuenta que la puerta
 
 LADO = 180             # lado CORTO de análisis (misma escala en 9:16 y 16:9: 1080 → 180)
@@ -204,7 +204,14 @@ def medir(job):
 
     def espia(self, xy, text, fill=None, font=None, *a, **k):
         if font is not None and str(text).strip() and en_hold[0]:
-            if self.im.size == (R.W, R.H):   # solo lo que va al cuadro, no capas auxiliares
+            # NO se mide solo lo que va al cuadro. El titular se dibuja en una
+            # capa POR PALABRA (el efecto de la mancha) y se compone tal cual
+            # (1:1): su tamano de fuente ES su tamano en pantalla. Lo que hay
+            # que excluir es el RASPADOR (las imagenes en "L": la medicion y las
+            # mascaras), no las capas RGBA. Excluir todas dejaba al texto MAS
+            # GRANDE de la pieza (el titular) sin medir NUNCA: ni el piso de
+            # letra lo miraba, ni el gancho tenia dato.
+            if self.im.mode == "RGBA" or self.im.size == (R.W, R.H):
                 t = str(text)
                 # un simbolo no es una letra: el "✓" de una tarjeta dibujado a
                 # 14 px no es "texto ilegible", es un check. Los numeros si
@@ -276,6 +283,12 @@ def medir(job):
     comp = {"solapes": [], "desbalance": [], "focos": []} if ventana else \
         composicion_asentada(R, ctx, escenas, dur)
     pisan = comp["solapes"]
+    # EL GANCHO: lo primero que dice la pieza. Se mide el texto MÁS GRANDE del
+    # primer plano, porque el piso de letra juzga el texto más PEQUEÑO: si el
+    # titular está encogido (auto-fit o zona segura), el gancho deja de leerse
+    # de un vistazo y el piso de letra no lo ve.
+    gancho_px = max([d["letra_px"] for d in letra_por_escena
+                     if d["escena"].startswith("1:")], default=0)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # se LEE quieta (render_plan.QUIETAS)
         # su flotación (render_plan.vida) no llega al umbral de `muerto` (diff de
         # cuadro entero); `quieto` (por bloque) sí la ve y se mide como en todas
@@ -288,7 +301,7 @@ def medir(job):
                            (".wav", ".mp3", ".mp4", ".m4a", ".mov"))})
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
                 recortes=recortes, desbalance=comp["desbalance"], focos=comp["focos"],
-                letra_por_escena=letra_por_escena, costo=round(costo, 3))
+                letra_por_escena=letra_por_escena, gancho_px=gancho_px, costo=round(costo, 3))
 
 
 def _rejilla(A):
@@ -1002,6 +1015,10 @@ def main():
                 if d["letra_px"] < LETRA_MIN:
                     print(f"  LETRA {r['formato']} escena {d['escena']}: «{d['texto']}» "
                           f"{d['letra_px']} px (< {LETRA_MIN}) — acorta ese texto, pártelo en dos líneas/escenas o dale más caja (no se arregla alargando la escena)")
+            if r.get("gancho_px") is not None and r["gancho_px"] < GANCHO_MIN:
+                print(f"  GANCHO {r['formato']}: el primer plano se queda en {r['gancho_px']} px "
+                      f"(< {GANCHO_MIN}) — la pieza no dice qué es de un vistazo: acorta el "
+                      f"gancho o dale un plano propio")
         global_ = round(float(np.mean([r["nota"] for r in res])), 2)
         minima = min(res, key=lambda r: r["nota"])
         if a.plan and plan.get("musica"):   # edición al ritmo: tiempos reales del plan vs la rejilla

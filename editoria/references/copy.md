@@ -166,12 +166,21 @@ encuesta que nadie hizo.
 python3 scripts/lint_copy.py plan.json           # fallos y avisos
 python3 scripts/lint_copy.py plan.json --json    # informe para maquinas
 python3 scripts/lint_copy.py plan.json --strict  # los avisos tambien fallan
+python3 scripts/auditar_plan.py plan.json        # el copy tiene tiempo de leerse
 ```
 
 El linter mide el texto con las TTF del motor y con el mismo auto-fit, asi
 que el numero que da ("el titular queda en 64 px de 124") es el que el
 render va a usar. Un **fallo** es texto que el motor no puede colocar; un
 **aviso** es copy que se lee como generado o que se va a encoger de mas.
+
+**El piso de lectura** lo comprueba `auditar_plan.py`: un texto necesita
+`0.3 s x palabras + 0.5 s` en pantalla, y nunca menos de 0.8 s (una etiqueta
+corta). La formula vive en `_copy.tiempo_lectura` (una sola, la misma que
+describe `references/ritmo.md` y `references/animacion.md`) y el aviso lleva
+los dos numeros —lo que el texto necesita y lo que tiene— para que corregir
+sea corregir, no adivinar. Un texto que no cabe no se acelera: se acorta el
+copy o se divide la escena.
 
 Un plan con copy de muestra (cifras de ejemplo, contenido inventado) debe
 llevar su lista de contenido a sustituir en el informe de entrega, no

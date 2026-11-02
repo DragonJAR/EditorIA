@@ -371,6 +371,31 @@ def n_palabras(texto):
     return len(partes)
 
 
+# ── el piso de lectura ──────────────────────────────────────────────────────
+# Los segundos que un texto necesita estar EN PANTALLA para que se lea. Un
+# texto que no dura lo suficiente no se lee, por grande que sea.
+#
+# UNA sola formula, en un solo sitio. Las dos referencias que describian el
+# piso de lectura contaban la misma idea con dos constantes distintas
+# (`references/ritmo.md`: 0.3 s por palabra con minimo ~1.2 s;
+# `references/animacion.md`: 0.3 s por palabra + 0.5 s) y NINGUNA lo
+# comprobaba: era prosa, no un contrato. Ahora la cuenta el auditor
+# (`auditar_plan.py`) y las dos referencias apuntan aqui.
+#
+# 0.3 s por palabra + 0.5 s de base, con un minimo de 0.8 s: una etiqueta
+# corta ("cascada") necesita un instante, no un segundo y medio.
+def tiempo_lectura(texto):
+    """Los segundos que un texto necesita estar en pantalla para leerse."""
+    if texto is None:
+        return 0.0
+    if isinstance(texto, (list, tuple)):
+        texto = " ".join(str(t) for t in texto)
+    texto = str(texto).strip()
+    if not texto:
+        return 0.0
+    return max(0.8, 0.3 * n_palabras(texto) + 0.5)
+
+
 def es_tricolon(linea):
     """Tricolonio: tres afirmaciones cortas separadas por punto.
     No cuenta una lista de terminos separada por punto medio."""

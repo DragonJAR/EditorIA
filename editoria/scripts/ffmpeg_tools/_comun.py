@@ -1058,6 +1058,12 @@ LETRA_MIN = 26
 #: medido, las escenas más angostas POR DISEÑO (apertura, cartel: solo tipo)
 #: ocupan 0.17–0.23; las de datos 0.50–0.86. La comparten medición y puerta.
 OCUPACION_MIN = 0.20
+#: piso del GANCHO (px sobre el lado corto 1080): el texto MÁS GRANDE del
+#: primer plano tiene que decir qué es la pieza de un vistazo. El titular se
+#: declara a 120 px y la zona segura lo encoge como mucho a 0.70: 84 px es el
+#: titular más pequeño que una pieza puede tener. UNA cifra: la medición
+#: (`medir_animacion`), la puerta (`qa_entrega`) y la rúbrica (`puntuar`).
+GANCHO_MIN = 84
 
 # FORMATO y PLATAFORMA de una pieza por su tamaño: UNA cuenta para la
 # medición (medir_animacion: qué FORMATO medir) y la puerta (qa_entrega: qué

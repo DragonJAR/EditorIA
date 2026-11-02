@@ -22,6 +22,7 @@ import argparse, json, os, re, statistics, sys
 
 from speech_estimate import (AIRE_VOZ, RITMOS, auditar_plan_voces, detectar_idioma,
                              estimar_duracion, silabas)
+import _copy as C
 import repertorio as REP
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
@@ -58,6 +59,43 @@ def _t_num(v):
     if isinstance(v, bool) or not isinstance(v, (int, float)):
         return None
     return float(v)
+
+
+_RE_RUTA = re.compile(r"^escenas\[\d+\](?:\.([A-Za-z_]+)\[(\d+)\])?\.(\w+)$")
+
+
+def _ventana_del_texto(escena, item, fr, to):
+    """(llegada, salida) de un texto: cuando aparece y cuando se va.
+
+    La salida es el fin de la escena para TODO texto, tambien para los items
+    de un chat: las burbujas se apilan (el hilo hace auto-scroll y lo viejo
+    se desvanece bajo el rotulo), asi que un mensaje no desaparece cuando
+    llega el siguiente. Contarlo al reves daria avisos falsos: cuatro
+    mensajes en tres segundos no son cuatro textos de 0.75 s.
+    """
+    m = _RE_RUTA.match(item.get("ruta", ""))
+    if not m:
+        return fr, to
+    lista_k, j, clave = m.group(1), m.group(2), m.group(3)
+    at = escena.get("at") if isinstance(escena.get("at"), dict) else {}
+    if not lista_k:
+        llegada = _t_num(at.get(clave))
+        return (fr if llegada is None else llegada), to
+    items = escena.get(lista_k)
+    if not isinstance(items, list):
+        return fr, to
+    try:
+        idx = int(j)
+    except (TypeError, ValueError):
+        return fr, to
+    if idx >= len(items) or not isinstance(items[idx], dict):
+        return fr, to
+    llegada = _t_num(items[idx].get("at"))
+    if llegada is None:
+        llegada = _t_num(at.get(clave))
+        if llegada is None:
+            llegada = fr
+    return llegada, to
 
 
 def es_vacia(e):
@@ -125,6 +163,13 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
         pares_validos.append((idx, e))
 
     ordenadas = sorted(pares_validos, key=lambda p: _t_num(p[1].get("from")) or 0.0)
+    # El copy de cada escena, con la MISMA extraccion que usa lint_copy
+    # (una idea, un canonico: no dos extractores que cuentan cosas distintas).
+    textos_por_escena = {}
+    for _item in C.extraer(plan):
+        _m = re.match(r"^escenas\[(\d+)\]", _item.get("ruta", ""))
+        if _m:
+            textos_por_escena.setdefault(int(_m.group(1)), []).append(_item)
     prev_to_val = None
     prev_idx = None
     for idx, e in ordenadas:
@@ -170,6 +215,23 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
             add("AVISO", fr, f"escena {idx} ({tipo}): muy corta ({to-fr:.2f}s)")
         if es_vacia(e):
             add("AVISO", fr, f"escena {idx} ({tipo}): escena vacía (sin texto ni voz)")
+        # EL PISO DE LECTURA: un texto que no esta lo bastante tiempo en
+        # pantalla no se lee, por grande que sea. La formula es de `_copy`
+        # (una sola: la usaban dos referencias con dos constantes y no la
+        # comprobaba nadie). Es AVISO y no ERROR porque una excepcion
+        # deliberada es legitima, pero el numero va con el aviso para que se
+        # pueda corregir sin adivinar.
+        for _item in textos_por_escena.get(idx, []):
+            _necesita = C.tiempo_lectura(_item.get("valor", ""))
+            if _necesita <= 0:
+                continue
+            _llegada, _salida = _ventana_del_texto(e, _item, fr, to)
+            _disponible = max(0.0, _salida - _llegada)
+            if _disponible + 0.05 < _necesita:
+                add("AVISO", fr,
+                    f"escena {idx} ({tipo}): '{_item.get('clave')}' necesita "
+                    f"{_necesita:.1f}s en pantalla y tiene {_disponible:.1f}s "
+                    f"— acorta el texto o alarga la escena")
         if "voz" in e and isinstance(e["voz"], str) and not e["voz"].strip():
             add("AVISO", fr, f"escena {idx} ({tipo}): campo voz presente pero vacío")
         if prev_to_val is not None:
