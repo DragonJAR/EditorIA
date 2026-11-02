@@ -692,6 +692,14 @@ def resplandor(layer, bbox, color, sigma, alfa=255, dibujar=None, escala=1):
 # fantasma bajo el texto nuevo, y el fundido previo vaciaba el cuadro antes de
 # que la nueva mostrara nada. El primer elemento que entra llega a ~+0.2 s:
 # la salida sostiene el cuadro hasta ahí y a +0.3 s ya no queda (< 2 %).
+# Registro de transiciones que acepta `escena.transicion` (fuente única: el
+# auditor de planes lo lee de aquí). Sin campo: "corte".
+TRANSICIONES_TIPOS = {
+    "corte":    "corte con solape: la saliente se funde DEBAJO de la que entra (default)",
+    "dissolve": "fundido cruzado de SOLAPE_DISSOLVE s entre las dos escenas",
+    "iris":     "la escena nueva abre en círculo desde el centro (o transicionX/Y)",
+    "mancha":   "una mancha de color barre el cuadro y descubre la escena nueva",
+}
 SOLAPE=0.32      # s que la salida se superpone con la entrada de la siguiente
 SOLAPE_DISSOLVE=0.40   # s del fundido cruzado (transicion "dissolve")
 SOLAPE_PRE=0.0   # s de fundido de salida ANTES del corte (0: sale desde el corte)
@@ -7359,6 +7367,16 @@ def completar_escena(e,i=0):
         for clave,v in m["at"].items():
             if clave not in at: at[clave]=_escalar_t(v,k,e["from"])
         e["at"]=at
+    # el esquema se valida ANTES de pintar: un obligatorio que falta o un tipo
+    # equivocado es un mensaje con escena, campo y ejemplo, no un TypeError
+    errs=errores_de_esquema(e,i)
+    if errs:
+        sys.exit("ERROR: "+"\n  ".join(errs)+f"\n  Ejemplo de `{tipo}`: "+json.dumps(m or {},ensure_ascii=False)[:400])
+    # regla ÚNICA del markup: donde la escena no pinta énfasis (`boton`…:
+    # esquema `markup: false`) los signos se quitan; auditar_plan lo avisa
+    for p_ in esquema_de(tipo):
+        if not p_["markup"] and isinstance(e.get(p_["nombre"]),str):
+            e[p_["nombre"]]=texto_plano(e[p_["nombre"]])
     return e
 
 COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}
@@ -7994,6 +8012,28 @@ def esquema_de(tipo):
                 "claves": ats})
     _ESQ[tipo] = out
     return out
+
+def duracion_de(tipo):
+    """{min, recomendada:[a,b], max, semantica} en segundos, derivada de la
+    muestra de la escena. `min`: lo que tarda en entrar todo + 1 s de
+    lectura; `recomendada`: de ahí a 2× la muestra (o +3 s); `max` (duro): 3×
+    la muestra, mínimo 12 s. La lee auditar_plan (AVISO / ERROR)."""
+    ej = muestra(tipo)
+    if not ej:
+        return None
+    d = float(ej["to"]) - float(ej["from"])
+    def _ats(v):
+        if isinstance(v, (int, float)) and not isinstance(v, bool): yield float(v)
+        elif isinstance(v, list):
+            for x in v: yield from _ats(x)
+        elif isinstance(v, dict):
+            for x in v.values(): yield from _ats(x)
+    ult = max([0.0] + [x - float(ej["from"]) for x in _ats(ej.get("at", {}))])
+    mn = round(max(1.5, min(d, ult + 1.0)), 1)
+    rec = round(max(d * 2.0, d + 3.0), 1)
+    return {"min": mn, "recomendada": [mn, rec], "max": round(max(12.0, d * 3.0), 1),
+            "semantica": "segundos de la escena (to − from): recomendada = rango con oficio; "
+                         "max = tope duro (más es una escena muerta: parte el contenido)"}
 
 def errores_de_esquema(e, i=0):
     """Obligatorios que faltan y tipos que no casan, con escena y campo

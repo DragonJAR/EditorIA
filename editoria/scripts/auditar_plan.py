@@ -41,6 +41,18 @@ def tipos_validos():
 TIPOS_VALIDOS = tipos_validos()
 
 
+def transiciones_validas():
+    """Las transiciones salen de TRANSICIONES_TIPOS de render_plan.py."""
+    ruta_rp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "render_plan.py")
+    with open(ruta_rp, encoding="utf-8") as fh:
+        src = fh.read()
+    bloque = re.search(r"^TRANSICIONES_TIPOS\s*=\s*\{(.*?)^\}", src, re.S | re.M).group(1)
+    return set(re.findall(r'^\s*"(\w+)"\s*:', bloque, re.M))
+
+
+TRANSICIONES_VALIDAS = transiciones_validas()
+
+
 def _t_num(v):
     """Convierte int/float (no bool) a float; devuelve None si no es numérico."""
     if isinstance(v, bool) or not isinstance(v, (int, float)):
@@ -120,9 +132,19 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
         fr, to = _t_num(fr_raw), _t_num(to_raw)
         tipo = e.get("tipo", "?")
         if tipo not in TIPOS_VALIDOS:
+            sug = sugerir_tipo(tipo)
             add("ERROR", fr if fr is not None else 0.0,
-                f"escena {idx} ({tipo}): tipo desconocido — "
-                f"válidos: {', '.join(sorted(TIPOS_VALIDOS))}")
+                f"escena {idx} ({tipo}): tipo desconocido"
+                + (f" — ¿quisiste decir `{sug}`?" if sug else "")
+                + f" — válidos: {', '.join(sorted(TIPOS_VALIDOS))}")
+        else:
+            for nivel, msg in revisar_campos(e, idx):
+                add(nivel, fr if fr is not None else 0.0, msg)
+        tr = e.get("transicion")
+        if tr is not None and tr not in TRANSICIONES_VALIDAS:
+            add("AVISO", fr if fr is not None else 0.0,
+                f"escena {idx} ({tipo}): transicion '{tr}' desconocida — se hace "
+                f"corte; válidas: {', '.join(sorted(TRANSICIONES_VALIDAS))}")
         if fr is None or to is None:
             add("ERROR", fr if fr is not None else 0.0,
                 f"escena {idx} ({tipo}): falta from/to numérico")
@@ -262,7 +284,143 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
     for msg in credenciales_en(plan):
         add("ERROR", 0.0, msg)
 
+    for nivel, msg in revisar_color(plan):
+        add(nivel, 0.0, msg)
+
     return hallazgos
+
+
+def sugerir_tipo(tipo):
+    """El tipo canónico para un nombre que un agente probaría («barras»,
+    «dona», «cita»): alias del repertorio (`alias_escenas`) y, si no, el más
+    parecido. None si nada se parece."""
+    import difflib
+    alias = REP.alias_escenas()
+    t = str(tipo).strip().lower()
+    if t in alias:
+        return alias[t]
+    por_minus = {x.lower(): x for x in TIPOS_VALIDOS}
+    sug = difflib.get_close_matches(t, sorted(por_minus) + sorted(alias), n=1, cutoff=0.6)
+    return (alias.get(sug[0]) or por_minus.get(sug[0])) if sug else None
+
+
+_RP = None
+
+
+def _render_plan():
+    """render_plan se importa solo si hace falta (es pesado) y una vez."""
+    global _RP
+    if _RP is None:
+        import contextlib, io
+        with contextlib.redirect_stdout(io.StringIO()):
+            import render_plan as rp
+        _RP = rp
+    return _RP
+
+
+_MARKUP_RE = re.compile(r"\*[^*]+\*|~[^~]+~|\^[^^]+\^")
+
+
+def revisar_campos(e, idx):
+    """Lo que antes pasaba como PLAN VALIDO y salía vacío o reventaba en el
+    render: campos que la escena no lee (con «¿quisiste decir…?», la misma
+    función que usa render_plan), valores de tipo equivocado frente a la
+    muestra, el ESQUEMA (`render_plan.esquema_de`: obligatorios y tipos),
+    markup donde la escena no lo pinta, la lectura de la apertura, copy de
+    MUESTRA sin reemplazar y la duración (`render_plan.duracion_de`)."""
+    out = []
+    try:
+        rp = _render_plan()
+    except Exception:   # sin PIL/numpy: este chequeo no aplica
+        return out
+    # misma numeración que el resto del auditor (render_plan cuenta desde 1)
+    for av in rp.avisos_de_campos(e, idx - 1):
+        out.append(("AVISO", av.replace("AVISO: ", "", 1)))
+    tipo = e.get("tipo")
+    ej = rp.muestra(tipo) or {}
+    for k, v in e.items():
+        m = ej.get(k)
+        if isinstance(m, (int, float)) and not isinstance(m, bool) and k not in ("from", "to"):
+            if isinstance(v, str):
+                try:
+                    float(v.replace(",", "."))
+                except ValueError:
+                    out.append(("ERROR", f"escena {idx} ({tipo}): `{k}` debe ser un número "
+                                         f"(la muestra usa {m}); llegó «{v}»"))
+            elif not isinstance(v, (int, float)) or isinstance(v, bool):
+                out.append(("ERROR", f"escena {idx} ({tipo}): `{k}` debe ser un número "
+                                     f"(la muestra usa {m})"))
+    errores = rp.errores_de_esquema(e, idx - 1)
+    for err in errores:
+        out.append(("ERROR", err))
+    for p_ in rp.esquema_de(tipo):
+        v = e.get(p_["nombre"])
+        if isinstance(v, str) and not p_["markup"] and p_["tipo"] == "texto" and _MARKUP_RE.search(v):
+            out.append(("AVISO", f"escena {idx} ({tipo}): `{p_['nombre']}` no admite markup: los "
+                                 f"signos se quitan y sale texto plano («{v[:30]}»)"))
+    fr, to = _t_num(e.get("from")), _t_num(e.get("to"))
+    if tipo == "apertura" and not errores and fr is not None and to is not None and to > fr:
+        from _comun import tiempo_de_lectura
+        import contextlib, io
+        try:
+            with contextlib.redirect_stderr(io.StringIO()):
+                at_ = rp.completar_escena(dict(e), idx)["at"]
+            leido = float(at_["cambio"]) - float(at_["p1"][-1]) - 0.45
+        except (SystemExit, KeyError, IndexError, TypeError, ValueError):
+            leido = None
+        piso = tiempo_de_lectura(e.get("texto1"))
+        if leido is not None and leido < piso - 0.05:
+            out.append(("AVISO", f"escena {idx} (apertura): la 1.ª frase se lee {max(0, leido):.1f} s "
+                                 f"(< {piso} s): alarga la apertura o acorta la frase"))
+    if e.get("_muestra"):
+        out.append(("ERROR", f"escena {idx} ({tipo}): copy de MUESTRA sin reemplazar (va: «{str(e['_muestra'])[:50]}»); "
+                             f"escribe el del brief y borra `_muestra`"))
+    rango = rp.duracion_de(tipo)
+    if rango and fr is not None and to is not None:
+        d = to - fr
+        if d > rango["max"]:
+            out.append(("ERROR", f"escena {idx} ({tipo}): dura {d:.1f} s, más que el máximo de la "
+                                 f"escena ({rango['max']} s): parte el contenido en dos escenas"))
+        elif d > rango["recomendada"][1]:
+            out.append(("AVISO", f"escena {idx} ({tipo}): dura {d:.1f} s, por encima de lo "
+                                 f"recomendado ({rango['recomendada'][0]}–{rango['recomendada'][1]} s; "
+                                 f"máximo {rango['max']} s)"))
+    return out
+
+
+def revisar_color(plan):
+    """`paleta` y `acento` del plan, con el MISMO código que los instala
+    (`_comun.paleta_libre` + `asegurar_contraste`): una paleta inexistente o
+    un color mal escrito son ERROR (antes PLAN VALIDO y el render fallaba);
+    un color que no se lee es AVISO y dice a qué se corregirá."""
+    out = []
+    if not isinstance(plan, dict) or plan.get("brand"):
+        return out
+    from _comun import asegurar_contraste, paleta_libre
+    import contextlib, io
+    for campo in ("paleta", "acento"):
+        v = plan.get(campo)
+        if not v:
+            continue
+        nombre = str(v) if campo == "paleta" else "#" + str(v).lstrip("#")
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err):
+                tokens = paleta_libre(nombre)
+        except SystemExit as ex:
+            motivo = (err.getvalue().strip().splitlines() or [str(ex.code)])[-1].replace("ERROR: ", "")
+            out.append(("ERROR", f"{campo} «{v}» no vale: {motivo}"))
+            continue
+        from _comun import hex_a_rgb, rgb_a_hex
+        clave = nombre.partition(":")[0]
+        if clave.startswith("#") and tuple(tokens["acento"]) != hex_a_rgb(clave):
+            out.append(("AVISO", f"{campo} «{v}» no se lee sobre el fondo: el motor lo corrige a "
+                                 f"{rgb_a_hex(tokens['acento'])}"))
+        for av in asegurar_contraste(tokens, campo)[1]:
+            out.append(("AVISO", av))
+        if campo == "paleta":
+            break   # con paleta, `acento` no se usa
+    return out
 
 
 #: como se ve una credencial. El plan va al repo y al guion: una key pegada
@@ -567,23 +725,8 @@ def main():
             sys.exit(1)
         sys.exit(msg)
 
+    # el esquema, el copy de muestra y la duración van dentro (revisar_campos)
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
-    # copy de muestra sin reemplazar → ERROR (el plan no es entregable)
-    if isinstance(plan, dict):
-        for idx, e in enumerate(plan.get("escenas") or []):
-            if isinstance(e, dict) and e.get("_muestra"):
-                hallazgos.append({
-                    "nivel": "ERROR", "t": float(e.get("from") or 0.0),
-                    "msg": (f"escena {idx} ({e.get('tipo','?')}): copy de MUESTRA sin reemplazar "
-                            f"(va: «{str(e['_muestra'])[:50]}»); escribe el del brief y borra `_muestra`"),
-                })
-            if isinstance(e, dict) and e.get("tipo"):
-                try:
-                    import render_plan as rp
-                    for err in rp.errores_de_esquema(e, idx):
-                        hallazgos.append({"nivel": "ERROR", "t": float(e.get("from") or 0.0), "msg": err})
-                except Exception:
-                    pass
     if isinstance(plan, dict) and isinstance(plan.get("brand"), str):
         from _comun import buscar_pack, packs_disponibles
         ruta_brand = buscar_pack(plan["brand"], os.path.dirname(os.path.abspath(a.plan)))

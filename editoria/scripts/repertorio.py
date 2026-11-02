@@ -246,6 +246,13 @@ def familias_opciones(datos=None, efectos=None, gestos=None, captions=None):
     }
 
 
+def alias_escenas(datos=None):
+    """{nombre que un agente probaría: tipo del motor} («barras» → bars,
+    «cita» → quote). Fuente única: `alias_escenas` de repertorio.json; la usan
+    `resolver` y `auditar_plan.sugerir_tipo`."""
+    return dict((datos or cargar()).get("alias_escenas") or {})
+
+
 def catalogo_opciones(datos=None, efectos=None, gestos=None, captions=None):
     """Todas las opciones indexadas por id (primera ocurrencia gana el detalle)."""
     datos = datos or cargar()
@@ -275,8 +282,10 @@ def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
     clave = (nombre or "").strip().lower().replace("_", "-")
     if not clave:
         return None
-    # escenas: ids del motor (pueden ser camelCase: orbOpen)
+    # escenas: ids del motor (pueden ser camelCase: orbOpen) o su alias
+    # (`alias_escenas`: «barras» → bars, «dona» → pie)
     tipos = catalogo()
+    nombre = alias_escenas(datos).get(clave.replace("-", "_"), nombre)
     if nombre in tipos:
         ints = intencion_de(nombre, datos)
         meta = (datos.get("detalle_escenas") or {}).get(nombre) or {}
@@ -429,6 +438,9 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
     for h in sorted(tipos - cubiertas):
         malos.append(f"'{h}' está en el motor pero en ninguna intención: "
                      "es inalcanzable desde el flujo normal; añádela a una familia")
+    for alias, destino in alias_escenas(datos).items():
+        if destino not in tipos:
+            malos.append(f"alias_escenas.{alias}: '{destino}' no es una escena del motor")
     for rol, inten in datos.get("roles_clonar", {}).items():
         if inten not in ids:
             malos.append(f"roles_clonar.{rol}: intención desconocida '{inten}'")

@@ -26,7 +26,8 @@ from speech_estimate import estimar_duracion  # noqa: E402
 
 def _plan(**extra):
     plan = {"duracion": 3.0,
-            "escenas": [{"tipo": "apertura", "from": 0, "to": 3, "texto1": ["Hola"]}]}
+            "escenas": [{"tipo": "apertura", "from": 0, "to": 3, "texto1": ["Hola"],
+                                 "texto2": ["mundo"]}]}
     plan.update(extra)
     return plan
 
@@ -194,9 +195,11 @@ class TestRelojDeLaNarracion(unittest.TestCase):
     def _plan(self, hueco):
         return {"duracion": hueco * 3,
                 "escenas": [
-                    {"tipo": "apertura", "from": 0.0, "to": hueco, "voz": self.TEXTO},
-                    {"tipo": "bento", "from": hueco, "to": hueco * 2, "voz": "Segunda frase."},
-                    {"tipo": "final", "from": hueco * 2, "to": hueco * 3},
+                    {"tipo": "apertura", "from": 0.0, "to": hueco, "voz": self.TEXTO,
+                     "texto1": ["Hola"], "texto2": ["mundo"]},
+                    {"tipo": "bento", "from": hueco, "to": hueco * 2, "voz": "Segunda frase.",
+                     "items": [{"titulo": "Uno", "texto": "uno"}, {"titulo": "Dos", "texto": "dos"}]},
+                    {"tipo": "final", "from": hueco * 2, "to": hueco * 3, "marca": "Marca"},
                 ]}
 
     def _niveles(self, plan):
