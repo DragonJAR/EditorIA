@@ -29,7 +29,8 @@
    "ruta": "python scripts/ffmpeg_tools/caption.py VIDEO --palabras palabras.json --karaoke --phrase-aware --animate pop -o con_sub.mp4",
    "intenciones": ["copy", "social", "gancho"],
    "keywords": ["karaoke", "subtitulos", "captions", "rail", "palabra activa", "quemar"],
-   "aliases": ["karaoke", "subtitulos-karaoke", "rail-karaoke"]
+   "aliases": ["karaoke", "subtitulos-karaoke", "rail-karaoke"],
+   "no_usar": "No sin las palabras de la voz, ni como titular de escena: es un rail que sigue el habla."
   },
   {
    "id": "cap-rail-pop",
@@ -40,7 +41,8 @@
    "ruta": "python scripts/ffmpeg_tools/caption.py VIDEO --palabras palabras.json --animate pop --phrase-aware -o con_sub.mp4",
    "intenciones": ["gancho", "social", "copy"],
    "keywords": ["pop", "impacto", "entrada", "subtitulo"],
-   "aliases": ["subtitulos-pop", "rail-pop"]
+   "aliases": ["subtitulos-pop", "rail-pop"],
+   "no_usar": "No para follow-along silábico (eso es karaoke) ni con frases largas."
   },
   {
    "id": "cap-rail-fade",
@@ -51,7 +53,8 @@
    "ruta": "python scripts/ffmpeg_tools/caption.py VIDEO --palabras palabras.json --animate fade --phrase-aware -o con_sub.mp4",
    "intenciones": ["copy", "social", "cierre"],
    "keywords": ["fade", "suave", "editorial", "calmado"],
-   "aliases": ["subtitulos-fade", "rail-fade"]
+   "aliases": ["subtitulos-fade", "rail-fade"],
+   "no_usar": "No cuando el beat pide golpe o slam: el fade es un tono medido."
   },
   {
    "id": "cap-rail-slide",
@@ -62,7 +65,8 @@
    "ruta": "python scripts/ffmpeg_tools/caption.py VIDEO --palabras palabras.json --animate slide --phrase-aware -o con_sub.mp4",
    "intenciones": ["proceso", "copy", "social"],
    "keywords": ["slide", "deslizar", "lista hablada"],
-   "aliases": ["subtitulos-slide", "rail-slide"]
+   "aliases": ["subtitulos-slide", "rail-slide"],
+   "no_usar": "No si el rail debe quedarse quieto sobre un fondo que ya se mueve."
   },
   {
    "id": "cap-hablantes",
@@ -73,7 +77,8 @@
    "ruta": "python scripts/ffmpeg_tools/caption.py VIDEO --palabras palabras.json --hablantes \"A=FFD400,B=4FC3F7\" --karaoke --phrase-aware -o con_sub.mp4",
    "intenciones": ["social", "copy", "demostracion"],
    "keywords": ["hablantes", "podcast", "entrevista", "dos voces", "speaker"],
-   "aliases": ["subtitulos-hablantes", "speaker-colors"]
+   "aliases": ["subtitulos-hablantes", "speaker-colors"],
+   "no_usar": "No con un solo hablante ni sin un color por persona en el brief."
   },
   {
    "id": "cap-embed-matte",
@@ -85,7 +90,8 @@
    "hf_component": null,
    "intenciones": ["gancho", "copy", "social"],
    "keywords": ["embed", "matte", "detras de la cara", "oclusion", "palabra gigante detras", "converzzo"],
-   "aliases": ["embed", "matte-caption", "texto-detras"]
+   "aliases": ["embed", "matte-caption", "texto-detras"],
+   "no_usar": "No en cada frase: es un pico, una palabra detrás de la cara, nunca dos a la vez."
   },
   {
    "id": "cap-highlight",
@@ -97,7 +103,8 @@
    "hf_component": "caption-highlight",
    "intenciones": ["social", "gancho", "copy"],
    "keywords": ["tiktok", "highlight", "high-energy", "highlight caption"],
-   "aliases": ["caption-highlight", "tiktok-captions"]
+   "aliases": ["caption-highlight", "tiktok-captions"],
+   "no_usar": "No si basta el karaoke plano nativo y HyperFrames no está declarado."
   },
   {
    "id": "cap-pill-karaoke",
@@ -109,7 +116,8 @@
    "hf_component": "caption-pill-karaoke",
    "intenciones": ["social", "copy"],
    "keywords": ["pill", "lyric", "musica", "karaoke pill"],
-   "aliases": ["caption-pill-karaoke", "lyric-captions"]
+   "aliases": ["caption-pill-karaoke", "lyric-captions"],
+   "no_usar": "No como sustituto silencioso del rail nativo si HyperFrames no está."
   },
   {
    "id": "cap-editorial",
@@ -121,7 +129,8 @@
    "hf_component": "caption-editorial-emphasis",
    "intenciones": ["copy", "cierre", "social"],
    "keywords": ["editorial", "documental", "storytelling", "elegante"],
-   "aliases": ["caption-editorial-emphasis", "cinematic-editorial"]
+   "aliases": ["caption-editorial-emphasis", "cinematic-editorial"],
+   "no_usar": "No en un reel de golpe rápido: es énfasis editorial; el nativo cercano es cap-rail-fade."
   },
   {
    "id": "cap-kinetic-slam",
@@ -133,7 +142,8 @@
    "hf_component": "caption-kinetic-slam",
    "intenciones": ["gancho", "social", "cierre"],
    "keywords": ["slam", "kinetic", "fullscreen word", "hype"],
-   "aliases": ["caption-kinetic-slam", "slam"]
+   "aliases": ["caption-kinetic-slam", "slam"],
+   "no_usar": "No en un testimonio calmo, ni tapando la cara sin el matte."
   },
   {
    "id": "cap-neon-glow",
@@ -145,7 +155,8 @@
    "hf_component": "caption-neon-glow",
    "intenciones": ["social", "gancho"],
    "keywords": ["neon", "glow", "nightlife", "club"],
-   "aliases": ["caption-neon-glow", "neon-captions"]
+   "aliases": ["caption-neon-glow", "neon-captions"],
+   "no_usar": "No en marcas sobrias ni mezclado con matrix en el mismo tramo."
   },
   {
    "id": "cap-neon-accent",
@@ -157,7 +168,8 @@
    "hf_component": "caption-neon-accent",
    "intenciones": ["social", "gancho", "copy"],
    "keywords": ["neon accent", "multicolor", "playful"],
-   "aliases": ["caption-neon-accent"]
+   "aliases": ["caption-neon-accent"],
+   "no_usar": "No como segunda identidad si la pieza ya tiene otro neon."
   },
   {
    "id": "cap-glitch",
@@ -169,7 +181,8 @@
    "hf_component": "caption-glitch-rgb",
    "intenciones": ["gancho", "demostracion", "social"],
    "keywords": ["glitch", "cyber", "rgb", "gaming"],
-   "aliases": ["caption-glitch-rgb", "glitch-captions"]
+   "aliases": ["caption-glitch-rgb", "glitch-captions"],
+   "no_usar": "No en piezas institucionales o de noticia: el glitch RGB es un acento."
   },
   {
    "id": "cap-clip-wipe",
@@ -181,7 +194,8 @@
    "hf_component": "caption-clip-wipe",
    "intenciones": ["copy", "demostracion", "proceso"],
    "keywords": ["wipe", "clean", "corporate", "moderno"],
-   "aliases": ["caption-clip-wipe"]
+   "aliases": ["caption-clip-wipe"],
+   "no_usar": "No si el nativo cap-rail-fade ya cumple y no hay HyperFrames."
   },
   {
    "id": "cap-gradient",
@@ -193,7 +207,8 @@
    "hf_component": "caption-gradient-fill",
    "intenciones": ["gancho", "social", "copy"],
    "keywords": ["gradient", "degradado", "vibrant"],
-   "aliases": ["caption-gradient-fill"]
+   "aliases": ["caption-gradient-fill"],
+   "no_usar": "No sobre un fondo ya saturado: el relleno en degradado necesita aire."
   },
   {
    "id": "cap-matrix",
@@ -205,7 +220,8 @@
    "hf_component": "caption-matrix-decode",
    "intenciones": ["gancho", "demostracion"],
    "keywords": ["matrix", "decode", "sci-fi", "reveal"],
-   "aliases": ["caption-matrix-decode"]
+   "aliases": ["caption-matrix-decode"],
+   "no_usar": "No mezclado con neon en el mismo tramo, ni sin un beat de código o dato."
   },
   {
    "id": "cap-emoji-pop",
@@ -217,7 +233,8 @@
    "hf_component": "caption-emoji-pop",
    "intenciones": ["social", "gancho"],
    "keywords": ["emoji", "casual", "social pop"],
-   "aliases": ["caption-emoji-pop"]
+   "aliases": ["caption-emoji-pop"],
+   "no_usar": "No en marcas sobrias ni como sustituto del copy."
   },
   {
    "id": "cap-parallax",
@@ -229,7 +246,8 @@
    "hf_component": "caption-parallax-layers",
    "intenciones": ["gancho", "copy", "imagen-texto"],
    "keywords": ["parallax", "depth", "layers", "cinematic"],
-   "aliases": ["caption-parallax-layers"]
+   "aliases": ["caption-parallax-layers"],
+   "no_usar": "No con un solo plano de texto ni fuera de HyperFrames."
   },
   {
    "id": "cap-particle",
@@ -241,7 +259,8 @@
    "hf_component": "caption-particle-burst",
    "intenciones": ["gancho", "social", "cierre"],
    "keywords": ["particle", "burst", "celebration", "keywords"],
-   "aliases": ["caption-particle-burst"]
+   "aliases": ["caption-particle-burst"],
+   "no_usar": "No en piezas urgentes ni si la marca prohíbe partículas."
   },
   {
    "id": "cap-weight-shift",
@@ -253,7 +272,8 @@
    "hf_component": "caption-weight-shift",
    "intenciones": ["copy", "cierre"],
    "keywords": ["weight", "tipografia", "elegante", "shift"],
-   "aliases": ["caption-weight-shift"]
+   "aliases": ["caption-weight-shift"],
+   "no_usar": "No si basta un fade de rail: el cambio de peso pide el beat tipográfico."
   }
  ],
  "descartado_a_proposito": [

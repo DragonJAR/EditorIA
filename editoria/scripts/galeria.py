@@ -115,6 +115,10 @@ def assets(dst, acento):
     foto = Image.fromarray(_np.clip(arr, 0, 255).astype(_np.uint8))
     foto.save(os.path.join(dst, "foto_muestra.png"))
 
+    # la fila resaltada es un TINTE del acento del tema (antes un rosa fijo,
+    # que en cualquier tema se leía como el rojo de la marca de ejemplo)
+    resalte = tuple(int(255 + (c - 255) * 0.14) for c in acento[:3])
+
     def captura(nombre, filas, resaltada):
         im = Image.new("RGB", (1600, 1000), (246, 247, 249))
         c = ImageDraw.Draw(im)
@@ -126,7 +130,7 @@ def assets(dst, acento):
         for i in range(filas):
             y = 200 + i * 120
             c.rounded_rectangle([360, y, 1540, y + 96], 14,
-                                fill=(255, 236, 225) if i == resaltada else (255, 255, 255),
+                                fill=resalte if i == resaltada else (255, 255, 255),
                                 outline=(225, 228, 232), width=2)
             c.rectangle([390, y + 30, 390 + 300 + 80 * (i % 3), y + 50], fill=(70, 75, 85))
             c.rectangle([390, y + 62, 590, y + 74], fill=(170, 175, 185))

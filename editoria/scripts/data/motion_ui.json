@@ -21,7 +21,9 @@
    "adaptar": "Parametriza entra/at con roles MOVIMIENTO; prohibido lineal salvo cursor preciso (demo)",
    "intenciones": ["gancho", "copy", "social", "cierre"],
    "keywords": ["suave", "vivo", "no robotico", "easing", "resorte", "curva"],
-   "aliases": ["ease", "curva"]
+   "aliases": ["ease", "curva"],
+   "ocasion": "Cuando la entrada, el viaje o el aterrizaje tienen que sentirse con peso y no robóticos",
+   "no_usar": "No en un cursor o tabla que debe viajar recto y lineal (demo preciso)."
   },
   {
    "id": "offset-delay",
@@ -33,7 +35,9 @@
    "adaptar": "at distintos por elemento (at.item0..n, at.p1[]); HyperFrames animation-delay",
    "intenciones": ["gancho", "dato", "proceso", "estructura", "estado"],
    "keywords": ["cascada", "stagger", "no a la vez", "viscosidad", "escalonado", "delay"],
-   "aliases": ["offset", "delay", "stagger"]
+   "aliases": ["offset", "delay", "stagger"],
+   "ocasion": "Cuando varios objetos entran y no deben llegar en el mismo frame",
+   "no_usar": "No cuando un solo objeto entra: el desfase no tiene con qué escalonar."
   },
   {
    "id": "fade",
@@ -45,7 +49,9 @@
    "adaptar": "Entrada con fade+resorte; capa_salida; HyperFrames opacity",
    "intenciones": ["copy", "social", "cierre", "imagen-texto", "estado"],
    "keywords": ["aparecer", "desaparecer", "fundido", "fade", "suave entrada"],
-   "aliases": ["fade-in", "fade-out", "fundido"]
+   "aliases": ["fade-in", "fade-out", "fundido"],
+   "ocasion": "Cuando algo aparece o se va y el alfa acompaña posición o escala",
+   "no_usar": "No como única acción de un protagonista: combina alfa con posición o escala."
   },
   {
    "id": "morph",
@@ -57,7 +63,9 @@
    "adaptar": "MorphSVG/flubber; el plan no morphéa paths: usa mancha/iris/dissolve o zoom demo/kenburns",
    "intenciones": ["demostracion", "comparacion", "proceso"],
    "keywords": ["morph", "se convierte", "tarjeta se expande", "transform"],
-   "aliases": ["transform", "transform-morph"]
+   "aliases": ["transform", "transform-morph"],
+   "ocasion": "Cuando un objeto debe convertirse en otro y arrastrar la mirada entre pantallas",
+   "no_usar": "No dentro del motor de plan: no morphéa paths. Si no hay HyperFrames o Remotion, no lo sustituyas por un fade."
   },
   {
    "id": "masking",
@@ -69,7 +77,9 @@
    "adaptar": "text_reveal / revelado tipográfico; foto-en-máscara con pan: HyperFrames o kenburns en caja",
    "intenciones": ["copy", "imagen-texto", "demostracion", "dato"],
    "keywords": ["mascara", "mask", "reveal", "texto sale de linea", "foto en forma"],
-   "aliases": ["mask", "mask-reveal"]
+   "aliases": ["mask", "mask-reveal"],
+   "ocasion": "Cuando una forma revela foto o texto que al principio no debe leerse entero",
+   "no_usar": "No para enmascarar un dato que debe leerse entero desde el primer frame."
   },
   {
    "id": "dimension",
@@ -81,7 +91,9 @@
    "adaptar": "camara global, camino, medianoche; 3D real → 3d.md overlay",
    "intenciones": ["demostracion", "estructura", "proceso", "gancho"],
    "keywords": ["profundidad", "flotar", "espacio", "volumen", "floating", "3d suave"],
-   "aliases": ["floating", "depth"]
+   "aliases": ["floating", "depth"],
+   "ocasion": "Cuando hace falta volumen o flotación sin un objeto 3D real",
+   "no_usar": "No sustituye un objeto 3D real: eso es la técnica 3d como capa con alfa."
   },
   {
    "id": "parallax",
@@ -93,7 +105,9 @@
    "adaptar": "kenburns + overlay; mouse parallax solo HyperFrames/web",
    "intenciones": ["imagen-texto", "demostracion", "estructura", "comparacion"],
    "keywords": ["parallax", "capas", "fondo se mueve menos", "capas profundidad"],
-   "aliases": ["paralaje"]
+   "aliases": ["paralaje"],
+   "ocasion": "Cuando hay capas a distinta profundidad y lo lejano debe moverse menos",
+   "no_usar": "No con un solo plano, ni con parallax de ratón fuera de HyperFrames o web."
   },
   {
    "id": "zoom",
@@ -105,7 +119,9 @@
    "adaptar": "camara, kenburns, demo (zoom al clic); multipágina → HyperFrames/Remotion",
    "intenciones": ["gancho", "demostracion", "cierre", "dato"],
    "keywords": ["zoom", "viaje", "detalle", "push-in", "continuo", "no paginas sueltas"],
-   "aliases": ["zoom-continuo", "push-in-ui"]
+   "aliases": ["zoom-continuo", "push-in-ui"],
+   "ocasion": "Cuando una sola cámara viaja de una vista a un detalle sin cortar a otra página",
+   "no_usar": "No como salto entre páginas: es un solo viaje de cámara. Varias páginas van a HyperFrames o Remotion."
   }
  ]
 }

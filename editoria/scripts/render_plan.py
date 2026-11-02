@@ -81,10 +81,11 @@ def colores_de(valor):
     if valor=="serie": return [tuple(c) for c in SERIE[:4]]
     return [hex_a_rgb(c) if isinstance(c,str) else tuple(c) for c in valor]
 
-FJ=resolver_fuente("Plus Jakarta Sans", generica="sans-bold")
+from _comun import TIPOS_MOTOR   # las familias del motor: UNA lista para todo el kit
+FJ=resolver_fuente(TIPOS_MOTOR["titulares"], generica="sans-bold")
 FJI=None   # display en itálica: la trae el pack si la declara ("titulares_itálica")
-FM=resolver_fuente("Montserrat", generica="sans")
-MONO_FAMILIA="IBM Plex Mono"   # empaquetada (OFL): la mono del motor y la de respaldo del pack
+FM=resolver_fuente(TIPOS_MOTOR["texto"], generica="sans")
+MONO_FAMILIA=TIPOS_MOTOR["mono"]   # empaquetada (OFL): la mono del motor y la de respaldo del pack
 MONO=resolver_fuente(MONO_FAMILIA, "DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
 LOGO=None; ISOTIPO=None; MARCA_NOMBRE=None
 TRANSICIONES="libre"   # idioma de transición; el pack puede fijar "corte_seco"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Motor interno de overlays talking-head (claude-video-effects destilado).
+"""Motor interno de overlays talking-head (repo público MIT de efectos talking-head, destilado; ver references/creditos.md).
 
 NO es un catálogo paralelo. La elección del agente vive en repertorio.py
 (catálogo único). Este módulo PRODUCE: valida el JSON de detalle y

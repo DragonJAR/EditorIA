@@ -1,18 +1,18 @@
 {
- "_que_es": "Detalle interno de los overlays talking-head (face tracking) destilados de claude-video-effects (MIT). NO es un catálogo paralelo: el agente elige desde repertorio.json vía repertorio.py. Aquí vive el inventario de fx (ocasión, vía, adaptar, aliases) y la receta de clonado en /tmp. No añade tipos a SCENES.",
+ "_que_es": "Detalle interno de los overlays talking-head (face tracking) destilados de un repo público MIT de efectos talking-head (URL en `fuente`; créditos en references/creditos.md). NO es un catálogo paralelo: el agente elige desde repertorio.json vía repertorio.py. Aquí vive el inventario de fx (ocasión, vía, adaptar, aliases) y la receta de clonado en /tmp. No añade tipos a SCENES.",
  "fuente": "https://github.com/Vibha-Ramprakash/claude-video-effects",
  "licencia": "MIT",
  "tecnica": "efectos-talking-head",
  "entrada": "references/efectos-talking-head.md",
- "clon_tmp": "git clone --depth 1 https://github.com/Vibha-Ramprakash/claude-video-effects.git /tmp/claude-video-effects",
- "setup": "bash /tmp/claude-video-effects/scripts/setup.sh",
+ "clon_tmp": "git clone --depth 1 https://github.com/Vibha-Ramprakash/claude-video-effects.git /tmp/efectos-talking-head",
+ "setup": "bash /tmp/efectos-talking-head/scripts/setup.sh",
  "reglas": [
   "Nunca tapar la cara: behind/guard del motor CVE; si el check frame tapa, mover x/y o acortar texto",
   "Ventanas cortas: 1.5–4 s por efecto",
   "Zoom ≤ 2×",
   "Apilar: primero cámara (locked-on, lean-in, spotlight), luego overlays",
   "Declarar MediaPipe/OpenCV/Pillow del venv CVE en la primera respuesta si faltan",
-  "Copy, cifras y paleta salen del brief/pack — no del demo Claude",
+  "Copy, cifras y paleta salen del brief/pack — no del demo del repo",
   "No vender como dependencia permanente ni submodule; limpiar /tmp al terminar",
   "Si preferir=nativo o hay equivalente y NO hay talking-head con cara: usar el motor EditorIA"
  ],
@@ -40,7 +40,8 @@
     "gancho",
     "demostracion",
     "imagen-texto"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses noise (Reels/capturas se apilan detrás de la cabeza, una cada ~0.25 s): es un overlay, no una escena del plan."
   },
   {
    "n": 2,
@@ -64,7 +65,8 @@
     "proceso",
     "estructura",
     "gancho"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses lineup: escena pasos (plan) si no hay cara que seguir."
   },
   {
    "n": 3,
@@ -85,7 +87,8 @@
    "intenciones": [
     "gancho",
     "social"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses locked-on (Brackets en la cara + cámara que sigue al hablante): es un overlay, no una escena del plan."
   },
   {
    "n": 4,
@@ -106,7 +109,8 @@
     "gancho",
     "demostracion",
     "cierre"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses orbit (Reels orbitan la cabeza (delante abajo, detrás arriba)): es un overlay, no una escena del plan."
   },
   {
    "n": 5,
@@ -126,7 +130,8 @@
    "intenciones": [
     "gancho",
     "copy"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses lean-in: camara / kenburns / demo zoom en plan si no hay footage."
   },
   {
    "n": 6,
@@ -149,7 +154,8 @@
     "copy",
     "gancho",
     "imagen-texto"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses backdrop-word: frase / remate tipográfico en plan si no hay persona."
   },
   {
    "n": 7,
@@ -171,7 +177,8 @@
     "gancho",
     "cierre",
     "social"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses spotlight (Apaga la sala, deja al hablante iluminado (+ palabra glow opcional)): es un overlay, no una escena del plan."
   },
   {
    "n": 8,
@@ -194,7 +201,8 @@
    "intenciones": [
     "proceso",
     "estado"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses the-bill: escena constancia / pasos / the-bill visual → plan lista."
   },
   {
    "n": 9,
@@ -216,7 +224,8 @@
    "intenciones": [
     "imagen-texto",
     "cierre"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses moody: scripts/ffmpeg_tools/grade.py y look.py."
   },
   {
    "n": 10,
@@ -237,7 +246,8 @@
    "intenciones": [
     "comparacion",
     "demostracion"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses swipe: montaje wipe / variantes A-B si no necesita cara."
   },
   {
    "n": 11,
@@ -262,7 +272,8 @@
    "intenciones": [
     "proceso",
     "estado"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses todo: escena constancia / pasos (checklist conceptual)."
   },
   {
    "n": 12,
@@ -283,7 +294,8 @@
    ],
    "intenciones": [
     "social"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses comment-box: escena chat si es hilo de mensajes genérico."
   },
   {
    "n": 13,
@@ -306,7 +318,8 @@
    "intenciones": [
     "social",
     "cierre"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses tap: boton_halo / hero CTA en plan si es gráfica."
   },
   {
    "n": 14,
@@ -330,7 +343,8 @@
    "intenciones": [
     "demostracion",
     "imagen-texto"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses pause-point: hand_draw.py + freeze (montaje) si el trazo es offline."
   },
   {
    "n": 15,
@@ -352,7 +366,8 @@
     "estado",
     "cierre",
     "comparacion"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses uninstall (Barra de desinstalación glitchy que rompe el cuadro): es un overlay, no una escena del plan."
   },
   {
    "n": 16,
@@ -373,7 +388,8 @@
     "gancho",
     "estructura",
     "cierre"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses reel-frame: componer.py --marco si solo es caja tipográfica."
   },
   {
    "n": 17,
@@ -396,7 +412,8 @@
    "intenciones": [
     "demostracion",
     "proceso"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses shortcut-rain (Teclas de atajo caen detrás de la cabeza): es un overlay, no una escena del plan."
   },
   {
    "n": 18,
@@ -420,7 +437,8 @@
     "estado",
     "cierre",
     "comparacion"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses reject-stamp: sello tipográfico en plan (reject visual) / remate."
   },
   {
    "n": 19,
@@ -442,7 +460,8 @@
    "intenciones": [
     "gancho",
     "proceso"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses countdown-flip: escena countdown del catálogo."
   },
   {
    "n": 20,
@@ -463,7 +482,8 @@
    "intenciones": [
     "gancho",
     "proceso"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses rabbit-hole: transición iris/mancha del plan si es gráfica."
   },
   {
    "n": 21,
@@ -487,7 +507,8 @@
     "gancho",
     "imagen-texto",
     "social"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses cover-star: hero / cover tipográfico en plan si no hay persona."
   },
   {
    "n": 22,
@@ -509,7 +530,8 @@
     "demostracion",
     "copy",
     "imagen-texto"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses scribble: hand-draw.md + hand_draw.py para overlay offline."
   },
   {
    "n": 23,
@@ -533,7 +555,8 @@
    "intenciones": [
     "dato",
     "demostracion"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses glass-widgets: primitiva tarjeta_cristal + bento/hero/stats."
   },
   {
    "n": 24,
@@ -542,7 +565,7 @@
    "ocasion": "Collage tipográfico agresivo de tesis en talking-head",
    "preferir": "externo",
    "nativo": "red-collage tipográfico en plan (frase+acento) sin cara",
-   "adaptar": "CVE; tipografía y rojo del pack (no copiar demo Claude)",
+   "adaptar": "CVE; tipografía y rojo del pack (no copiar el demo del repo)",
    "ruta": "python scripts/efectos_talking_head.py receta --fx red-collage",
    "aliases": [
     "collage"
@@ -556,7 +579,8 @@
    "intenciones": [
     "copy",
     "gancho"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses red-collage: red-collage tipográfico en plan (frase+acento) sin cara."
   },
   {
    "n": 25,
@@ -579,7 +603,8 @@
     "copy",
     "gancho",
     "imagen-texto"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses split-headline: split layout / headline en HyperFrames o plan."
   },
   {
    "n": 26,
@@ -602,7 +627,8 @@
     "gancho",
     "social",
     "copy"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses pastel-word (Backdrop lavanda, palabra gigante, card de perfil followed): es un overlay, no una escena del plan."
   },
   {
    "n": 27,
@@ -626,7 +652,8 @@
     "demostracion",
     "proceso",
     "estado"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses check-pills: demo (cursor+onda_clic) + pills en plan."
   },
   {
    "n": 28,
@@ -651,7 +678,8 @@
     "proceso",
     "estructura"
    ],
-   "cve": "timeline"
+   "cve": "timeline",
+   "no_usar": "Sin cara que seguir, no uses edit-timeline: escena timeline del catálogo (datos/proceso)."
   },
   {
    "n": 29,
@@ -673,7 +701,8 @@
    "intenciones": [
     "copy",
     "gancho"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses headline-box: frase / headline tipográfico en plan."
   },
   {
    "n": 30,
@@ -696,7 +725,8 @@
     "social",
     "demostracion",
     "estructura"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses profile-wall: stats/ranking si son cifras sin grid de media."
   },
   {
    "n": 31,
@@ -719,7 +749,8 @@
    "intenciones": [
     "comparacion",
     "dato"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses tier-list: escena ranking / versus."
   },
   {
    "n": 32,
@@ -744,7 +775,8 @@
     "comparacion",
     "demostracion",
     "cierre"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses broll-split: escena oferta + montaje split / PiP."
   },
   {
    "n": 33,
@@ -767,7 +799,8 @@
    "intenciones": [
     "demostracion",
     "gancho"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses phone-fan (Reels en abanico de teléfonos bajo un titular): es un overlay, no una escena del plan."
   },
   {
    "n": 34,
@@ -789,7 +822,8 @@
    "intenciones": [
     "gancho",
     "imagen-texto"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses dot-reveal: mask reveal / particulas en plan o HyperFrames."
   },
   {
    "n": 35,
@@ -812,13 +846,14 @@
     "dato",
     "copy",
     "estructura"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses headline-wall: stats + headline stack tipográfico."
   },
   {
    "n": 36,
    "id": "checklist",
    "firma": "Task list bajo la barbilla; pasos giran y tildan verde",
-   "ocasion": "Proceso Claude/agente o checklist de producto bajo el chin",
+   "ocasion": "Proceso de un agente o checklist de producto bajo el chin",
    "preferir": "ambos",
    "nativo": "constancia / pasos",
    "adaptar": "CVE checklist con step::meta|; nativo: constancia o pasos",
@@ -834,7 +869,8 @@
    "intenciones": [
     "proceso",
     "estado"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses checklist: constancia / pasos."
   },
   {
    "n": 37,
@@ -858,7 +894,8 @@
    "intenciones": [
     "dato",
     "demostracion"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses liquid-glass-graph: gauge/bars/stats + tarjeta_cristal."
   },
   {
    "n": 38,
@@ -881,7 +918,8 @@
     "demostracion",
     "gancho",
     "cierre"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses carousel-spin: 3d.md / HyperFrames carousel si no hay cara."
   },
   {
    "n": 39,
@@ -903,7 +941,8 @@
    "intenciones": [
     "copy",
     "gancho"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses match-cut (Páginas/news cortan en una palabra, caja roja detrás): es un overlay, no una escena del plan."
   },
   {
    "n": 40,
@@ -927,7 +966,8 @@
     "proceso",
     "demostracion",
     "estado"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses apple-toggles: pasos / demo de toggles en UI plan o HyperFrames."
   },
   {
    "n": 41,
@@ -951,7 +991,8 @@
     "copy",
     "cierre",
     "gancho"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses led-sign: typewriter / frase con glow en plan."
   },
   {
    "n": 42,
@@ -976,7 +1017,8 @@
     "cierre",
     "social",
     "imagen-texto"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses slow-push: camara global / kenburns en plan."
   },
   {
    "n": 43,
@@ -1000,7 +1042,8 @@
    "intenciones": [
     "dato",
     "demostracion"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses over-the-shoulder-zoom: stats dual + camara si es gráfica pura."
   },
   {
    "n": 44,
@@ -1023,7 +1066,8 @@
    ],
    "intenciones": [
     "social"
-   ]
+   ],
+   "no_usar": "Sin cara que seguir, no uses messages: escena chat."
   },
   {
    "n": 45,
@@ -1048,7 +1092,8 @@
     "cierre",
     "estructura",
     "social"
-   ]
+   ],
+   "no_usar": "Sin talking-head con cara no uses place-in-grid (Encoge al centro de grid 3×3; 8 reels + views): es un overlay, no una escena del plan."
   }
  ],
  "looks_nombrados": [
@@ -1092,11 +1137,11 @@
    "por_que": "CVE no los trae; EditorIA ya tiene sfx.md, caption.py y sonido.md"
   },
   {
-   "que": "Marca/copy demo (Claude, Edited by Claude, lavanda fija)",
+   "que": "Marca/copy del demo del repo (su producto, su firma, lavanda fija)",
    "por_que": "Regla marca-blanca: pack/brief mandan"
   }
  ],
- "clone_root": "/tmp/claude-video-effects",
+ "clone_root": "/tmp/efectos-talking-head",
  "fx_module": "fx.py",
  "words_module": "words.py",
  "venv_python": ".venv/bin/python"

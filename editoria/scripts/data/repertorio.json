@@ -144,187 +144,233 @@
  "detalle_escenas": {
   "apertura": {
    "ocasion": "Primera frase de la pieza: gancho en dos tiempos con mancha",
-   "firma": "texto1 → texto2; no es un titular genérico"
+   "firma": "texto1 → texto2; no es un titular genérico",
+   "no_usar": "para explicar: es un golpe de titular, no un párrafo"
   },
   "audiowave": {
    "ocasion": "Forma de onda / presencia sonora",
-   "firma": "cierre con audio o podcast"
+   "firma": "cierre con audio o podcast",
+   "no_usar": "sin audio o voz que mostrar"
   },
   "bars": {
    "ocasion": "Comparar magnitudes entre pocas categorías",
-   "firma": "cuál es mayor / cuánto más"
+   "firma": "cuál es mayor / cuánto más",
+   "no_usar": "con más de 5 barras o valores sin fuente"
   },
   "bento": {
    "ocasion": "Grid de 2–4 features/servicios estilo Liquid Glass",
-   "firma": "máx. 4 tarjetas; con 3 → columna"
+   "firma": "máx. 4 tarjetas; con 3 → columna",
+   "no_usar": "con más de 4 tarjetas"
   },
   "buscador": {
    "ocasion": "Spotlight / búsqueda que revela la respuesta del producto",
-   "firma": "query tipada + resultado"
+   "firma": "query tipada + resultado",
+   "no_usar": "si la pregunta no la haría el espectador"
   },
   "cadena": {
    "ocasion": "Secuencia de estados encadenados con conectores — va abajo (bajo la cara) solo con cara debajo: overlay o `sobre_cara: true`; si no, al centro óptico",
-   "firma": "lo que vio cada quien, en fila"
+   "firma": "lo que vio cada quien, en fila",
+   "no_usar": "con más de 4 eslabones o sin secuencia causal"
   },
   "callout": {
    "ocasion": "Señalar un punto exacto dentro de una captura",
-   "firma": "elipse + etiqueta sobre placa"
+   "firma": "elipse + etiqueta sobre placa",
+   "no_usar": "sin una captura donde señalar algo concreto"
   },
   "camino": {
    "ocasion": "Línea de luz que enciende estaciones al pasar",
-   "firma": "progreso de un recorrido / path"
+   "firma": "progreso de un recorrido / path",
+   "no_usar": "con más de 5 estaciones o sin progreso"
   },
   "canales": {
    "ocasion": "Mapa 'todos tus canales, un lugar'",
-   "firma": "dónde está cada fuente"
+   "firma": "dónde está cada fuente",
+   "no_usar": "con un solo canal o sin cifras por canal"
   },
   "cartel": {
    "ocasion": "Afirmación cartel / claim tipográfico de impacto — va abajo (bajo la cara) solo con cara debajo: overlay o `sobre_cara: true`; si no, al centro óptico",
-   "firma": "kicker + display; una tesis"
+   "firma": "kicker + display; una tesis",
+   "no_usar": "para más de una tesis por plano"
   },
   "chat": {
    "ocasion": "Conversación con burbujas escalonadas",
-   "firma": "diálogo IA o humano"
+   "firma": "diálogo IA o humano",
+   "no_usar": "para más de 5-6 mensajes o diálogos inventados que el brief no da"
   },
   "comentario": {
    "ocasion": "Review/testimonio estilo red social con avatar",
-   "firma": "autor + estrellas + likes"
+   "firma": "autor + estrellas + likes",
+   "no_usar": "con comentarios inventados"
   },
   "confetti": {
    "ocasion": "Celebración determinista (semilla fija)",
-   "firma": "solo si el brief pide deleite"
+   "firma": "solo si el brief pide deleite",
+   "no_usar": "en noticias, piezas urgentes o marcas sobrias (regla particulas)"
   },
   "constancia": {
    "ocasion": "Acta de casillas ✓/○ (confirmado vs pendiente) — va abajo (bajo la cara) solo con cara debajo: overlay o `sobre_cara: true`; si no, al centro óptico",
-   "firma": "checklist del argumento"
+   "firma": "checklist del argumento",
+   "no_usar": "con más de 4 casillas o sin hechos confirmados/pendientes"
   },
   "countdown": {
    "ocasion": "Cuenta regresiva exacta antes de un evento o reveal",
-   "firma": "el número es función del tiempo"
+   "firma": "el número es función del tiempo",
+   "no_usar": "si el número no es función del tiempo (no es un contador decorativo)"
   },
   "demo": {
    "ocasion": "Ventana de app con capturas reales + cursor track()",
-   "firma": "producto funcionando; captura de verdad"
+   "firma": "producto funcionando; captura de verdad",
+   "no_usar": "sin capturas reales del producto"
   },
   "final": {
    "ocasion": "Cierre de marca / wordmark de despedida",
-   "firma": "último plano de la pieza"
+   "firma": "último plano de la pieza",
+   "no_usar": "a mitad de pieza: es el último plano"
   },
   "frase": {
    "ocasion": "Copy que se LEE palabra a palabra (teleprompter cinético)",
-   "firma": "clave con *; no es titular de golpe"
+   "firma": "clave con *; no es titular de golpe",
+   "no_usar": "para golpear: se escribe palabra a palabra (para golpear, apertura/remate)"
   },
   "gauge": {
    "ocasion": "UN valor frente a una meta o máximo conocidos",
-   "firma": "arco + cifra central"
+   "firma": "arco + cifra central",
+   "no_usar": "para cifras sin máximo natural (no es un porcentaje)"
   },
   "handoff": {
    "ocasion": "Traspaso persona→persona con contexto y temperatura",
-   "firma": "relevo con información, no solo nombre"
+   "firma": "relevo con información, no solo nombre",
+   "no_usar": "si no hay relevo entre dos partes con contexto"
   },
   "hero": {
    "ocasion": "Bienvenida / hero de producto o lanzamiento SaaS",
-   "firma": "badge + titular + métrica + CTA"
+   "firma": "badge + titular + métrica + CTA",
+   "no_usar": "fuera de lanzamientos de producto"
   },
   "hoy": {
    "ocasion": "Panel del día / agenda operativa",
-   "firma": "qué toca ahora"
+   "firma": "qué toca ahora",
+   "no_usar": "con más de 4 tarjetas o sin agenda real"
   },
   "index": {
    "ocasion": "Índice 'lo que vamos a ver' con paso activo",
-   "firma": "agenda / capítulos"
+   "firma": "agenda / capítulos",
+   "no_usar": "en piezas de menos de 30 s: no hay capítulos"
   },
   "kenburns": {
    "ocasion": "Foto o captura con zoom/paneo cinematográfico",
-   "firma": "imagen manda; texto apoyo"
+   "firma": "imagen manda; texto apoyo",
+   "no_usar": "sin una foto de calidad que lo merezca"
   },
   "leads": {
    "ocasion": "Tabla priorizada de oportunidades; fila 1 destacada",
-   "firma": "pipeline / ranking de leads"
+   "firma": "pipeline / ranking de leads",
+   "no_usar": "fuera de ventas/CRM; con más de 5 filas"
   },
   "listo": {
    "ocasion": "Check con estallido: estado HECHO",
-   "firma": "confirmación celebratoria"
+   "firma": "confirmación celebratoria",
+   "no_usar": "en piezas sobrias o urgentes: es una celebración"
   },
   "medianoche": {
    "ocasion": "Teléfono 3D con notificaciones (beat nocturno)",
-   "firma": "00:47 / urgencia suave"
+   "firma": "00:47 / urgencia suave",
+   "no_usar": "si no hay hora ni urgencia real que contar"
   },
   "notificacion": {
    "ocasion": "Cascada de pushes que empujan a las anteriores",
-   "firma": "alerta / feedback de sistema"
+   "firma": "alerta / feedback de sistema",
+   "no_usar": "para más de 3 avisos a la vez"
   },
   "oferta": {
    "ocasion": "Descuento, código o CTA comercial",
-   "firma": "precio / promo con urgencia"
+   "firma": "precio / promo con urgencia",
+   "no_usar": "sin precio real ni condición de la oferta"
   },
   "orbOpen": {
    "ocasion": "Apertura de capítulo: partículas que CONVERGEN a una figura",
-   "firma": "distinto de orbita (allí orbitan)"
+   "firma": "distinto de orbita (allí orbitan)",
+   "no_usar": "en marcas sin partículas; con titulares largos"
   },
   "orbita": {
    "ocasion": "Elementos que ORBITAN alrededor de un centro",
-   "firma": "showreel / ecosistema"
+   "firma": "showreel / ecosistema",
+   "no_usar": "en marcas sin partículas (regla particulas)"
   },
   "pago": {
    "ocasion": "Comprobante de pago / recibo",
-   "firma": "estado pagado"
+   "firma": "estado pagado",
+   "no_usar": "sin un pago o estado real que confirmar"
   },
   "pasos": {
    "ocasion": "Proceso secuencial 1–5 pasos con el activo brillando",
-   "firma": "columna en 9:16"
+   "firma": "columna en 9:16",
+   "no_usar": "con más de 5 pasos o pasos sin orden"
   },
   "pie": {
    "ocasion": "Partes de un todo (2–5 porciones visibles)",
-   "firma": "no más de 5–6 slices"
+   "firma": "no más de 5–6 slices",
+   "no_usar": "con más de 5-6 porciones o porciones que no suman 100"
   },
   "pildoras": {
    "ocasion": "Claim corto con atmósfera de partículas/píldoras",
-   "firma": "frase con acento + fondo vivo"
+   "firma": "frase con acento + fondo vivo",
+   "no_usar": "con copy largo: son frases de 2-4 palabras"
   },
   "quote": {
    "ocasion": "Cita/testimonio de confianza; entra despacio",
-   "firma": "sin rebote; autor al final"
+   "firma": "sin rebote; autor al final",
+   "no_usar": "sin autor real o con citas inventadas"
   },
   "ranking": {
    "ocasion": "Ordenar canales o ítems; el orden ES el mensaje",
-   "firma": "barras horizontales; top en acento"
+   "firma": "barras horizontales; top en acento",
+   "no_usar": "con más de 6 filas o sin orden real"
   },
   "recupera": {
    "ocasion": "Pago recuperado / salvado",
-   "firma": "antes perdido, ahora ok"
+   "firma": "antes perdido, ahora ok",
+   "no_usar": "si no hay un antes perdido y un después recuperado"
   },
   "remate": {
    "ocasion": "Cierre con frases + cifra gigante",
-   "firma": "el golpe de dato final"
+   "firma": "el golpe de dato final",
+   "no_usar": "para varias cifras a la vez (stats) o texto largo"
   },
   "rotulo_inferior": {
    "ocasion": "Lower third: nombre + rol (overlay con alfa)",
-   "firma": "quieta por diseño mientras se lee"
+   "firma": "quieta por diseño mientras se lee",
+   "no_usar": "como titular: es un lower third que se lee quieto"
   },
   "stats": {
-   "ocasion": "1–4 cifras sueltas con etiqueta y fuente",
-   "firma": "no uses si es una sola cifra sin contexto → remate"
+   "ocasion": "2–4 cifras sueltas con etiqueta y fuente",
+   "firma": "no uses si es una sola cifra sin contexto → remate",
+   "no_usar": "con una sola cifra (remate) o más de 4"
   },
   "subrayado": {
    "ocasion": "Lema apoyado en línea de luz bajo el texto",
-   "firma": "cierre tipográfico del path"
+   "firma": "cierre tipográfico del path",
+   "no_usar": "a mitad de pieza: es un cierre tipográfico"
   },
   "timeline": {
    "ocasion": "Hitos con fecha en el tiempo (3–6)",
-   "firma": "no series densas"
+   "firma": "no series densas",
+   "no_usar": "para series densas de datos: es una cronología"
   },
   "typewriter": {
    "ocasion": "Texto que se escribe carácter a carácter con cursor",
-   "firma": "idea/prompt que se arma en vivo"
+   "firma": "idea/prompt que se arma en vivo",
+   "no_usar": "con textos de más de 2 líneas"
   },
   "versus": {
    "ocasion": "Dos columnas cara a cara; acento en la que defiendes",
-   "firma": "comparación A vs B"
+   "firma": "comparación A vs B",
+   "no_usar": "con más de 4 filas por lado"
   },
   "lista": {
    "ocasion": "Lista sin orden de 2–6 puntos (beneficios, acciones, claves), sobria",
-   "firma": "viñeta de acento + texto alineado a la izquierda"
+   "firma": "viñeta de acento + texto alineado a la izquierda",
+   "no_usar": "con más de 6 puntos o cuando el orden importa (eso es pasos)"
   }
  },
  "alias_escenas": {

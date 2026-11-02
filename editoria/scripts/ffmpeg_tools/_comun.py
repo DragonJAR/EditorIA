@@ -966,6 +966,13 @@ NEUTROS_CLARO: Dict[str, Tuple[int, int, int]] = {
     "gris_superficie": (232, 231, 226),
 }
 MODOS = ("oscuro", "claro")
+# Familias por defecto del motor: las OFL que viajan en assets/fonts (render
+# idéntico en cualquier máquina). Son del MOTOR —un pack declara las suyas en
+# `tipografías` y estas no se usan—; ningún script escribe otro nombre de
+# familia por defecto: todos leen de aquí.
+TIPOS_MOTOR: Dict[str, str] = {
+    "titulares": "Plus Jakarta Sans", "texto": "Montserrat", "mono": "IBM Plex Mono",
+}
 PALETAS: Dict[str, Dict[str, Any]] = {
     "electrico": {
         "acento": (61, 123, 255), "acento_oscuro": (32, 68, 148),
@@ -1319,14 +1326,14 @@ def ruta_de_pack(path_pack: Optional[str], valor: Optional[str]) -> Optional[str
 
 
 def fuente_marca(path_pack: Optional[str], rol: str = "titulares",
-                 defecto: str = "Plus Jakarta Sans", generica: str = "sans-bold") -> Optional[str]:
+                 defecto: Optional[str] = None, generica: str = "sans-bold") -> Optional[str]:
     """Archivo de fuente para un rol del pack (titulares | texto | etiquetas_mono);
     sin pack o sin coincidencia, la empaquetada por defecto."""
     from _plataforma import resolver_fuente
     t = (leer_pack(path_pack).get("tipografias") or {}).get(rol) or {}
     return (ruta_de_pack(path_pack, t.get("archivo")) or
             (resolver_fuente(t["familia"]) if t.get("familia") else None) or
-            resolver_fuente(defecto, generica=generica))
+            resolver_fuente(defecto or TIPOS_MOTOR["titulares"], generica=generica))
 
 
 def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:

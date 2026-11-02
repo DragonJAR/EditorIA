@@ -36,23 +36,15 @@ import speech_estimate as SE
 FAMILIAS_ESCENAS = {rol: REP.familias()[inten]
                     for rol, inten in REP.cargar()["roles_clonar"].items()}
 
-# Mapeo canónico de alias a escenas registradas en render_plan.py
-MAPEO_ESCENAS_VALIDAS = {
-    "titular": "apertura",
-    "pregunta": "apertura",
-    "alerta": "buscador",
-    "tarjeta": "bento",
-    "terminal": "bento",
-    "comparativa": "versus",
-    "tweet": "comentario",
-    "comunidad": "chat",
-    "embudo": "pasos",
-    "piramide": "ranking",
-    "mapa": "timeline",
-    "cta": "oferta",
-    "logogrid": "final",
-    "pantalla": "demo"
-}
+# Alias de escenas (nombre que dice un guion → escena del motor): UNA lista,
+# la del repertorio (`repertorio.alias_escenas`), la misma que usa
+# auditar_plan para sugerir «¿quisiste decir…?». Antes había una copia aquí
+# que discrepaba («alerta» → buscador aquí, → notificacion allí).
+def _alias_escenas():
+    return REP.alias_escenas()
+
+
+MAPEO_ESCENAS_VALIDAS = _alias_escenas()
 
 
 def _ajustar_voz(texto, hueco):
