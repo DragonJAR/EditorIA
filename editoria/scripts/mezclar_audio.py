@@ -164,6 +164,11 @@ def main():
                     help="fade de salida de la musica cuando no hay voz (def. 2s)")
     ap.add_argument("-o", "--out", required=True, dest="out",
                     help="video final con todo el audio")
+    ap.add_argument("--plataforma", default="reels",
+                    help="plataforma de entrega: su objetivo de sonoridad y su "
+                         "techo de true peak (def. reels)")
+    ap.add_argument("--sin-normalizar", action="store_true",
+                    help="deja la mezcla como sale (sin normalizar a la plataforma)")
     args = ap.parse_args()
 
     for etiqueta, ruta in (("plan", args.plan), ("video", args.video)):
@@ -271,19 +276,43 @@ def main():
               f"amix=inputs={len(mezcla)}:normalize=0:duration=longest,"
               f"atrim=0:{dur_s}[aout]")
 
+    import _delivery
+    if not args.sin_normalizar and _delivery.resolve(args.plataforma) not in _delivery.PLATFORMS:
+        print(f"ERROR: plataforma desconocida: {args.plataforma} "
+              f"(opciones: {', '.join(sorted(_delivery.PLATFORMS))})", file=sys.stderr)
+        return 2
+    crudo = (args.out if args.sin_normalizar
+             else f"{args.out}.mezcla{os.path.splitext(args.out)[1] or '.mp4'}")
     cmd = ["ffmpeg", "-y", "-v", "error"] + entradas + \
           ["-filter_complex", ";".join(fc), "-map", "0:v", "-map", "[aout]",
            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-           "-movflags", "+faststart", args.out]
+           "-movflags", "+faststart", crudo]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         print(f"ERROR: fallo la mezcla: {(r.stderr or '').strip()[-400:]}", file=sys.stderr)
         return 1
+    nivel = None
+    if not args.sin_normalizar:
+        # la MISMA normalizacion de loudness.py / render_plan (dos pasadas y
+        # techo de true peak verificado despues del AAC): sin esto la entrega
+        # puede salir por encima del techo de la plataforma y la puerta la
+        # rechaza (medido: la cama con SFX salia a -33 LUFS).
+        from loudness import normalizar_para
+        try:
+            nivel = normalizar_para(crudo, args.out, args.plataforma,
+                                     duracion=dur_s or None)
+        finally:
+            if os.path.exists(crudo) and crudo != args.out:
+                os.remove(crudo)
     modo_mus = ("musica+voz" if (hay_mus and hay_voz)
                 else ("musica sola" if hay_mus else ""))
+    sonoridad = ""
+    if nivel and not nivel.get("silent"):
+        sonoridad = (f" · {float(nivel['input_i']):.1f} LUFS, "
+                     f"TP {float(nivel['input_tp']):.1f} dBTP ({args.plataforma})")
     print(f"OK {args.out}: {len(colocados)} SFX, "
           f"{'voz ' if args.voz else ''}"
-          f"{modo_mus + ' ' if modo_mus else ''}({dur_s:.1f}s)")
+          f"{modo_mus + ' ' if modo_mus else ''}({dur_s:.1f}s){sonoridad}")
     for t, _ruta, _v, s in sorted(colocados):
         print(f"   {t:7.2f}s  {s}")
     return 0
