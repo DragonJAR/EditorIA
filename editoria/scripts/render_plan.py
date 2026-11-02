@@ -23,7 +23,7 @@ ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro
 ACENTO_TEXTO=ACENTO
 ACENTO_GRANDE=ACENTO
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
-REBOTE=True; PARTICULAS=True; VOLUMEN=True
+REBOTE=True; PARTICULAS=True; VOLUMEN=True   # reglas del pack (rebote/particulas/volumen)
 OUTRO_SOBRIO=False
 
 # ---------- tokens de categoría y de estado (references/paleta.md) ----------
@@ -84,6 +84,12 @@ def colores_de(valor):
 from _comun import TIPOS_MOTOR   # las familias del motor: UNA lista para todo el kit
 FJ=resolver_fuente(TIPOS_MOTOR["titulares"], generica="sans-bold")
 FJI=None   # display en itálica: la trae el pack si la declara ("titulares_itálica")
+# la itálica del MOTOR (OFL, viaja en assets/fonts): la que se usa cuando una
+# escena pide `itálica: true` y el pack no declara la suya (antes el rol caía
+# a la redonda y la frase salía recta sin aviso)
+from _plataforma import FUENTES_SKILL as _FUENTES_SKILL
+FJI_MOTOR=(str(_FUENTES_SKILL/"PlusJakartaSans-Italic-wght.ttf")
+           if (_FUENTES_SKILL/"PlusJakartaSans-Italic-wght.ttf").exists() else None)
 FM=resolver_fuente(TIPOS_MOTOR["texto"], generica="sans")
 MONO_FAMILIA=TIPOS_MOTOR["mono"]   # empaquetada (OFL): la mono del motor y la de respaldo del pack
 MONO=resolver_fuente(MONO_FAMILIA, "DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
@@ -98,7 +104,9 @@ ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida p
 # la comprueba contra lo que dice references/brand-packs.md y contra lo que
 # declara cada pack (si un pack declara una regla que no está en ninguna de
 # las dos listas, nadie la cumple).
-REGLAS_DEL_MOTOR = {"transiciones"}          # el motor las lee y las hace cumplir
+REGLAS_DEL_MOTOR = {"transiciones",          # el motor las lee y las hace cumplir
+                    "conservar_caso", "outro_sobrio",
+                    "rebote", "particulas", "volumen"}
 REGLAS_DEL_AGENTE = {"rejillas_decorativas", # guia del agente: las lee el que
                       "efectos_glitch",      # escribe el plan, no el motor
                       "isotipo_con_protagonista"}
@@ -229,6 +237,9 @@ def spring(t,t0,stiff=120,damp=13):
     """Resorte subamortiguado 0->1 con overshoot. La base de la fluidez."""
     if t<=t0: return 0.0
     dt=t-t0; w=math.sqrt(stiff); d=damp/(2*w)
+    # regla del pack `rebote: false` (marca de precisión): el MISMO resorte,
+    # con amortiguamiento crítico: llega con la misma frecuencia y no se pasa
+    if not REBOTE: d=max(d,1.0)
     if d>=1: return 1-math.exp(-w*dt)*(1+w*dt)
     wd=w*math.sqrt(1-d*d)
     return 1-math.exp(-d*w*dt)*(math.cos(wd*dt)+d*w/wd*math.sin(wd*dt))
@@ -462,7 +473,7 @@ class Ctx:
         if Image is None or np is None:
             sys.exit("ERROR: falta dependencia (PIL/numpy): pip install pillow numpy")
         self.fT=lambda s,w=800: font(FJ,s,w)
-        self.fTi=lambda s,w=800: font(FJI or FJ,s,w)   # display en itálica (si el pack la trae)
+        self.fTi=lambda s,w=800: font(FJI or FJI_MOTOR or FJ,s,w)   # display en itálica: la del pack o la del motor
         self.fX=lambda s,w=600: font(FM,s,w)
         self.fM=lambda s,w=700: font(MONO,s,w)
         self.tmp=ImageDraw.Draw(Image.new("L",(10,10)))
@@ -859,6 +870,28 @@ def _rotulo_ajuste(ctx,texto,tam=None):
         tam-=2; fnt=ctx.fX(tam,700)
     return partir_segs(sg,fnt,ancho),fnt,tam,ancho
 
+# nombres cuya caja NO se toca al pasar un rótulo a versalitas (un nombre
+# como «MiMarca» no es «MIMARCA»: la regla de escritura de la marca manda).
+# El pack lo amplía con `nombre` y `reglas.conservar_caso` (aplicar_brand).
+CASO_MARCA = set()
+_CAPS_INTERNAS = re.compile(r"[a-záéíóúñü][A-ZÁÉÍÓÚÑÜ]")
+
+
+def versalitas(texto):
+    """El texto en MAYÚSCULAS para kickers y rótulos, salvo las palabras que
+    son nombres propios con caja fija: las de CASO_MARCA y las que traen una
+    mayúscula interna (MiMarcaPRO, iPhone, YouTube, LinkedIn)."""
+    out = []
+    for w in re.split(r"(\s+)", str(texto or "")):
+        nucleo = w.strip(".,;:!?¡¿\"'()[]«»")
+        if w.isspace() or not w:
+            out.append(w)
+        elif nucleo in CASO_MARCA or _CAPS_INTERNAS.search(nucleo):
+            out.append(w)
+        else:
+            out.append(w.upper())
+    return "".join(out)
+
 def rotulo_fondo(ctx,texto,y=None,tam=None):
     """y del borde inferior REAL del rótulo (1 o 2 líneas, tamaño ajustado):
     la misma medida que lo dibuja (`_rotulo_ajuste`). La usa el QA de
@@ -1081,14 +1114,16 @@ def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
         d.ellipse(q(cx - r * 0.82, cy + r * 0.78, cx + r * 0.82, cy + r * 1.12), fill=(0, 0, 0, 90))
 
     def cuerpo(d, q, s):      # extrusión (volumen) + cara
-        d.rounded_rectangle(q(cx - r, cy_f - r + 7, cx + r, cy_f + r + 7), radius=rr * s, fill=osc + (255,))
+        if VOLUMEN:           # regla del pack `volumen: false`: insignia plana
+            d.rounded_rectangle(q(cx - r, cy_f - r + 7, cx + r, cy_f + r + 7), radius=rr * s, fill=osc + (255,))
         d.rounded_rectangle(q(cx - r, cy_f - r, cx + r, cy_f + r), radius=rr * s, fill=col + (255,),
                             outline=claro + (140,), width=2 * s)
 
     def reflejo(d, q, s):     # el brillo SUMA luz a la cara (antes la perforaba)
         d.ellipse(q(cx - r * 0.55, cy_f - r * 0.72, cx + r * 0.55, cy_f - r * 0.18), fill=claro + (75,))
+    capas = (sombra, cuerpo, reflejo) if VOLUMEN else (cuerpo,)   # plana: sin sombra ni brillo
     sobre_capa(d, (cx - r, cy_f - r, cx + r, max(cy_f + r + 7, cy + r * 1.12)),
-               sombra, cuerpo, reflejo, ss=SS, alfa=int(alpha))
+               *capas, ss=SS, alfa=int(alpha))
     if icono:
         pon_texto(d, (cx, cy_f), str(icono)[:3], font=fnt, fill=BLANCO + (int(alpha),), anchor="mm")
 
@@ -1530,7 +1565,7 @@ def elipse_se_dibuja(d, cx, cy, rx, ry, t, t0, dur=0.8, color=None, grosor=4):
 def particulas(d, t, t0, cx, cy, n=60, color=None, semilla=11):
     """Confetti / celebración determinista (seeded). Sin random: reproducible.
     `color` por defecto usa ACENTO. La usan `confeti`, `listo` (extra), etc."""
-    if t < t0:
+    if t < t0 or not PARTICULAS:   # regla del pack `particulas: false`
         return
     color = color or ACENTO
     rng = random.Random(semilla)
@@ -3737,7 +3772,7 @@ def sc_confetti(ctx, e, t):
     t_t = at.get("texto", t_p + 0.3)
     # confeti con semilla determinista (estable si el usuario no cambia la fecha)
     semilla = at.get("timestamp_seed", 11)
-    if t >= t_p:
+    if t >= t_p and PARTICULAS:   # regla del pack `particulas: false`: solo el texto
         # lluvia CONTINUA densamente solapada: si cada columna siempre tiene
         # pieza en movimiento, las celdas no "arrancan" tras calma → dens baja
         # (medido: 58 piezas escasas → dens 2.65; columnas llenas → ≤2.0).
@@ -6208,7 +6243,7 @@ def sc_orbita(ctx, e, t):
     velocidades = [1.2, -0.9, 1.5]
     
     for ring_i, (inc, vel) in enumerate(zip(inclinaciones, velocidades)):
-        for p_i in range(n_part):
+        for p_i in range(n_part if PARTICULAS else 0):   # regla del pack `particulas`
             theta = t * vel + p_i * (2 * math.pi / n_part)
             px = r_orb * math.cos(theta)
             py = r_orb * math.sin(theta) * inc
@@ -6573,7 +6608,7 @@ def sc_orbOpen(ctx, e, t):
         rng = random.Random(7)
         r_max = (zx1 - zx0) / 2 * 0.92
         figura = str(e.get("figura", "esfera"))
-        for _ in range(90):
+        for _ in range(90 if PARTICULAS else 0):   # regla del pack `particulas`
             ang = rng.uniform(0, 6.283)
             r0 = min(r * rng.uniform(2.0, 3.0), r_max)
             rr = r0 + (r - r0) * k_s
@@ -6803,12 +6838,15 @@ def aplicar_brand(brand_path):
         c["acento_texto"] = hex_a_rgb(col["acento_texto"])
     _instalar_tokens(c)
     global FJI
-    for rol, glob, defecto, gen in (("titulares", "FJ", "Plus Jakarta Sans", "sans-bold"),
-                                    ("texto", "FM", "Montserrat", "sans"),
-                                    ("etiquetas_mono", "MONO", MONO_FAMILIA, "mono"),
-                                    ("titulares_itálica", "FJI", "Plus Jakarta Sans", "sans-bold")):
+    for rol, glob, defecto, gen in (("titulares", "FJ", TIPOS_MOTOR["titulares"], "sans-bold"),
+                                    ("texto", "FM", TIPOS_MOTOR["texto"], "sans"),
+                                    ("etiquetas_mono", "MONO", MONO_FAMILIA, "mono")):
         hit = fuente_marca(brand_path, rol, defecto, gen)
         if hit: globals()[glob] = hit
+    # la itálica SOLO si el pack la declara: con la redonda por defecto, una
+    # escena que pide `itálica` salía recta (fTi cae a FJI_MOTOR sin pack)
+    FJI = (fuente_marca(brand_path, "titulares_itálica", TIPOS_MOTOR["titulares"], "sans-bold")
+           if (d.get("tipografias") or d.get("tipografías") or {}).get("titulares_itálica") else None)
     logos = d.get("logos") or {}
     LOGO = ruta_de_pack(brand_path, logos.get("logotipo") or logos.get("fondo_oscuro"))
     ISOTIPO = ruta_de_pack(brand_path, logos.get("isotipo"))
@@ -6816,9 +6854,12 @@ def aplicar_brand(brand_path):
     reglas = d.get("reglas") or {}
     TRANSICIONES = reglas.get("transiciones", "libre")
     OUTRO_SOBRIO = bool(reglas.get("outro_sobrio", False))
-    if "rebote" in reglas: REBOTE = bool(reglas.get("rebote"))
-    if "particulas" in reglas: PARTICULAS = bool(reglas.get("particulas"))
-    if "volumen" in reglas: VOLUMEN = bool(reglas.get("volumen"))
+    # sin la regla, el default del motor (otro pack no hereda la del anterior)
+    REBOTE = bool(reglas.get("rebote", True))
+    PARTICULAS = bool(reglas.get("particulas", True))
+    VOLUMEN = bool(reglas.get("volumen", True))
+    CASO_MARCA.clear()
+    CASO_MARCA.update(x for x in ([MARCA_NOMBRE] + list(reglas.get("conservar_caso") or [])) if x)
     # "corte_seco" es una REGLA del pack: el solape entre escenas se reduce a un
     # micro-fade (sin disolvencia de 0.45 s entre dos pantallas de texto).
     SOLAPE, SOLAPE_PRE = ((SOLAPE_SECO, SOLAPE_PRE_SECO) if TRANSICIONES == "corte_seco"
