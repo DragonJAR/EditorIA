@@ -183,12 +183,12 @@ class TestSubrayado(unittest.TestCase):
             with self.subTest(formato=f"{ancho}x{alto}"):
                 R = _motor(ancho, alto)
                 e = _muestra("subrayado")
-                solo_texto = _tinta_x(R.pintar(R.Ctx(), e, e["at"]["linea"] - 0.05))
-                todo = _tinta_x(R.pintar(R.Ctx(), e, e["to"] - 1.0))
+                # el NÚCLEO de la línea (alfa > 120): el halo difuso no es la línea
+                solo_texto = _tinta_x(R.pintar(R.Ctx(), e, e["at"]["linea"] - 0.05), 120)
+                todo = _tinta_x(R.pintar(R.Ctx(), e, e["to"] - 1.0), 120)
                 vuelo = max(solo_texto[0] - todo[0], todo[1] - solo_texto[1])
-                # un cuarto de cuerpo (72 px) por lado + el remate redondo del
-                # trazo (grosor 12) y el apoyo lateral del glifo
-                self.assertLessEqual(vuelo, 72 * 0.25 + 12, f"la línea vuela {vuelo} px más allá del texto")
+                # un cuarto de cuerpo (72 px) por lado + el apoyo lateral del glifo
+                self.assertLessEqual(vuelo, 72 * 0.25 + 10, f"la línea vuela {vuelo} px más allá del texto")
 
 
 class TestHandoff(unittest.TestCase):
@@ -234,7 +234,8 @@ class TestTrazadoSuave(unittest.TestCase):
         pts = [(50 + i * 6, 200 + 80 * np.sin(i / 8)) for i in range(50)]
         R.trazado(capa, pts, (255, 255, 255), grosor=10, desvanecer=0.0, brillo=True)
         a = np.asarray(capa.getchannel("A"))
-        nucleo = [a[int(round(y)), int(round(x))] for x, y in pts]
+        # las UNIONES (los extremos del trazo son rectos: su píxel es medio)
+        nucleo = [a[int(round(y)), int(round(x))] for x, y in pts[1:-1]]
         self.assertGreaterEqual(min(nucleo), 240, "el halo del tramo siguiente agujerea el núcleo")
 
 
