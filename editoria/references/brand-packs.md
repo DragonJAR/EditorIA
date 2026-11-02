@@ -92,6 +92,16 @@ Claves `reglas` reconocidas:
 - `rejillas_decorativas`: si la marca prohíbe rejillas/líneas como fondo.
 - `efectos_glitch`: si la marca admite RGB split, shake, strobe o hue shift
   sin que el brief los pida (`false` = solo a pedido).
+- `rebote`: si la pieza puede rebotar al entrar. `false` = marca de
+  precision: el mismo resorte, con amortiguamiento critico (llega con la
+  misma frecuencia y no se pasa).
+- `particulas`: si la pieza puede llevar confeti o particulas. `false` =
+  solo el texto.
+- `volumen`: si las insignias 3D llevan extrusion y sombra. `false` = la
+  insignia es plana.
+- `outro_sobrio`: si el cierre puede latir y llevar halo. `true` = el outro
+  de un manual de marca: el boton sin halo que late (la flotacion y el
+  push-in siguen: un cierre quieto es un frame congelado).
 - `isotipo_con_protagonista`: si el isotipo puede compartir plano con un
   protagonista grande (casi siempre `false`: o no aparece, o tiene un rol
   claro y recurrente). El fondo de la `apertura` ES un rol claro y recurrente:

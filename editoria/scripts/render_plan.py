@@ -96,7 +96,8 @@ ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida p
 # la comprueba contra lo que dice references/brand-packs.md y contra lo que
 # declara cada pack (si un pack declara una regla que no está en ninguna de
 # las dos listas, nadie la cumple).
-REGLAS_DEL_MOTOR = {"transiciones"}          # el motor las lee y las hace cumplir
+REGLAS_DEL_MOTOR = {"transiciones",          # el motor las lee y las hace cumplir
+                   "rebote", "particulas", "volumen", "outro_sobrio"}
 REGLAS_DEL_AGENTE = {"rejillas_decorativas", # guia del agente: las lee el que
                       "efectos_glitch",      # escribe el plan, no el motor
                       "isotipo_con_protagonista"}
@@ -188,10 +189,17 @@ def curva_overshoot(p, s=1.70158):
 def prog(t,a,b,e=ease_in_out):
     if b<=a: return 1.0 if t>=b else 0.0
     return e((t-a)/(b-a))
+REBOTE=True; PARTICULAS=True; VOLUMEN=True   # reglas del pack (rebote/particulas/volumen)
+OUTRO_SOBRIO=False   # regla del pack (reglas.outro_sobrio): `final` sin latido ni halo
+
+
 def spring(t,t0,stiff=120,damp=13):
     """Resorte subamortiguado 0->1 con overshoot. La base de la fluidez."""
     if t<=t0: return 0.0
     dt=t-t0; w=math.sqrt(stiff); d=damp/(2*w)
+    # regla del pack `rebote: false` (marca de precision): el MISMO resorte,
+    # con amortiguamiento critico: llega con la misma frecuencia y no se pasa
+    if not REBOTE: d=max(d,1.0)
     if d>=1: return 1-math.exp(-w*dt)*(1+w*dt)
     wd=w*math.sqrt(1-d*d)
     return 1-math.exp(-d*w*dt)*(math.cos(wd*dt)+d*w/wd*math.sin(wd*dt))
@@ -1006,14 +1014,19 @@ def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
     rr = max(8, int(r * 0.42))
 
     def sombra(d, q, s):      # contacto: bajo la pieza, sin perforar lo de abajo
+        if not VOLUMEN:
+            return
         d.ellipse(q(cx - r * 0.82, cy + r * 0.78, cx + r * 0.82, cy + r * 1.12), fill=(0, 0, 0, 90))
 
     def cuerpo(d, q, s):      # extrusión (volumen) + cara
-        d.rounded_rectangle(q(cx - r, cy_f - r + 7, cx + r, cy_f + r + 7), radius=rr * s, fill=osc + (255,))
+        if VOLUMEN:
+            d.rounded_rectangle(q(cx - r, cy_f - r + 7, cx + r, cy_f + r + 7), radius=rr * s, fill=osc + (255,))
         d.rounded_rectangle(q(cx - r, cy_f - r, cx + r, cy_f + r), radius=rr * s, fill=col + (255,),
                             outline=claro + (140,), width=2 * s)
 
     def reflejo(d, q, s):     # el brillo SUMA luz a la cara (antes la perforaba)
+        if not VOLUMEN or max(col) - min(col) <= 24:
+            return   # el brillo se lee como una mancha gris en un acento gris
         d.ellipse(q(cx - r * 0.55, cy_f - r * 0.72, cx + r * 0.55, cy_f - r * 0.18), fill=claro + (75,))
     sobre_capa(d, (cx - r, cy_f - r, cx + r, max(cy_f + r + 7, cy + r * 1.12)),
                sombra, cuerpo, reflejo, ss=SS, alfa=int(alpha))
@@ -1456,10 +1469,11 @@ def elipse_se_dibuja(d, cx, cy, rx, ry, t, t0, dur=0.8, color=None, grosor=4):
 
 
 def particulas(d, t, t0, cx, cy, n=60, color=None, semilla=11):
+    # regla del pack `particulas: false`: la pieza sale limpia (solo el texto)
     """Confetti / celebración determinista (seeded). Sin random: reproducible.
     `color` por defecto usa ACENTO. La usan `confeti`, `listo` (extra), etc."""
-    if t < t0:
-        return
+    if t < t0 or not PARTICULAS:
+        return   # regla del pack `particulas: false`: la pieza sale limpia
     color = color or ACENTO
     rng = random.Random(semilla)
     dt = t - t0
@@ -1716,6 +1730,23 @@ def cifra(d, xy, texto, font, fill, anchor="mm", final=None):
     (U+2007) para que pasar de "8" a "11" no corra el número ni lo re-centre."""
     if final and len(final) > len(texto):
         texto = "\u2007" * (len(final) - len(texto)) + texto
+    # símbolo de moneda delante: aire propio (con cifras tabulares el «$»
+    # tocaba el «1» de «$180.000»); se dibuja aparte y el número sigue tabular
+    pref = ""
+    while texto and texto[0] in "$€£¥₡₲₱₹":
+        pref += texto[0]
+        texto = texto[1:]
+    if pref and texto:
+        aire = font.size * 0.035   # el asta del «1» casi toca el «$» sin este aire
+        w_p = largo(pref, font)
+        w_n = (d.textlength(texto, font=font, features=TNUM) if TNUM
+               else largo(texto, font, True))
+        x, y = xy
+        x_izq = x - {"l": 0, "m": (w_p + aire + w_n) / 2,
+                     "r": w_p + aire + w_n}[anchor[0]]
+        pon_texto(d, (x_izq, y), pref, font=font, fill=fill, anchor="l" + anchor[1])
+        cifra(d, (x_izq + w_p + aire, y), texto, font, fill, anchor="l" + anchor[1])
+        return
     if TNUM:
         pon_texto(d, xy, texto, font=font, fill=fill, anchor=anchor, features=TNUM)
         return
@@ -2678,7 +2709,7 @@ def sc_listo(ctx,e,t):
         # asentado el estallido, el check flota (centrado, el push-in casi no lo mueve)
         cy=vy(0.5)+flota(t,t0+0.8,7,0.45)
         # estallido de partículas en anillo
-        for i in range(24):
+        for i in range(24 if PARTICULAS else 0):
             a=i/24*math.pi*2
             rr=180*ease_out(clamp01((t-t0)/0.6))
             x=W/2+rr*math.cos(a); y=cy+rr*math.sin(a)
@@ -2870,9 +2901,15 @@ def sc_final(ctx,e,t):
     at=e["at"]
     k=entra(t, e["from"]+0.1, "lento")
     asienta=e["from"]+1.2
+    # regla del pack `outro_sobrio` (o `sobrio` en la escena): el outro que
+    # pide un manual de marca no late ni lleva halo. La flotacion y el push-in
+    # siguen: un cierre quieto es un frame congelado.
+    sobrio=bool(e.get("sobrio",OUTRO_SOBRIO))
+    con_latido=bool(e.get("latido",not sobrio))
+    con_halo=bool(e.get("halo",not sobrio))
     # flota + latido de escala: muerto residual 0.12 en lote 2
     fy=flota(t,asienta,7,0.30)
-    pulso=latido(t,asienta,1.6,0.04)
+    pulso=latido(t,asienta,1.6,0.04) if con_latido else 1.0
     push=1+0.035*prog(t,e["from"],e["to"],ease_in_out)   # push-in de cámara
     # `titulo` sustituye a `marca` cuando el cierre no trae el nombre del
     # pack: antes `e["marca"]` reventaba con KeyError y el error no decia
@@ -2897,9 +2934,14 @@ def sc_final(ctx,e,t):
         kb=entra(t, at["boton"], "bloque")
         bw,bh=520*min(1.0,kb)*pulso,110*min(1.0,kb); yy=vy(0.70)+(110-bh)/2+fy*0.4
         if bh>4:
-            boton_halo(d, W/2, yy+bh/2, bw, bh, e["boton"],
-                       ctx.fX(ESCALA["dato"]*min(1.0,kb),800), t, at["boton"],
-                       alpha=int(255*min(1,kb)))
+            if con_halo:
+                boton_halo(d, W/2, yy+bh/2, bw, bh, e["boton"],
+                           ctx.fX(ESCALA["dato"]*min(1.0,kb),800), t, at["boton"],
+                           alpha=int(255*min(1,kb)))
+            else:   # `sobrio`: el boton sin el halo que late
+                pon_texto(d, (W/2, yy+bh/2), e["boton"],
+                          font=ctx.fX(ESCALA["dato"]*min(1.0,kb),800),
+                          fill=BLANCO+(int(255*min(1,kb)),), anchor="mm")
     # sale como toda escena: puede no ser la última del plan (si le sigue otra,
     # sin salida desaparecía de golpe al terminar el solape)
     return capa_salida(layer,t,e["to"])
@@ -4968,7 +5010,10 @@ def sc_oferta(ctx, e, t):
     if e.get("rotulo"):
         rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", fr), y=rotulo_y(),
                 tam=ESCALA["rotulo"])
-    bloques = [("badge", tam * 1.12), ("antes", 100),
+    # el descuento GRANDE solo si el plan lo pide (`descuento` o `mostrar`):
+    # derivarlo de antes/ahora dibujaba un «-25%» que el brief no decia
+    con_badge = ("descuento" in e) or bool(e.get("mostrar"))
+    bloques = [("badge", (tam * 1.12) if con_badge else 0), ("antes", 100),
                ("precio", 160), ("codigo", 124 if e.get("codigo") else 0),
                ("vence", 50 if e.get("vence") else 0), ("cta", 120 if e.get("cta") else 0)]
     bloques = [b for b in bloques if b[1]]
@@ -4979,7 +5024,7 @@ def sc_oferta(ctx, e, t):
     px = lambda v: max(MIN_LETRA, int(v * f))   # noqa: E731  (nunca ilegible)
     t_d = at.get("descuento", fr + 0.4)
     kd = entra(t, t_d, "pop")
-    if kd > 0:
+    if kd > 0 and con_badge:
         sc = 1 + 0.12 * (1 - min(1, kd))   # aterriza desde un poco más grande
         pon_texto(d, (W / 2, Y["badge"]), badge, font=ctx.fT(int(px(tam) * sc), 800),
                fill=ACENTO + (int(255 * clamp01(kd * 1.5)),), anchor="mm")
@@ -4992,7 +5037,10 @@ def sc_oferta(ctx, e, t):
         kt = ease_out(clamp01((t - t_t) / 0.35))
         if kt > 0:
             x0 = W / 2 - tw_ / 2 - 12
-            d.line([(x0, y + 6), (x0 + (tw_ + 24) * kt, y - 6)], fill=ACENTO + (255,), width=px(10))
+            # trazo FINO (6 % del cuerpo): el precio viejo se sigue leyendo
+            # bajo la raya (con 10 px fijos tapaba la cifra)
+            d.line([(x0, y + 6), (x0 + (tw_ + 24) * kt, y - 6)], fill=ACENTO + (255,),
+                   width=max(3, int(fnt.size * 0.06)))
     t_p = at.get("precio", t_t + 0.5)
     if t >= t_p:
         kp = entra(t, t_p, "pop")
@@ -6272,7 +6320,7 @@ def sc_orbOpen(ctx, e, t):
         rng = random.Random(7)
         r_max = (zx1 - zx0) / 2 * 0.92
         figura = str(e.get("figura", "esfera"))
-        for _ in range(90):
+        for _ in range(90 if PARTICULAS else 0):
             ang = rng.uniform(0, 6.283)
             r0 = min(r * rng.uniform(2.0, 3.0), r_max)
             rr = r0 + (r - r0) * k_s
@@ -6404,6 +6452,7 @@ def aplicar_brand(brand_path):
     la misma para todas las herramientas del kit."""
     global LOGO, ISOTIPO, MARCA_NOMBRE, TRANSICIONES   # fuentes: vía globals()
     global SOLAPE, SOLAPE_PRE
+    global REBOTE, PARTICULAS, VOLUMEN, OUTRO_SOBRIO
     from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
     d = leer_pack(brand_path)
     c = colores_marca(brand_path)
@@ -6423,7 +6472,15 @@ def aplicar_brand(brand_path):
     LOGO = ruta_de_pack(brand_path, logos.get("logotipo") or logos.get("fondo_oscuro"))
     ISOTIPO = ruta_de_pack(brand_path, logos.get("isotipo"))
     MARCA_NOMBRE = d.get("nombre")
-    TRANSICIONES = (d.get("reglas") or {}).get("transiciones", "libre")
+    reglas = d.get("reglas") or {}
+    TRANSICIONES = reglas.get("transiciones", "libre")
+    # movimiento y efectos de la marca: sin rebote (resorte critico), sin
+    # particulas, sin volumen 3D, y un outro sobrio. Por defecto, el
+    # catalogo tal cual.
+    REBOTE = bool(reglas.get("rebote", True))
+    PARTICULAS = bool(reglas.get("particulas", True))
+    VOLUMEN = bool(reglas.get("volumen", True))
+    OUTRO_SOBRIO = bool(reglas.get("outro_sobrio", False))
     # "corte_seco" es una REGLA del pack: el solape entre escenas se reduce a un
     # micro-fade (sin disolvencia de 0.45 s entre dos pantallas de texto).
     SOLAPE, SOLAPE_PRE = ((SOLAPE_SECO, SOLAPE_PRE_SECO) if TRANSICIONES == "corte_seco"
