@@ -290,7 +290,8 @@ class TestAuditarMapa(unittest.TestCase):
             txt = f.read()
         m = re.search(r'"nombre":\s*"piso de letra".*?"valor":\s*(\d+)', txt, re.S)
         self.assertIsNotNone(m, "la regla del piso de letra debe estar en auditar_mapa.py")
-        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
+        # LETRA_MIN vive UNA vez en _comun (motor, medicion y puerta lo importan)
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
             motor = f.read()
         self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")
@@ -1185,7 +1186,8 @@ class TestCifrasDelCodigo(unittest.TestCase):
             txt = f.read()
         m = re.search(r'"nombre":\s*"piso de letra".*?"valor":\s*(\d+)', txt, re.S)
         self.assertIsNotNone(m, "la regla del piso de letra debe estar en auditar_mapa.py")
-        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
+        # LETRA_MIN vive UNA vez en _comun (motor, medicion y puerta lo importan)
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
             motor = f.read()
         self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")

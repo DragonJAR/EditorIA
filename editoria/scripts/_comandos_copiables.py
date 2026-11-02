@@ -105,15 +105,15 @@ FUERA = {
     "scripts/_censo_clis.py": ("corre la suite entera: este guard esta dentro de ella", []),
     "scripts/_comandos_copiables.py": ("es este guard: un guard no se copia a si mismo", []),
     "scripts/alinear.py": ("necesita un modelo de voz (Whisper) instalado", []),
-    # La prosa (flujo-talking-head.md) da `aplicar_edl.py` como FORMA, con
-    # "…" en vez de argumentos: el `--edl` obligatorio sale de
-    # `retakes.py`/`silence.py --edl` sobre el video del usuario. Copiado tal
-    # cual es argparse pidiendo `--edl`. Solo esa forma queda fuera (prefijo
-    # con el "…"): un `aplicar_edl.py video.mp4 --edl ...` documentado
-    # caeria fuera de este prefijo y tendria que copiarse o tener su motivo.
-    "scripts/ffmpeg_tools/aplicar_edl.py …": ("forma sin argumentos ('…'): el EDL lo "
-                                              "produce retakes.py/silence.py --edl sobre "
-                                              "el video del usuario", []),
+    # La prosa (flujo-talking-head.md) da `aplicar_edl.py` con argumentos
+    # reales: `sin_sil.mp4 --edl cortes.edl`. Las DOS entradas son la salida
+    # de los pasos previos de la cadena (`silence.py` y `retakes.py`/`silence.py
+    # --edl`) sobre el video del usuario: copiado suelto no tiene corte previo
+    # que aplicar. (Antes la forma era "aplicar_edl.py …": validate_skill la
+    # daba por comando roto.)
+    "scripts/ffmpeg_tools/aplicar_edl.py": ("aplica el EDL que producen retakes.py/silence.py "
+                                            "--edl sobre el video del usuario: sin esos pasos "
+                                            "previos no hay entrada que copiar", []),
     "scripts/clonar_video.py analizar": ("descarga de la red: baja el video de referencia",
                                          ["--video"]),
     "scripts/contact_sheet.py": ("necesita palabras alineadas (Whisper)",

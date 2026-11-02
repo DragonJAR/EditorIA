@@ -3025,6 +3025,11 @@ def sc_final(ctx,e,t):
     zx0,_,zx1,_=caja_segura()
     # `titulo` sustituye a `marca` cuando el cierre no trae el nombre del pack
     nombre=(e.get("marca") or e.get("titulo") or "").strip()
+    if not nombre:
+        # sin ninguno de los dos el cierre saldría VACÍO en silencio (y la
+        # puerta lo daría por medido): es el campo que falta, con su ejemplo
+        # (error_de_escena), como cualquier otra escena
+        raise KeyError("marca")
     con_logo=bool(nombre and ctx.logo and es_marca_del_pack(nombre))
     if con_logo:
         h_m=760*ctx.logo.height/ctx.logo.width; tam_m=h_m
@@ -7341,12 +7346,6 @@ def completar_escena(e,i=0):
         sys.exit(f"ERROR: escena {i+1}: tipo «{tipo}» no existe. Tipos: {', '.join(SCENES)}")
     if not all(isinstance(e.get(c),(int,float)) for c in ("from","to")) or e["to"]<=e["from"]:
         sys.exit(f"ERROR: escena {i+1} ({tipo}): necesita `from` y `to` en segundos, con to > from")
-    # un OBLIGATORIO que falta es un error claro antes del render (la misma
-    # regla que audita auditar_plan): un cierre sin `marca` ni `titulo` ya no
-    # revienta, pero saldría vacío sin aviso y la puerta lo daría por medido
-    faltan=[x for x in errores_de_esquema(e,i) if "falta" in x]
-    if faltan:
-        sys.exit("ERROR: "+"; ".join(faltan))
     e=dict(e); m=muestra(tipo)
     # `at` SIEMPRE existe: una escena nueva (sin muestra) que no traiga tiempos
     # se rompe al leer `e["at"]` dentro de la escena (KeyError, no un aviso)

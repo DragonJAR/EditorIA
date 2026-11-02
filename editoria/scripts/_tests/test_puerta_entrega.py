@@ -159,8 +159,11 @@ class TestQuietoYOcupacionEnLaPuerta(unittest.TestCase):
             with open(ruta, encoding="utf-8") as f:
                 return float(re.search(rf"^{nombre}\s*=\s*([\d.]+)", f.read(), re.M).group(1))
         self.assertEqual(self.mod.QUIETO_MAX, const(os.path.join(SCRIPTS, "auto_qa.py"), "FROZEN_MAX"))
-        self.assertEqual(self.mod.OCUPACION_MIN,
-                         const(os.path.join(SCRIPTS, "medir_animacion.py"), "OCUPACION_MIN"))
+        # OCUPACION_MIN vive UNA vez en _comun: la puerta y el medidor la importan
+        comun = const(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), "OCUPACION_MIN")
+        self.assertEqual(self.mod.OCUPACION_MIN, comun)
+        import medir_animacion
+        self.assertEqual(medir_animacion.OCUPACION_MIN, comun)
 
 
 class TestConteoDelEncabezado(unittest.TestCase):
