@@ -376,6 +376,13 @@ def _transforma_readme(texto, refs, root, fft, suites, archivos, escenas, etique
                        f"{refs} referencias en kebab-case.md", etiqueta, cambios)
     texto = _sustituye(texto, r"\d+ references in kebab-case\.md",
                        f"{refs} references in kebab-case.md", etiqueta, cambios)
+    # el desglose de ffmpeg_tools (una linea por README): sin esto, anadir un
+    # modulo de post-produccion dejaba la cuenta vieja y el guard la senalaba
+    # como conteo obsoleto sin que la herramienta la pudiera arreglar
+    texto = _sustituye(texto, r"# \d+ módulos de post-producción",
+                       f"# {fft} módulos de post-producción", etiqueta, cambios)
+    texto = _sustituye(texto, r"# \d+ post-production modules",
+                       f"# {fft} post-production modules", etiqueta, cambios)
     # el tamaño del CATALOGO de escenas: lo vigila el guard y lo enuncian los
     # README. Sin esto, anadir una escena dejaba la cifra vieja (y el guard
     # la senalaba como conteo obsoleto: no habia forma de arreglarlo con la
