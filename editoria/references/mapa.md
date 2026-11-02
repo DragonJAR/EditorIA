@@ -1,10 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-<<<<<<< HEAD
 71 referencias, 52 scripts, 21 herramientas de ffmpeg y 89 suites de tests. Este
-=======
-68 referencias, 52 scripts, 20 herramientas de ffmpeg y 77 suites de tests. Este
->>>>>>> refs/remotes/sister/ronda17
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -328,11 +324,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-<<<<<<< HEAD
     guard nuevo se cuentan contra las 71 referencias, no se estiman.
-=======
-    guard nuevo se cuentan contra las 68 referencias, no se estiman.
->>>>>>> refs/remotes/sister/ronda17
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que

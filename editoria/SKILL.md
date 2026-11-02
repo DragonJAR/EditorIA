@@ -91,11 +91,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-<<<<<<< HEAD
 `references/mapa.md` is the index of this skill: 71 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
-=======
-`references/mapa.md` is the index of this skill: 68 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
->>>>>>> refs/remotes/sister/ronda17
 
 **Two paths. Pick one before you touch a file:**
 
@@ -280,11 +276,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-<<<<<<< HEAD
   - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (89 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
-=======
-  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (77 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
->>>>>>> refs/remotes/sister/ronda17
 
 ## Examples
 
