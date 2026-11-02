@@ -17,6 +17,7 @@ Run with: python3 -m unittest discover -s SKILL/scripts/_tests
 
 import importlib.util
 import os
+import sys
 import re
 import shutil
 import tempfile
@@ -203,22 +204,36 @@ class TestQuietoYOcupacionEnLaPuerta(unittest.TestCase):
         self.assertEqual(self.mod._defectos_movimiento(None, None), [])
 
     def test_los_umbrales_son_los_del_medidor(self):
-        """Un umbral = un numero: la puerta no puede divergir del medidor."""
+        """Un umbral = un numero: la puerta no puede divergir del medidor.
+
+        Los umbrales viven en `_comun` (una fuente) y cada script los importa:
+        el test compara los VALORES, no la forma en que cada fichero los dice.
+        """
         def const(ruta, nombre):
             with open(ruta, encoding="utf-8") as f:
                 return float(re.search(rf"^{nombre}\s*=\s*([\d.]+)", f.read(), re.M).group(1))
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        from _comun import LETRA_MIN as _canonico, OCUPACION_MIN as _oc_can
         self.assertEqual(self.mod.QUIETO_MAX, const(os.path.join(SCRIPTS, "auto_qa.py"), "FROZEN_MAX"))
-        # OCUPACION_MIN vive UNA vez en _comun: la puerta y el medidor la importan
+        # OCUPACION_MIN y LETRA_MIN viven UNA vez en _comun: la puerta y el
+        # medidor los importan (ningun literal aparte en medir_animacion)
         comun = const(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), "OCUPACION_MIN")
         self.assertEqual(self.mod.OCUPACION_MIN, comun)
+        self.assertEqual(self.mod.OCUPACION_MIN, _oc_can)
+        self.assertEqual(self.mod.LETRA_MIN, _canonico)
+        sys.path.insert(0, SCRIPTS)
         import medir_animacion
         self.assertEqual(medir_animacion.OCUPACION_MIN, comun)
+        self.assertEqual(medir_animacion.LETRA_MIN, self.mod.LETRA_MIN)
         with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
             self.assertNotRegex(f.read(), r"(?m)^OCUPACION_MIN\s*=")
-        # la racha congelada es la de auto_qa (una cifra), no un literal aparte
+        # la racha congelada es la de auto_qa (UN literal: FROZEN_MAX), no un
+        # literal aparte en la puerta ni una copia en _comun
         import auto_qa
         self.assertEqual(self.mod.QUIETO_MAX, auto_qa.FROZEN_MAX)
         self.assertNotRegex(self.src_qa(), r"(?m)^QUIETO_MAX\s*=")
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
+            self.assertNotRegex(f.read(), r"(?m)^QUIETO_MAX\s*=")
 
     def src_qa(self):
         with open(QA_ENTREGA, encoding="utf-8") as f:

@@ -233,5 +233,72 @@ class Esquema(unittest.TestCase):
             self.assertRegex(qa_nuevo.stdout, r"OK\s+plan-vs-video")
 
 
+
+def _muestras():
+    with open(os.path.join(SCRIPTS, "escenas_muestra.json"), encoding="utf-8") as fh:
+        return json.load(fh)["escenas"]
+
+
+class EsquemaDerivadoDelMotor(unittest.TestCase):
+    """Lo que la integracion 524d probaba DIRECTO sobre `errores_de_esquema`
+    (sin pasar por auditar_plan): el esquema sale del codigo de la escena, y
+    la red de seguridad es que no rechace ninguna muestra del catalogo."""
+
+    def test_at_documenta_sus_claves_en_varias_escenas(self):
+        for tipo in ("apertura", "final", "constancia"):
+            at = [p for p in R.esquema_de(tipo) if p["nombre"] == "at"]
+            self.assertEqual(len(at), 1, f"{tipo} no declara `at`")
+            self.assertIn("claves", at[0])
+
+    def test_el_cierre_sin_nombre_es_error(self):
+        """`final` sin `marca` ni `titulo`: ERROR con el nombre del campo."""
+        e = {"tipo": "final", "from": 0.0, "to": 3.0, "at": {}}
+        errs = R.errores_de_esquema(e, 0)
+        self.assertTrue(errs, "el cierre sin nombre no es un error")
+        self.assertTrue(any("marca" in x or "titulo" in x for x in errs),
+                        f"el error no nombra el campo: {errs}")
+
+    def test_el_cierre_con_titulo_pasa(self):
+        """`titulo` basta: el cierre no exige `marca`."""
+        e = {"tipo": "final", "from": 0.0, "to": 3.0, "titulo": "HABLEMOS",
+             "at": {"lema": 1.0, "boton": 1.6}}
+        self.assertEqual(R.errores_de_esquema(e, 0), [],
+                         "un cierre con `titulo` no puede ser un error")
+
+    def test_un_tipo_equivocado_es_error_claro(self):
+        """Una cadena donde va una lista: error con el campo, no TypeError."""
+        e = {"tipo": "constancia", "from": 0.0, "to": 3.0,
+             "items": "no es una lista", "at": {}}
+        errs = R.errores_de_esquema(e, 0)
+        self.assertTrue(errs, "un tipo equivocado no es un error")
+        self.assertTrue(any("items" in x for x in errs),
+                        f"el error no nombra el campo: {errs}")
+
+    def test_ninguna_muestra_del_catalogo_es_rechazada(self):
+        """La red de seguridad: el esquema NO puede rechazar una muestra real
+        (si marca como obligatorio un campo que la escena no exige, el render
+        rechazaria planes validos)."""
+        malas = []
+        for tipo, ej in _muestras().items():
+            e = dict(ej)
+            e["tipo"] = tipo
+            e.setdefault("from", 0.0)
+            e.setdefault("to", 5.0)
+            errs = R.errores_de_esquema(e, 0)
+            if errs:
+                malas.append(f"{tipo}: {errs[0]}")
+        self.assertEqual(malas, [],
+                         "el esquema rechaza muestras propias del catalogo:\n  " +
+                         "\n  ".join(malas))
+
+    def test_la_duracion_de_una_escena_es_razonable(self):
+        """Cada escena dice cuanto debe durar (min, recomendado, max)."""
+        for tipo in ("apertura", "final", "constancia"):
+            d = R.duracion_de(tipo)
+            self.assertIsNotNone(d, f"{tipo} no declara duracion")
+            self.assertLessEqual(d["min"], d["recomendada"][1])
+            self.assertLessEqual(d["recomendada"][1], d["max"])
+
+
 if __name__ == "__main__":
     unittest.main()

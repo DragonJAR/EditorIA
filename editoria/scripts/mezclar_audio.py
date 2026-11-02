@@ -287,7 +287,8 @@ def main():
         print(f"ERROR: plataforma desconocida: {args.plataforma} "
               f"(opciones: {', '.join(sorted(_delivery.PLATFORMS))})", file=sys.stderr)
         return 2
-    crudo = args.out if args.sin_normalizar else f"{args.out}.mezcla{os.path.splitext(args.out)[1] or '.mp4'}"
+    crudo = (args.out if args.sin_normalizar
+             else f"{args.out}.mezcla{os.path.splitext(args.out)[1] or '.mp4'}")
     cmd = ["ffmpeg", "-y", "-v", "error"] + entradas + \
           ["-filter_complex", ";".join(fc), "-map", "0:v", "-map", "[aout]",
            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
@@ -299,11 +300,14 @@ def main():
     nivel = None
     if not args.sin_normalizar:
         # la MISMA normalizacion de loudness.py / render_plan (dos pasadas y
-        # techo de true peak verificado tras el AAC)
+        # techo de true peak verificado despues del AAC): sin esto la entrega
+        # puede salir por encima del techo de la plataforma y la puerta la
+        # rechaza (medido: la cama con SFX salia a -33 LUFS).
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
         from loudness import normalizar_para
         try:
-            nivel = normalizar_para(crudo, args.out, args.plataforma, duracion=dur_s or None)
+            nivel = normalizar_para(crudo, args.out, args.plataforma,
+                                     duracion=dur_s or None)
         finally:
             if os.path.exists(crudo) and crudo != args.out:
                 os.remove(crudo)
@@ -311,8 +315,8 @@ def main():
                 else ("musica sola" if hay_mus else ""))
     sonoridad = ""
     if nivel and not nivel.get("silent"):
-        sonoridad = (f" · {float(nivel['input_i']):.1f} LUFS, TP {float(nivel['input_tp']):.1f} dBTP "
-                     f"({args.plataforma})")
+        sonoridad = (f" · {float(nivel['input_i']):.1f} LUFS, "
+                     f"TP {float(nivel['input_tp']):.1f} dBTP ({args.plataforma})")
     print(f"OK {args.out}: {len(colocados)} SFX, "
           f"{'voz ' if args.voz else ''}"
           f"{modo_mus + ' ' if modo_mus else ''}({dur_s:.1f}s){sonoridad}")

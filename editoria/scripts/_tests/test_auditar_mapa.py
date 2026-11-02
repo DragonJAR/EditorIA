@@ -285,7 +285,9 @@ class TestAuditarMapa(unittest.TestCase):
         self.assertIn("piso de letra", out)
 
     def test_el_piso_de_letra_del_motor_no_se_inventa(self):
-        # el motor es la fuente: si LETRA_MIN cambia, el valor esperado cambia
+        # el motor es la fuente: si LETRA_MIN cambia, el valor esperado cambia.
+        # El valor vive en UNA fuente (`_comun`); el medidor lo importa, asi que
+        # el chequeo mira el VALOR, no la forma en que cada fichero lo dice.
         with open(AUDITAR, encoding="utf-8") as f:
             txt = f.read()
         m = re.search(r'"nombre":\s*"piso de letra".*?"valor":\s*(\d+)', txt, re.S)
@@ -293,8 +295,15 @@ class TestAuditarMapa(unittest.TestCase):
         # LETRA_MIN vive UNA vez en _comun (motor, medicion y puerta lo importan)
         with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
             motor = f.read()
-        self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
-                      "el valor esperado tiene que ser el LETRA_MIN real del motor")
+        if f"LETRA_MIN = {m.group(1)}" not in motor:
+            # la forma nueva: el medidor importa el valor de la fuente unica
+            sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+            from _comun import LETRA_MIN as _canonico
+            self.assertEqual(int(m.group(1)), int(_canonico),
+                             "el valor esperado tiene que ser el LETRA_MIN real "
+                             "del motor (la fuente unica)")
+            self.assertIn("from _comun import", motor,
+                          "el medidor tiene que tomar el valor de la fuente unica")
 
     def test_el_numero_de_referencias_no_se_inventa(self):
         # el numero de referencias lo cuenta el ARBOL (los .md de
@@ -1181,7 +1190,8 @@ class TestCifrasDelCodigo(unittest.TestCase):
         rc, out = _auditar(raiz)
         self.assertEqual(rc, 1, f"el eje renombrado no se detecto:\n{out}")
         self.assertIn("rubrica descuadrada", out)
-        # el motor es la fuente: si LETRA_MIN cambia, el valor esperado cambia
+        # el motor es la fuente: si LETRA_MIN cambia, el valor esperado cambia.
+        # (el valor vive en `_comun`; el medidor lo importa)
         with open(AUDITAR, encoding="utf-8") as f:
             txt = f.read()
         m = re.search(r'"nombre":\s*"piso de letra".*?"valor":\s*(\d+)', txt, re.S)
@@ -1191,6 +1201,11 @@ class TestCifrasDelCodigo(unittest.TestCase):
             motor = f.read()
         self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
                       "el valor esperado tiene que ser el LETRA_MIN real del motor")
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        from _comun import LETRA_MIN as _canonico
+        self.assertEqual(int(m.group(1)), int(_canonico),
+                         "el valor esperado tiene que ser el LETRA_MIN real "
+                         "del motor (la fuente unica)")
 
 
 class TestBasuraEnElHistorial(unittest.TestCase):

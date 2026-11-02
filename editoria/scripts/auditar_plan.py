@@ -789,6 +789,10 @@ def main():
 
     # el esquema, el copy de muestra y la duración van dentro (revisar_campos)
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
+
+    # el pack que NO existe no puede pasar en silencio: `buscar_pack` acepta
+    # tambien el NOMBRE de un pack (el catalogo lo enseña asi) y el error dice
+    # que packs hay. (El copy de MUESTRA lo reporta revisar_campos, una vez.)
     if isinstance(plan, dict) and isinstance(plan.get("brand"), str):
         from _comun import buscar_pack, packs_disponibles
         ruta_brand = buscar_pack(plan["brand"], os.path.dirname(os.path.abspath(a.plan)))

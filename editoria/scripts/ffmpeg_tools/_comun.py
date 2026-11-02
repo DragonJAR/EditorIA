@@ -644,22 +644,6 @@ def verificar_alfa(path: str, frame: Optional[int] = None) -> float:
 PREFIJO_FIRMA = "editoria-plan:"
 
 
-def version_motor() -> str:
-    """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
-    reutiliza frames del anterior."""
-    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    try:
-        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as fh:
-            for linea in fh:
-                m = re.match(r"\s*version:\s*[\"']?([^\"'\s]+)", linea)
-                if m:
-                    return m.group(1)
-                if linea.strip() == "---" and not linea.startswith("version"):
-                    # el segundo --- cierra el frontmatter; si ya vimos version, salimos arriba
-                    pass
-    except OSError:
-        pass
-    return "0"
 
 def version_motor() -> str:
     """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no

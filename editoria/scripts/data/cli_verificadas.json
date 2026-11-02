@@ -20,7 +20,8 @@
    "scripts/_tests/test_guard_entorno.py"
   ],
   "scripts/actualizar_conteos.py": [
-   "scripts/_tests/test_actualizar_conteos.py"
+   "scripts/_tests/test_actualizar_conteos.py",
+   "scripts/_tests/test_catalogo_prosa.py"
   ],
   "scripts/alinear.py": [
    "scripts/_tests/test_core_and_scenes.py"
@@ -31,10 +32,12 @@
   "scripts/auditar_mapa.py": [
    "scripts/_tests/test_actualizar_conteos.py",
    "scripts/_tests/test_auditar_mapa.py",
+   "scripts/_tests/test_catalogo_prosa.py",
    "scripts/_tests/test_verticales.py"
   ],
   "scripts/auditar_plan.py": [
    "scripts/_tests/test_auditar_plan.py",
+   "scripts/_tests/test_auditoria_esquema.py",
    "scripts/_tests/test_comandos_copiables.py",
    "scripts/_tests/test_core_and_scenes.py",
    "scripts/_tests/test_direccion_arte.py",
@@ -86,7 +89,8 @@
    "scripts/_tests/test_acabado.py"
   ],
   "scripts/ffmpeg_tools/aplicar_edl.py": [
-   "scripts/_tests/test_cli_de_herramientas.py"
+   "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_comandos_copiables.py"
   ],
   "scripts/ffmpeg_tools/caption.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
@@ -182,7 +186,8 @@
    "scripts/_tests/test_cli_de_las_cuatro.py"
   ],
   "scripts/render_plan.py": [
-   "scripts/_tests/test_core_and_scenes.py"
+   "scripts/_tests/test_core_and_scenes.py",
+   "scripts/_tests/test_firma_plan.py"
   ],
   "scripts/repertorio.py": [
    "scripts/_tests/test_repertorio.py"

@@ -15,7 +15,8 @@ capa intermedia daria falsos positivos. Asi que:
 Ademas, sobre esa superficie solo se mide lo que el ojo recibe de verdad: los
 pixeles donde ESE texto es el ULTIMO que se dibujo (un glifo tapado por otro
 no se lee). Y un texto con alfa por debajo de ALFA_MIN todavia no se ve: no
-es un defecto, es una entrada.
+es un defecto, es una entrada. De cada texto se juzga el alfa con el que se
+queda (el mas alto que se le vio): un fundido a mitad de camino no es tinta.
 
 Es la MISMA tecnica que el suelo de letra (`validate_skill.py` espia
 `ImageDraw.text`), aplicada al COLOR.
@@ -93,6 +94,31 @@ def _espia(registro, dibujar, _orig, tam_cuadro=None):
 TAM_GRANDE = 48
 
 
+def _en_reposo(muestras):
+    """El contraste de cada texto en el alfa con el que se queda.
+
+    La entrada funde la tinta. A mitad de camino el mismo color, ya legal
+    asentado, baja del umbral. Igual que la letra, cuenta el estado en el que
+    el texto se queda: el alfa más alto que se le vio. El mismo alfa sobre dos
+    superficies se queda con la peor. Si ese estado sigue bajo el umbral, es
+    tinta ilegible, no un fundido.
+
+    `muestras`: (alfa, ratio, texto, color, exigido). Devuelve el peor texto
+    en reposo, relativo a SU umbral: (ratio, texto, color, exigido) o None.
+    """
+    grupos = {}
+    for alfa, ratio, texto, color, exigido in muestras:
+        grupos.setdefault((texto, color), []).append((alfa, ratio, exigido))
+    peor = None
+    for (texto, color), pts in grupos.items():
+        cima = max(alfa for alfa, _, _ in pts)
+        med, exigido = min(((ratio, ex) for alfa, ratio, ex in pts if alfa == cima),
+                           key=lambda p: p[0] / p[1])
+        if peor is None or med / exigido < peor[0] / peor[3]:
+            peor = (med, texto, color, exigido)
+    return peor
+
+
 def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None, formatos=FORMATOS, muestras=None,
           umbral_chico=None, todos=False):
     """Recorre el catalogo y devuelve los textos con poco contraste.
@@ -126,7 +152,7 @@ def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None, formatos=FORMATOS, mue
             desvio = ((ancho - 1080) // 2
                       if (nombre in getattr(R, "COLUMNA", ()) and ancho > alto and ancho > 1080)
                       else 0)
-            peor = None
+            lecturas = []
             for t in (0.5, e["to"] / 2, e["to"] - 0.3):
                 registros = []
                 superficie = None
@@ -167,9 +193,10 @@ def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None, formatos=FORMATOS, mue
                     fill = r["fill"]
                     if not isinstance(fill, (tuple, list)) or len(fill) < 3:
                         continue
-                    a = (fill[3] if len(fill) > 3 else 255) / 255.0
-                    if a * 255 < alfa_min:
+                    a_px = int(fill[3]) if len(fill) > 3 else 255
+                    if a_px < alfa_min:
                         continue      # el texto todavia no se ve: no es defecto
+                    a = a_px / 255.0
                     x0, y0, x1, y1 = r["caja"]
                     sel = r["visible"]
                     if not sel.any():
@@ -194,8 +221,8 @@ def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None, formatos=FORMATOS, mue
                                               ratio=round(med, 2), texto=r["texto"],
                                               color=list(fill[:3]), exigido=exigido,
                                               fondo=[int(v) for v in np.median(sup_np[sel], axis=0)]))
-                    if peor is None or med / exigido < peor[0] / peor[3]:
-                        peor = (med, r["texto"], fill[:3], exigido)
+                    lecturas.append((a_px, med, r["texto"], tuple(fill[:3]), exigido))
+            peor = _en_reposo(lecturas)
             if peor and peor[0] < peor[3] and not todos:
                 hallazgos.append(dict(escena=nombre, formato=f"{ancho}x{alto}",
                                       ratio=round(peor[0], 2), texto=peor[1],

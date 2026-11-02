@@ -285,19 +285,38 @@ class TestFraseCinetica(unittest.TestCase):
         Sin una fuente con italica, el resultado se ve en redonda y no se
         parece al original: por eso la variable entra en el pack (el rol
         "titulares_itálica") y la escena la pide con `itálica: true`.
+
+        ADAPTADO: se mide el MOTOR (que usa la itálica que declara el pack)
+        con un pack propio, y no con un pack concreto: los packs estan en
+        vuelo y el que se prueba aqui es el motor.
         """
+        import json
+        import tempfile
         import render_plan as R
-        pack = os.path.join(os.path.dirname(SCRIPTS), "brand", "carbon.json")
-        R.aplicar_brand(pack)
-        try:
-            fnt_recta = R.Ctx().fTi(60, 800)
-            self.assertIsNotNone(fnt_recta)
-            # el nombre de la fuente dice si es la italica
-            nombre = " ".join(str(x) for x in fnt_recta.getname())
-            self.assertIn("Italic", nombre,
-                          f"la fuente del display deberia ser la italica: {nombre}")
-        finally:
-            R.aplicar_brand(None)
+        with tempfile.TemporaryDirectory() as d:
+            pack = os.path.join(d, "pack.json")
+            with open(pack, "w", encoding="utf-8") as fh:
+                json.dump({
+                    "nombre": "PRUEBA", "colores": {"acento": "#E8B464"},
+                    "tipografias": {
+                        "titulares": {"archivo": "assets/fonts/PlusJakartaSans-wght.ttf",
+                                      "familia": "Plus Jakarta Sans", "pesos": [700, 800]},
+                        "titulares_itálica": {
+                            "archivo": os.path.join(os.path.dirname(SCRIPTS),
+                                                    "assets", "fonts",
+                                                    "PlusJakartaSans-Italic-wght.ttf"),
+                            "familia": "Plus Jakarta Sans", "pesos": [700, 800]},
+                    }}, fh, ensure_ascii=False)
+            R.aplicar_brand(pack)
+            try:
+                fnt_recta = R.Ctx().fTi(60, 800)
+                self.assertIsNotNone(fnt_recta)
+                # el nombre de la fuente dice si es la italica
+                nombre = " ".join(str(x) for x in fnt_recta.getname())
+                self.assertIn("Italic", nombre,
+                              f"la fuente del display deberia ser la italica: {nombre}")
+            finally:
+                R.aplicar_brand(None)
 
     def test_el_gap_entre_palabras_no_dispersa_la_frase(self):
         """El tracking extra era tam*0.24: la frase se leía a islas.

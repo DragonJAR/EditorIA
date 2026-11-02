@@ -193,6 +193,9 @@ class TestRelojDeLaNarracion(unittest.TestCase):
     TEXTO = "Cada hallazgo llega con su severidad CVSS, para corregir lo que más duele."
 
     def _plan(self, hueco):
+        # el cierre lleva nombre: desde 1.11.3 un `final` sin `marca` ni
+        # `titulo` es un ERROR (la tarjeta de cierre saldria vacia). Este test
+        # mide la BANDA DE LA VOZ, asi que su plan tiene que ser valido.
         return {"duracion": hueco * 3,
                 "escenas": [
                     {"tipo": "apertura", "from": 0.0, "to": hueco, "voz": self.TEXTO,

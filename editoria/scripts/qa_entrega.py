@@ -171,6 +171,10 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
     a correr medir_animacion aparte (minutos) para saber QUE se pisa. El
     detalle ya lo trae la medicion (`escena@t: «a»/«b»`, letra por escena):
     la puerta lo transporta al veredicto, no lo resume a un conteo.
+
+    Las dos listas que llegan de la medicion: `lectura` (el texto que sale
+    antes de que se pueda leer) y `recortes` (el copy que el motor no pudo
+    ni partir al piso: se pierde).
     """
     fallos = []
     if letra and letra < LETRA_MIN:
@@ -222,10 +226,10 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
 def _defecto_plan_desincronizado(ruta_plan, ruta_video):
     """El video no salió de este plan.
 
-    Si el contenedor trae la firma del plan, manda esa firma (también con
+    Si el contenedor trae la FIRMA del plan, manda esa firma (también con
     --sin-medir): copiar el video viejo después de editar el plan deja el
-    mtime del video más nuevo y la fecha no ve el desfase. Sin firma
-    (un video de un motor anterior) se conserva la comparación de mtime.
+    mtime del video más nuevo y la fecha no ve el desfase. Sin firma (un video
+    de un motor anterior) se conserva la comparación de mtime.
     """
     try:
         with open(ruta_plan, encoding="utf-8") as f:
@@ -233,19 +237,16 @@ def _defecto_plan_desincronizado(ruta_plan, ruta_video):
     except (OSError, ValueError):
         plan = None
     if isinstance(plan, dict):
-        try:
-            from _comun import firma_plan, buscar_pack, firma_de_video
-            brand = (buscar_pack(plan.get("brand"), os.path.dirname(os.path.abspath(ruta_plan)))
-                     if plan.get("brand") else None)
-            esperado = firma_plan(plan, brand)
-            leido = firma_de_video(ruta_video)
-            if leido and leido != esperado:
-                return ("el video no se renderizo desde este plan "
-                        "(la firma del plan no coincide): vuelve a renderizar")
-            if leido == esperado:
-                return None
-        except Exception:
-            pass
+        from _comun import firma_plan, buscar_pack, firma_de_video
+        brand = (buscar_pack(plan.get("brand"), os.path.dirname(os.path.abspath(ruta_plan)))
+                 if plan.get("brand") else None)
+        esperado = firma_plan(plan, brand)
+        leido = firma_de_video(ruta_video)
+        if leido and leido != esperado:
+            return ("el video no se renderizo desde este plan "
+                    "(la firma del plan no coincide): vuelve a renderizar")
+        if leido == esperado:
+            return None
     try:
         if os.path.getmtime(ruta_plan) > os.path.getmtime(ruta_video) + 1:
             return ("el plan es posterior al video: el MP4 no se renderizo "

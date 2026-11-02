@@ -108,15 +108,12 @@ FUERA = {
     "scripts/_censo_clis.py": ("corre la suite entera: este guard esta dentro de ella", []),
     "scripts/_comandos_copiables.py": ("es este guard: un guard no se copia a si mismo", []),
     "scripts/alinear.py": ("necesita un modelo de voz (Whisper) instalado", []),
-    # La prosa (flujo-talking-head.md) da `aplicar_edl.py` con argumentos
-    # reales: `sin_sil.mp4 --edl cortes.edl`. Las DOS entradas son la salida
-    # de los pasos previos de la cadena (`silence.py` y `retakes.py`/`silence.py
-    # --edl`) sobre el video del usuario: copiado suelto no tiene corte previo
-    # que aplicar. (Antes la forma era "aplicar_edl.py …": validate_skill la
-    # daba por comando roto.)
-    "scripts/ffmpeg_tools/aplicar_edl.py": ("aplica el EDL que producen retakes.py/silence.py "
-                                            "--edl sobre el video del usuario: sin esos pasos "
-                                            "previos no hay entrada que copiar", []),
+    # Solo la forma con "…" (sin --edl) queda fuera: copiada tal cual,
+    # argparse pide --edl. El comando real del flujo (entrada, --edl, -o)
+    # esta en EJECUTABLES y se corre con el video de 1 s de este guard.
+    "scripts/ffmpeg_tools/aplicar_edl.py …": ("forma sin argumentos ('…'): el EDL lo "
+                                              "produce retakes.py/silence.py --edl sobre "
+                                              "el video del usuario", []),
     "scripts/clonar_video.py analizar": ("descarga de la red: baja el video de referencia",
                                          ["--video"]),
     "scripts/contact_sheet.py": ("necesita palabras alineadas (Whisper)",
@@ -297,15 +294,11 @@ def _assets(tmp, skill_dir):
     with open(srt, "w", encoding="utf-8") as fh:
         fh.write("1\n00:00:00,000 --> 00:00:01,000\nHola\n\n")
     a["srt"] = srt
-    # El EDL es un fichero de texto: una linea "START-END" por rango, en
-    # segundos. Con el video de prueba (1 s) el rango cabe. Con este asset,
-    # `aplicar_edl.py video.mp4 --edl cortes.edl` se copia y se EJECUTA de
-    # verdad: antes solo se podía declarar con un motivo, porque el EDL del
-    # usuario no se puede inventar... pero el formato es una linea, y una
-    # linea se puede escribir.
+    # Un rango dentro del video de 1 s de este guard. El lector es
+    # aplicar_edl.leer_edl; aqui no se reescribe su formato.
     edl = os.path.join(tmp, "cortes.edl")
     with open(edl, "w", encoding="utf-8") as fh:
-        fh.write("0.000-0.800\n")
+        fh.write("0.10-0.70\n")
     a["edl"] = edl
     a["plantilla"] = _plantilla(os.path.join(tmp, "plantilla.json"))
     # trazos a mano: JSON mínimo para hand_draw.py suavizar/pintar
