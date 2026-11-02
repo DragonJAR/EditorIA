@@ -39,11 +39,12 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(BASE, "scripts")
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
-from _comun import LETRA_MIN, OCUPACION_MIN, QUIETO_MAX  # noqa: E402  los umbrales de la casa (una sola fuente)
 NOTA_MINIMA = 90.0     # nota de movimiento minima para dar la pieza por buena
+from _comun import LETRA_MIN, OCUPACION_MIN, QUIETO_MAX  # los umbrales de la casa (una sola fuente)
 ZONA_MIN = 0.70        # el motor escala hasta 0.70: si toca el piso, el texto sale de la zona segura
 # QUIETO_MAX: s de racha congelada maxima (= auto_qa.FROZEN_MAX; checklist-qa.md:
 # "ningun hold > 0.6 s salvo el CTA final", frozen <= 1 s por cada 30 s)
+# OCUPACION_MIN: caja de contenido / zona segura
 
 
 def _correr(args):
@@ -144,12 +145,7 @@ def _fps(video):
         return 30
 
 
-def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None,
-<<<<<<< HEAD
-                          recortes=None):
-=======
-                          lectura=None):
->>>>>>> refs/remotes/sister/ronda17
+def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None):
     """Los fallos de composicion, con su motivo Y su dueno. Puro: sin video ni plan.
 
     Un «2 textos se pisan» sin escena ni instante no es accionable: obligaba
@@ -175,32 +171,17 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
     if solapes:
         fallos.append(f"{len(solapes)} textos se pisan: " +
                         "; ".join(str(s) for s in solapes[:4]) +
-<<<<<<< HEAD
-                        ("; ..." if len(solapes) > 4 else ""))
-    if recortes:
-        fallos.append(f"{len(recortes)} textos recortados por el motor (no caben ni "
-                        f"partidos al piso): " + "; ".join(str(s) for s in recortes[:4]) +
-                        ("; ..." if len(recortes) > 4 else "") +
-                        " — acorta ese copy o alarga su escena")
-=======
                         ("; …" if len(solapes) > 4 else ""))
-    if lectura:
-        fallos.append(f"{len(lectura)} textos no aguantan lo que se leen: " +
-                      "; ".join(f"escena {d['escena']} «{d['texto']}» "
-                                f"{d['sosten']} s (necesita {d['minimo']} s)"
-                                for d in lectura[:4]) +
-                      ("; …" if len(lectura) > 4 else ""))
->>>>>>> refs/remotes/sister/ronda17
     return fallos
 
 
 def _defecto_plan_desincronizado(ruta_plan, ruta_video):
     """El video no salió de este plan.
 
-    Si el contenedor trae la firma del plan, manda esa firma (también con
+    Si el contenedor trae la FIRMA del plan, manda esa firma (también con
     --sin-medir): copiar el video viejo después de editar el plan deja el
-    mtime del video más nuevo y la fecha no ve el desfase. Sin firma
-    (un video de un motor anterior) se conserva la comparación de mtime.
+    mtime del video más nuevo y la fecha no ve el desfase. Sin firma (un video
+    de un motor anterior) se conserva la comparación de mtime.
     """
     try:
         with open(ruta_plan, encoding="utf-8") as f:
@@ -208,19 +189,16 @@ def _defecto_plan_desincronizado(ruta_plan, ruta_video):
     except (OSError, ValueError):
         plan = None
     if isinstance(plan, dict):
-        try:
-            from _comun import firma_plan, buscar_pack, firma_de_video
-            brand = (buscar_pack(plan.get("brand"), os.path.dirname(os.path.abspath(ruta_plan)))
-                     if plan.get("brand") else None)
-            esperado = firma_plan(plan, brand)
-            leido = firma_de_video(ruta_video)
-            if leido and leido != esperado:
-                return ("el video no se renderizo desde este plan "
-                        "(la firma del plan no coincide): vuelve a renderizar")
-            if leido == esperado:
-                return None
-        except Exception:
-            pass
+        from _comun import firma_plan, buscar_pack, firma_de_video
+        brand = (buscar_pack(plan.get("brand"), os.path.dirname(os.path.abspath(ruta_plan)))
+                 if plan.get("brand") else None)
+        esperado = firma_plan(plan, brand)
+        leido = firma_de_video(ruta_video)
+        if leido and leido != esperado:
+            return ("el video no se renderizo desde este plan "
+                    "(la firma del plan no coincide): vuelve a renderizar")
+        if leido == esperado:
+            return None
     try:
         if os.path.getmtime(ruta_plan) > os.path.getmtime(ruta_video) + 1:
             return ("el plan es posterior al video: el MP4 no se renderizo "
@@ -314,22 +292,9 @@ def _paso_composicion(plan, video):
                            if d.get("letra_px", 999) < LETRA_MIN]
         culpables_zona = [{"escena": r.get("escena", "?"), "zona": float(r.get("zona", 1.0))}
                           for r in res if float(r.get("zona", 1.0)) <= ZONA_MIN]
-<<<<<<< HEAD
-        recortes = sorted({x for r in res for x in (r.get("recortes") or [])})
         fallos = _defectos_composicion(letra, zona, solapes,
-                                       culpables_letra, culpables_zona, recortes)
-        detalle = (f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · "
-                   f"{len(solapes)} solapes · {len(recortes)} recortes")
-=======
-        # los textos que no aguantan lo que se leen: la MISMA medicion que
-        # usa la rubrica para el eje 4 (ritmo.md, el piso de lectura)
-        lectura = [d for r in res for d in (r.get("lectura") or [])]
-        fallos = _defectos_composicion(letra, zona, solapes,
-                                       culpables_letra, culpables_zona, lectura)
+                                       culpables_letra, culpables_zona)
         detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
-        if lectura:
-            detalle += f" · {len(lectura)} textos sin sostén para leer"
->>>>>>> refs/remotes/sister/ronda17
         if fallos:
             detalle = "; ".join(fallos)
         return {"nombre": "composicion", "ok": not fallos, "detalle": detalle}

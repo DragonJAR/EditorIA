@@ -29,7 +29,7 @@ BASE = os.path.dirname(SCRIPTS)
 sys.path.insert(0, SCRIPTS)
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
-from _comun import asegurar_padre, LETRA_MIN  # noqa: E402
+from _comun import asegurar_padre  # noqa: E402
 import auto_qa            # noqa: E402
 import delivery_check     # noqa: E402
 import medir_animacion    # noqa: E402
@@ -54,7 +54,7 @@ JUICIO = [1, 2, 5, 7]
 UMBRAL_EJE = 4
 UMBRAL_MEDIA = 4.3
 DENSIDAD_OK = (0.8, 1.5)
-LETRA_OK = LETRA_MIN     # el mismo LETRA_MIN del motor (_comun)
+from _comun import LETRA_MIN as LETRA_OK   # el mismo LETRA_MIN del motor (una sola fuente)
 
 
 def _puntuar_animacion(m):
@@ -77,13 +77,12 @@ def _puntuar_animacion(m):
 
 
 def _puntuar_composicion(plan_m):
-    """Eje 4: cada frame es un poster; zona segura, letra, solapes y lectura."""
+    """Eje 4: cada frame es un poster; zona segura, letra y solapes."""
     if not plan_m:
-        return None, "pasa --plan para medir letra, zona segura, solapes y lectura"
+        return None, "pasa --plan para medir letra, zona segura y solapes"
     solapes = len(plan_m.get("solapes") or [])
     zona = float(plan_m.get("zona", 1.0))
     letra = int(plan_m.get("letra_min", 0) or 0)
-    lectura = list(plan_m.get("lectura") or [])
     s = 5.0
     s -= min(2.5, solapes * 1.5)
     if zona < 1.0:
@@ -94,17 +93,9 @@ def _puntuar_composicion(plan_m):
         # telefono, la tipografia no puede recibir un 4. La puerta de entrega
         # falla esta misma pieza; las dos no pueden decir cosas distintas.
         s = min(s, 3.5)
-    if lectura:
-        # el texto que no aguanta lo que se lee es el mismo defecto que la
-        # letra baja: la REGLA DURA del eje 4 (lectura minima, ritmo.md).
-        s -= round(min(1.5, 0.5 * len(lectura)), 1)
-        s = min(s, 3.5)
     return max(1.0, round(s, 1)), (
         f"{solapes} solapes · zona segura x{zona} · letra minima {letra or '?'} px"
-<<<<<<< HEAD
-        + (f" (bajo el piso de {LETRA_OK})" if letra and letra < LETRA_OK else "")
-        + (f" · {len(lectura)} textos sin sostén para leer" if lectura else "")
->>>>>>> refs/remotes/sister/ronda17
+        + (" (bajo el piso de 26)" if letra and letra < LETRA_OK else "")
         + (": " + "; ".join(str(x) for x in (plan_m.get("solapes") or [])[:3])
            if solapes else ""))
 
