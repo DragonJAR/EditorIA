@@ -91,7 +91,7 @@ MONO_FAMILIA="IBM Plex Mono"   # empaquetada (OFL): la mono del motor y la de re
 MONO=resolver_fuente(MONO_FAMILIA, "DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
 LOGO=None; ISOTIPO=None; MARCA_NOMBRE=None
 #: los nombres de la marca que conservan su caja (regla del pack
-#: `conservar_caso`): «DragonJAR» no es «DRAGONJAR».
+#: `conservar_caso`): el nombre de la marca no pasa a MAYUSCULAS.
 CASO_MARCA=set()
 TRANSICIONES="libre"   # idioma de transición; el pack puede fijar "corte_seco"
 ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida por alfa)
@@ -503,7 +503,7 @@ def es_marca_del_pack(nombre):
     """Un logo solo acompaña a su propia marca (nunca isotipo ajeno junto a otro nombre).
 
     Cuenta tambien los nombres de la regla `conservar_caso` del pack: son la
-    misma marca con otro nombre («DragonJAR Education»).
+    misma marca con otro nombre (una marca puede tener variantes).
     """
     n = str(nombre).strip().lower()
     if not n:
@@ -514,8 +514,8 @@ def es_marca_del_pack(nombre):
 
 
 def conserva_su_caja(texto):
-    """El texto tal cual, salvo los nombres de la marca: «DragonJAR» no es
-    «DRAGONJAR» (regla del pack `conservar_caso`)."""
+    """El texto tal cual, salvo los nombres de la marca: el nombre de una
+    marca no se pasa a MAYUSCULAS (regla del pack `conservar_caso`)."""
     s = str(texto)
     for nombre in CASO_MARCA:
         n = str(nombre)
@@ -1123,8 +1123,8 @@ def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
                             outline=claro + (140,), width=2 * s)
 
     def reflejo(d, q, s):     # el brillo SUMA luz a la cara (antes la perforaba)
-        if not VOLUMEN or max(col) - min(col) <= 24:
-            return   # sobre un acento gris el brillo se lee como una mancha
+        if not VOLUMEN:
+            return   # regla del pack `volumen: false`: insignia plana
         d.ellipse(q(cx - r * 0.55, cy_f - r * 0.72, cx + r * 0.55, cy_f - r * 0.18), fill=claro + (75,))
     sobre_capa(d, (cx - r, cy_f - r, cx + r, max(cy_f + r + 7, cy + r * 1.12)),
                sombra, cuerpo, reflejo, ss=SS, alfa=int(alpha))
@@ -2532,7 +2532,11 @@ def sc_apertura(ctx,e,t):
     else:
         cy=vy(0.44)+flota(t,e["at"]["p2"][-1]+0.5,5,0.45)
         sub,_=grupo()
-        titular(ctx,sub,t,e["texto2"],e["at"]["p2"],tam=124,cy=cy)
+        # la 2.a frase es OPCIONAL: un plan con una sola frase es valido
+        # (antes `e["texto2"]` reventaba al llegar el cambio, y el esquema la
+        # daba por obligatoria: un plan limpio se rechazaba a si mismo)
+        if e.get("texto2"):
+            titular(ctx,sub,t,e["texto2"],e["at"]["p2"],tam=124,cy=cy)
     deco_bajo_texto(layer,deco,sub)
     return capa_salida(layer,t,e["to"])
 
@@ -6880,9 +6884,14 @@ def aplicar_brand(brand_path):
     reglas = d.get("reglas") or {}
     TRANSICIONES = reglas.get("transiciones", "libre")
     OUTRO_SOBRIO = bool(reglas.get("outro_sobrio", False))
-    if "rebote" in reglas: REBOTE = bool(reglas.get("rebote"))
-    if "particulas" in reglas: PARTICULAS = bool(reglas.get("particulas"))
-    if "volumen" in reglas: VOLUMEN = bool(reglas.get("volumen"))
+    # movimiento y efectos de la marca: sin rebote (resorte critico), sin
+    # particulas, sin volumen 3D. Por defecto, el catalogo tal cual.
+    # SIEMPRE se fijan (no "si el pack lo declara"): si no, un pack que no
+    # declara una regla hereda la del pack anterior (medido: un test dejaba
+    # REBOTE=False y el siguiente render salia con el resorte critico).
+    REBOTE = bool(reglas.get("rebote", True))
+    PARTICULAS = bool(reglas.get("particulas", True))
+    VOLUMEN = bool(reglas.get("volumen", True))
     # "corte_seco" es una REGLA del pack: el solape entre escenas se reduce a un
     # micro-fade (sin disolvencia de 0.45 s entre dos pantallas de texto).
     SOLAPE, SOLAPE_PRE = ((SOLAPE_SECO, SOLAPE_PRE_SECO) if TRANSICIONES == "corte_seco"
@@ -8205,11 +8214,15 @@ def errores_de_esquema(e, i=0):
     if tipo not in SCENES:
         return []
     out = []
+    # una escena NARRADA (con `voz`) no necesita el texto escrito: la voz es
+    # el texto. Sin esta excepcion, un plan que narra (y no escribe) se
+    # rechazaba a si mismo por campos que no tiene que traer.
+    narrada = bool(str(e.get("voz") or "").strip())
     for p in esquema_de(tipo):
         c = p["nombre"]
         if c == "at":
             continue
-        if p["obligatorio"] and (c not in e or e[c] in ("", None, [])):
+        if p["obligatorio"] and not narrada and (c not in e or e[c] in ("", None, [])):
             out.append(f"escena {i+1} ({tipo}): falta el campo obligatorio `{c}` ({p['significado'] or p['tipo']})")
             continue
         if c in e and e[c] is not None:

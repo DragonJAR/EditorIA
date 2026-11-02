@@ -111,9 +111,14 @@ FUERA = {
     # cual es argparse pidiendo `--edl`. Solo esa forma queda fuera (prefijo
     # con el "…"): un `aplicar_edl.py video.mp4 --edl ...` documentado
     # caeria fuera de este prefijo y tendria que copiarse o tener su motivo.
-    "scripts/ffmpeg_tools/aplicar_edl.py …": ("forma sin argumentos ('…'): el EDL lo "
+    "scripts/ffmpeg_tools/aplicar_edl.py ...": ("forma sin argumentos ('...'): el EDL lo "
                                               "produce retakes.py/silence.py --edl sobre "
                                               "el video del usuario", []),
+    # la prosa da la forma CONCRETA (con el archivo del usuario): sin el video
+    # no hay nada que cortar, asi que tampoco se puede copiar y ejecutar
+    "scripts/ffmpeg_tools/aplicar_edl.py sin_sil.mp4 --edl cortes.edl -o corte.mp4":
+        ("necesita el video del usuario y el EDL que produce retakes.py/silence.py",
+         []),
     "scripts/clonar_video.py analizar": ("descarga de la red: baja el video de referencia",
                                          ["--video"]),
     "scripts/contact_sheet.py": ("necesita palabras alineadas (Whisper)",

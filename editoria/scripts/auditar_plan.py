@@ -107,6 +107,8 @@ def revisar_campos(e, idx):
     except Exception:   # sin PIL/numpy: este chequeo no aplica
         return out
     tipo = e.get("tipo")
+    if tipo not in getattr(rp, "SCENES", {}):
+        return out   # el tipo desconocido ya lo reporta el auditor
     for err in rp.errores_de_esquema(e, idx):
         out.append(("ERROR", err))
     for p_ in rp.esquema_de(tipo):

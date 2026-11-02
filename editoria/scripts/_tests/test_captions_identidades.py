@@ -44,7 +44,7 @@ class TestCaptionsIdentidades(unittest.TestCase):
         self.assertEqual(
             counts["n_opciones"],
             counts["n_escenas"] + counts["n_efectos"]
-            + counts["n_gestos"] + counts["n_captions"],
+            + counts["n_gestos"] + counts["n_captions"] + counts["n_tecnicas"],
         )
 
     def test_cli(self):

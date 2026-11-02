@@ -17,6 +17,7 @@ Run with: python3 -m unittest discover -s SKILL/scripts/_tests
 
 import importlib.util
 import os
+import sys
 import re
 import shutil
 import tempfile
@@ -154,13 +155,24 @@ class TestQuietoYOcupacionEnLaPuerta(unittest.TestCase):
         self.assertEqual(self.mod._defectos_movimiento(None, None), [])
 
     def test_los_umbrales_son_los_del_medidor(self):
-        """Un umbral = un numero: la puerta no puede divergir del medidor."""
+        """Un umbral = un numero: la puerta no puede divergir del medidor.
+
+        Los umbrales viven en `_comun` (una fuente) y cada script los importa:
+        el test compara los VALORES, no la forma en que cada fichero los dice.
+        """
         def const(ruta, nombre):
             with open(ruta, encoding="utf-8") as f:
                 return float(re.search(rf"^{nombre}\s*=\s*([\d.]+)", f.read(), re.M).group(1))
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        from _comun import LETRA_MIN as _canonico, OCUPACION_MIN as _oc_can, QUIETO_MAX as _q_can
         self.assertEqual(self.mod.QUIETO_MAX, const(os.path.join(SCRIPTS, "auto_qa.py"), "FROZEN_MAX"))
-        self.assertEqual(self.mod.OCUPACION_MIN,
-                         const(os.path.join(SCRIPTS, "medir_animacion.py"), "OCUPACION_MIN"))
+        self.assertEqual(self.mod.QUIETO_MAX, _q_can)
+        self.assertEqual(self.mod.OCUPACION_MIN, _oc_can)
+        self.assertEqual(self.mod.LETRA_MIN, _canonico)
+        sys.path.insert(0, SCRIPTS)
+        import medir_animacion as MA
+        self.assertEqual(MA.OCUPACION_MIN, self.mod.OCUPACION_MIN)
+        self.assertEqual(MA.LETRA_MIN, self.mod.LETRA_MIN)
 
 
 class TestConteoDelEncabezado(unittest.TestCase):
