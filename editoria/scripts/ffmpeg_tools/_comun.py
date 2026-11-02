@@ -421,8 +421,10 @@ def _fraction(v: Optional[str]) -> Optional[Fraction]:
 
 # ── EL PISO DE LECTURA (la regla, con su canónico) ───────────────────────
 # Cuántos segundos necesita un texto para que se pueda leer. Es UNA regla y
-# vive AQUÍ: la usan la puerta de entrega (que mide si el texto aguanta) y el
-# motor (que postpone el cambio de beat si la primera frase no cabe).
+# vive AQUÍ: la usan la medición y la puerta de entrega (que miden si el texto
+# aguanta), `auditar_plan` (cada texto y la 1.ª frase de la apertura, antes
+# del render) y, con el lote I-B, el motor (que postpone el cambio de beat
+# si la primera frase no cabe).
 #
 # Los NUMEROS son los que declara `references/ritmo.md` ("Piso de lectura"):
 # una etiqueta corta o una línea de 1-3 palabras necesita ~0.8 s; un titular
