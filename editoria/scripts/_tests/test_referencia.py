@@ -146,5 +146,32 @@ class TestDividir(unittest.TestCase):
             self.assertEqual(p.stdout.strip(), "360,640")
 
 
+class TestVariarVoz(unittest.TestCase):
+    """La voz de la variante tiene que caber en su escena.
+
+    La auditoria mide contra `to - from - AIRE_VOZ` (la voz entra en
+    from+0.4 s). Antes `variar` comparaba contra la duracion completa y
+    recortaba solo si el texto tenia ":": las variantes nacian con la voz
+    desbordada y el plan no pasaba la puerta.
+    """
+
+    def test_una_voz_larga_se_recorta_hasta_que_cabe(self):
+        import clonar_video as CV
+        import speech_estimate as SE
+        texto = "Ciberseguridad para bancos punto clave uno"
+        util = 2.0 - SE.AIRE_VOZ
+        ajuste = CV._ajustar_voz(texto, 2.0)
+        self.assertLessEqual(SE.estimar_duracion(ajuste, "es"), util)
+        self.assertTrue(ajuste.startswith("Ciberseguridad"))
+
+    def test_una_voz_corta_no_se_toca(self):
+        import clonar_video as CV
+        self.assertEqual(CV._ajustar_voz("Hola", 5.0), "Hola")
+
+    def test_una_voz_que_no_cabe_ni_una_palabra_queda_vacia(self):
+        import clonar_video as CV
+        self.assertEqual(CV._ajustar_voz("Ciberseguridad", 0.3), "")
+
+
 if __name__ == "__main__":
     unittest.main()

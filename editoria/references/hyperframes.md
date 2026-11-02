@@ -1,14 +1,20 @@
-# HyperFrames (integración opcional)
+# HyperFrames (capacidad)
 
 HyperFrames (hyperframes.heygen.com) es el framework open-source de HeyGen
 (Apache 2.0, sin fees por render) que convierte **HTML en video de forma
 determinista**: la misma entrada produce el mismo MP4 siempre. Un agente
 escribe la composición; HyperFrames la renderiza frame por frame con
-headless Chrome + FFmpeg. EditorIA **no depende** de HyperFrames — el
-motor Python cubre la mayoría de piezas. Esta referencia existe para saber
-cuándo es la mejor herramienta y cómo usarla bien.
+headless Chrome + FFmpeg.
 
-## Cuándo sugerir su instalación
+El motor Python cubre la mayoría de piezas. **Pero cuando la composición
+es HTML** (tipografía cinética, data-viz, tours de producto), HyperFrames
+da un resultado que el motor no da: el HTML se escribe una vez y se
+renderiza igual siempre. Así que no es una opción de menú: es **la
+herramienta cuando la pieza la pide**, y si falta (Node 22+), se declara al
+usuario con su comando (`npx hyperframes skills update`) en vez de entregar
+menos en silencio (ver `references/capacidades.md`).
+
+## Cuándo usarla (y declararla si falta)
 
 - El brief pide motion graphics "estilo web" (tipografía cinética,
   diagramas, data-viz, product tours): el agente escribe HTML con
@@ -30,6 +36,14 @@ al proyecto (`agent/skills/`). Requiere headless Chrome + FFmpeg. El
 render local **no exige login ni cuenta** (verificado 2026-10-04). El
 router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
+> **Estos comandos son de la herramienta externa** (Node, HyperFrames y el
+> paquete `skills` de npm), no CLIs de la skill: **`check_env` / la puerta de
+> entrega no verifican que HyperFrames esté instalado** (es capacidad
+> declarable). Eso no exime al MP4 final de la puerta de EditorIA.
+> Y `npx -y skills add ...` instala y ejecuta código de internet con
+> confirmación automática (`-y`): revisa el origen del paquete antes de
+> correrlo.
+
 ## Cómo funciona
 
 - La composición es un `index.html`: los elementos declaran timing con
@@ -40,13 +54,13 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
   (runtime en headless Chrome — atrapa errores JS y assets faltantes;
   `validate` está deprecado), `preview` (vista local), `render` (MP4
   final). Nota: `render` **no admite** `--non-interactive`.
-- Skills del agente: `/hyperframes` (router/orientación — leer primero),
-  `/hyperframes-cli` (dev loop), `/hyperframes-media` (TTS, transcripción,
-  remoción de fondo), `/product-launch-video` (URL → video de lanzamiento),
-  `/faceless-explainer` (texto → explainer sin cámara),
-  `/embedded-captions` (MP4 existente + subtítulos sin tocar el footage).
-  (Verificar la lista vigente en https://hyperframes.heygen.com/llms.txt
-  antes de invocar un workflow por nombre.)
+- Skills del agente (on-demand, **no** menús paralelos a EditorIA):
+  `/hyperframes` (router), `/hyperframes-cli`, `/media-use` (Media OS:
+  BGM/SFX/imágenes/voz/grades + ledger local; renders never fetch),
+  captions registry (`npx hyperframes catalog --tag caption-style`) y
+  doctrina drop/rail/embed + matte (`captions-identidades.md`,
+  `flujo-talking-head.md`). Verificar lista vigente en
+  https://hyperframes.heygen.com/llms.txt.
 
 ## Mejores pautas (verificadas 2026-10-04, CLI 0.8.117)
 
@@ -89,3 +103,11 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 - Handoff (concepto, no implementado): un `plan.json` de EditorIA se
   traduciría 1:1 a una composición HyperFrames (escena → sección HTML
   con `data-start`/`data-duration`).
+- **Cierre en la puerta**: tras `hyperframes render`, el MP4 pasa por
+  `python scripts/qa_entrega.py final.mp4` y
+  `python scripts/puntuar.py final.mp4 --ejes "1=4,2=4,4=4,5=4,7=4"`.
+  Preview/lint/check de HyperFrames no sustituyen esa puerta.
+
+---
+
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/captions-identidades.md`, `references/flujo-talking-head.md`, `references/motion-ui.md`, `references/tiempo-html.md`

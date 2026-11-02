@@ -12,6 +12,51 @@ le hable el usuario**, salvo que pida otro idioma explícitamente para la voz.
 | **Speech Estimate** (pre-TTS) | Estimación silábica y duración de locución | `scripts/speech_estimate.py`; audita planes antes de llamar a ElevenLabs |
 | Sin TTS | Si ElevenLabs no está disponible | `voz_off.py` lo dice claro y se sale; no hay fallback automático. Se avisa al usuario: trabajar sin voz o reprogramar. |
 
+### Si se sigue sin key: la voz del sistema, a sabiendas
+
+No hay fallback automatico **a proposito**: degradar en silencio a una voz
+robotica es peor que preguntar. Pero si el usuario dice "adelante con la voz
+del sistema", existe y es gratis: `scripts/voz_local.py`, con el MISMO
+contrato que `scripts/voz_off.py` (mismo plan, mismo `--guion`, misma salida
+de audio), para que el resto del camino no cambie.
+
+```bash
+python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt
+python scripts/voz_local.py --listar        # las voces instaladas de esta maquina
+```
+
+Que hace, por dentro:
+
+- **Coloca cada frase en su instante** (inicio de escena + 0.4 s) y **falla
+  si una voz pisa a la siguiente**, con los segundos exactos ("la voz dura
+  hasta 10.40s y pisa la siguiente (9.40s) — alargar la escena 1.20s o
+  recortar el texto"). Es la misma comprobacion que `voz_off.py` (una sola
+  regla para los dos caminos) y por eso el guion del plan tiene que caber:
+  el plan declara `voz` por escena y el reloj manda.
+- **No degrada en silencio**: si no hay voz del idioma que pide el plan, el
+  script falla y lista las que hay. Una voz inglesa leyendo un guion en
+  espanol no es una voz en off. Con `--permitir-otro-idioma` se acepta a
+  proposito.
+- **Quita los tags de direccion** (`[slowly]`, `[calm]`): son de ElevenLabs y
+  la voz del sistema no los entiende.
+- **Dice su ritmo real** al terminar ("ritmo real de Paulina: 5.44
+  silabas/s"): el estimador de `scripts/speech_estimate.py` usa 5.90 y se
+  equivoca por un 8-24% segun la voz, asi que el numero real sirve para
+  juzgar si un texto cabe.
+
+Backends: macOS `say` (probado con audio real), Linux `espeak-ng` (el
+parseo de `espeak-ng --voices` esta probado contra su salida real en tabla
+—`Pty Language Age/Gender VoiceName File`—, que no trae ningun campo
+`Voice:`; la sintesis en Linux no se ha probado en este repo) y Windows
+PowerShell con `System.Speech` (escrito, **sin probar aqui**). En macOS las voces de
+espanol se descargan en Ajustes → Accesibilidad → Contenido hablado → Voces
+del sistema; las que ya estan se ven con `--listar`.
+
+Lo que cambia es la voz, no el proceso: es una entrega de **maqueta**, no una
+entrega final (sin direccion emocional). Se dice al usuario, y la pieza
+sigue por el camino normal (`alinear.py`, `mezclar_audio.py --voz`,
+`medir_mezcla.py`).
+
 ## Dirección de voz (cuándo hablar cómo)
 
 La voz se dirige como a un actor: el texto del plan lleva las marcas.
@@ -108,10 +153,28 @@ Antes de timar escenas: la duración de la escena se deriva de la VO, no al rev�
   slow|normal|fast`). Para una voz concreta, `--calibrar voz.palabras.json`
   mide su ritmo real. Una escena sin VO (beat puramente visual) necesita
   ≥1.0s para registrar. **La narración manda el reloj**: `auditar_plan.py`
-  estima así si cada voz cabe en su escena antes de pagar TTS, y
-  `voz_off.py` mide la voz real y falla si una pisa a la siguiente (dirá
-  cuántos segundos alargar). Si la voz no cabe, se alarga la escena o se
-  recorta el texto; nunca se acelera la voz.
+  estima así si cada voz cabe antes de la voz siguiente (y antes del final
+  del video) antes de pagar TTS, y
+  `voz_off.py` (o `voz_local.py`) mide la voz real y falla si una pisa a la
+  siguiente (dirá cuántos segundos alargar). Si la voz no cabe, se alarga la
+  escena o se recorta el texto; nunca se acelera la voz.
+  El margen va con el hueco disponible: un **25 % del hueco**, con un
+  **mínimo de 0,3 s** (un hueco muy corto no tolera un margen proporcional).
+  Los dos números los vigila el guard de la prosa (`auditar_mapa.py`),
+  atados al código por tests: si el motor cambia la banda, la prosa avisa
+  en vez de quedarse con el número viejo.
+- **Cómo se lee el reloj real**: la voz entra en `inicio de escena + 0.4 s`,
+  así que **el fin de la voz = duración CRUDA del wav (la de la caché) + 0,40**.
+  Tomar la duración del wav como "cuándo acaba la voz" hace creer que hay un
+  desborde que no existe (o al revés): si el wav crudo dura 4,81 s y la
+  escena acaba en 5,0 s, la voz termina en 5,21 s y sí se sale. Es la misma
+  cuenta que hace `verificar_reloj`, y por eso los dos caminos (estimado y
+  real) coinciden cuando el guion está bien medido.
+  **Y el final del video es un caso aparte**: la voz de la última escena no
+  tiene otra imagen que la tape, así que si termina después de que acaba el
+  video se CORTA contra el borde. `auditar_plan.py` avisa (con la estimación
+  no se puede probar el corte) y `voz_off.py` / `voz_local.py` fallan (ahí sí
+  se mide el audio de verdad).
 - **Pronunciación**: el campo `voz` lleva lo que se DICE y los campos de
   texto lo que se VE. Siglas, nombres inventados y cifras cuya lectura
   importa se escriben como deben sonar ("A P I", "ese cu ele" o "sequel",
@@ -148,6 +211,39 @@ línea funciona igual leída en silencio, no necesita voz.
 La música sigue el arco visual: hook con pulso, build en el desarrollo,
 resolución en el cierre. Ver `references/reglas-tecnicas.md` (lecciones ffmpeg).
 
+**Sin key ni acuerdo de pago, la cama procedural de la propia skill**:
+`python scripts/musica.py cama -o cama.wav --dur 60 --bpm 92` genera con
+osciladores de ffmpeg (pad de acorde + pulso grave al tempo, determinista,
+sin derechos) y se mezcla con `mix`/`musiconly` como cualquier cama. Es un
+respaldo declarado —se dice al usuario que es procedural—, no una
+composición; la vía por receta externa de abajo sigue existiendo para
+cuando se quiere un arreglo con forma.
+
+### La segunda vía: música por receta, sin API
+
+`musica.py` es el camino con ElevenLabs: bueno, pero cuesta y necesita
+`$ELEVENLABS_API_KEY`. **Cuando no hay key no se entrega la pieza sin
+música**: hay otra vía, local y determinista.
+
+`Vincentwei1021/mg-styles-15` (MIT) trae `lib/audio/mgaudio`: música por
+**receta**, no por prompt. Se elige una receta del estilo —bpm, tonalidad,
+build, drop, outro— y sale un arreglo con forma (`intro → build → drop →
+outro`), con la rejilla de tempo anclada al **drop**, que es el momento firma
+de la pieza: el compás 0 empieza exactamente en él, no en el segundo 0.
+
+- **Determinista**: la semilla es fija; la misma receta da el mismo audio.
+- **Ya en spec**: una mezcla de 10 s sale en 3–8 s, a −14 LUFS integrado y
+  true peak ≤ −1,1 dBTP, sin normalizar a mano.
+- Los SFX se anclan a los cues con la misma regla de este documento (el
+  evento visual manda; el sonido se pone en su punto de sincronía).
+
+**La frontera**: no es un script de la skill, es una herramienta externa con su
+propio toolchain (Python + numpy/scipy/numba/pedalboard y muestras CC0). Se
+declara como las demás capacidades externas: se clona, no se promete. Y si la
+máquina no lo tiene, se dice en la primera respuesta, con su requisito, y se
+ofrece la vía que sí hay (la voz del sistema y el SFX sintetizado, que ya son
+de la skill).
+
 ### Sound brief (escribir ANTES de generar)
 
 Antes de tocar `musica.py gen`, escribir el brief en el README del proyecto.
@@ -164,7 +260,7 @@ Obliga a elegir en vez de aceptar defaults:
 - Mapa de energía: escena → intro/build/drop/break/outro; qué entra y qué
   sale en cada una; cambios cada 2–4 compases para que no suene a loop.
 - Transiciones: risers, silencios, stops — en qué cues.
-- Mix: LUFS target (−14 default; −14 (el canon de la skill es −14 enérgico / −16 calmo; ver `checklist-qa.md`); −16/−15 para calmado),
+- Mix: LUFS target (−14 enérgico / −16 calmo; ver `checklist-qa.md`),
   qué hace ducking bajo qué (voz al frente; música ~15 dB bajo la voz).
 - Diferente del último video porque: género/tempo/key/kit/groove distintos.
   Un nuevo acorde sobre el mismo kit, groove y tempo ES la misma canción para
@@ -284,6 +380,19 @@ El orden de operaciones importa — cada número asume la VO ya normalizada.
 - **Un solo swell grande por video** (el sub-drop del opener o el reveal final).
   Si todo es grande, nada lo es.
 
+### La mezcla tiene que sonar en un teléfono (mono)
+
+El destino de una pieza es un **teléfono**, y un teléfono reproduce en **mono**:
+suma los dos canales. Lo que va en contrafase se anula al sumar, así que una
+mezcla que suena ancha en un portátil puede **desaparecer** en el móvil.
+
+- **Ensanchar con M/S** (`L = y + s`, `R = y − s`), nunca con una copia
+  retardada en un canal: el retardo de Haas (L sin delay, R con delay) es
+  mono-incompatible por construcción.
+- **Medido**: `scripts/medir_mezcla.py` imprime la correlación estéreo de la
+  música. Por encima de **0,3** se sigue oyendo en mono; por debajo de 0 hay
+  contrafase y la pieza se anula en el móvil.
+
 ### Paleta de materiales y una sola sala
 
 Darle a cada evento visual su propio sonido sintetizado suena barato en un
@@ -333,13 +442,25 @@ está en `checklist-qa.md`.)
 
 ## Flujo de audio completo
 
+El camino canónico es el de Step 4 en `SKILL.md` y `references/audio.md`
+(«De la mezcla a la entrega»). No hay un segundo pipeline:
+
 1. Guion con marcas de dirección en los campos `voz` del plan + matemática de
    timing (ver "Timing de la VO para explainers").
-2. `voz_off.py` genera segmentos por escena (con la voz del idioma).
-3. `musica.py gen` con prompt del arco → `mix` o `musiconly`.
-4. Mezcla: normalizar la VO primero (`loudnorm=I=-14:TP=-1.5:LRA=11`); cama
-   0.12 (verificado: ~15 dB bajo la voz con `medir_mezcla.py`); SFX con el gain
-   único del kit; una sola pista maestra premezclada.
-5. Mastering pre-entrega: highpass → acompressor → loudnorm → alimiter
-   (−14 LUFS enérgico / −16 LUFS calmo, −1.5 dBTP). Verificar niveles: voz al
-   frente, sin clipping.
+2. `voz_off.py` (o `voz_local.py` como maqueta sin API) genera segmentos por
+   escena; `alinear.py` si la pieza lleva karaoke.
+3. Música: `musica.py gen` (pago) o `musica.py cama` (gratis, sin key).
+4. `mezclar_audio.py` suma voz + cama ducked + SFX del plan sobre el video
+   (`medir_mezcla.py` valida la jerarquía de pistas sueltas, no el master).
+5. Si hay subtítulos quemados, `caption.py` sobre el mezclado **antes** del
+   loudness (un solo archivo final).
+6. `ffmpeg_tools/loudness.py` cierra (−14 LUFS enérgico / −16 calmo, TP −1.5)
+   y **entonces** la puerta: `qa_entrega.py final.mp4` (+ `puntuar.py`).
+
+La cadena ffmpeg de «Mastering (pre-entrega)» arriba es alternativa avanzada
+cuando se trabaja una pista WAV suelta fuera del mezclador; no sustituye
+`mezclar_audio.py` → `loudness.py` en el flujo de la skill.
+
+---
+
+→ Canónico: `references/sonido.md` · Dominio: sonido · Vecinos: `references/audio.md`, `references/sfx.md`, `references/formatos.md`

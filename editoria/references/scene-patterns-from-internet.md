@@ -60,11 +60,41 @@ línea, skill por skill (2026-10-05). Casi toda la doctrina ya estaba en
 
 Lo que NO se portó (y por qué): reduced-motion, GSAP, Lottie y transiciones
 de página puramente DOM; Three.js/GLSL/Manim (otro stack; `remotion.md` y
-`hyperframes.md` cubren los motores opcionales); precios de freelance (cotizar
-no es editar); `layout-check` por `claim()` (exigiría instrumentar cada dibujo
-del renderer). El efecto óptico Liquid Glass sí se portó en Ronda 4 como
+`hyperframes.md` cubren los motores externos, que son capacidades de la pieza
+y no requisitos del motor); precios de freelance (cotizar no es editar);
+`layout-check` por `claim()` (exigiría instrumentar cada dibujo del renderer).
+El efecto óptico Liquid Glass sí se portó en Ronda 4 como
 primitiva `tarjeta_cristal` en PIL y como receta `@samasante/liquid-glass`
 para HyperFrames/Remotion.
+
+### 5. [Vibha-Ramprakash/claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects) — 45 fx talking-head
+
+Skill MIT de overlays con face-track (YuNet + MediaPipe) sobre footage
+vertical. **No se portó al motor de planes** (no son escenas `SCENES`): las
+opciones viven en el **catálogo único** (`repertorio.py`); el detalle y la
+receta CVE están en `scripts/data/efectos_talking_head.json` +
+`references/efectos-talking-head.md`. El motor se clona en `/tmp` cuando
+hace falta; equivalentes nativos (`grade`, `chat`, `countdown`,
+`constancia`/`pasos`, `hand_draw`, `tarjeta_cristal`…) se declaran por
+fila para no duplicar firmas.
+
+### 6. Skills agenticas de video (EI-26) — Reelsmaker / HyperFrames / Remotion / Media Use
+
+Clonados en `/tmp` (sin submodule): IT Reelsmaker (`itpartypattaya/reels-montage`),
+HyperFrames (+ captions-overlay / media-use), Remotion + `remotion-dev/skills`.
+
+**Adoptado (orgánico, una superficie):** cadena
+`references/flujo-talking-head.md`; identidades caption en
+`captions_identidades.json` vía `repertorio.py` (`motor=caption`); doctrina
+drop/rail/embed + matte; ledger/media “no fetch en render”; skills Remotion
+on-demand documentadas en `remotion.md`.
+
+**Ya cubierto mejor por EditorIA:** silence/retakes, caption.py karaoke,
+loudness −14, verticales editar/publicar, efectos CVE, repertorio 45+45+8.
+
+**Descartado:** vendorizar plugins/repos; menús `/it-reelsmaker` /
+`/media-use` / `/embedded-captions` paralelos; APIs de pago del add-on
+online; skills internas del monorepo Remotion; hinchar `SCENES`.
 
 ## Cómo se mapean a EditorIA (DRY)
 
@@ -89,6 +119,8 @@ que viven en `scripts/render_plan.py`:
 | `tarjeta_cristal(ctx, img, x, y, w, h, radio, alpha, tinte, brillo)` | panel Liquid Glass esmerilado con borde especular superior-izquierdo (`liseré spéculaire`) | `hero`, `bento` |
 | `boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color, alpha)` | botón CTA en píldora con anillo de halo pulsante (`Glow Ring` / `Send Halo`) | `hero` |
 | `insignia_3d(d, cx, cy, r, icono, fnt, color, alpha, t)` | insignia 3D táctil extruida con sombra de contacto, bisel y brillo especular | `bento` |
+| `elipse_se_dibuja(d, cx, cy, rx, ry, t, t0, dur, color, grosor)` | elipse que se dibuja sola (barrido 0→360°): el gesto de "fíjate aquí" | `callout` |
+| `placa_texto(d, x0, y0, x1, y1, radio, alpha)` | placa oscura detrás de un texto para que se lea sobre una imagen clara | `callout` |
 
 **Regla de oro**: al añadir una escena nueva, **componer** con estas primitivas.
 NO duplicar lógica de animación, NO hardcodear color (usar `ACENTO`, que el
@@ -228,3 +260,7 @@ def sc_pie(ctx, e, t):
 - Reproducibles: las partículas usan semilla determinista (no `random()` en runtime).
 - **El modelo puede agregar más**: el procedimiento de esta guía + las primitivas
   DRY permiten portar cualquier escena de las fuentes listadas en ~30 líneas.
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/estilos.md`, `references/escenas-extendidas.md`, `references/modos-rapidos.md`

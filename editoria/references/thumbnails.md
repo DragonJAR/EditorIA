@@ -132,3 +132,7 @@ Construir el prompt de generación en este orden:
 5. Iterar por UN eje a la vez (expresión, fondo, texto, color); las variantes
    se mantienen distintas.
 6. Upscale / versión final del ganador + finishing.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/checklist-qa.md`, `references/referencia-video.md`, `references/modos-rapidos.md`

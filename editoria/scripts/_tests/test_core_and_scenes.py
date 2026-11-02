@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Tests unitarios deterministas de utilidades core, frontmatter, nombres,
-subtítulos y catálogo de escenas (36 escenas, primitivas DRY de Ronda 4 y 5).
+subtítulos y catálogo de escenas (45 escenas, primitivas DRY de Ronda 4, 5 y 6).
 
 Se ejecutan con: python3 -m unittest discover -s editoria/scripts/_tests -v
 """
@@ -116,7 +116,6 @@ class TestFrontmatterYCatalogo(unittest.TestCase):
         for node in tree.body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == "SCENES" for t in node.targets):
                 scenes_keys = [k.value for k in node.value.keys if isinstance(k, ast.Constant)]
-        self.assertEqual(len(scenes_keys), 36)
         self.assertIn("hero", scenes_keys)
         self.assertIn("bento", scenes_keys)
         self.assertIn("buscador", scenes_keys)
@@ -128,6 +127,9 @@ class TestFrontmatterYCatalogo(unittest.TestCase):
         with open(os.path.join(SCRIPTS, "escenas_muestra.json"), encoding="utf-8") as fh:
             muestras = json.load(fh)["escenas"]
         self.assertEqual(set(scenes_keys), set(muestras.keys()))
+        # el numero del catalogo NO se escribe a mano en los tests: sale de
+        # aqui (si no, cada escena nueva rompe el test y hay que acordarse)
+        self.assertEqual(len(scenes_keys), len(muestras))
 
 
 class TestComunYDelivery(unittest.TestCase):
@@ -139,6 +141,18 @@ class TestComunYDelivery(unittest.TestCase):
         self.assertEqual(
             C.segmentos_enfasis("Videos con *física real* hoy"),
             [("Videos con ", False), ("física real", True), (" hoy", False)],
+        )
+
+    def test_segmentos_resalte_cajas_y_acento(self):
+        """El markup del reel de referencia vive UNA vez: * ~ ^."""
+        self.assertEqual(
+            C.segmentos_resalte("EL HACKEO A ~NOTEPAD++~ y *más*"),
+            [("EL HACKEO A ", ""), ("NOTEPAD++", "roja"),
+             (" y ", ""), ("más", "acento")],
+        )
+        self.assertEqual(
+            C.segmentos_resalte("lo ^blanco^ manda"),
+            [("lo ", ""), ("blanco", "blanca"), (" manda", "")],
         )
 
     def test_parse_and_fmt_time(self):
@@ -253,6 +267,50 @@ class TestAuditarPlanAndCliInputGuards(unittest.TestCase):
                 r = subprocess.run([sys.executable] + cmd, capture_output=True, text=True, timeout=15)
                 self.assertNotEqual(r.returncode, 0)
                 self.assertNotIn("Traceback", r.stderr, f"Traceback en {cmd[0]}: {r.stderr}")
+
+
+class TestPreviewDelPlan(unittest.TestCase):
+    """Mirar el plan SIN pagar el render.
+
+    El frame final es una funcion pura del tiempo, asi que un instante se
+    compone solo: la hoja del plan cuesta un frame por instante, no los 600
+    del video. La MUTACION: si el --preview se comiera el render entero, este
+    test cae (comprueba que la hoja sale y que no sale ningun video).
+    """
+
+    def _plan(self, tmp):
+        plan = {"duracion": 4.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 4.0,
+                             "texto1": ["HOJA"], "texto2": ["DEL", "PLAN"]}]}
+        ruta = os.path.join(tmp, "plan.json")
+        with open(ruta, "w", encoding="utf-8") as fh:
+            json.dump(plan, fh)
+        return ruta
+
+    def test_la_hoja_sale_sin_renderizar_el_video(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self._plan(tmp)
+            hoja = os.path.join(tmp, "hoja.jpg")
+            r = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, "render_plan.py"), plan,
+                 "--preview", "0,2", "--hoja", hoja],
+                capture_output=True, text=True, timeout=600)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertTrue(os.path.isfile(hoja), "la hoja tiene que salir")
+            self.assertGreater(os.path.getsize(hoja), 1000, "la hoja no puede estar vacia")
+            self.assertIn("ms/frame", r.stdout, "el preview tiene que decir el coste")
+            self.assertFalse(os.path.exists(os.path.join(tmp, "plan.mp4")),
+                             "el preview no puede renderizar el video")
+
+    def test_un_instante_fuera_del_plan_no_pasa(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self._plan(tmp)
+            r = subprocess.run(
+                [sys.executable, os.path.join(SCRIPTS, "render_plan.py"), plan,
+                 "--preview", "99"],
+                capture_output=True, text=True, timeout=600)
+            self.assertNotEqual(r.returncode, 0, "un instante fuera del plan es un error")
+            self.assertNotIn("Traceback", r.stderr, f"Traceback: {r.stderr}")
 
 
 class TestStdlibAudioFallbacks(unittest.TestCase):
@@ -469,6 +527,48 @@ class TestPostProductionAndLearningModules(unittest.TestCase):
         self.assertIsInstance(img_med, Image.Image)
 
 
+class TestLaFuenteSeDibuja(unittest.TestCase):
+    """Toda escena con cifras tiene que DIBUJAR su fuente.
+
+    El linter acepta el campo `fuente` en cualquier escena, pero si el
+    motor no lo dibuja, el espectador no lo ve: el plan dice una cosa y la
+    pieza dice otra. El gauge era el caso: es una cifra y no la dibujaba.
+    """
+
+    def _escenas_que_dibujan(self):
+        import ast
+        with open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8") as fh:
+            arbol = ast.parse(fh.read())
+        out = set()
+        for n in arbol.body:
+            if isinstance(n, ast.FunctionDef) and any(
+                    isinstance(x, ast.Call) and isinstance(x.func, ast.Name)
+                    and x.func.id == "pie_fuente" for x in ast.walk(n)):
+                out.add(n.name[3:])
+        return out
+
+    def test_el_gauge_dibuja_la_fuente(self):
+        self.assertIn("gauge", self._escenas_que_dibujan(),
+                      "el gauge es una cifra y tiene que dibujar su fuente al pie")
+
+    def test_las_escenas_con_cifras_dibujan_la_fuente(self):
+        # el linter acepta el campo `fuente` en cualquier escena, asi que las
+        # escenas con cifras tienen que dibujarla: si no, el plan dice una
+        # cosa y la pieza otra
+        faltan = {"gauge", "bento", "index", "oferta", "pasos", "timeline",
+                  "versus"} - self._escenas_que_dibujan()
+        self.assertEqual(faltan, set(),
+                         f"escenas con cifras que no dibujan su fuente: {sorted(faltan)}")
+
+    def test_el_linter_y_el_motor_cuentan_lo_mismo(self):
+        # las dos listas tienen que salir del MISMO motor: si el linter dice
+        # que una escena dibuja la fuente y el motor no, el aviso miente
+        import lint_copy as L
+        del_linter = L._escenas_que_dibujan_la_fuente()
+        del_motor = self._escenas_que_dibujan()
+        self.assertEqual(sorted(del_linter), sorted(del_motor))
+
+
 class TestViralFeaturesAndPrimitives(unittest.TestCase):
     def test_primitivas_movimiento_overshoot_arco_flash(self):
         # 1. curva_overshoot: en p=0 es 0, en p=1 es 1, y tiene sobrepaso > 1.0 en [0.6, 0.9]
@@ -530,10 +630,14 @@ class TestViralFeaturesAndPrimitives(unittest.TestCase):
 
     def test_clonar_video_segmentacion_y_familias(self):
         # Familias de escenas virales
-        self.assertIn("titular", CV.FAMILIAS_ESCENAS["hook"])
+        self.assertIn("apertura", CV.FAMILIAS_ESCENAS["hook"])
+        self.assertNotIn("titular", CV.FAMILIAS_ESCENAS["hook"])
         self.assertIn("ranking", CV.FAMILIAS_ESCENAS["dato"])
         self.assertIn("notificacion", CV.FAMILIAS_ESCENAS["social"])
-        self.assertIn("audiowave", CV.FAMILIAS_ESCENAS["cierre"])
+        # audiowave es una tarjeta de reproductor (demostracion), no un cierre:
+        # el cierre de un clon remata, no pone un reproductor (T14)
+        self.assertIn("remate", CV.FAMILIAS_ESCENAS["cierre"])
+        self.assertNotIn("audiowave", CV.FAMILIAS_ESCENAS["cierre"])
 
         # Segmentación sintética de video de 30 segundos
         segs = CV.detectar_cortes("/fake/video.mp4", 30.0)
@@ -542,6 +646,26 @@ class TestViralFeaturesAndPrimitives(unittest.TestCase):
         self.assertEqual(segs[-1]["rol"], "cierre")
         self.assertEqual(segs[0]["from"], 0.0)
         self.assertAlmostEqual(segs[-1]["to"], 30.0)
+
+
+class TestCorrelacionEstereo(unittest.TestCase):
+    """La compatibilidad con mono se mide, no se supone: una cama con los
+    canales en contrafase desaparece en un telefono (que reproduce en mono
+    sumando canales), y eso tiene que salir en la medicion."""
+
+    def test_una_cama_normal_da_correlacion_alta(self):
+        L = [0.5, 0.25, -0.25, 0.5]
+        R = [0.5, 0.25, -0.25, 0.5]
+        self.assertAlmostEqual(MM.correlacion(L, R), 1.0, places=3)
+
+    def test_una_cama_en_contrafase_da_correlacion_negativa(self):
+        L = [0.5, 0.25, -0.25, 0.5]
+        R = [-v for v in L]
+        self.assertLess(MM.correlacion(L, R), 0)
+
+    def test_sin_audio_no_hay_correlacion(self):
+        self.assertIsNone(MM.correlacion(None, None))
+        self.assertIsNone(MM.correlacion([], []))
 
 
 if __name__ == "__main__":

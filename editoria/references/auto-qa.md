@@ -40,6 +40,14 @@ cualquier video ya renderizado (a su propio fps) y `--cortes` la ventana de
 cada corte entre escenas consecutivas del catálogo (27 pares × 2 formatos):
 toda escena se prueba saliendo y entrando contra otra.
 
+El contraste es la otra mitad de la legibilidad: `python scripts/medir_contraste.py`
+mide el ratio real del texto contra la superficie que tiene debajo, con la misma
+técnica que el piso de letra (intercepta `ImageDraw.text` y compone el color
+real, no el pedido). Un texto de acento sobre una banda del mismo acento es
+ilegible y no se ve leyendo el código: se ve midiendo. Se juzga **en reposo**
+(el estado en el que el espectador lo lee) y el umbral es 3.0:1, el de WCAG
+para texto grande.
+
 Qué mide cada número (calibrado con casos sintéticos en `validate_skill.py`):
 - **pop**: en un frame, ≥ 35 % de los bloques que cambian de golpe no tienen
   origen cerca en el frame anterior (ni exacto ni suavizado). Lo que aparece
@@ -49,9 +57,12 @@ Qué mide cada número (calibrado con casos sintéticos en `validate_skill.py`):
   frame) o un frame que se mueve 4× más que sus dos vecinos (teletransporte).
 - **muerto**: % del hold con quietud SOSTENIDA (≥ 0.5 s bajo el umbral de
   auto_qa); el punto de giro de una flotación no cuenta.
-- **densidad**: eventos de movimiento por segundo en la parte activa (sin la salida común), con umbral relativo al pico propio de la escena (30 %, piso 0.15: la respiración sola no es un evento). Doctrina: 0.5–2.
+- **densidad**: eventos de movimiento por segundo en la parte activa (sin la salida común), con umbral relativo al pico propio de la escena (30 %, piso 0.15: la respiración sola no es un evento). Banda del motor: 0.5–2.0 eventos/s.
 - **solapes**: textos visibles que se pisan con cada escena asentada (55 % y 80 %), por caja de tinta real; −10 por cada uno (máx. 3). Las métricas de movimiento no ven composición: este sí. Con `--plan` mide los textos REALES del agente, antes de renderizar.
-- **letra**: tamaño mínimo de texto ya asentado (≥ 26 px sobre 1080).
+- **letra**: tamaño mínimo de texto **en reposo** (≥ 26 px sobre 1080). En reposo
+  = con el tamaño con el que el texto se queda: si un botón entra con resorte y
+  pasa por 21 px a mitad de camino, eso es la animación y no la tipografía, así
+  que no cuenta. Se toma la mediana ponderada por frames de cada texto.
 - **zona**: factor de `escala_segura` (1 = compuesta dentro de la zona segura).
 Causas que encontró (y su fix en la primitiva): ease aplicado dos veces
 (cursor a 85 px/frame), resorte en barras de datos (rebota por encima del
@@ -197,3 +208,7 @@ problemas pendientes; no se redondea hacia arriba.
 - Si un defecto reaparece 2 veces, la causa está en el renderer o el plan,
   no en los parámetros: arreglar la raíz, no el síntoma.
 - El sheet final limpio se guarda junto al entregable como evidencia de QA.
+
+---
+
+→ Canónico: `references/qa-entrega.md` · Dominio: qa · Vecinos: `references/checklist-qa.md`, `references/rubrica-premios.md`, `references/reglas-tecnicas.md`

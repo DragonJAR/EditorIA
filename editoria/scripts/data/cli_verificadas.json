@@ -1,0 +1,211 @@
+{
+ "_que_es": "Que CLI se EJECUTA de verdad, y en que test. Se mide instrumentando subprocess durante la suite real (leer los tests no vale: un nombre en un comentario no ejecuta nada). El guard (auditar_mapa.py) exige que toda CLI documentada este aqui o tenga un motivo declarado en MOTIVOS_SIN_EJECUCION.",
+ "_el_test_debe_existir": "Si el test nombrado desaparece, la CLI se queda sin verificar y el guard lo dice: es el 'guard sin objeto' aplicado a las CLIs.",
+ "_como_se_regenera": "python3 scripts/_censo_clis.py --escribir",
+ "verificadas": {
+  "scripts/_censo_clis.py": [
+   "scripts/_tests/test_censo_clis.py",
+   "scripts/_tests/test_guard_entorno.py"
+  ],
+  "scripts/_cerrar_tip.py": [
+   "scripts/_tests/test_cerrar_tip.py"
+  ],
+  "scripts/_comandos_copiables.py": [
+   "scripts/_tests/test_comandos_copiables.py"
+  ],
+  "scripts/_guard_doctrina.py": [
+   "scripts/_tests/test_guard_doctrina.py"
+  ],
+  "scripts/_guard_entorno.py": [
+   "scripts/_tests/test_guard_entorno.py"
+  ],
+  "scripts/actualizar_conteos.py": [
+   "scripts/_tests/test_actualizar_conteos.py"
+  ],
+  "scripts/alinear.py": [
+   "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/audio_viz.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/auditar_mapa.py": [
+   "scripts/_tests/test_actualizar_conteos.py",
+   "scripts/_tests/test_auditar_mapa.py",
+   "scripts/_tests/test_verticales.py"
+  ],
+  "scripts/auditar_plan.py": [
+   "scripts/_tests/test_auditar_plan.py",
+   "scripts/_tests/test_comandos_copiables.py",
+   "scripts/_tests/test_core_and_scenes.py",
+   "scripts/_tests/test_direccion_arte.py",
+   "scripts/_tests/test_speech_estimate_cifras.py"
+  ],
+  "scripts/auto_qa.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/beat_file.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_cli_de_las_cuatro.py"
+  ],
+  "scripts/beat_grid.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_comandos_copiables.py",
+   "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/beat_sync.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/chapters.py": [
+   "scripts/_tests/test_chapters.py",
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/check_env.py": [
+   "scripts/_tests/test_cache_fantasma.py"
+  ],
+  "scripts/clonar_video.py": [
+   "scripts/_tests/test_clonar_video.py",
+   "scripts/_tests/test_comandos_copiables.py"
+  ],
+  "scripts/compilar_reel.py": [
+   "scripts/_tests/test_compilar_reel.py"
+  ],
+  "scripts/contact_sheet.py": [
+   "scripts/_tests/test_core_and_scenes.py",
+   "scripts/_tests/test_referencia.py"
+  ],
+  "scripts/direccion_arte.py": [
+   "scripts/_tests/test_direccion_arte.py"
+  ],
+  "scripts/efectos_talking_head.py": [
+   "scripts/_tests/test_efectos_talking_head.py"
+  ],
+  "scripts/captions_identidades.py": [
+   "scripts/_tests/test_captions_identidades.py"
+  ],
+  "scripts/ffmpeg_tools/aplicar_edl.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/ffmpeg_tools/caption.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/ffmpeg_tools/componer.py": [
+   "scripts/_tests/test_componer.py"
+  ],
+  "scripts/ffmpeg_tools/delivery_check.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/ffmpeg_tools/grade.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/ffmpeg_tools/look.py": [
+   "scripts/_tests/test_ffmpeg_tools.py"
+  ],
+  "scripts/ffmpeg_tools/loudness.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/ffmpeg_tools/montaje.py": [
+   "scripts/_tests/test_referencia.py"
+  ],
+  "scripts/ffmpeg_tools/scenes.py": [
+   "scripts/_tests/test_ffmpeg_tools.py"
+  ],
+  "scripts/ffmpeg_tools/shorts_plan.py": [
+   "scripts/_tests/test_ffmpeg_tools.py"
+  ],
+  "scripts/ffmpeg_tools/silence.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/ffmpeg_tools/speedramp.py": [
+   "scripts/_tests/test_verticales.py"
+  ],
+  "scripts/ffmpeg_tools/thumbnail.py": [
+   "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/ffmpeg_tools/variantes.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/ffmpeg_tools/verticalizar.py": [
+   "scripts/_tests/test_verticales.py"
+  ],
+  "scripts/film_marca_v2.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/hand_draw.py": [
+   "scripts/_tests/test_hand_draw.py"
+  ],
+  "scripts/lint_copy.py": [
+   "scripts/_tests/test_datos_y_critico.py",
+   "scripts/_tests/test_lint_copy.py"
+  ],
+  "scripts/medir_animacion.py": [
+   "scripts/_tests/test_letra_y_composicion.py",
+   "scripts/_tests/test_puerta_entrega.py"
+  ],
+  "scripts/medir_contraste.py": [
+   "scripts/_tests/test_cli_de_herramientas.py"
+  ],
+  "scripts/medir_mezcla.py": [
+   "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/mezclar_audio.py": [
+   "scripts/_tests/test_comandos_copiables.py",
+   "scripts/_tests/test_mezclar_audio.py"
+  ],
+  "scripts/musica.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_core_and_scenes.py",
+   "scripts/_tests/test_mezclar_audio.py"
+  ],
+  "scripts/poster_frame.py": [
+   "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/proyecto.py": [
+   "scripts/_tests/test_referencia.py"
+  ],
+  "scripts/puntuar.py": [
+   "scripts/_tests/test_puntuar.py"
+  ],
+  "scripts/qa_entrega.py": [
+   "scripts/_tests/test_cli_de_las_cuatro.py"
+  ],
+  "scripts/referencia.py": [
+   "scripts/_tests/test_referencia.py"
+  ],
+  "scripts/registrar_aprendizaje.py": [
+   "scripts/_tests/test_cli_de_las_cuatro.py"
+  ],
+  "scripts/render_plan.py": [
+   "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/repertorio.py": [
+   "scripts/_tests/test_repertorio.py"
+  ],
+  "scripts/retakes.py": [
+   "scripts/_tests/test_verticales.py"
+  ],
+  "scripts/sfx.py": [
+   "scripts/_tests/test_cli_de_herramientas.py",
+   "scripts/_tests/test_comandos_copiables.py"
+  ],
+  "scripts/sincronizar_instalada.py": [
+   "scripts/_tests/test_sincronizar_instalada.py"
+  ],
+  "scripts/speech_estimate.py": [
+   "scripts/_tests/test_cli_de_las_cuatro.py"
+  ],
+  "scripts/validate_skill.py": [
+   "scripts/_tests/test_cabecera_commit.py"
+  ],
+  "scripts/verificar_ritmo.py": [
+   "scripts/_tests/test_comandos_copiables.py",
+   "scripts/_tests/test_verificar_ritmo.py"
+  ],
+  "scripts/voz_local.py": [
+   "scripts/_tests/test_voz_local.py"
+  ],
+  "scripts/voz_off.py": [
+   "scripts/_tests/test_mezclar_audio.py"
+  ]
+ }
+}

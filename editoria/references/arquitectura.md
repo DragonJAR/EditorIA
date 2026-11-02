@@ -4,7 +4,7 @@
 plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_frames ──▶ .mp4 (BT.709)
      │  (+ tabla --datos)│                              └─▶ .mov/.webm (overlay con alfa)
      │                ├── motor de fluidez (resortes, easings, transiciones según pack/tono)
-     │                ├── 36 escenas (references/escenas.md)
+     │                ├── 46 escenas (references/escenas.md)
      │                └── identidad: del brand pack (o modo libre)
      │
      └── formato en references/plan-video.md (tiempos absolutos, at:{})
@@ -26,14 +26,21 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   español → Fernanda Sanmiguel, inglés → Brian (`--voz`/`--idioma` para cambiar).
   La API key sale de `$ELEVENLABS_API_KEY` (ver `~/.secrets.env`, nunca en el skill).
   Dirección completa en `references/sonido.md`. La narración manda el reloj:
-  mide cada segmento y falla antes de mezclar si una voz pisa a la siguiente.
+  mide cada segmento y falla antes de mezclar si una voz pisa a la siguiente
+  o si la de la última escena se pasa del final del video (ahí se corta
+  contra el borde y no hay otra imagen que la tape).
+- **scripts/voz_local.py** — la misma narración con la voz del sistema, sin
+  API: mismo contrato que `voz_off.py` (plan → una pista, `--guion`), mismo
+  reloj (importa la misma comprobación), y la voz que hay instalada en la
+  máquina. Es una entrega de maqueta (sin dirección emocional) y falla en
+  voz alta si no hay voz del idioma pedido. Ver `references/sonido.md`.
 - **scripts/auto_qa.py** — ojos máquina sobre el render: negros, congelados,
   flashes, silencios, clipping, fotosensibilidad (≤3 destellos/s a fps
   completo), sobresaltos (+6 dB al entrar un corte), costura de loop
   (`--loop`) y contact sheet con zona segura (`--safe`) o zonas de pantalla
   final de YouTube (`--end-screen`). Ver `references/auto-qa.md`.
 - **scripts/galeria.py** — el ciclo crear → validar de todo lo animable:
-  renderiza las 36 escenas con `scripts/escenas_muestra.json` (la misma
+  renderiza las 46 escenas con `scripts/escenas_muestra.json` (la misma
   fuente que el smoke test de `validate_skill.py`) y cada herramienta
   (overlay con alfa, mancha, `--datos`, 16:9, captions, pase, audiograma,
   films, thumbnail), pasa `auto_qa` a cada video y deja `resumen.png` +
@@ -98,8 +105,15 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   corta dentro de una palabra). Completa el quick-cut v2 con `silence.py`.
 - **scripts/auditar_plan.py** — audita un plan.json (solapes, duraciones,
   escenas vacías, voz sin texto, huecos, coherencia con `duracion`, tipos
-  leídos de `SCENES` de render_plan y que cada voz quepa en su escena sin
-  pisar la siguiente, estimada con `speech_estimate.py`: una sola fuente).
+  leídos de `SCENES` de render_plan y que cada voz quepa ANTES de la voz
+  siguiente (y antes del final del video), estimada con `speech_estimate.py`:
+  una sola fuente).
+  El margen del reloj es PROPORCIONAL al hueco: un 25 % del hueco, con un
+  mínimo de 0,3 s (un hueco muy corto no tolera un margen proporcional;
+  la estimación silábica se desvía del tiempo real entre
+  un 9% y un 24%: un margen fijo más pequeño que ese error rechazaba planes
+  válidos; `BANDA_ESTIMACION` en `speech_estimate.py`). Avisa también de la voz que se pasa del final del
+  video, que es el único desborde que se corta contra el borde.
   Correr antes de renders largos y antes de pagar TTS.
 - **scripts/speech_estimate.py** — estimador determinista de sílabas y duración
   de locución pre-TTS para español e inglés (`estimar_duracion_habla`,
@@ -159,7 +173,16 @@ plan.json ──▶ render_plan.py ──▶ frames PNG ──▶ codificar_fram
   montaje con música, recorte/adaptación. Para piezas simples sin plan.
 - **references/capacidades.md** — inventario de capacidades: qué valida
   `scripts/check_env.py` (herramientas locales, APIs, assets), capacidades
-  multimodales del modelo, MCP y tabla de degradación elegante.
+  multimodales del modelo, MCP y tabla de degradación declarada.
+- **scripts/hand_draw.py** + **references/hand-draw.md** — trazos a mano:
+  suavizado EMA+snap, segmentos de brocha, viewport e histéresis de gestos;
+  CLI `suavizar` / `pintar` → PNG con alfa para montaje. Sin MediaPipe en la
+  skill (captura en vivo se declara).
+- **scripts/repertorio.py** — catálogo único de elección (escenas + efectos +
+  gestos UI + captions). Detalle/producción (no menús): 
+  `efectos_talking_head.py`, `motion_ui.json` / `motion-ui.md`,
+  `captions_identidades.py` / `captions-identidades.md`, cadena
+  `flujo-talking-head.md`. No tipos de caption en `SCENES`.
 - **references/tecnicas-video.md** — LA BIBLIOTECA: catálogo maestro de técnicas
   2025–2026 (investigación web, 16 secciones): transiciones, tipografía cinética,
   ritmo, cámara, efectos, dataviz animada (sección profunda), fotos→dinámicas
@@ -224,5 +247,9 @@ Lo que se conserva: el formato del plan, el catálogo de escenas, las reglas
 técnicas probadas. Lo que se recupera en v1.0.0: la arquitectura marca-blanca
 del sistema original, ahora como brand packs (`brand/*.json`, ver
 `references/brand-packs.md`). Lo que se descarta: Remotion como dependencia
-(ver `references/remotion.md` para uso opcional) y dependencias de red.
+(ver `references/remotion.md` para su uso) y dependencias de red.
 - 2026-10-04 · **Empaquetar el skill excluyendo *.mp4 de film/ y demo/**: El ZIP portable del skill debe excluir los renders (*.mp4 en film/ y demo/): incluirlos llevo el ZIP de 1.2 MB a 271 MB. Comando canonico: zip -qr editoria-v1.0.0.zip . -x '__pycache__/*' '*.pyc' '.frames/*' '*/.frames/*' '*.mp4'. Los renders viven en las carpetas de proyecto, no en el paquete.
+
+---
+
+→ Canónico: `references/plan-video.md` · Dominio: plan · Vecinos: `references/mapa.md`, `references/escenas.md`, `references/qa-entrega.md`

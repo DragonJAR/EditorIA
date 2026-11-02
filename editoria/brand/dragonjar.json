@@ -1,11 +1,11 @@
 {
- "_nota": "Brand pack de ejemplo para EditorIA v1.0.0 (marca DragonJAR). Las claves de primer nivel en inglés (colors, font, fonts_dir, caption) las leen los scripts vía load_brand; las secciones en español (colores, tipografías, logos, voces, reglas) las lee el agente. Ver references/brand-packs.md. Rutas de archivos relativas a la carpeta de este JSON.",
+ "_nota": "Brand pack de ejemplo para EditorIA (marca DragonJAR, Manual de Marca v1.0). Las claves de primer nivel en inglés (colors, font, fonts_dir, caption) las leen los scripts vía load_brand; las secciones en español (colores, tipografías, logos, voces, reglas) las leen el motor y el agente. Ver references/brand-packs.md. Rutas de archivos relativas a la carpeta de este JSON.",
  "caption": {
-  "_nota": "Banda central, nunca abajo donde pisa la UI. Karaoke: la palabra activa se resalta en el acento.",
+  "_nota": "Banda inferior sobre la zona segura (la que reserva el motor con subtitulos:true), nunca en el centro: las escenas componen su texto en el centro y el karaoke central se pisa con cada plano. Karaoke: la palabra activa se resalta en el acento.",
   "bold": true,
   "karaoke": true,
   "outline": 2,
-  "position": "center",
+  "position": "bottom",
   "size": 28
  },
  "colores": {
@@ -13,9 +13,23 @@
   "acento": "#C11B05",
   "acento_oscuro": "#821200",
   "blanco": "#FAF8F6",
-  "gris": "#AAAAAA",
+  "gris": "#8A8A8A",
   "gris_superficie": "#1A1A1A",
-  "negro": "#0A0A0A"
+  "negro": "#0A0A0A",
+  "serie": [
+   "#C11B05",
+   "#56B4E9",
+   "#F0E442",
+   "#009E73",
+   "#E69F00"
+  ],
+  "exito": "#009E73",
+  "aviso": "#E69F00",
+  "_nota_estado": "serie/exito/aviso: categorías (pie, leyendas) y estados (pagado, tibio). Derivados del acento con tokens_de_estado (render_plan.py): serie[0] es el acento y el resto Okabe-Ito, distinguibles con daltonismo y legibles sobre el negro.",
+  "gris_detalle": "#4A4A4A",
+  "_nota_grises": "gris = texto de APOYO (fuentes, subtítulos de item, estados): #8A8A8A da 5.7:1 sobre el negro #0A0A0A y 5.0:1 sobre la tarjeta #1A1A1A (AA). gris_detalle = Gris Táctico del manual (#4A4A4A), SOLO detalles sobre oscuro: bordes, conectores, nodos apagados (2.2:1, no es texto). Sobre el claro #FAF8F6 sí sirve como texto (8.4:1).",
+  "_nota_roles": "Rojo oficial #C11B05 (no se cambia): sobre el negro #0A0A0A da 3.2:1 -> solo letra GRANDE/negrita y acentos (barras, puntos, filetes); sobre tarjeta #1A1A1A da 2.8:1 -> nunca como letra. La guardia del motor (_roles_del_acento) reenruta la letra chica en acento y la letra grande sobre tarjeta a acento_texto (la tinta de la marca).",
+  "acento_texto": "#FAF8F6"
  },
  "colors": {
   "outline": "0A0A0A",
@@ -26,13 +40,14 @@
  "font_file": "../assets/fonts/PlusJakartaSans-wght.ttf",
  "fonts_dir": "../assets/fonts",
  "logos": {
-  "_nota": "Nunca redibujar. Usar los archivos oficiales. Rutas relativas a este JSON. El logotipo horizontal oficial no viene en el paquete: sin él, el wordmark se compone en la fuente de titulares.",
+  "_nota": "Nunca redibujar. Usar los archivos oficiales de dragonjar.org. Rutas relativas a este JSON. logotipo = logo horizontal oficial para fondo oscuro (2070x370; nunca se escala por encima de su tamaño original).",
   "isotipo": "assets/dragonjar-isotipo.png",
   "ancla": [
    559.7,
    540.9
   ],
-  "_nota_ancla": "Punto de interés del isotipo en px del PNG original (el ojo de la cerradura): ancla compositiva de los films."
+  "_nota_ancla": "Punto de interés del isotipo en px del PNG original (el ojo de la cerradura): ancla compositiva de los films.",
+  "logotipo": "assets/dragonjar-logo-fondo-oscuro.png"
  },
  "nombre": "DragonJAR",
  "reglas": {
@@ -42,13 +57,24 @@
   "rejillas_decorativas": false,
   "transiciones": "corte_seco",
   "efectos_glitch": false,
-  "_nota_glitch": "RGB split, shake, strobe y hue shift solo si el brief los pide: compiten con la identidad."
+  "_nota_glitch": "RGB split, shake, strobe y hue shift solo si el brief los pide: compiten con la identidad.",
+  "conservar_caso": [
+   "DragonJAR",
+   "DragonJAR Education",
+   "DragonJAR Security Conference"
+  ],
+  "_nota_caso": "Nombres que el motor no pasa a mayúsculas en kickers y rótulos (se escribe DragonJAR, nunca DRAGONJAR).",
+  "outro_sobrio": true,
+  "_nota_outro": "El manual pide un outro sobrio (sin rebote ni pulsos): la escena final se usa con \"sobrio\": true.",
+  "rebote": false,
+  "particulas": false,
+  "volumen": false
  },
  "tipografias": {
   "etiquetas_mono": {
-   "archivo": "DejaVu Sans Mono",
-   "familia": "DejaVu Sans Mono",
-   "uso": "kickers, datos técnicos"
+   "archivo": "../assets/fonts/IBMPlexMono-SemiBold.ttf",
+   "familia": "IBM Plex Mono",
+   "uso": "kickers, datos técnicos, horas, URL (fuente terciaria del manual; OFL 1.1)"
   },
   "texto": {
    "archivo": "../assets/fonts/Montserrat-wght.ttf",
@@ -65,9 +91,17 @@
     700,
     800
    ]
+  },
+  "titulares_itálica": {
+   "archivo": "../assets/fonts/PlusJakartaSans-Italic-wght.ttf",
+   "familia": "Plus Jakarta Sans Italic",
+   "pesos": [
+    800
+   ],
+   "uso": "énfasis especial (800 italic del manual)"
   }
  },
- "version": "1.0.0",
+ "version": "1.1.0",
  "voces": {
   "_nota": "Voces por defecto para esta marca (ElevenLabs). Se pueden sobreescribir por proyecto.",
   "en": "Brian",

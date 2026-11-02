@@ -41,7 +41,9 @@ claro hacia el gusto propio es un fallo.
    plantilla (gancho, logos, tres funciones, testimonio, precio, CTA): el orden
    de la pieza es el orden del argumento.
 4. **Modo** de la pieza (abajo) y **dirección**:
-   `python scripts/direccion_arte.py repartir --brief "..." --sector S --tono T --modo M --tiene fotos capturas`
+   Los valores de `--sector` se listan con `python scripts/direccion_arte.py listar sectores` (`--tono` y `--modo` tambien).
+
+   `python scripts/direccion_arte.py repartir --brief "video de ciberseguridad" --sector ciberseguridad --tono demo --modo explicar --tiene capturas`
    reparte tres; se elige una; `elegir ID --out CARPETA` escribe `SISTEMA.md` y,
    si el motor la compone, `estilo.json` (usable con `--brand`).
 5. **La idea** (abajo). No se construye hasta llenar los dos huecos.
@@ -184,7 +186,11 @@ elegida que lo declare, vale.
 | Tell | Código | En su lugar |
 |---|---|---|
 | La misma escena tres veces seguidas | `escena-repetida` | alternar la familia de composición según el argumento |
-| Cadencia de metrónomo: todas las escenas duran casi lo mismo | `cadencia-uniforme` | variar duraciones (`ritmo.md`: CV ≥ 0.25) |
+| Cadencia de metrónomo: todas las escenas duran casi lo mismo | `cadencia-uniforme` | variar duraciones (`ritmo.md`: CV ≥ 0.25); si la duración la manda la voz, declararlo aquí y en el proyecto |
+| Poco repertorio: la pieza entera con 2–3 tipos de escena (o un tipo en la mitad) | `poco-repertorio` | elegir cada escena por su intención y rotar dentro de su familia (`intencion-escena.md` §2b), sin repetir el tipo dominante de la pieza anterior |
+| La misma ruta que la pieza anterior: mismo tipo dominante o casi los mismos tipos | `ruta-repetida` | pedir otra mano con `repertorio.py sugerir --anterior ../pieza-anterior/plan.json`; el auditor solo lo mide si se le pasa `--anterior`, así que pásalo |
+| Una intención declarada en el plan sin ninguna escena que la cubra | `intencion-sin-escena` | elegir una escena de su familia en `scripts/data/repertorio.json` o mover la intención a `no_aplica` con su porqué |
+| Intenciones ni usadas ni declaradas `no_aplica` | `intencion-olvidada` | lo no usado queda explícito: cubrirla o declararla en el plan con su porqué (`repertorio.py cobertura` las lista) |
 | Rótulo (kicker) sobre casi cada escena | `rotulo-en-todas` | reservarlo a donde aporta. *Nota*: `principios.md` usa el kicker como parte de la jerarquía y el pack puede fijarlo como firma; el tell es el reflejo en cada plano, no su uso deliberado |
 | Orden de plantilla: gancho, logos, tres funciones, testimonio, precio, CTA | ojo | el orden del argumento |
 | Tres tarjetas iguales con icono, título y texto como estructura | ojo | la composición de la dirección elegida; «tres» solo si el contenido tiene tres |
@@ -240,3 +246,7 @@ pero delgada. El mismo riesgo existe en video: el paso de *sustancia* de
 - Estilos y style packs: `references/estilos.md`; transiciones y personalidad de
   movimiento: `references/fluidez.md`; tonos: `references/tonos.md`.
 - Qué escena para qué dato: `references/escenas.md` (tabla al final).
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/direccion.md`, `references/estilos.md`, `references/tonos.md`

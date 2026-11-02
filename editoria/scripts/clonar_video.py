@@ -23,17 +23,18 @@ import sys
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(BASE, "scripts"))
 import referencia as REF
+import repertorio as REP
 import speech_estimate as SE
 
 
-# Familias de escenas compatibles para variación de layouts visuales (100% catálogo oficial de 36 escenas)
-FAMILIAS_ESCENAS = {
-    "hook": ["titular", "apertura", "hero", "pildoras", "countdown", "buscador"],
-    "dato": ["stats", "ranking", "bars", "gauge", "pie", "bento"],
-    "social": ["chat", "comentario", "notificacion", "quote"],
-    "proceso": ["pasos", "timeline", "orbita", "leads", "handoff", "hoy"],
-    "cierre": ["final", "remate", "audiowave", "oferta", "confetti"]
-}
+# Familias de escenas compatibles para variación de layouts visuales.
+# DERIVADAS de la única fuente intención→escena (scripts/data/repertorio.json,
+# vía repertorio.familias()): antes esta lista vivía solo aquí, con el nombre
+# fantasma "titular" (no es una escena del motor; llegaba a apertura por
+# MAPEO_ESCENAS_VALIDAS) y con 13 escenas del catálogo fuera de toda familia.
+# Los roles del clonado (hook...) se traducen con roles_clonar del mismo JSON.
+FAMILIAS_ESCENAS = {rol: REP.familias()[inten]
+                    for rol, inten in REP.cargar()["roles_clonar"].items()}
 
 # Mapeo canónico de alias a escenas registradas en render_plan.py
 MAPEO_ESCENAS_VALIDAS = {
@@ -52,6 +53,31 @@ MAPEO_ESCENAS_VALIDAS = {
     "logogrid": "final",
     "pantalla": "demo"
 }
+
+
+def _ajustar_voz(texto, hueco):
+    """Corta la voz para que quepa en el hueco, con el margen real.
+
+    `hueco` es el tiempo hasta donde empieza la voz SIGUIENTE (o hasta el
+    final del video), y la voz entra en `from + 0.4 s` (el aire), asi que el
+    tiempo util es `hueco - AIRE_VOZ`. Es la MISMA cuenta que la auditoria
+    (`speech_estimate.auditar_plan_voces`).
+
+    Antes se comparaba contra la duracion de la PROPIA escena: un criterio
+    mas estricto que el del resto de la skill (una locucion que cruza el
+    corte es normal, de hecho es lo habitual), asi que el clonado perdia
+    palabras que si cabian. Si la variante nace con la voz desbordada, el
+    plan no pasa la puerta y el agente tiene que descubrirlo al auditar el
+    plan, no al clonarlo. Aqui se recorta POR PALABRAS hasta que entra.
+    """
+    util = max(0.2, hueco - SE.AIRE_VOZ)
+    palabras = texto.split()
+    while palabras and SE.estimar_duracion(" ".join(palabras), "es") > util:
+        palabras.pop()
+    if not palabras:
+        # ni una palabra entra: el texto se deja vacio y lo escribe el agente
+        return ""
+    return " ".join(palabras)
 
 
 def rebase_at(obj, offset, factor=1.0):
@@ -80,6 +106,108 @@ def rebase_at(obj, offset, factor=1.0):
         return [rebase_at(item, offset, factor) for item in obj]
     else:
         return obj
+
+
+def _momentos_medidos(video_path):
+    """Los momentos del video, MEDIDOS.
+
+    Una sola fuente para la medicion: este modulo NO reimplementa el corte de
+    plano ni la envolvente de audio, se los pide a la herramienta que ya lo
+    hace (`scripts/ffmpeg_tools/scenes.py`: scdet para los cortes, envolvente
+    RMS cada 0.5 s, picos de audio y highlights ordenados por valor).
+
+    Devuelve None si la herramienta no esta o falla: el llamador cae a la
+    deteccion por silencio (mas pobre, pero nunca inventada).
+    """
+    script = os.path.join(BASE, "scripts", "ffmpeg_tools", "scenes.py")
+    if not os.path.isfile(script):
+        return None
+    try:
+        r = subprocess.run([sys.executable, script, video_path, "--json",
+                            "--highlights", "8"],
+                           capture_output=True, text=True, timeout=900)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        return None
+    if not isinstance(d, dict) or not d.get("scenes"):
+        return None
+    return d
+
+
+def _segmentos_medidos(mid):
+    """Los segmentos del video con el VALOR medido al lado.
+
+    El rol NO lo pone la medicion: lo pone la estructura que se esta clonando
+    (primero el gancho, ultimo el cierre, el cuerpo alternando social/dato),
+    porque clonar es reproducir el patron del original. Lo que si pone la
+    medicion es el VALOR de cada tramo y donde esta el pico: sin eso, el rol
+    era una suposicion sobre una posicion.
+    """
+    escenas = mid.get("scenes") or []
+    picos = mid.get("audio_peaks") or []
+
+    # el pico de audio MAS fuerte dentro de cada escena
+    pico_de = {}
+    for p in picos:
+        t = p.get("time")
+        if t is None:
+            continue
+        for i, sc in enumerate(escenas):
+            if sc["start"] <= t < sc["end"]:
+                if i not in pico_de or (p.get("rms") or 0) > (pico_de[i].get("rms") or 0):
+                    pico_de[i] = p
+
+    n = len(escenas)
+    max_rms = max((sc.get("audio_rms") or 0) for sc in escenas) if escenas else 0
+    # que tramo es el mas fuerte (ranking por valor; el ORDEN no cambia)
+    orden = sorted(range(n), key=lambda i: -(escenas[i].get("audio_rms") or 0))
+    fuerza = {i: r + 1 for r, i in enumerate(orden)}
+
+    # Sin cortes duros no hay estructura que repartir en roles: una pieza
+    # de animacion continua (scdet ve 1-2 tramos en minutos de video) no
+    # tiene HOOK ni CIERRE localizables por posicion. Inventarlos (el
+    # primer tramo «hook», el resto «cierre») deja una plantilla inutil:
+    # se marca como continua y los beats se sacan de la transcripcion y
+    # los mosaicos, no de los cortes (references/referencia-video.md §3).
+    continua = n <= 2
+    segmentos = []
+    for i, sc in enumerate(escenas):
+        if continua:
+            rol = "continuo"
+        elif i == 0:
+            rol = "hook"
+        elif i == n - 1:
+            rol = "cierre"
+        else:
+            rol = "social" if (i - 1) % 2 else "dato"
+        pico = pico_de.get(i)
+        rms = round(sc.get("audio_rms") or 0, 4)
+        if pico:
+            nota = (f"pico de audio en {round(pico['time'], 2)}s "
+                    f"({round(pico.get('rms') or 0, 4)} RMS)")
+            if rms >= max_rms and max_rms > 0:
+                nota += ": el tramo mas fuerte del video"
+        else:
+            nota = "sin pico de audio: tramo tranquilo (no sostiene el climax)"
+        segmentos.append({
+            "indice": i + 1,
+            "from": round(sc["start"], 2),
+            "to": round(sc["end"], 2),
+            "duracion": round(sc["end"] - sc["start"], 2),
+            "rol": rol,
+            "tipo_sugerido": None if continua else FAMILIAS_ESCENAS[rol][0],
+            "audio_rms": rms,
+            "audio_peak": round(sc.get("audio_peak") or 0, 4),
+            "pico": round(pico["time"], 2) if pico else None,
+            "fuerza": fuerza.get(i),
+            "nota": nota,
+        })
+    return segmentos
 
 
 def detectar_cortes(video_path, duracion_total):
@@ -138,7 +266,20 @@ def cmd_analizar(origen, es_url, out_dir):
 
     dur = ref_data["metadatos"]["duracion"]
     print(f"\n=== PASO 2: Detección de estructura viral y ritmo ({dur}s) ===")
-    segmentos = detectar_cortes(ref_data["video"], dur)
+    mid = _momentos_medidos(ref_data["video"])
+    continua = False
+    if mid:
+        segmentos = _segmentos_medidos(mid)
+        continua = bool(segmentos) and segmentos[0].get("rol") == "continuo"
+        print(f"   {len(segmentos)} momentos MEDIDOS (scenes.py), con su valor al lado")
+        if continua:
+            print("   AVISO: sin cortes duros (animacion continua): la plantilla NO trae "
+                  "roles hook/cierre; los beats salen de la transcripcion por palabra "
+                  "y los mosaicos, no de los cortes (referencia-video.md §3)")
+    else:
+        segmentos = detectar_cortes(ref_data["video"], dur)
+        print("   el medidor no respondió: cortes por silencio y cadencia estándar "
+              "(menos preciso y SIN valor medido)")
 
     # Generar plantilla estructural
     plantilla = {
@@ -146,8 +287,17 @@ def cmd_analizar(origen, es_url, out_dir):
         "duracion_referencia": dur,
         "aspecto": ref_data["metadatos"]["aspecto"],
         "fps": ref_data["metadatos"]["fps"],
-        "segmentos": segmentos
+        "segmentos": segmentos,
+        "animacion_continua": continua,
+        "medicion": {
+            "fuente": ("scripts/ffmpeg_tools/scenes.py (scdet + envolvente RMS + picos)"
+                       if mid else "silencio + cadencia estándar (sin valor medido)"),
+            "orden": "audio" if mid else None,
+        },
     }
+    if mid and mid.get("highlights"):
+        # la lista corta: donde esta el valor, para construir el corte AHI
+        plantilla["destacados"] = mid["highlights"]
 
     plantilla_json = os.path.join(out_dir, "plantilla.json")
     with open(plantilla_json, "w", encoding="utf-8") as fh:
@@ -160,16 +310,42 @@ def cmd_analizar(origen, es_url, out_dir):
         fh.write(f"- **Origen**: `{origen}`\n")
         fh.write(f"- **Duración**: {dur}s · **Aspecto**: {ref_data['metadatos']['aspecto']} · **FPS**: {ref_data['metadatos']['fps']}\n")
         fh.write("- **Pistas extraídas**: Audio 48kHz (`audio_48k.wav`), Audio 16kHz (`audio_16k.wav`)\n")
-        fh.write("- **Storyboard**: Contact Sheet con frames clave (`contact_sheet.png`)\n\n")
+        fh.write("- **Storyboard**: Contact Sheet con frames clave (`contact_sheet.png`)\n")
+        fh.write(f"- **Medición del valor**: {plantilla['medicion']['fuente']}\n\n")
+        if continua:
+            fh.write("> **Animación continua, sin cortes duros**: scdet solo ve "
+                     f"{len(segmentos)} tramo(s), asi que no hay HOOK/CIERRE que "
+                     "localizar por posición y `variar` no debe usarse sobre esta "
+                     "plantilla tal cual. Los beats se sacan de la transcripción "
+                     "por palabra (`alinear.py` sin guion) y de los mosaicos a "
+                     "1 s/5 s: cada frase o cambio de sistema es un beat "
+                     "(references/referencia-video.md §3).\n\n")
         fh.write("## Estructura Viral Descompuesta\n\n")
-        fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida | Notas de Retención |\n")
-        fh.write("|---|---|---|---|---|---|\n")
-        for s in segmentos:
-            nota = "Impacto en primeros 2s" if s['rol'] == 'hook' else ("Llamado a la acción claro" if s['rol'] == 'cierre' else "Dinamismo y prueba social/datos")
-            fh.write(f"| {s['indice']} | **{s['rol'].upper()}** | {s['from']}s - {s['to']}s | {s['duracion']}s | `{s['tipo_sugerido']}` | {nota} |\n")
+        if mid:
+            fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida | Valor medido |\n")
+            fh.write("|---|---|---|---|---|---|\n")
+            for s in segmentos:
+                fh.write(f"| {s['indice']} | **{s['rol'].upper()}** | {s['from']}s - {s['to']}s "
+                         f"| {s['duracion']}s | `{s['tipo_sugerido']}` | {s['nota']} |\n")
+        else:
+            fh.write("| # | Rol | Tiempos | Duración | Escena Sugerida |\n")
+            fh.write("|---|---|---|---|---|\n")
+            for s in segmentos:
+                fh.write(f"| {s['indice']} | **{s['rol'].upper()}** | {s['from']}s - {s['to']}s "
+                         f"| {s['duracion']}s | `{s['tipo_sugerido']}` |\n")
+            fh.write("\n> Sin valor medido: los roles salen de la posición, no de la "
+                     "medición. Míralo con la hoja de contactos antes de comprometerte.\n")
+        if plantilla.get("destacados"):
+            fh.write("\n## Dónde está el valor (medido)\n\n")
+            fh.write("| # | De | A | Duración |\n|---|---|---|---|\n")
+            for i, h in enumerate(plantilla["destacados"], 1):
+                fh.write(f"| {i} | {h['start']}s | {h['end']}s | {h['duration']}s |\n")
         fh.write("\n## Recomendaciones de Clonación y Variación\n")
         fh.write(f"1. Ejecutar `python scripts/clonar_video.py variar --plantilla {plantilla_json} --variantes 3 --tema '<Nuevo Tema>'`\n")
         fh.write("2. El motor reemplazará los textos manteniendo las cuotas de duración auditadas por `speech_estimate.py`.\n")
+        if mid:
+            fh.write("3. El corte se construye alrededor de los momentos de valor: "
+                     "el remate sale del pico medido, no del último plano por defecto.\n")
 
     print("\nOK Estructura analizada:")
     print(f"   Plantilla: {plantilla_json}")
@@ -194,17 +370,42 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
     tema = tema or "Ciberseguridad y Productividad Digital"
     segmentos = plantilla.get("segmentos", [])
 
+    if not segmentos:
+        # Una plantilla sin segmentos no es una plantilla: no hay estructura que
+        # variar. Lo mas probable es que se haya pasado un plan.json donde se
+        # espera la plantilla (el motor acepta la abreviatura --plan por
+        # --plantilla). Decir "OK Variante 1: 0 escenas" era honesto en los
+        # numeros y mentiroso en la palabra: una variante sin escenas no es
+        # una variante, y el plan que sale revienta al renderizarlo.
+        sys.exit(
+            "ERROR: la plantilla no trae 'segmentos' (la estructura de la referencia): "
+            "no hay nada que variar.\n"
+            "  Este comando espera la plantilla que produce 'analizar' (plantilla.json).\n"
+            "  Si le has pasado un plan.json, el motor acepta la abreviatura --plan por "
+            "--plantilla: renombralo o usa el plan con render_plan.py.")
+
+    if plantilla.get("animacion_continua") or any(s.get("rol") == "continuo" for s in segmentos):
+        sys.exit(
+            "ERROR: esta plantilla es de una pieza de animacion continua (sin cortes "
+            "duros): no trae roles hook/cierre que variar.\n"
+            "  Trocea primero el tramo continuo en beats por frase con la transcripcion "
+            "por palabra (scripts/alinear.py sin guion) y los mosaicos, escribe esos "
+            "beats como segmentos con su rol en la plantilla, y vuelve a variar.\n"
+            "  Ver references/referencia-video.md §3 (animacion continua).")
+
     print(f"Generando {num_variantes} variantes para el tema: '{tema}'...")
 
+    needing = []            # variantes cuya voz todavia no cabe
+    variantes_con_voz = []  # planes escritos
     for v_idx in range(1, num_variantes + 1):
         var_dir = os.path.join(out_dir, f"variante_{v_idx}")
         os.makedirs(var_dir, exist_ok=True)
         escenas_plan = []
 
-        for seg in segmentos:
+        for k, seg in enumerate(segmentos):
             rol = seg["rol"]
-            opciones = FAMILIAS_ESCENAS.get(rol, ["titular"])
-            # Alternar tipo de escena según variante y normalizar a catálogo de 36 escenas
+            opciones = FAMILIAS_ESCENAS.get(rol, ["apertura"])
+            # Alternar tipo de escena según variante y normalizar al catálogo (45)
             raw_tipo = opciones[(v_idx - 1) % len(opciones)]
             tipo = MAPEO_ESCENAS_VALIDAS.get(raw_tipo, raw_tipo)
 
@@ -223,12 +424,20 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
             if "kicker" in base_escena:
                 base_escena["kicker"] = f"Variante {v_idx}"
 
-            # Inyectar voz para narración y auditar que quepa en la duración
+            # Inyectar voz para narración y ajustar que quepa en el HUECO:
+            # el tiempo hasta donde empieza la voz siguiente (o hasta el
+            # final del video), que es lo que mide la auditoría. La voz
+            # entra en from+0.4 s (el aire), asi que el tiempo util es
+            # hueco-AIRE_VOZ. Antes se comparaba contra la duración de la
+            # PROPIA escena: un criterio mas estricto que el del resto de
+            # la skill, que hacia perder palabras que si cabian.
             txt_voz = base_escena.get("titulo") or base_escena.get("rotulo") or f"{tema} punto clave {seg['indice']}"
-            base_escena["voz"] = txt_voz.replace("*", "")
-            dur_est = SE.estimar_duracion(base_escena["voz"], "es")
-            if dur_est > seg["duracion"]:
-                base_escena["voz"] = base_escena["voz"].split(":")[0]
+            if k + 1 < len(segmentos):
+                hueco = float(segmentos[k + 1]["from"]) - float(seg["from"])
+            else:
+                # la ultima voz: el borde del video
+                hueco = float(plantilla.get("duracion_referencia", 30.0)) - float(seg["from"])
+            base_escena["voz"] = _ajustar_voz(txt_voz.replace("*", ""), hueco)
 
             escenas_plan.append(base_escena)
 
@@ -247,9 +456,27 @@ def cmd_variar(plantilla_path, num_variantes, tema, out_dir, marca_path=None):
 
         # Auditar con speech_estimate
         audi = SE.auditar_plan_voces(plan)
-        print(f"OK Variante {v_idx}: {len(escenas_plan)} escenas -> {plan_path} ({'Voz OK' if audi['valido'] else 'Ajustar voz'})")
+        if audi["valido"]:
+            print(f"OK Variante {v_idx}: {len(escenas_plan)} escenas -> {plan_path} (voz OK)")
+        else:
+            # el plan NO pasa la puerta: decirlo, no venderlo como "OK"
+            print(f"AVISO Variante {v_idx}: {len(escenas_plan)} escenas -> {plan_path} "
+                  f"({len(audi['alertas'])} escenas con la voz desbordada)")
+            for a in audi["alertas"][:3]:
+                print(f"        escena {a['escena_index']}: la voz se sale en "
+                      f"{a['exceso_segundos']}s -> alarga la escena o recorta el texto")
+            needing.append(v_idx)
+        # el texto de voz es un placeholder de la referencia: hay que reescribirlo
+        variantes_con_voz.append(plan_path)
 
-    print(f"\nOK {num_variantes} variantes generadas exitosamente en: {out_dir}")
+    print(f"\n{num_variantes} variantes en: {out_dir}")
+    if needing:
+        print(f"ATENCION: {len(needing)} variante(s) con la voz desbordada (arriba). "
+              "El texto de voz es un PLACEHOLDER de la referencia: reescribilo y "
+              "re-audita antes de renderizar.")
+    else:
+        print("La voz cabe en todas las escenas. El texto sigue siendo un PLACEHOLDER "
+              "de la referencia: reescribilo con el copy real antes de renderizar.")
     print(f"Renderizar con: python3 scripts/render_plan.py {os.path.join(out_dir, 'variante_1', 'plan.json')} -o out_v1.mp4")
 
 

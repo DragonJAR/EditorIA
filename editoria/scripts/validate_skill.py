@@ -6,8 +6,13 @@ scripts enlazados existen, sin archivos huérfanos, sin README.md,
 sin angle brackets en frontmatter ni markdown, SKILL.md < 5000 palabras,
 TODOS los scripts compilan y las 30 escenas renderizan.
 Sale 0 si todo pasa, 1 si algo falla.
+
+La PRIMERA linea del log es la cabecera: dice de que commit es este veredicto
+(un "SIN REPO" si no hay repo). Sin ella, un log verde no dice de que
+ejecucion es, y leer el verde del fichero equivocado es atribuir a hoy el
+veredicto de ayer. `--cabecera` imprime solo esa linea y sale.
 """
-import atexit, os, shutil, sys, re, ast, glob, json, subprocess, tempfile
+import atexit, os, shutil, sys, re, ast, glob, json, subprocess, tempfile, datetime
 
 _TMP_DIRS = []
 def _mkdtemp(prefix="editoria_"):
@@ -15,6 +20,12 @@ def _mkdtemp(prefix="editoria_"):
     _TMP_DIRS.append(d)
     return d
 atexit.register(lambda: [shutil.rmtree(d, ignore_errors=True) for d in _TMP_DIRS])
+
+#: Un directorio temporal PROPIO de esta corrida. Las rutas fijas en el
+#: temp del sistema se pisan cuando hay dos validaciones a la vez (y el
+#: choque sale como un FAIL del motor, que es justo el sintoma que mas
+#: confunde: apunta al sitio equivocado).
+_TMP_RUN = _mkdtemp(prefix="editoria_run_")
 
 for _extra_bin in ("/opt/homebrew/bin", "/usr/local/bin"):
     if os.path.isdir(_extra_bin) and _extra_bin not in os.environ.get("PATH", "").split(os.pathsep):
@@ -25,6 +36,69 @@ fails = []
 def check(cond, msg):
     print(("OK  " if cond else "FAIL") + " " + msg)
     if not cond: fails.append(msg)
+
+
+# 0. DE QUE COMMIT ES ESTE VEREDICTO.
+#    Un log dice "SKILL VALIDO" sin decir de que ejecucion es: hay docenas
+#    de logs de validate_skill de noches distintas, todos con el mismo
+#    nombre base, y leer el verde del fichero equivocado es atribuir a HOY
+#    el veredicto de AYER. El log se escribe solo: la cabecera va en la
+#    PRIMERA linea, no se busca despues. Y si no hay repo (la copia
+#    instalada no lo tiene), lo DICE en vez de callar: un "sin repo"
+#    honesto vale mas que un sha inventado.
+def _git_out(repo, *args):
+    try:
+        return subprocess.run(["git", "-C", repo, *args], capture_output=True,
+                              text=True, timeout=15).stdout.strip()
+    except Exception:
+        return ""
+
+
+def commit_medido(base):
+    """(sha corto, rama) del repo que contiene esta skill; ('', '') si no hay."""
+    repo = os.path.dirname(os.path.abspath(base))
+    top = _git_out(repo, "rev-parse", "--show-toplevel")
+    if not top:
+        return ("", "")
+    try:
+        # el repo tiene que CONTENER la skill: si la skill viviera dentro de
+        # otro repo, ese sha no seria el de esta pieza
+        if os.path.commonpath([os.path.realpath(top),
+                               os.path.realpath(base)]) != os.path.realpath(top):
+            return ("", "")
+    except (ValueError, OSError):
+        return ("", "")
+    return (_git_out(repo, "rev-parse", "--short", "HEAD"),
+            _git_out(repo, "rev-parse", "--abbrev-ref", "HEAD"))
+
+
+def arbol_sucio(base):
+    """True si el repo tiene cambios sin commitear.
+
+    Entonces el veredicto NO es del commit: es del arbol que se midio, y
+    decir solo el sha seria mentirle al que lea el log despues.
+    """
+    repo = os.path.dirname(os.path.abspath(base))
+    return bool(_git_out(repo, "status", "--porcelain"))
+
+
+def linea_commit(base):
+    sha, rama = commit_medido(base)
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    if not sha:
+        return (f"commit medido: SIN REPO (el historial vive en el repo; esta "
+                f"copia no lo tiene) · {stamp}")
+    sucio = " · ARBOL CON CAMBIOS SIN COMMITEAR" if arbol_sucio(base) else ""
+    return f"commit medido: {sha} ({rama}){sucio} · {stamp}"
+
+
+if "--cabecera" in sys.argv:
+    # modo rapido: solo la cabecera. Para poder leer QUE se esta midiendo sin
+    # pagar la puerta entera (y para que el test no tarde media hora).
+    print(linea_commit(BASE))
+    sys.exit(0)
+
+print(linea_commit(BASE))
 
 # 1. frontmatter y reglas de nombres de Skill-for-Claude.txt
 check("SKILL.md" in os.listdir(BASE), "archivo principal nombrado exactamente SKILL.md (case-sensitive)")
@@ -105,7 +179,13 @@ md_files = [os.path.join(BASE, "SKILL.md")] + \
 bad_tags = []
 for mf in md_files:
     for i, line in enumerate(open(mf, encoding="utf-8"), 1):
-        if re.search(r"<[A-Za-z/!][^>]*>", line):
+        # Un COMENTARIO html no se renderiza: no es un tag. Los marcadores de
+        # la tabla derivada ("<!-- REPERTORIO_TABLA_INI -->") los usa
+        # scripts/repertorio.py para reescribirla y el guard para detectar que
+        # alguien la edito a mano. El patron se ACOTA para no marcar lo que
+        # esta bien (un detector que llora se desactiva): los tags de verdad se
+        # siguen cazando, solo se quitan los comentarios.
+        if re.search(r"<[A-Za-z/!][^>]*>", re.sub(r"<!--.*?-->", "", line)):
             bad_tags.append(f"{os.path.basename(mf)}:{i}")
 check(not bad_tags, f"sin angle brackets en markdown ({len(bad_tags)} hallados)")
 for b in bad_tags[:5]:
@@ -157,6 +237,21 @@ for x in packs:
 check(not pack_malos, "brand packs validos: JSON + nombre + acento "
       + (f"({len(packs) - len(pack_malos)}/{len(packs)} OK; {chr(59).join(pack_malos[:3])})"
          if pack_malos else f"({len(packs)}/{len(packs)} OK)"))
+# los packs se publican con la skill: una key pegada ahi se filtra al mundo
+# (la misma regla del SKILL.md para plan.json, ahora con un check de verdad)
+try:
+    import auditar_plan as _AP
+    _cred = []
+    for x in packs:
+        try:
+            _datos = json.load(open(x, encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for _m in _AP.credenciales_en(_datos):
+            _cred.append(f"{os.path.basename(x)}: {_m}")
+except Exception as _e:                       # noqa: BLE001
+    _cred = [f"el verificador de credenciales fallo: {_e}"]
+check(not _cred, f"sin credenciales ni keys en los brand packs ({'; '.join(_cred[:3]) or 'ninguna'})")
 marcas = [os.path.splitext(os.path.basename(x))[0] for x in packs]
 colores = []
 for x in packs:
@@ -170,11 +265,61 @@ for x in packs:
 literal = re.compile("|".join(re.escape(m) for m in marcas + colores) or r"$^", re.I)
 quemadas = []
 for dp, _dn, fn in os.walk(os.path.join(BASE, "scripts")):
+    # los TESTS pueden citar el pack de ejemplo: es parte de la skill
+    # publicada y hay que probarlo. El codigo de produccion no.
+    if os.path.basename(dp) == "_tests":
+        continue
     for f in fn:
         if f.endswith((".py", ".json")):
             if literal.search(open(os.path.join(dp, f), encoding="utf-8", errors="ignore").read()):
                 quemadas.append(f)
 check(not quemadas, f"sin marcas quemadas en scripts/ ({', '.join(quemadas) or 'ninguna'})")
+
+# prosa limpia: la skill esta en espanol/ingles. Un ideograma, un kana o un
+# hangul dentro son BASURA de una generacion (no una palabra), y publicar
+# eso es publicar un texto roto que nadie caza: se lee como un fallo de
+# tipografia y se asume que es una decision. (Se ha colado uno en
+# `principios.md`: "la pieza **parece**<CJK>".)
+#
+# La DEFINICION de "basura de otra generacion" vive en `auditar_mapa.py`
+# (RANGOS_BASURA / RE_BASURA) y la comparten los dos sitios donde puede
+# colarse: el ARBOL (aqui) y el HISTORIAL (los mensajes de commit, que lo
+# comprueba el propio auditor). Dos definiciones serian dos reglas que se
+# pueden divergir.
+sys.path.insert(0, os.path.join(BASE, "scripts"))
+from auditar_mapa import RE_BASURA as _re_otro_idioma  # noqa: E402
+_basura = []
+for _dp, _dn, _fn in os.walk(BASE):
+    if "__pycache__" in _dp:
+        continue
+    for _f in _fn:
+        if not _f.endswith((".md", ".py", ".json")):
+            continue
+        _ruta = os.path.join(_dp, _f)
+        try:
+            _texto = open(_ruta, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        _m = _re_otro_idioma.search(_texto)
+        if _m:
+            _basura.append(f"{os.path.relpath(_ruta, BASE)}: '{_m.group(0)}'")
+check(not _basura,
+      f"sin texto de otro idioma en la skill ({', '.join(_basura[:3]) or 'ninguno'})")
+
+# prosa coherente con la doctrina: una capacidad que la pieza puede necesitar
+# no se declara de otro modo. La palabra "opcional" era un motivo para
+# entregar menos en silencio; la doctrina es DECLARAR (references/capacidades.md).
+# El mapa, los conteos y los enlaces siguen en verde cuando la palabra vuelve a
+# colarse: lo unico que baja es el liston. Por eso el guard lee la PROSA.
+try:
+    sys.path.insert(0, os.path.join(BASE, "scripts"))
+    import _guard_doctrina as _GD
+    _faltas_doctrina = _GD.violaciones(BASE)
+    check(not _faltas_doctrina,
+          f"la prosa no declara de otro modo una capacidad que la pieza puede "
+          f"necesitar ({', '.join(f'{f}: {t[:44]}' for f, _m, t in _faltas_doctrina[:3]) or 'ninguna'})")
+except Exception as _e_doctrina:      # noqa: BLE001
+    check(False, f"el guard de doctrina se pudo cargar y correr ({_e_doctrina})")
 
 # código limpio: sin imports ni variables muertas, sin nombres indefinidos
 # (el lint encontró aquí un ease aplicado dos veces y lógica a medio hacer)
@@ -299,7 +444,7 @@ for d_ in ("", "ffmpeg_tools"):
             _terceros9 |= {m_.split(".")[0] for m_ in mods_} - _stdlib9 - _locales9
 _declaradas9 = set()
 for n_ in ast.parse(open(os.path.join(BASE, "scripts", "check_env.py"), encoding="utf-8").read()).body:
-    if isinstance(n_, ast.Assign) and getattr(n_.targets[0], "id", "") in ("LIBS_CRITICAS", "LIBS_OPCIONALES"):
+    if isinstance(n_, ast.Assign) and getattr(n_.targets[0], "id", "") in ("LIBS_CRITICAS", "LIBS_DECLARABLES"):
         _declaradas9 |= set(ast.literal_eval(n_.value))
 check(_terceros9 == _declaradas9,
       f"check_env declara exactamente las librerías que se importan (fantasma: "
@@ -346,7 +491,15 @@ req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
        "scripts/medir_mezcla.py", "scripts/retakes.py",
        "scripts/audio_viz.py", "scripts/auditar_plan.py",
        "scripts/verificar_ritmo.py", "scripts/sfx.py", "scripts/auto_qa.py",
-       "scripts/poster_frame.py", "references/remotion.md",
+       "scripts/poster_frame.py", "scripts/hand_draw.py",
+       "scripts/efectos_talking_head.py",
+       "scripts/data/efectos_talking_head.json",
+       "scripts/data/motion_ui.json",
+       "references/efectos-talking-head.md",
+       "references/motion-ui.md",
+       "scripts/repertorio.py",
+       "scripts/data/repertorio.json",
+       "references/remotion.md", "references/hand-draw.md",
        "references/hyperframes.md", "references/instalacion.md",
        "references/dramaturgia.md", "references/auto-qa.md",
        "references/montaje.md",
@@ -371,14 +524,36 @@ req = ["SKILL.md", "references/brand-packs.md", "references/estilos.md",
 for f in req:
     check(os.path.exists(os.path.join(BASE, f)), f"existe {f}")
 readmes_internos, zips_internos = [], []
+def _git_ignorado(rel_f):
+    """True si git ya excluye el archivo: no puede llegar a una distribucion,
+    asi que no es basura de la skill (el .DS_Store lo regenera Finder en
+    macOS y hacia fallar la validacion de la copia del repo para siempre)."""
+    try:
+        p = subprocess.run(["git", "check-ignore", "-q", os.path.join(BASE, rel_f)],
+                           cwd=os.path.dirname(BASE), capture_output=True, timeout=10)
+        return p.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+def _basura_del_sistema(rel_f):
+    """El .DS_Store lo pone el sistema, no la skill.
+
+    En el repo, git ya lo excluye. En la copia INSTALADA (que vive fuera de
+    un repo, en ~/.minimax/skills) `git check-ignore` no aplica y el archivo
+    se cuela: Finder lo regenera en cuanto el usuario abre la carpeta y la
+    validacion nunca converge. Un check que no puede dar verde es un check
+    roto, no una garantia: aqui se descarta el archivo del sistema y se
+    sigue vigilando la basura de verdad (.zip, .bak...).
+    """
+    return os.path.basename(rel_f) == ".DS_Store"
 for dp, _dn, fn in os.walk(BASE):
     if "__pycache__" in dp:
         continue
     for f in fn:
         rel_f = os.path.relpath(os.path.join(dp, f), BASE)
-        if f.lower().startswith("readme"):
+        if f.lower().startswith("readme") and not _git_ignorado(rel_f):
             readmes_internos.append(rel_f)
-        if f.lower().endswith(".zip") or f == ".DS_Store":
+        if (f.lower().endswith(".zip") or f == ".DS_Store") and not (
+                _git_ignorado(rel_f) or _basura_del_sistema(rel_f)):
             zips_internos.append(rel_f)
 check(not readmes_internos, f"sin README.md en ninguna subcarpeta de la skill ({', '.join(readmes_internos) or 'ninguno'})")
 check(not zips_internos, f"sin archivos .zip ni .DS_Store dentro de la skill ({', '.join(zips_internos) or 'ninguno'})")
@@ -403,6 +578,18 @@ for s in sorted(scripts_mencionados):
 
 # 3b. sin huérfanos: todo archivo del skill debe ser encontrable desde algún .md
 mencionados_todos = set(re.findall(r"(?:references|scripts|film|demo)/[\w\-./]+\.(?:md|json|py|mp4|mp3|png)", corpus))
+# El CANONICO de las suites (scripts/data/suites.json) es un indice VALIDO: las
+# suites que declara son encontrables por el. Antes las enumeraba el SKILL.md;
+# ahora las declara el dato, porque en la prosa eran ruido para el agente (se
+# las leia en cada peticion) y una bomba de relojería para el limite de
+# palabras del SKILL.md.
+try:
+    with open(os.path.join(BASE, "scripts", "data", "suites.json"), encoding="utf-8") as _fh:
+        _suites_canon = (json.load(_fh) or {}).get("suites") or []
+except (OSError, ValueError):
+    _suites_canon = []
+for _s in _suites_canon:
+    mencionados_todos.add("scripts/_tests/" + _s)
 huerfanos = []
 for dp, _dn, fn in os.walk(BASE):
     if "__pycache__" in dp:
@@ -450,14 +637,36 @@ for _node in _rp_tree.body:
 _muestras_dict = json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8"))["escenas"]
 _n_sc = len(_scenes_ast)
 _malas_doc = []
-for _doc in ("SKILL.md", "references/escenas.md", "references/plan-video.md", "references/arquitectura.md"):
-    _txt_d = open(os.path.join(BASE, _doc), encoding="utf-8").read()
-    _pat_d = (r"(\d+)\s+escenas\s+\(references/escenas\.md\)" if _doc.endswith("arquitectura.md") else
-              r"(\d+)\s+(?:tipos\s+(?:de\s+escena|del\s+plan)|scene\s+types)|(\d+)/\2\s+(?:escenas|scenes)")
-    for _m in re.finditer(_pat_d, _txt_d):
-        _num = int(_m.group(1) or _m.group(2))
-        if _num != _n_sc:
-            _malas_doc.append(f"{_doc}: {_m.group(0)}")
+# El tamaño del catálogo se comprueba con la REGLA del guard
+# (`auditar_mapa.FORMAS_CATALOGO`), no con una lista de frases: la prosa dice
+# el tamaño de muchas maneras y una lista solo vigila las que alguien pensó.
+# MEDIDO: la puerta daba verde con 18 cifras falsas en 12 ficheros porque solo
+# miraba 4 documentos con 2 frases. Ahora mira TODA la prosa con la misma tabla
+# que la herramienta usa para reescribirla (una idea, un canónico).
+import auditar_mapa as _AM  # noqa: E402
+_docs_catalogo = [("SKILL.md", os.path.join(BASE, "SKILL.md"))]
+_refs_dir_c = os.path.join(BASE, "references")
+if os.path.isdir(_refs_dir_c):
+    for _n_c in sorted(os.listdir(_refs_dir_c)):
+        if _n_c.endswith(".md"):
+            _docs_catalogo.append((f"references/{_n_c}",
+                                   os.path.join(_refs_dir_c, _n_c)))
+for _n_c in ("README.md", "README.en.md"):
+    _p_c = os.path.join(os.path.dirname(BASE), _n_c)
+    if os.path.exists(_p_c):
+        _docs_catalogo.append((_n_c, _p_c))
+for _etq_c, _ruta_c in _docs_catalogo:
+    _txt_d = open(_ruta_c, encoding="utf-8").read()
+    for _h in _AM._cifras_del_catalogo(_txt_d):
+        if _h["exclusion"] or _h["cifra"] == _n_sc:
+            continue
+        _malas_doc.append(f"{_etq_c}: {_h['fragmento']}")
+    for _d in _AM._descomposiciones_del_catalogo(_txt_d):
+        if _d["primera"] + _d["segunda"] != _n_sc:
+            _malas_doc.append(f"{_etq_c}: {_d['fragmento']}")
+    for _p in _AM._pares_del_catalogo(_txt_d):
+        if _p["primera"] != _n_sc or _p["segunda"] != _n_sc:
+            _malas_doc.append(f"{_etq_c}: {_p['fragmento']}")
 check(not _malas_doc, f"la doc (ES/EN) cuenta {_n_sc} escenas como el código ({'; '.join(_malas_doc) or 'coincide'})")
 _sin_m = sorted(set(_scenes_ast) - set(_muestras_dict))
 check(not _sin_m, f"cada escena tiene muestra en escenas_muestra.json ({', '.join(_sin_m) or 'todas'})")
@@ -484,9 +693,38 @@ try:
     for ancho, alto in ((1080, 1920), (1920, 1080)):
         R.formato(ancho, alto)
         ctx = R.Ctx()
+        # el aviso de recorte se limpia al EMPEZAR el formato: el bloque de
+        # estres (copy x2) deja la lista poblada y, sin esto, la primera escena
+        # del formato siguiente se cargaba los recortes de la anterior
+        getattr(R, "RECORTES", []).clear()
         fuera, escenas_ok = [], 0
+        fuera_letra = []
+        fuera_copy = []
+        # espia de la letra: el motor no puede dibujar texto por debajo de su
+        # PROPIO piso (MIN_LETRA). Se mide el tamaño AUTORADO (el que escribe el
+        # motor): si una escena lo incumple con un texto de tamaño fijo, el QA
+        # la rechaza siempre y la pieza no se puede entregar ni acortando el
+        # copy. Se mide el máximo por texto (la entrada con resorte pasa por
+        # tamaños chicos: el tamaño en reposo es el mayor).
+        _tam_texto = {}
+        _ID = __import__("PIL.ImageDraw", fromlist=["ImageDraw"])
+        _texto_orig = _ID.ImageDraw.text
+
+        def _espia_letra(self, xy, text, fill=None, font=None, *a, **k):
+            if font is not None and str(text).strip() and self.im.size == (R.W, R.H):
+                t = str(text)
+                if any(c.isalnum() for c in t):
+                    s = int(getattr(font, "size", 0))
+                    if s > _tam_texto.get(t, 0):
+                        _tam_texto[t] = s
+            # se llama a la ORIGINAL guardada: por el atributo de la clase se
+            # llamaria a la espia (recursion infinita)
+            return _texto_orig(self, xy, text, fill, font, *a, **k)
+
+        _ID.ImageDraw.text = _espia_letra
         for nombre, fn in R.SCENES.items():
             e = dict(muestras.get(nombre, {"from": 0, "to": 5, "at": {}}), tipo=nombre)
+            _tam_texto.clear()
             try:
                 # además de 3 instantes, CADA entrada del plan (at + 0/16/33/100 ms):
                 # ahí los resortes son diminutos y nacen las geometrías inválidas
@@ -518,11 +756,38 @@ try:
                 # ignora la zona segura y en el tope el contenido queda bajo la UI
                 if f < 0.75:
                     fuera.append(f"{nombre} x{f:.2f}")
+                # el piso de letra: ninguna escena dibuja texto por debajo de
+                # MIN_LETRA (el glifo "✓" no cuenta: no tiene alfanumericos)
+                bajo = {t_: s_ for t_, s_ in _tam_texto.items() if s_ < R.MIN_LETRA}
+                if bajo:
+                    t_malo = min(bajo, key=lambda k: bajo[k])
+                    fuera_letra.append(f"{nombre} {bajo[t_malo]} px ({t_malo[:26]!r})")
+                # el copy que una escena recorta se pierde en silencio: la
+                # pieza sigue siendo legible, pero nadie sabe que le falta
+                recortes = list(getattr(R, "RECORTES", []))
+                R.RECORTES.clear()
+                # un NOMBRE DE ARCHIVO no es copy: la escena que lo dibuja lo
+                # recorta a proposito (para que no quede ilegible) y lo deja
+                # documentado. El recorte que importa es el de un texto que el
+                # espectador tiene que leer.
+                recortes = [rc for rc in recortes
+                            if not str(rc.get("texto", "")).lower().endswith(
+                                (".wav", ".mp3", ".mp4", ".m4a", ".aiff", ".mov"))]
+                if recortes:
+                    fuera_copy.append(f"{nombre}: {recortes[0]['texto'][:30]!r}")
                 escenas_ok += 1
             except Exception as ex:
                 check(False, f"escena {nombre} {ancho}x{alto}: {type(ex).__name__}: {ex}")
         check(escenas_ok == n_total,
               f"{ancho}x{alto}: {n_total}/{n_total} escenas renderizan ({escenas_ok}/{n_total})")
+        check(not fuera_letra,
+              f"{ancho}x{alto}: ninguna escena dibuja texto bajo el piso de letra "
+              f"({R.MIN_LETRA} px)"
+              + ("" if not fuera_letra else ": " + "; ".join(fuera_letra)))
+        check(not fuera_copy,
+              f"{ancho}x{alto}: ninguna escena recorta su copy en silencio"
+              + ("" if not fuera_copy else ": " + "; ".join(fuera_copy)))
+        _ID.ImageDraw.text = _texto_orig
         check(not fuera, f"{ancho}x{alto}: muestras caben en la zona segura sin encogerse "
                          f"bajo x0.75 ({', '.join(fuera) or 'todas'})")
         # fondo vivo: en el hold asentado la imagen cambia lo que auto_qa exige
@@ -942,7 +1207,9 @@ except (Exception, SystemExit) as ex:
 
 try:
     import aplicar_edl as AE
-    edl_tmp = os.path.join(tempfile.gettempdir(), "editoria_val_edl.txt")
+    # ruta PROPIA de esta corrida: una ruta fija en el temp se pisa si hay
+    # dos validaciones a la vez (y el fallo sale como un FAIL del motor)
+    edl_tmp = os.path.join(_mkdtemp(prefix="editoria_edl_"), "val_edl.txt")
     open(edl_tmp, "w", encoding="utf-8").write("5.000-7.000\n# comentario\n1.000-3.000\n2.500-4.000\n\n")
     segs = AE.leer_edl(edl_tmp)
     check(segs == [(1.0, 4.0), (5.0, 7.0)], f"aplicar_edl: ordena y fusiona ({segs})")
@@ -1019,19 +1286,19 @@ try:
     # medir_lufs sobre un tono sintetico
     r = subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
-         "-i", "sine=frequency=440:d=1", "-c:a", "aac", os.path.join(tempfile.gettempdir(), "editoria_val_lufs.m4a")],
+         "-i", "sine=frequency=440:d=1", "-c:a", "aac", os.path.join(_TMP_RUN, "lufs.m4a")],
         capture_output=True, timeout=60)
     if r.returncode == 0:
-        lufs = VA.medir_lufs(os.path.join(tempfile.gettempdir(), "editoria_val_lufs.m4a"))
+        lufs = VA.medir_lufs(os.path.join(_TMP_RUN, "lufs.m4a"))
         check(-40 < lufs < 0, f"variantes: medir_lufs ({lufs:.1f} LUFS)")
-        os.remove(os.path.join(tempfile.gettempdir(), "editoria_val_lufs.m4a"))
+        os.remove(os.path.join(_TMP_RUN, "lufs.m4a"))
     else:
         check(False, "variantes: no se pudo sintetizar audio de prueba")
 except (Exception, SystemExit) as ex:
     check(False, f"smoke variantes: {ex}")
 
 try:
-    _base = os.path.join(tempfile.gettempdir(), "editoria_val_thumb.png")
+    _base = os.path.join(_TMP_RUN, "thumb.png")
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
                     "-i", "color=c=#1e1e28:s=640x360", "-frames:v", "1", _base], check=True)
     r2 = subprocess.run(
@@ -1043,16 +1310,16 @@ try:
         from PIL import Image as _I
         r = subprocess.run(
             [sys.executable, os.path.join(BASE, "scripts/ffmpeg_tools/thumbnail.py"),
-             _base, "--texto", "PRUEBA UNO", "-o", os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")],
+             _base, "--texto", "PRUEBA UNO", "-o", os.path.join(_TMP_RUN, "thumb_out.png")],
             capture_output=True, timeout=60)
-        ok_thumb = r.returncode == 0 and os.path.exists(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
+        ok_thumb = r.returncode == 0 and os.path.exists(os.path.join(_TMP_RUN, "thumb_out.png"))
         if ok_thumb:
-            im = _I.open(os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png"))
+            im = _I.open(os.path.join(_TMP_RUN, "thumb_out.png"))
             ok_thumb = im.size == (1280, 720)
         check(ok_thumb, "thumbnail: compone 1280x720")
     else:
         print("AVISO [no evaluado sin PIL]: thumbnail: compone 1280x720")
-    for p in (_base, os.path.join(tempfile.gettempdir(), "editoria_val_thumb_out.png")):
+    for p in (_base, os.path.join(_TMP_RUN, "thumb_out.png")):
         if os.path.exists(p):
             os.remove(p)
 except (Exception, SystemExit) as ex:
@@ -1171,10 +1438,139 @@ except (Exception, SystemExit) as ex:
 
 # 8. tests unitarios (scripts/_tests): estimación de voz, subtítulos por
 #    hablante, lectura de referencias, capítulos — los contratos de los módulos
-_ut = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", os.path.join(BASE, "scripts", "_tests")],
-                     capture_output=True, text=True, timeout=300)
+# 8. tests unitarios (scripts/_tests): estimación de voz, subtítulos por
+#    hablante, lectura de referencias, capítulos — los contratos de los módulos.
+#    La corrida va INSTRUMENTADA (scripts/_censo_clis.py): ademas de correr
+#    los tests, deja registrado que scripts se ejecutaron de verdad, que es
+#    lo que permite contrastar el mapa de CLIs verificadas con un HECHO y no
+#    con una declaracion. Mismo coste: una sola corrida de la suite.
+# El mapa medido vive en el temporal PROPIO de esta corrida, no en el temp
+# del sistema: dos validaciones a la vez no se pisan (que fue justo el
+# motivo de que esta corrida tenga el suyo). Y el nombre es del proceso,
+# no fijo: el guard de temporales unicos lo vigila.
+_mapa_medido = os.path.join(_TMP_RUN, "censo_clis.json")
+_ut = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "_censo_clis.py"),
+                      "--salida", _mapa_medido],
+                     capture_output=True, text=True, timeout=900)
 _ut_res = (_ut.stderr.strip().splitlines() or ["?"])[-1]
 check(_ut.returncode == 0, f"tests unitarios de scripts/_tests ({_ut_res})")
+# 8b. el mapa de CLIs verificadas tiene que COINCIDIR con lo que la suite
+# ejecuta de verdad. El mapa es una declaracion (la hizo alguien); si un
+# test existe pero ha dejado de ejecutar la CLI, el mapa miente y el guard
+# de cobertura no lo ve. Aqui se mide: la MISMA corrida lo deja
+# registrado, y se contrasta con el mapa.
+_medido = {}
+try:
+    with open(_mapa_medido, encoding="utf-8") as _fh:
+        _medido = json.load(_fh)
+except (OSError, ValueError):
+    pass
+try:
+    os.remove(_mapa_medido)
+except OSError:
+    pass
+_declarado = {}
+try:
+    with open(os.path.join(BASE, "scripts", "data", "cli_verificadas.json"), encoding="utf-8") as _fh:
+        _declarado = (json.load(_fh) or {}).get("verificadas") or {}
+except (OSError, ValueError):
+    pass
+_sin_ejecutar = sorted(k for k in _declarado if k not in _medido)
+_sin_declarar = sorted(k for k in _medido if k not in _declarado)
+_detalle = ""
+if _sin_ejecutar or _sin_declarar:
+    _detalle = (f" (declaradas y no ejecutadas: {', '.join(_sin_ejecutar) or 'ninguna'}; "
+                f"ejecutadas y no declaradas: {', '.join(_sin_declarar) or 'ninguna'})")
+check(not _sin_ejecutar and not _sin_declarar,
+      f"el mapa de CLIs verificadas coincide con lo que la suite ejecuta de verdad{_detalle}")
+
+# 9. la skill es un sistema y no un archon: todo alcanzable desde SKILL.md,
+#    cada referencia con su canonico y sus vecinos, y el mapa sin contradicciones
+_mapa = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "auditar_mapa.py")],
+                       capture_output=True, text=True, timeout=300)
+check(_mapa.returncode == 0,
+      "la skill no tiene islas: mapa, canonicos y vecinos coherentes (scripts/auditar_mapa.py)")
+for _l in (_mapa.stdout.strip().splitlines() or [])[:6]:
+    if _l.strip().startswith(("MAPA:", "  ")):
+        print("   " + _l.strip())
+
+# 9b. las muestras de la galeria (el catalogo que la skill ensena) pasan el
+#     linter de copy. si no se lintan NUNCA, un fallo de copy en las muestras
+#     no lo ve nadie: el aviso preexistente del "bento de tres" vivia ahi sin
+#     que nadie lo notara. los AVISOS son heuristicos (el "bento de tres" no
+#     puede saber la intencion del autor) y no rompen; los FALLOS si.
+try:
+    import json as _json
+    import lint_copy as _LC
+    _muestras = _json.load(open(os.path.join(BASE, "scripts", "escenas_muestra.json"),
+                                encoding="utf-8"))["escenas"]
+    _fallos_muestras = []
+    for _nombre, _esc in _muestras.items():
+        _f, _a = _LC.analizar({"escenas": [dict(_esc, tipo=_nombre)]})
+        for _x in _f:
+            _fallos_muestras.append(f"{_nombre}: {_x['msg']}")
+    check(not _fallos_muestras,
+          "las muestras de la galeria pasan el linter de copy: "
+          + "; ".join(_fallos_muestras[:4]))
+except Exception as _e:                       # noqa: BLE001
+    check(False, f"no se pudieron lintear las muestras de la galeria: {_e}")
+
+# 10. los comandos que dice el SKILL.md se pueden correr: la doc no puede
+#     pedirle al agente un comando que el argparse rechaza
+sys.path.insert(0, os.path.join(BASE, "scripts"))
+try:
+    import _comandos_doc
+    _probs = _comandos_doc.verificar_todo(BASE)   # SKILL.md, referencias y README
+except Exception as _e:                       # noqa: BLE001
+    _probs = [f"el verificador de comandos fallo: {_e}"]
+for _p in _probs:
+    print("   comando documentado roto: " + _p)
+check(not _probs, f"los comandos documentados (SKILL.md, referencias y README) se pueden ejecutar "
+                   f"({len(_probs)} rotos)")
+
+# 10b. los comandos documentados, COPIADOS Y PEGADOS: el argumento del tipo
+#      equivocado. `argparse` no lo ve (un plan donde va el video es una
+#      cadena valida), y el agente que copia el comando se queda parado con
+#      un error que no esta en la doc. Este guard copia cada comando, lo
+#      corre con assets reales y separa el veredicto de la herramienta del
+#      comando roto.
+try:
+    import _comandos_copiables
+    _probs2, _inf2 = _comandos_copiables.verificar(BASE)
+except Exception as _e:                      # noqa: BLE001
+    _probs2 = [f"el guard de comandos copiables fallo: {_e}"]
+    _inf2 = {}
+for _p in _probs2:
+    print("   comando copiado roto: " + _p)
+if _inf2:
+    print(f"   comandos copiados: {_inf2.get('copiados', 0)} "
+          f"(saltados: {_inf2.get('saltados', 0)})")
+check(not _probs2, f"los comandos documentados, copiados y pegados, funcionan "
+                   f"({len(_probs2)} rotos)")
+
+# 11. la skill declara Windows 10/11, macOS y Linux: el codigo no puede
+#     depender de POSIX (senal POSIX, /tmp, shell de unix, rutas a mano)
+_POSIX = (
+    (r"\bsignal\.SIGALRM\b", "señal POSIX (no existe en Windows)"),
+    (r"\bos\.fork\b|\bmultiprocessing\.set_start_method\(['\"]fork", "fork de POSIX"),
+    (r"\bfcntl\.|\btermios\.", "módulo POSIX"),
+    (r"shell\s*=\s*True", "subprocess con shell de unix"),
+    (r"[\"']/tmp/", "ruta /tmp absoluta"),
+    (r"\bos\.path\.join\([^)]*[\"']/", "separador de unix pegado a mano"),
+)
+_posix_hits = []
+for _f in sorted(glob.glob(os.path.join(BASE, "scripts", "**", "*.py"), recursive=True)):
+    if "__pycache__" in _f:
+        continue
+    with open(_f, encoding="utf-8") as _fh:
+        _src = _fh.read()
+    for _pat, _que in _POSIX:
+        for _m in re.finditer(_pat, _src):
+            _line = _src[:_m.start()].count("\n") + 1
+            _posix_hits.append(f"{os.path.relpath(_f, BASE)}:{_line} {_que}")
+check(not _posix_hits,
+      f"el codigo no depende de POSIX (la skill declara Windows, macOS y Linux) "
+      f"({'; '.join(_posix_hits[:4]) or 'limpio'})")
 
 print()
 if fails:

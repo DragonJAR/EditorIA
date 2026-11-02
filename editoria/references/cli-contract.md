@@ -1,13 +1,21 @@
 # Contrato CLI de los scripts (SPEC-lite)
 
-Convención única para todos los scripts de `scripts/` y `scripts/ffmpeg_tools/`.
-Patrón tomado de kajisho5/ffmpeg-skill (MIT): flags compartidos, errores con
-taxonomía, probe primero. Lo que está aquí no se repite en cada script.
+Convención de las herramientas de `scripts/ffmpeg_tools/`: flags
+compartidos, errores con taxonomía, probe primero. Lo que está aquí no se
+repite en cada script.
 
 ## Flags compartidos
 
-Todo script nuevo usa `add_common(ap)` + `apply_common(args)` de
-`ffmpeg_tools/_comun.py` y termina con `emit(output, ...)`:
+Las CLIs de `ffmpeg_tools/` usan `add_common(ap)` + `apply_common(args)`
+de `_comun.py` y terminan con `emit(output, ...)`. 16 de las 17 cumplen el
+contrato entero; la excepcion es `variantes.py`: usa los flags compartidos,
+pero produce N variantes en un directorio y por eso imprime sus rutas en vez
+de emitir un JSON.
+
+**Alcance**: el contrato es de `ffmpeg_tools/`. Las CLIs de `scripts/` —las
+de análisis, render y medir— tienen su propia salida y sus propios errores, y
+todavía no pasan por `add_common`/`emit`: cuando se muevan, el contrato es
+este.
 
 | Flag | Efecto |
 |---|---|
@@ -60,3 +68,7 @@ Notes: la fuente era VFR, se conformó a 30 fps
 
 Si falla: `Done:` se vuelve `Failed:` con el `error.message` citado, no
 parafraseado. `Look: not needed` solo en trabajos sin cambio de imagen.
+
+---
+
+→ Canónico: `references/instalacion.md` · Dominio: operacion · Vecinos: `references/capacidades.md`, `references/arquitectura.md`, `references/mapa.md`

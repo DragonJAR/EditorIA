@@ -37,7 +37,8 @@
   que hacen ver profesional un video: iconos centrados al píxel (centro = h/2 del
   contenedor), bloques de texto centrados verticalmente en su tarjeta, columnas
   decorativas con centro matemático en W/2 (7 columnas: x=135+ci*135, no 90+ci*135),
-  centro de la mancha = centro del titular. Márgenes laterales unificados (90px).
+  centro de la mancha = centro del titular. Márgenes laterales unificados (151px,
+  los de la zona segura; ver `references/coherencia-espacial.md`).
   Revisar cada escena con esta lupa antes de entregar.
 - 2026-10-03 · **Flotación idle**: `flota(t,t0,amp,freq)` — respiración sutil (±4-6px)
   en elementos ya asentados (tarjetas, burbujas). Nada se queda totalmente quieto.
@@ -230,7 +231,9 @@
   8s 1080x1920@30: Remotion 371.9 kB/54s, HyperFrames 525 kB/64s; ambos QA
   limpio salvo flags de auto_qa en tramos casi estaticos (umbral, no defecto).
   Selector: HTML/GSAP -> HyperFrames; React/data-driven -> Remotion;
-  montaje/post/QA -> FFmpeg. Los tres son opcionales y complementarios.
+  montaje/post/QA -> FFmpeg. Los tres son complementarios: ninguno es un
+  requisito del motor, son capacidades que la pieza declara cuando las
+  necesita (ver `capacidades.md`).
 - 2026-10-04 · **HyperFrames exige Node 22+** (no 18+): requisito oficial
   del README de heygen-com/hyperframes, verificado en la fuente. El check
   de entorno refleja "Remotion 18+ / HyperFrames 22+". Via oficial
@@ -281,6 +284,8 @@
 - 2026-10-05 · **VP9 con alfa: leer con -c:v libvpx-vp9**: El decoder nativo vp9 de ffmpeg descarta el canal alfa de un WebM (alpha_mode=1): un frame decodificado sale opaco aunque el archivo este bien. Para verificar o convertir (WebM -> ProRes 4444) forzar -c:v libvpx-vp9 ANTES de -i. ProRes 4444 lleva el alfa en pix_fmt yuva444p10le. _comun.verificar_alfa hace ambas comprobaciones.
 - 2026-10-05 · **Excepcion silenciada = escena rota sin aviso**: sc_kenburns componia una imagen RGB sobre una capa RGBA (alpha_composite exige RGBA), el error se tragaba en un except y el aviso llamaba a info() sin importarlo: la escena nunca mostro la imagen y salia negra. Regla: un except en una escena debe avisar con una funcion importada y probada; el validador debe ejercitar el camino con datos reales cuando el camino feliz depende de un archivo.
 - 2026-10-05 · **Listas copiadas de SCENES se pudren**: auditar_plan.py tenia su propia lista de 13 tipos: tras sumar 11 escenas marcaba ERROR tipo desconocido en bars, gauge, etc. Los tipos validos se leen ahora del dict SCENES de render_plan.py (fuente unica, por regex: sin importar PIL). Cualquier catalogo que otra herramienta necesite se deriva, no se copia.
+- 2026-10-27 · **Un vuelo continuo es de la PIEZA, no de la escena**: cuando una escena se desplaza por su cuenta, la zona segura mide un mundo que se sale del cuadro y la escena se encoge sola (medido: 0,72 con el vuelo dentro de la escena). El vuelo es del global `camara` (que ademas ya traia el zoom: ahora trae tambien el PANEO `x0`->`x1`), que se aplica DESPUES del encaje de la zona segura: asi el mundo se escapa del encuadre porque la camara se ha ido, que es lo que pasa de verdad. Y es lo que mantiene la pieza VIVA: un trazo que se arrastra despacio cambia tan pocos pixeles que el medidor lo lee como cuadro congelado (medido: 37 % de la pieza "muerta" sin el vuelo; 0 % con el vuelo).
+- 2026-10-27 · **Un elemento que hace de muchas cosas se dibuja con UNA funcion**: la linea que revela el logotipo, llena la barra, se enrosca, underlines el lema y es el camino de las estaciones es el MISMO trazo. En la skill es `trazado` (puntos, progreso, cola que se apaga, degradado de color) y lo que cambia de un uso a otro son los PUNTOS, no la funcion. Patrones: el trazo se dibuja en pasos FINOS (la cola que se apaga y el degradado son por punto, no por tramo: con un tramo solo -una recta- la cola entera se apagaba o no se apagaba nunca) y sobre una CAPA propia (ImageDraw con alfa REEMPLAZA el pixel: una cola que se apaga borraria lo que hubiera debajo).
 - 2026-10-05 · **Un import roto en _comun tumba todo el kit**: v1.2.0 anoto hex_a_rgb con Tuple sin importarlo: NameError al importar _comun y 14 FALLOS en validate_skill (render_plan, montaje, caption, thumbnail, variantes...). Correr python scripts/validate_skill.py antes de cada commit; un SKILL VALIDO es la condicion minima para publicar.
 - 2026-10-05 · **Compilar no es validar: renderizar cada escena y mirarla**: El smoke test (llamar la escena a 3 tiempos) pasaba 28/28 mientras stats solapaba cifras, versus desbordaba el cuadro, hoy pisaba rótulo y fecha, el confeti y la oferta se pisaban en 16:9 y pago tocaba bajo la UI. Patrón: scripts/galeria.py renderiza cada escena y herramienta en 9:16 y 16:9, pasa auto_qa y arma resumen.png; validate_skill exige además que cada muestra quepa en la zona segura (escala_segura >= x0.75) y que ningún hold quede congelado (umbral de auto_qa) en los dos formatos. Verificado 2026-10-05.
 - 2026-10-05 · **Letra en unidad() y pilas medidas: el mismo diseño en 9:16 y 16:9**: Posiciones en fracciones de H con letra fija en px (o en W) se pisan al cambiar de formato: W*0.055 = 59 px en 9:16 y 105 px en 16:9. Patrón: tamaños en unidad() (lado corto), bloques apilados con pila() que encoge todo junto si no cabe, contenido dentro de caja_segura(), escenas de lectura en COLUMNA centrada a 1080 px en 16:9. Verificado con hojas de las 28 escenas en ambos formatos 2026-10-05.
@@ -292,3 +297,26 @@
 - 2026-10-06 · **Un comando fallido nunca borra lo que lee**: _comun.run borraba cmd[-1] tras cualquier fallo para limpiar la salida parcial de ffmpeg; en ffprobe cmd[-1] es la ENTRADA: un probe sobre un .json borró scripts/demo_plan.json y el commit siguiente se llevó el borrado (git add -A). Solo se limpia si el binario es ffmpeg y el archivo no es un -i. validate_skill lo prueba con ffprobe y ffmpeg fallidos sobre un archivo real.
 - 2026-10-06 · **Fundido con ease en ffmpeg: no vale su costo**: xfade=transition=custom con smoothstep (expr por píxel: st(0,1-P);st(1,ld(0)*ld(0)*(3-2*ld(0)));A*(1-ld(1))+B*ld(1)) funciona pero cuesta ~60x (19.5 s vs 0.3 s por transición de 0.5 s a 1080p). Las herramientas ffmpeg (pase, transicion, audio_viz) se quedan con el fundido lineal estándar de todo NLE (2 puntos de 'arranque' en el banco por transición, aceptados a sabiendas); el motor de escenas sí usa ease porque compone en Python.
 - 2026-10-18 · **Guards de importacion van tras parse_args y bajo __main__**: Llamar sys.exit en el tope del modulo al faltar PIL o numpy rompia --help (rc=1 sin usage) en 4 CLIs (alinear, beat_grid, medir_mezcla, thumbnail) e impedia importar render_plan como libreria. Regla: diferir el chequeo de dependencias opcionales hasta despues de ap.parse_args() o restringir sys.exit a __name__ == '__main__'; para audio f32le de ffmpeg, struct.unpack y math dan un fallback determinista en stdlib (100.0 BPM exactos en 0.96s).
+
+- 2026-10-22 · **Un comando de otra herramienta no lo verifica la puerta**: los flags de la cadena externa (Node, Remotion, HyperFrames: `npx tsc --noEmit`, `--browser-executable`, `npx skills add ...`) no son CLIs de la skill, asi que el verificador de comandos documentados no los ejecuta ni los comprueba. Documentarlos como externos es la honestidad minima: quien los lea sabe que estan SIN vigilar. (Y el verificador SI ve los flags de un subcomando nuestro: intercepta `argparse.parse_args` con los argumentos reales, asi que `--variantes` y su alias `-n` se miran los dos.)
+
+- 2026-10-24 · **Las capacidades no son "opcionales": se DECLARAN**: la palabra "opcional" servia para dos cosas distintas —"el motor no lo necesita" (ciertas) y "la pieza no lo necesita" (falso: nadie sabe si la pieza lo necesita hasta hacerla)— y confundirlas permitia entregar menos en silencio. Regla: el liston es la calidad del resultado, no la comodidad del entorno; si una capacidad falta, se dice en la PRIMERA respuesta, con su comando de instalacion, y se entrega la mejor version que se pueda mientras tanto. Fuente unica: `references/capacidades.md`. El detector (`scripts/check_env.py`) dice que falta y como se instala; el guard de prosa (`scripts/_guard_doctrina.py`) caza que la palabra vuelva a colarse. Medido: 6 frases rotas corregidas (`instalacion.md`, `scene-patterns-from-internet.md`, `check_env.py`) y la constante `LIBS_OPCIONALES` de `check_env.py` renombrada a `LIBS_DECLARABLES` para que el codigo no diga lo contrario que la prosa.
+- 2026-10-24 · **Firmas MG sin traer el repo**: quince lenguajes canónicos (flat, line art, iso, soft 3D, cel boil, collage, liquid, morph, Bauhaus, synthwave, aurora+glass, hanazi, sticker explainer, pixel, HUD) viven como tabla de firma+técnicas en `references/estilos-codigo.md`; prompt Familia 7; jurado de fidelidad en `recetas-ai-video.md` §7. No se importan demos, MP4, samples ni `mgaudio`.
+
+- 2026-10-25 · **Un veredicto lleva su contexto: el log dice de que commit es**: un
+  log de `validate_skill.py` dice "SKILL VALIDO" sin decir de que ejecucion es: hay
+  docenas de logs de noches distintas, todos con el mismo nombre base, y leer el
+  verde del fichero equivocado es atribuir a HOY el veredicto de AYER. El texto verde
+  no miente, solo responde a una pregunta que nadie hacia (leido asi: el log de la
+  sesion hermana, que habia que cortar, parecia un verde que era de un log de la
+  ronda anterior). Regla: la PRIMERA linea del log es la cabecera, con el commit
+  medido (sha corto y rama); si el arbol tiene cambios sin commitear, lo dice,
+  porque entonces el veredicto es del arbol y no del commit; y si no hay repo (la
+  copia instalada no lo tiene) dice "SIN REPO" en vez de callar, porque un sha
+  inventado seria una mentira. Para leer que se esta midiendo sin pagar la puerta
+  entera: `python3 scripts/validate_skill.py --cabecera`. Lo vigila
+  `scripts/_tests/test_cabecera_commit.py`.
+
+---
+
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/animacion.md`, `references/fluidez.md`, `references/coherencia-espacial.md`

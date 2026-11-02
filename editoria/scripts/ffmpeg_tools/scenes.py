@@ -26,11 +26,13 @@ import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _comun import (add_common, apply_common, default_font_file, die, emit,
+from _comun import (add_common, apply_common, asegurar_padre as _asegurar_padre, default_font_file, die, emit,
                     escape_filter_path, ffmpeg_base, info, print_json, probe,
                     require_tool, run)
 
 SCORE_RE = re.compile(r"frame:(\d+)\s+pts:\d+\s+pts_time:([0-9.]+)")
+
+
 
 
 def detect_scenes(path, threshold, min_len, duration, ratio=3.0):
@@ -186,12 +188,14 @@ def main():
         result["highlights_rank_by"] = args.rank_by
         info(f"propuse {len(picks)} rangos highlight que suman {result['highlights_total']:.1f}s")
         if args.edl:
+            _asegurar_padre(args.edl)
             with open(args.edl, "w", encoding="utf-8") as fh:
                 for s, e in picks:
                     fh.write(f"{s:.2f}-{e:.2f}\n")
             info(f"guarde {args.edl}")
 
     if args.sheet:
+        _asegurar_padre(args.sheet)
         n = len(scenes)
         cols = min(4, max(1, n))
         rows = max(1, math.ceil(n / cols))
@@ -206,8 +210,8 @@ def main():
                      f"fontsize=h/14:box=1:boxcolor=black@0.55:boxborderw=4:x=6:y=6")
         vf = (f"select='{expr}',scale={tile_w}:-2{stamp},"
               f"tile={cols}x{rows}:padding=2:margin=2:color=0x202020")
-        run(ffmpeg_base() + ["-i", args.input, "-vf", vf, "-frames:v", "1",
-                             "-fps_mode", "vfr", args.sheet])
+        run(ffmpeg_base(texto=True) + ["-i", args.input, "-vf", vf, "-frames:v", "1",
+                                      "-fps_mode", "vfr", args.sheet])
         info(f"escribi {args.sheet}")
         result["sheet"] = args.sheet
 

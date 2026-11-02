@@ -255,6 +255,84 @@ Build a 20-second product launch video for {{PRODUCT}} using tokens from
    invented metrics.
 ```
 
+## Familia 7 — Film one-shot anclado a un estilo MG (plantilla de cuatro bloques)
+
+Cuando el brief nombra un lenguaje canónico («flat vector», «Bauhaus»,
+«pixel», «HUD cyberpunk», «aurora glass»…), no improvisar la firma. Elegir
+la fila en `references/estilos-codigo.md` y montar el prompt con estos
+cuatro bloques (el resto del scaffolding —How to work, Rules, Craft
+checklist— ya está cubierto por las Familias 2–3 y por el loop de QA):
+
+```
+You are the director, motion designer, engineer and sound designer of ONE
+{{DURATION}}-second motion-design film. Award-shortlist bar; a clean
+template-looking result is a fail.
+
+# Style
+{{STYLE_NAME from estilos-codigo.md}}
+
+# Output (fixed)
+- {{W}}×{{H}}, {{FPS}} fps, exactly {{DURATION}}.000 s, H.264 + AAC stereo
+  48 kHz, mastered to −14 LUFS, true peak ≤ −1.5 dBTP (EditorIA delivery).
+  Final file: video.mp4.
+
+# Suggested technical route
+{{MOTOR from estilos-codigo.md column — HyperFrames / Remotion / Canvas /
+ plan Python / Blender overlay}}. Prefer deterministic renderAt(t).
+
+# Creative seed
+{{ONE_LINER + beat sheet 0→hook→escalation→hero@60–75%→end hold 0.8–1.2s}}.
+Colors/fonts from brand pack or paleta.md — never invent a brand identity.
+Sound: genre that matches the style row; one cue sheet shared by picture and audio.
+
+# Signature features and key techniques
+{{PASTE the Firma + Técnicas clave cells for that row — do not dilute}}.
+Every signature must map to a moment on the beat sheet.
+```
+
+Sustituir solo Creative seed y Output (formato vertical, duración). Las
+signature features no se editan: son el criterio con el que un jurado
+independiente puntúa fidelidad de estilo (`recetas-ai-video.md` §7).
+
+Cuándo: showreel de estilo, explainer «en el look de X», prueba de
+dirección de arte antes del plan largo. Cuándo no: piezas con 46 escenas
+del motor Python ya tipadas — ahí manda `escenas.md` + `estilos.md`.
+
+## Cómo se pide un estilo canónico (no con adjetivos)
+
+Un estilo no se pide describiéndolo: se pide con su **firma** (los rasgos que lo
+hacen reconocible de un vistazo) y con sus **beats por segundo**. Es la regla
+que sale de los 15 estilos de `Vincentwei1021/mg-styles-15` (MIT), donde cada
+estilo viene con su receta; el catálogo está en `references/estilos-codigo.md`.
+
+**1. La firma se escribe verificable, con números.** No "que tenga movimiento
+elástico", sino "overshoot con `cubic-bezier(0.34,1.56,0.64,1)` y entrada
+escalonada de 2–4 frames". Un rasgo que no se puede comprobar es un rasgo que
+nadie va a mirar: si al final no se cumple, no se sabe si es que la técnica
+falló o es que el estilo no era ese.
+
+**2. El seed creativo lleva beats, en segundos.** Hook → escalada → momento
+firma → cierre, con las marcas de tiempo: "0,0–1,2 s hook: campo de color
+limpio y un círculo que entra con anticipación → estiramiento → aplastamiento →
+rebaso → asentamiento; 1,2–3,0 s la ciudad crece edificio a edificio; 3,0–5,5 s
+la cámara entra por una ventana; 5,5–8,0 s el relleno tapa el plano; 8,0–10,0 s
+todo colapsa en el logotipo". Sin beats, un modelo hace una pieza plana: todo
+entra igual y nada ancla.
+
+**3. Un solo cue sheet** para imagen y sonido: el mismo mapa de tiempos que
+lee el plan (`references/plan-video.md`) es el que leen los golpes. La pieza y
+el audio no se cuentan por separado.
+
+**4. Lo canónico manda sobre lo bueno.** Se puede cambiar el concepto, el copy
+y los nombres de marca si hay una idea más fuerte, pero el resultado tiene que
+seguir siendo **la forma canónica** de ese estilo y cumplir sus rasgos
+característicos: si no, no es ese estilo, es otro con nombre de ese.
+
+**Y después, el jurado**: otra sesión (o el mismo agente con la rúbrica encima)
+juzga la pieza y da una lista de arreglos por impacto —con timecode y un cómo
+concreto— y al menos uno tiene que subir la pieza, no solo pulirla. Ver
+`references/rubrica-premios.md` y `references/auto-qa.md`.
+
 ## Lo que NO se trae
 
 - Voces/SFX generados sin provenance cuando el proyecto exige derechos
@@ -265,3 +343,10 @@ Build a 20-second product launch video for {{PRODUCT}} using tokens from
   convierte en entregable.
 - Promesas de tiempo/costo de la tabla de arriba como garantía: son datos
   de terceros, no un SLA.
+- El catálogo externo de demos/MP4/samples ni una dependencia npm/Python
+  nueva: las firmas viven en `estilos-codigo.md`; el audio sigue en
+  `musica.py` / `sfx.py`.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/recetas-ai-video.md`, `references/estilos-codigo.md`, `references/scene-patterns-from-internet.md`, `references/copy.md`

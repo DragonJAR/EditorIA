@@ -2,7 +2,7 @@
 """Voz en off con ElevenLabs para un plan.json.
 Uso: source ~/.secrets.env && python voz_off.py plan.json -o voz.mp3 [--voz ID] [--model ID]
 El plan debe tener "voz" en cada escena. Genera un segmento por escena y los
-mezcla en sus tiempos (inicio de escena + 0.4s).
+mezcla en sus tiempos (inicio de escena + el aire de voz).
 Cache por hash del contenido (texto+voz+modelo) en ~/.cache/editoria/voz:
 no re-sintetiza (ni re-paga) segmentos idénticos entre proyectos.
 Dirección: el texto admite audio tags de eleven_v3 ([excited], [whisper],
@@ -13,7 +13,11 @@ La narración manda el reloj: mide cada segmento y falla si una voz pisa a la
 siguiente (antes de mezclar). Pre-TTS, auditar_plan.py estima lo mismo.
 La API key sale de $ELEVENLABS_API_KEY (nunca en el skill ni en archivos).
 """
-import os, sys, argparse, subprocess, hashlib
+import os, sys, argparse, subprocess, hashlib, re
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from speech_estimate import AIRE_VOZ  # el aire de voz: la MISMA constante que
+                                     # usa la prosa (auditar_mapa.py). Aqui no puede
+                                     # haber un 0,4 escrito a mano.
 try:
     import requests
 except ImportError:
@@ -35,6 +39,19 @@ VOCES = {  # roster probado con audio real (ver references/sonido.md)
 }
 DEFAULT_POR_IDIOMA = {"es": "fernanda", "en": "brian"}
 MODEL = "eleven_v3"  # soporta audio tags de dirección; fallback: eleven_multilingual_v2
+
+def texto_hablado(texto):
+    """El texto tal como se ESCUCHA (para el guion y la alineacion).
+
+    Los tags de direccion ([slowly], [calm]...) no se dicen: se leen como
+    instruccion para el modelo. Si quedaran en el guion, `alinear.py` los
+    contaria como palabras y cada ancla de palabra caeria una posicion
+    mas tarde. Los asteriscos de enfasis (*antes*) tampoco son palabras.
+    Mismo criterio que `speech_estimate.py`.
+    """
+    t = re.sub(r"\[[^\]]*\]", " ", texto)
+    return re.sub(r"\s+", " ", t.replace("*", " ")).strip()
+
 
 def cache_path(texto, voz_id, model):
     """Path content-addressed: el mismo texto+voz+modelo reusa el MP3."""
@@ -63,21 +80,60 @@ def duracion(path):
                         "-of", "csv=p=0", path], capture_output=True, text=True)
     return float(r.stdout.strip() or 0)
 
-def verificar_reloj(segs):
+def verificar_reloj(segs, duracion_video=None, tolerancia_fin=0.20):
     """La narración manda el reloj: mide cada segmento real. Si una voz pisa
     a la siguiente, amix las sumaría (dos voces a la vez): se falla ANTES de
     mezclar, diciendo cuánto alargar. Los segmentos quedan en caché (no se
-    re-pagan al re-ejecutar tras corregir el plan)."""
+    re-pagan al re-ejecutar tras corregir el plan).
+
+    `duracion_video` (la duración del plan, en segundos) añade la ÚLTIMA
+    comprobación, que es la que no se puede ver en el reloj entre escenas:
+    si la voz de la última escena termina después del final del video, la
+    narración SE CORTA contra el borde. No hay otra imagen que la tape: es
+    un defecto, no un aviso. Sin ese dato la comprobación no se hace (no
+    todas las llamadas saben la duración).
+
+    Ojo al leer el reloj a mano: la voz entra en `from + el aire` (AIRE_VOZ),
+    así que el fin de la voz es la duración CRUDA del wav MÁS el aire. Tomar
+    la duración del wav como "cuándo acaba la voz" hace ver desbordes que no
+    hay (o al revés)."""
     errores = []
+    ultimo = len(segs) - 1
     for k, (f, dl, e) in enumerate(segs):
         fin = dl / 1000 + duracion(f)
         if k + 1 < len(segs) and fin > segs[k + 1][1] / 1000:
             errores.append(f"escena {e['tipo']}@{e['from']}s: la voz dura hasta {fin:.2f}s y "
                            f"pisa la siguiente ({segs[k+1][1]/1000:.2f}s) — alargar la escena "
                            f"{fin - segs[k+1][1]/1000 + 0.2:.2f}s o recortar el texto")
-        elif fin > e.get("to", fin):
-            print(f"AVISO escena {e['tipo']}@{e['from']}s: la voz termina {fin - e['to']:.2f}s "
-                  f"después de la escena (cae sobre la siguiente imagen)", flush=True)
+            continue
+        to_v = e.get("to")
+        if to_v is None or fin <= to_v:
+            continue
+        # El aviso tiene que decir lo que pasa de verdad: si la voz se corta
+        # contra el final del video, lo dice el ERROR de abajo (un aviso que
+        # dice una cosa y el error otra es ruido). Y en la ultima escena no
+        # hay "siguiente imagen": lo que hay es lo que viene despues de la
+        # escena, o nada (el borde).
+        se_corta = (k == ultimo and duracion_video is not None
+                    and fin > duracion_video + tolerancia_fin)
+        if se_corta:
+            continue
+        if k < ultimo:
+            detalle = "cae sobre la siguiente imagen"
+        elif duracion_video is not None and duracion_video <= to_v + 0.05:
+            detalle = "se corta contra el final del video"
+        else:
+            detalle = "cae sobre lo que viene despues de la escena"
+        print(f"AVISO escena {e['tipo']}@{e['from']}s: la voz termina {fin - to_v:.2f}s "
+              f"después de la escena ({detalle})", flush=True)
+    if duracion_video and segs:
+        f, dl, e = segs[-1]
+        fin = dl / 1000 + duracion(f)
+        if fin > duracion_video + tolerancia_fin:
+            errores.append(f"escena {e['tipo']}@{e['from']}s: la voz termina {fin:.2f}s y el "
+                           f"video dura {duracion_video:.2f}s — la narración se CORTA contra "
+                           f"el final: acortar el texto "
+                           f"{fin - duracion_video:.2f}s o alargar el video")
     if errores:
         sys.exit("ERROR voces solapadas:\n  " + "\n  ".join(errores))
 
@@ -91,28 +147,48 @@ def main():
     ap.add_argument("--idioma", default="es", choices=["es", "en"],
                     help="idioma de la voz por defecto: la que hable el usuario")
     ap.add_argument("--model", default=MODEL)
+    ap.add_argument("--guion", default=None,
+                    help="escribe aqui el guion hablado (los campos 'voz' del plan, en "
+                         "orden de escena, sin los tags de direccion): es lo que se "
+                         "alinea con alinear.py para anclar animaciones a la palabra")
     import os as _os, sys as _sys
     _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
     from _comun import ayudar
     ayudar(ap, {'-o': 'audio de salida con la voz de todas las escenas (mp3)', '--model': 'modelo de voz de ElevenLabs'})
     a = ap.parse_args()
     voz_id = VOCES.get(a.voz, a.voz) if a.voz else VOCES[DEFAULT_POR_IDIOMA[a.idioma]]
-    from _comun import leer_json
+    from _comun import asegurar_padre, leer_json
     plan=leer_json(a.plan,"el plan")
+    if not plan.get("escenas"): sys.exit("ERROR: el plan no tiene 'escenas' con voz: " + a.plan)
+    asegurar_padre(a.out)
+    if a.guion: asegurar_padre(a.guion)
     segs=[]
+    guion=[]
+    pending=[]
     for i,e in enumerate(sorted(plan["escenas"],key=lambda s:s["from"])):
         vox=e.get("voz")
         if not vox: continue
         f=cache_path(vox, voz_id, a.model)
+        pending.append((i,e,vox,f))
+        delay_ms=int((e["from"]+AIRE_VOZ)*1000)
+        segs.append((f,delay_ms,e))
+        guion.append(texto_hablado(vox))
+    if not segs: sys.exit("El plan no tiene campos 'voz'")
+    if a.guion:
+        # el guion sale del MISMO plan que genera la voz: si se escribiera a
+        # mano, una palabra de mas desplaza TODAS las anclas de palabra en
+        # silencio y las animaciones caen sobre la palabra equivocada.
+        # Se escribe ANTES del TTS: el guion no depende de la API.
+        with open(a.guion,"w",encoding="utf-8") as fh:
+            fh.write("\n".join(guion)+"\n")
+        print(f"guion: {a.guion}",flush=True)
+    for i,e,vox,f in pending:
         if os.path.exists(f) and os.path.getsize(f) > 1500:
             print(f"cache escena {i} ({e['tipo']})",flush=True)
         else:
             print(f"TTS escena {i} ({e['tipo']}): {vox[:50]}…",flush=True)
             tts(vox, f, voz_id, a.model)
-        delay_ms=int((e["from"]+0.4)*1000)
-        segs.append((f,delay_ms,e))
-    if not segs: sys.exit("El plan no tiene campos 'voz'")
-    verificar_reloj(segs)
+    verificar_reloj(segs, duracion_video=plan.get("duracion"))
     # mezcla con delays
     fc=[]; amix=[]
     for i,(f,dl,_) in enumerate(segs):

@@ -1,13 +1,18 @@
-# Remotion (integración opcional)
+# Remotion (capacidad)
 
 Remotion (remotion.dev) es el framework de video programático en React:
 las composiciones son componentes, el video se renderiza con
-`npx remotion render`. EditorIA **no depende** de Remotion — el motor
-Python (`render_plan.py` + ffmpeg) cubre la mayoría de piezas y es más
-rápido de iterar. Esta referencia existe para saber cuándo Remotion
-es la mejor herramienta y cómo usarlo bien.
+`npx remotion render`.
 
-## Cuándo sugerir su instalación
+El motor Python (`render_plan.py` + ffmpeg) cubre la mayoría de piezas y
+es más rápido de iterar. **Pero "más rápido" no es "mejor"**: cuando la
+pieza es data-driven o de escenas reutilizables, Remotion da un resultado
+que el motor no da. Así que Remotion no es una opción de menú: es **la
+herramienta cuando la pieza la pide**, y si falta (Node 18+), se le dice al
+usuario con su comando de instalación (`npx create-video@latest`) en vez de
+entregar menos en silencio (ver `references/capacidades.md`).
+
+## Cuándo usarla (y declararla si falta)
 
 - Animaciones complejas data-driven (gráficos que dependen de datos
   externos, timelines con lógica condicional).
@@ -26,7 +31,10 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
   grande — el costo es real, no asumir gratuidad universal.
 - **Versiones fijadas**: todos los paquetes `@remotion/*` deben quedar en
   la misma versión exacta, sin `^` (ej. `4.0.532`). El scaffolder oficial
-  `npx remotion@latest new` ya lo deja así.
+  `npx create-video@latest` ya lo deja así. Ojo: `npx remotion@latest new`
+  **no funciona** — el paquete `remotion` no declara ningún binario (el CLI
+  vive en `@remotion/cli`), así que npm responde "could not determine
+  executable to run". Verificado contra el registro de npm.
 - **`tsc` correcto**: `npx tsc --noEmit` sin el paquete `typescript`
   instalado descarga el obsoleto `tsc@2.0.4` (NO valida nada). Después de
   `npm install`, usar `./node_modules/.bin/tsc --noEmit` o `npm run lint`.
@@ -59,11 +67,27 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
   de audio la conserve en el montaje (un clip sin audio rompe mezclas
   que asumen `[k:a]`).
 
+## Skills oficiales (on-demand)
+
+Cuando el proyecto **ya** es Remotion (no como menú de EditorIA):
+
+```bash
+npx skills add remotion-dev/skills
+```
+
+Router `/remotion-best-practices`; útiles en el flujo captions:
+`/remotion-captions` (tipo `Caption` JSON word-timed), `/remotion-render`,
+`/remotion-markup`. No clonar el monorepo `remotion-dev/remotion` ni sus
+skills internas de mantenimiento del framework.
+
 ## Cómo convive con EditorIA
 
 - EditorIA puede **generar los assets** (PNG con alfa, JSON de tiempos,
   guion) y Remotion componerlos — o al revés: Remotion renderiza una
   escena compleja y `aplicar_edl.py`/ffmpeg la integra al montaje.
+- Talking-head vertical por defecto: cadena
+  `flujo-talking-head.md` (Python/ffmpeg); Remotion solo si el brief pide
+  kit React o la pieza ya vive en Remotion.
 - **`/remotion-to-hyperframes` confirmado (one-way)**. Migra mecánicamente
   ~80% de una composición típica (`useCurrentFrame`/`interpolate` →
   tweens, `Sequence` → clips, frames → segundos) y valida con SSIM
@@ -73,3 +97,13 @@ LTS y luego `npm i remotion @remotion/cli` en la carpeta del proyecto.
 - Regla: si la pieza se resuelve en <10 escenas del plan, el motor Python
   suele ser más rápido. Remotion brilla a partir de lógica que Python
   expresaría con dificultad.
+- **Cierre en la puerta de EditorIA**: `npx remotion still` es QA barato de
+  frames; el MP4 entregable sigue la misma puerta que el resto de la skill:
+  `python scripts/qa_entrega.py final.mp4` y
+  `python scripts/puntuar.py final.mp4 --ejes "1=4,2=4,4=4,5=4,7=4"`
+  (con `--plan` si la pieza también usa el motor de plan). Loudness y spec
+  de plataforma se miden aquí, no en Remotion.
+
+---
+
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/hyperframes.md`, `references/flujo-talking-head.md`, `references/instalacion.md`, `references/prompt-motion-graphics.md`

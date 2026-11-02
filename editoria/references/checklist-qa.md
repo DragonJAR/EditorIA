@@ -65,6 +65,12 @@ confirman, tú corriges. Nada llega al usuario sin pasar el loop.
     flashes/pops accidentales en el render.
 18. **Loop seam check** (L1, piezas con loop): comparar frame 0 vs último frame
     (misma composición, posición y color). Si no empalman, el loop se nota.
+19. **Declaración de capacidades** (L1): si la pieza se entregó SIN una
+    capacidad que necesitaba (3D, Remotion, HyperFrames, transcripción local,
+    voz de marca), la entrega lo dice: qué falta, por qué se degrade, y con
+    qué comando se instala. Una pieza entregada sin su 3D y sin que nadie lo
+    diga no es una pieza económica: es una pieza incompleta
+    (`references/capacidades.md`).
 
 ## L2 — Diálogo y boundaries
 
@@ -145,7 +151,9 @@ Números, no sensaciones:
 
 - **Frozen time**: ≤1s por cada 30s de video (frozen = frame idéntico al
   anterior: nada se mueve en toda la imagen; un elemento estático sobre fondo
-  vivo no es frozen); ningún hold >0.6s salvo el CTA final.
+  vivo no es frozen); ningún hold >0.6s salvo el CTA final. Con grano,
+  `auto_qa` no lo ve entero: lo mide `medir_animacion` (`quieto`, sin grano)
+  y la puerta falla una racha > 1 s que no sea el cierre.
 - **Loudness**: −14 LUFS (enérgico) / −16 LUFS (calmo), TP −1.5 dB (tolerancia hasta −1), LRA 11 objetivo (mínimo ~3 LU).
   SFX −18…−12 dB bajo la voz, nunca por encima de la narración.
 - **Contraste de texto**: WCAG AA en todo texto sobre video (la paleta de un
@@ -202,3 +210,7 @@ El que construye no es el que juzga:
    (`auto_qa.py`, `auditar_plan.py`): la salida determinista ancla el juicio.
    Luego se sintetizan: dónde coinciden, qué atrapó cada uno que el otro no,
    qué detección es un falso positivo.
+
+---
+
+→ Canónico: `references/qa-entrega.md` · Dominio: qa · Vecinos: `references/auto-qa.md`, `references/rubrica-premios.md`, `references/direccion.md`

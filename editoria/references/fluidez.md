@@ -7,6 +7,11 @@ propósito, ningún corte es brusco o accidental, ninguna entrada es lineal.
 transiciones *dentro* de la escena.)
 
 ## Motor de movimiento
+- **Antes de animar, decide para qué**: coherencia espacial, indicación de
+  estado, explicación, evitar un cambio brusco, feedback o deleite. Si no lo
+  puedes nombrar, el movimiento sobra. El índice inverso intención → escena
+  (con la receta de movimiento de cada una) está en
+  `references/intencion-escena.md`.
 - **Resortes, no lineales**: toda entrada usa física de resorte (stiffness/damping)
   o `easeOutBack` (overshoot). Lo lineal se siente robótico; el resorte se siente vivo.
 - **easeInOutCubic** para desplazamientos largos; **easeOutCubic** para apariciones.
@@ -14,10 +19,40 @@ transiciones *dentro* de la escena.)
   hasta 10% solo en el elemento focal de piezas de alta energía.
   (Canónico aquí; `tecnicas-video.md` lo referencia.)
 - **Nada aparece de golpe**: fade + escala 0.9→1.0 + elevación, mínimo 0.35s.
+  El texto que abre (titular, rótulo) no se funde: se revela por máscara
+  desde su línea base (`_revela_clip`, `animacion.md` §6); el fundido queda
+  solo para las excepciones. Las listas entran en cascada a paso
+  `STAGGER` = 0.06 s (`escalonado`, `animacion.md` §4).
+- **Movimiento barato vs. movimiento con masa**: un `easeOutCubic` lleva de A
+  a B por una curva fija; un resorte **acelera, se pasa un pelo y se calma**.
+  Lo caro es lo que tiene masa. Cuando el elemento es pequeno (un cursor, un
+  boton), el rebote debe ser casi imperceptible: `stiff=260, damp=26` da 1,4%
+  de overshoot y asienta en 0,33 s.
+- **Resorte MULTI-DESTINO (`track`)**: cuando un valor cambia de objetivo
+  varias veces (un cursor que visita tres puntos, una caja que crece y luego
+  encoge, una barra que salta), **no se reinicia el resorte**: se suma un
+  resorte por cambio, cada uno con su instante. Asi el movimiento sigue
+  siendo continuo (nada frena en seco entre tramos) y sigue siendo
+  **funcion pura del tiempo**: el frame 812 se pinta sin simular los 811
+  anteriores, que es lo que permite el cache de frames y el render
+  incremental. Es la primitiva que usa el cursor de la escena `demo`.
+
+  ```python
+  paradas = [(0.0, 0.0), (1.0, 1.0), (3.0, 1.0), (4.0, 0.0)]
+  valor = track(t, paradas, stiff=260, damp=26)
+  ```
+
+  `paradas` es una lista `[(instante, valor), ...]` ordenada por instante: el
+  valor antes del primer cambio es `paradas[0][1]`, y cada cambio anade su
+  delta. Si dos tramos se solapan, el cursor no frena entre ellos.
 
 ## Continuidad
 - **Fondo vivo**: el mundo de fondo (blobs de color, partículas, ondas) se mueve
-  SIEMPRE, aunque sea lento. Un fondo congelado mata la fluidez. Sin rejillas
+  SIEMPRE, aunque sea lento. Un fondo congelado mata la fluidez. La cámara
+  también: push-in de `EMPUJE` = 6 % por escena (`animacion.md` §5), y lo
+  que se lee quieto (rótulo inferior) flota con `vida`. El
+  medidor lo vigila con `quieto` (sin grano): más de 1 s sin que nada se
+  mueva, fuera del cierre, no pasa la puerta. Sin rejillas
   ni líneas geométricas decorativas (ver `coherencia-espacial.md`; el brand
   pack puede habilitarlas si la marca las pide).
 - **Transiciones**: el idioma de transición lo fija el brand pack o el tono de
@@ -26,9 +61,14 @@ transiciones *dentro* de la escena.)
   máximo, nunca como costura por defecto. La fluidez manda en entradas,
   salidas y transiciones *dentro* de la escena; la costura *entre* escenas
   la fija el idioma de transición elegido.
-- **Salidas que cruzan el corte**: cada escena empieza a irse 0.25 s antes de
-  su fin y termina de irse 0.45 s DESPUÉS, debajo de la siguiente que ya
-  entra (`capa_salida` + `SOLAPE` en `componer`). Nunca un frame de fondo
+- **Salidas que cruzan el corte**: cada escena sigue entera hasta su fin y
+  termina de irse 0.32 s DESPUÉS, debajo de la siguiente que ya entra
+  (`capa_salida` + `SOLAPE`/`SOLAPE_PRE` en `componer`): sostiene el cuadro
+  hasta que llega el primer elemento nuevo (~+0.2 s) y a +0.3 s ya no queda
+  (< 2 %), así no hay fantasma bajo el texto nuevo. Con una
+  transición de máscara (iris, mancha, dissolve) la salida la hace la máscara:
+  la escena que sale se pinta SIN fundir (`instante_saliente`), si no la
+  máscara abre sobre fondo. Nunca un frame de fondo
   vacío entre escenas: eso es un parpadeo (medido con
   `medir_animacion.py --plan`; validate_skill lo exige). El fondo es UN mundo
   continuo para todo el video: no salta de lugar en los cortes.
@@ -38,8 +78,10 @@ transiciones *dentro* de la escena.)
 ## Ritmo
 - Los tiempos `at:{}` del plan anclan cada elemento a la palabra que se oye
   (o al beat). La animación respira con el contenido, no con un metrónomo.
-- Densidad: un evento de movimiento cada 0.8-1.5s. Más rápido abruma, más lento
-  aburre. Ojo: densidad de *movimiento*, no de *elementos* — un elemento nuevo
+- Densidad: **la banda que el motor vigila es 0,5-2,0 eventos/s** — fuera de
+  esa banda penaliza: menos de uno cada 2 s aburre, más de 2/s abruma. La
+  doctrina de diseño (más estrecha) es un evento cada 0,8-1,5 s, dentro de esa
+  banda. Ojo: densidad de *movimiento*, no de *elementos* — un elemento nuevo
   cada segundo es saturación, no dinamismo. El dinamismo es que los pocos
   elementos presentes estén vivos y armoniosos (ver "Saturación" en
   `principios.md`).
@@ -69,3 +111,7 @@ ajustan para aproximar la duración y el overshoot de la columna.
 ## Verificación
 En el QA, mirar el video a 0.5x: cualquier salto, aparición brusca o fondo
 congelado es un defecto que se corrige antes de entregar.
+
+---
+
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/animacion.md`, `references/reglas-tecnicas.md`, `references/ritmo.md`

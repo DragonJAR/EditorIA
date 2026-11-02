@@ -83,3 +83,7 @@ Niveles: ver "Regla de nivel" en `references/sonido.md` (canónico): volumen
 base por tipo 0.28–0.5 × un solo master gain del kit (tope 0.8); con voz,
 los SFX quedan −18 a −12 dB bajo ella. Nunca compiten con la voz. `scripts/medir_mezcla.py`
 verifica la mezcla final.
+
+---
+
+→ Canónico: `references/sonido.md` · Dominio: sonido · Vecinos: `references/audio.md`, `references/reglas-tecnicas.md`, `references/auto-qa.md`

@@ -1,0 +1,143 @@
+{
+ "_que_es": "Las CINCO verticales de la skill, declaradas como DATOS para que no se pudran. Cada vertical es una tarea que el agente puede recibir, y las cinco tienen que estar: (1) cableadas a una ruta de lectura del mapa, (2) terminar en la puerta, (3) llegar a comandos que alguien EJECUTA de verdad, y (4) no tener comandos que nadie copia ni justifica. El guard (scripts/auditar_mapa.py) lo comprueba en cada corrida: una vertical sin ruta es una isla, y la skill entera es una navaja suiza o no es nada.",
+ "_por_que_datos": "En la prosa, una lista de verticales se queda vieja en silencio: nadie dice 'falta la del sonido'. Como dato, el guard la recorre y lo dice. Una ruta de lectura sin herramientas verificadas es documentacion; una ruta con herramientas que el censo ha ejecutado de verdad es un camino de trabajo.",
+ "_que_es_una_clave": "Cada clave es un trozo del nombre del script (scripts/<clave>.py o scripts/ffmpeg_tools/<clave>.py). El guard lo compara contra los scripts de la vertical.",
+ "verticales": [
+  {
+   "nombre": "crear/animar",
+   "ruta": "quiero CREAR un video",
+   "pide": "una pieza nueva animada o dirigida",
+   "claves": [
+    "render_plan",
+    "auditar_plan",
+    "repertorio",
+    "lint_copy",
+    "speech_estimate",
+    "medir_animacion",
+    "medir_contraste",
+    "direccion_arte",
+    "proyecto",
+    "galeria",
+    "film_marca",
+    "film_marca_v2",
+    "check_env",
+    "beat_file",
+    "beat_grid",
+    "auto_qa",
+    "hand_draw",
+    "qa_entrega",
+    "puntuar",
+    "verificar_ritmo",
+    "compilar_reel"
+   ],
+   "sin_test": {
+    "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 46 escenas del catalogo), no un test",
+    "scripts/film_marca.py": "renderiza una pieza entera de cine: la validacion ya lo hace con la v2"
+   },
+   "entrada": [
+    "render_plan",
+    "plan.json",
+    "step 1"
+   ]
+  },
+  {
+   "nombre": "editar",
+   "ruta": "quiero EDITAR un video que ya tengo",
+   "pide": "montar, recortar oipolar un video que ya existe",
+   "claves": [
+    "montaje",
+    "caption",
+    "silence",
+    "retakes",
+    "aplicar_edl",
+    "beat_sync",
+    "chapters",
+    "thumbnail",
+    "poster_frame",
+    "verticalizar",
+    "grade",
+    "variantes",
+    "speedramp",
+    "scenes",
+    "look",
+    "shorts_plan",
+    "transcribir",
+    "delivery_check",
+    "loudness",
+    "contact_sheet",
+    "efectos_talking_head",
+    "captions_identidades",
+    "componer",
+    "qa_entrega",
+    "puntuar"
+   ],
+   "sin_test": {
+    "scripts/ffmpeg_tools/transcribir.py": "necesita el modelo de voz (Whisper) instalado"
+   },
+   "entrada": [
+    "step 6",
+    "montaje",
+    "flujo-talking-head"
+   ]
+  },
+  {
+   "nombre": "clonar/resumir",
+   "ruta": "quiero clonar este video",
+   "pide": "hacer uno como una referencia, o resumir una reunion",
+   "claves": [
+    "clonar_video",
+    "referencia",
+    "alinear",
+    "contact_sheet"
+   ],
+   "entrada": [
+    "clonar",
+    "resumen"
+   ]
+  },
+  {
+   "nombre": "sonido/musica/voz",
+   "ruta": "quiero VOZ en off, música o sonido",
+   "pide": "la voz, la musica, los efectos y la mezcla de una pieza",
+   "claves": [
+    "voz_off",
+    "voz_local",
+    "mezclar_audio",
+    "musica",
+    "sfx",
+    "medir_mezcla",
+    "audio_viz",
+    "beat_grid",
+    "beat_file",
+    "loudness"
+   ],
+   "entrada": [
+    "voz",
+    "mezclar_audio",
+    "sfx",
+    "step 4"
+   ]
+  },
+  {
+   "nombre": "publicar/viralizar",
+   "ruta": "quiero VIRALIZAR o publicar un video",
+   "pide": "preparar una pieza para que se descubra y se comparta: gancho, subtítulos, formato de plataforma, variantes y texto de publicación",
+   "claves": [
+    "shorts_plan",
+    "caption",
+    "variantes",
+    "thumbnail",
+    "poster_frame",
+    "delivery_check",
+    "loudness"
+   ],
+   "entrada": [
+    "viralizar",
+    "share-copy",
+    "variantes"
+   ]
+  }
+ ],
+ "_sin_test": "Lo que NO se puede medir con un test, y por que. Un script de una vertical que no ejecuta ningun test y no tiene motivo aqui es un puntero a nada, y el guard lo dice. El motivo va aqui al lado: un motivo sin escribir es un tapon.",
+ "_entrada": "Las palabras que la ENTRADA (SKILL.md, que es lo primero que lee el agente) tiene que usar para que la vertical se encuentre. Una vertical con ruta en el mapa pero sin nombre en la entrada tampoco se encuentra: el guard lo dice."
+}

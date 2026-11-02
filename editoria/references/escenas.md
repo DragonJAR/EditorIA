@@ -1,13 +1,17 @@
-# Catálogo de escenas (36 tipos del plan)
+# Catálogo de escenas (46 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
-Todas comparten: fondo vivo, salida anticipada 0.5s, transición `mancha`
+Todas comparten: fondo vivo, salida cruzada desde el corte (0,32 s, `SOLAPE`), transición `mancha`
 opcional al entrar. Tiempos `at` en segundos absolutos del video.
 
 ## 1. `apertura` — gancho
-Mancha orgánica que se infla tras el titular + objetos flotantes + titular cinético
-en dos fases (`texto1` → `texto2` en `at.cambio`). Palabras con tiempos `at.p1/p2`.
+Fondo que nace de un punto, crece y se encoge con el cambio de titular, más
+objetos flotantes + titular cinético en dos fases (`texto1` → `texto2` en
+`at.cambio`). Palabras con tiempos `at.p1/p2`.
+- **El fondo es la MARCA**: si el pack trae isotipo, se dibuja su silueta en el
+  color de la marca (con su resplandor difuso); sin isotipo, cae al blob
+  orgánico de siempre. El gesto no depende de que la marca tenga isotipo.
 - Params: `texto1[]`, `texto2[]`, `at{cambio, p1[], p2[]}`
 
 ## 2. `canales` — "todos tus canales, un lugar"
@@ -34,8 +38,8 @@ Link de pago como tarjeta final.
   pausa; antes del remate, `escribe` 1.5–2.5 s (el suspenso vende el remate).
 
 ## 5. `leads` — tabla priorizada
-Filas de tabla que entran en cascada; resaltado por temperatura (Caliente/Tibio/Frío)
-sincronizado con `at`. Puntaje como barra.
+Filas de tabla que entran en cascada; resaltado por temperatura (Caliente/Tibio/Frío =
+`ACENTO`/`AVISO`/`GRIS`, `references/paleta.md`) sincronizado con `at`. Puntaje como barra.
 - Params: `rotulo`, `total`, `filas[{nombre, canal, etapa, puntaje, temp}]`, `at{rotulo, Caliente, Tibio, Frío}`
 
 ## 6. `handoff` — traspaso con contexto
@@ -64,8 +68,8 @@ Contador que sube + tarjetas de tareas en grilla que entran en cascada.
 - Params: `rotulo`, `fecha`, `cuenta`, `tarjetas[{titulo, detalle, n, boton, alerta}]`, `at{rotulo, cuenta}`
 
 ## 11. `recupera` — pago recuperado
-Cursor que arrastra una barra de progreso; al completarse, tarjeta "pagado" con
-cambio de color.
+Cursor que arrastra una barra de progreso; al completarse, tarjeta "pagado" en
+el token `EXITO` (verde de la paleta, `references/paleta.md`).
 - Params: `rotulo`, `resumen`, `cliente`, `hace` (ej. "hace 2 horas"),
   `monto`, `hecho?` ("PAGADO", en el idioma de la pieza), `at{rotulo, cursor, recupera, pagado}`
 
@@ -82,9 +86,22 @@ Barrido orgánico: un blob con borde ondulado que crece desde un punto
 (`transicionX/Y`) con un agujero central, cubre la escena anterior y revela la
 nueva. Implementación: polígono de 72 puntos con radio modulado por senos.
 
-## Catálogo unificado de escenas (36 tipos del plan)
+## Transición `iris`
+Apertura en círculo desde un punto: la escena nueva se revela como un iris
+que crece desde (`transicionX/Y`) — el corte firma del video con presentador
+(abre desde la cara). Comparte el presupuesto de la `mancha`: las dos piden
+atención, y un plan no llena de transiciones. Implementación: máscara de
+círculo con radio en `ease_out`.
 
-El catálogo integra las 13 escenas originales más 23 escenas de
+## Transición `dissolve`
+Fundido cruzado de 0.40 s: la escena nueva aparece encima de la anterior con
+alfa creciente (`smoothstep`). Es el corte más neutro del catálogo: no pide
+atención como la `mancha` ni deja formas orgánicas en el encuadre. Se declara
+en la escena entrante: `"transicion": "dissolve"`.
+
+## Catálogo unificado de escenas (46 tipos del plan)
+
+El catálogo integra las 13 escenas originales más 33 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
 `references/scene-patterns-from-internet.md`). Cada escena nueva se compone
 con las primitivas DRY de `render_plan.py` (lista al final de este archivo).
@@ -137,12 +154,49 @@ y `ali-abassi/remotion-templates` (Charts & Data, Stat Counter, Quote Card).
 `at{rotulo, bar0..n, fuente}`. Toda cifra lleva su `fuente` en pantalla.
 Fuente: `DataBarChart` de `lifeprompt-team/remotion-scenes` (MIT).
 
-**`gauge`** — Indicador circular (270°) con cuenta animada al centro.
-`valor`, `max`, `etiqueta`, `at{rotulo, gauge, etiqueta}`.
-Fuente: `DataGauge` (MIT).
+**`gauge`** — Indicador circular con cuenta animada al centro. Dos formas de
+la misma idea: el arco de 270° (sin `forma`) y el **anillo** de marcas
+radiales (`forma: "anillo"`). `valor`, `max`, `etiqueta`,
+`at{rotulo, gauge, etiqueta}`. Fuente: `DataGauge` (MIT).
+
+**`gauge` con `forma: "anillo"`** — El dial de marcas: un anillo completo de
+`n` marcas finas que se llenan con el valor, con la cifra y el sufijo
+(`sufijo: "/50"`) dentro y la etiqueta pequeña encima. Es lo que sirve para
+una MAGNITUD leida de un vistazo (un panel de control, un velocimetro, el
+estado de un aprendizaje). Params: `valor`, `max`, `ticks` (50), `sufijo`,
+`etiqueta`, `color?`, `radio?`, `cy?`, `boton?`, y `frase?` (la frase
+cinetica va ENCIMA, en la misma escena: el motor compone una escena a la vez
+y si el copy fuera otra, en el corte el dial desaparecia).
+`at{rotulo, gauge, etiqueta, boton}`.
+
+**`frase`** — La frase cinematica: el copy entra PALABRA a PALABRA y el
+bloque se recompone centrado (teleprompter). Es la escena del copy que se
+LEE, no del titular que golpea.
+
+El ESTADO DE CADA PALABRA (el sistema del reel de referencia):
+  · la que AUN NO se ha alcanzado: se ve, pero en GRIS y mas CHICA (0,66);
+  · la alcanzada: BLANCA, a su tamano, y se apaga con la edad;
+  · la ACTIVA (la ultima alcanzada): blanca, con el SUBRAYADO ROJO debajo.
+El resalte de una palabra: `*clave*` la pone en blanco y en negrita sobre
+el gris; `~clave~` la mete en una CAJA ROJA (texto blanco) y `^clave^` en una
+CAJA BLANCA (texto oscuro); `seleccion` le pone el recuadro azul. El mismo
+markup (`segmentos_resalte` en `_comun`) lo leen también los titulares
+cinéticos (`apertura`, `remate`, `pildoras`…): no hay un parser por escena.
+
+Params: `frase`, `clave?`, `seleccion?`, `cps?` (palabras por segundo, 1.6),
+`tam?`, `y?` (fraccion del alto donde queda la ultima palabra), `ventana?`
+(5), `itálica?` (usa el display en italica si el pack la trae), `at{rotulo}`.
+
+El copy se ENCOGE solo hasta el piso de letra (26 px de tinta) y, si aun
+así no cabe, se ACORTA el copy: la letra no baja de 26 px (no se lee en un
+telefono). El bloque NO se recompone al anadir palabra (medido: hacerlo
+hacia que el bloque saltase de sitio y el medidor lo contara como 10 pops).
 
 **`ranking`** — Ranking horizontal con barras proporcionales, #1 lleva acento.
 `items[{etiqueta, valor, fecha?}]`, `at{rotulo, item0..n, fuente}`.
+La columna de la etiqueta se mide con las etiquetas y la que no cabe se
+**parte en dos líneas** a la misma letra (nunca "WhatsA…"); en 9:16 las filas
+reparten el alto que sobra (`pila`, con tope `REPARTO_MAX`).
 Fuente: `DataRanking` (MIT).
 
 **`stats`** — Grid de stat cards (cifra grande + etiqueta). `cards[{valor, etiqueta, acento?}]`,
@@ -253,12 +307,148 @@ Bento). `rotulo?`, `items[{icono?, titulo, texto, acento?, at?}]`, `pie?`,
 
 **`comentario`** — Tarjeta de prueba social / testimonio (Tweet / LinkedIn / Review): avatar circular con iniciales automáticas, titular de autor con insignia de verificación ("✓"), usuario/handle secundario, calificación de estrellas interactiva (`estrellas`), cuerpo con wrap y énfasis por palabras (`*...*`), contador animado de me gusta ("❤️ 1.420 Me gusta") y fecha de publicación. `autor`, `usuario?`, `iniciales?`, `verificado?`, `estrellas?`, `texto`, `likes?`, `fecha?`, `rotulo?`, `at{rotulo, card, texto, likes}`.
 
-**`pie`** — Gráfico circular / rosquilla (Donut Chart): barrido secuencial por sectores con resorte y micro-rotación viva continua, orificio central con cifra/porcentaje destacado, leyenda paramétrica (a la derecha en horizontal 16:9, vertical inferior en 9:16) y fuente de datos al pie. `titulo?`, `porciones[{etiqueta, valor, acento?, color?}]`, `centro?`, `fuente?`, `at{rotulo, pie, p0..n, fuente}`.
+**`pie`** — Gráfico circular / rosquilla (Donut Chart): barrido secuencial por sectores con resorte y micro-rotación viva continua, orificio central con cifra/porcentaje destacado, leyenda paramétrica (a la derecha en horizontal 16:9, vertical inferior en 9:16) y fuente de datos al pie. `titulo?`, `porciones[{etiqueta, valor, acento?, color?}]` (sin `color`: el acento y luego la `SERIE` de la marca), `centro?` (sin él: el % y la etiqueta de la porción del acento), `fuente?`, `at{rotulo, pie, p0..n, fuente}`.
 
 **`orbita`** — Apertura cinemática tech / IA: núcleo central brillante con pulso y halo gaussiano suave, 3 anillos elípticos de partículas 3D en perspectiva con diferentes inclinaciones y velocidades orbitales continuas, kicker superior en acento, titular central con wrap y acento, y subtítulo descriptivo inferior. `kicker?`, `titulo`, `subtitulo?`, `at{kicker, titulo, subtitulo}`.
 
 **`audiowave`** — Tarjeta de reproductor / interceptación de audio: botón de reproducción, indicador de estado ("REC ● 00:14"), ecualizador visual de barras armónicas multi-frecuencia en vivo, barra de progreso temporal y transcripción subtitulada sincronizada con revelación progresiva. `archivo?`, `hablante?`, `estado?`, `transcripcion?`, `rotulo?`, `at{rotulo, tarjeta, onda, texto}`.
 
+### 37-39. Ronda 6 — Índice, resalte y apertura de partículas (catálogo de futuros, hoy implementado)
+
+**`index`** — Índice de contenidos: lo que vamos a ver, con el paso activo en
+acento. `titulo?`, `items[{texto, activo?}]`, `at{rotulo, item0..n}`. Cada
+entrada entra escalonada; el último queda resaltado si ninguno lo está. Para
+videos largos (3–6 min) y para prometer la estructura antes de empezar.
+
+**`callout`** — Resalte sobre el dato clave: elipse que se dibuja sola + placa
+con la etiqueta. `titulo?`, `captura?` (imagen a señalar), `objeto{x, y, r}`
+(fracciones de la captura), `etiqueta`, `detalle?`, `fuente?`,
+`at{rotulo, circulo, etiqueta}`. Sin `captura` la elipse flota sobre el
+fondo. Con `captura` señala un punto de ella ("mira este 60 %"). El texto va
+sobre placa oscura: blanco sobre captura clara no se lee.
+
+**`orbOpen`** — Apertura de capítulo: las partículas **convergen** a una forma
+y entra el titular. `titulo`, `subtitulo?`, `figura?` (`esfera`, `chat`,
+`robot`), `at{titulo, subtitulo}`. Es lo contrario que `orbita` (donde
+orbitan): aquí se forman. Para intros de producto, IA o capítulos.
+
+### 40-41. Ronda 12 — El acta de lo confirmado (reel de "cara")
+
+**`constancia`** — El **acta** de la pieza: un panel con el guion de arriba y,
+dentro, N casillas con su marca (✓ lo que ya está confirmado, ○ lo que queda
+pendiente) y su texto en versalitas del display en itálica. Es la escena del
+reel de "cara" (`De8KNkdDT68`), medida al píxel sobre él: panel de 960 px con
+el borde a 1 px; la raya del kicker 40×6 px y el kicker en monoespaciada;
+casillas de 425 px con 37 de separación; el círculo lleno de 64 px de diámetro
+con el ✓ DENTRO, en negro sobre blanco; el vacío es solo un aro. La casilla
+confirmada lleva el borde y el texto en blanco; la pendiente, en gris.
+
+El ✓ se **dibuja** (no es el glifo: "✓" no existe en todas las fuentes y sale
+como caja vacía) y el círculo se llena en el instante en que el item se
+confirma: `hecho` puede ser `true`/`false` o el segundo en que se confirma (el
+✓ se dibuja entonces, en 0,28 s). `items[{texto, hecho}]`, `kicker?` (el guion
+de arriba), `y?` (dónde va el panel; por defecto, el fondo de la zona segura),
+`at{item0..n}` (la entrada de cada casilla).
+
+El texto de la casilla es el rol `secundario` de la escala (32 px) y **no se
+encoge**: si el copy no cabe en dos líneas lo que se acorta es el copy, no la
+letra (queda anotado en `RECORTES`).
+
+**`cartel`** — El **cartel**: el rótulo de arriba, un icono de línea GRANDE
+en el acento y la afirmación al lado. Es el cartel del reel de "cara"
+(`De8KNkdDT68`): "¿QUÉ ESTÁ PASANDO CON NOTEPAD++?" con la lupa al lado, y
+"LO VIO DIEGO DESDE / 0 OCT" con el reloj.
+
+MEDIDO sobre ese reel: el panel va de x=60 a x=1019 con el borde de 1 px;
+la raya del rótulo mide 40×6 px; el icono de línea mide ~100 px y va en el
+acento; la afirmación es el display en negrita y la palabra que sostiene el
+dato va en un **bloque rojo** (texto blanco).
+
+El bloque acaba donde acaba la palabra: el markup es **por carácter**, así
+que `~NOTEPAD++~?` deja la interrogación fuera del bloque (medido: con el
+markup por palabra, la interrogación se quedaba dentro). `*clave*` pone la
+palabra en el acento, `~caja~` en un bloque rojo y `^caja^` en un bloque
+blanco.
+
+Es la versión **estática** de `frase` (que escribe palabra a palabra): para
+una afirmación que ya está escrita, el cartel.
+
+**`camino`** — El **camino**: una línea de luz que corre por la pieza y va
+encendiendo las estaciones que pasa. La cámara vuela con la cabeza (el mundo
+se escala y se desliza) y cada estación es un nodo 3D.
+
+Es la pieza que se lee como UNA idea y no como una tanda de planos: todo
+está en el mismo camino. La línea la dibuja **una sola función** (`trazado`),
+que es la misma que sirve para un barra, un subrayado o una onda: el trazo
+es un elemento de la casa, no un adorno de esta escena.
+
+MEDIDO sobre el reel de referencia: el nodo mide ~100 px de lado con el
+labio oscuro debajo (el botón 3D), la línea pasa por el CENTRO de los nodos
+(es la línea la que los revela, no un adorno al lado) y las estaciones se
+encienden cuando la cabeza las pasa.
+
+`estaciones[{titulo, icono?}]`, `ruta?` (recta, s), `y?`, `x0?`, `x1?`,
+`grosor?`, `color?`, `colores?` (la línea se divide en ramas de colores),
+`at{estacion0..n}`.
+
+En **9:16 el camino corre en vertical** (de arriba abajo, la etiqueta a la
+derecha del nodo, como el `timeline`): la misma `trazado`, los mismos
+`puntos_de_ruta` (la S se abre en perpendicular al recorrido) y el mismo
+encendido por la cabeza. Se queda horizontal si el plan fija `y`/`x0`/`x1`
+o si vuela la cámara de la pieza (su paneo es lateral).
+
+**`subrayado`** — El **lema con su línea de luz debajo**: la línea es la
+línea base y se puede partir en varios colores. Es el cierre del reel de
+referencia: "One path," / "every skill." con la línea debajo, que se abre en
+los colores de los cursos y vuelve a juntarse.
+
+La línea la dibuja la **misma función** que el camino y que cualquier otro
+trazo (`trazado`): aquí lo que cambian son los puntos y los colores. Cinco
+trazos dibujados de cinco maneras son cinco trazos que se desincronizan.
+
+`texto` (el lema), `color?`, `colores?` (la línea se parte en estos colores;
+`"serie"` = la `SERIE` de la marca, nunca un arcoíris a mano),
+`y?`, `tam?`, `grosor?`, `itálica?`, `at{texto, linea}`.
+
+**El vuelo es de la pieza, no de la escena**: es el global `camara` (su
+paneo `x0`→`x1`) el que hace que la cámara viaje y el mundo se deslice. Si
+la escena volara por su cuenta, la zona segura mediría un mundo saliéndose
+del cuadro y la escena se encogería sola (medido: 0,72). Con la cámara
+global, el mundo se escapa del encuadre porque la cámara se ha ido, que es
+lo que pasa de verdad.
+
+`texto` (la afirmación), `kicker?` (el rótulo de arriba), `icono?` (lupa,
+reloj, alerta, globo, codigo), `tam?`, `y?`, `sobre_cara?`, `at{panel, icono, texto}`.
+
+**`cartel`, `cadena` y `constancia` van abajo solo si hay cara debajo**: en
+un overlay (la pieza se compone sobre el video) o con `sobre_cara: true` en
+la escena, se quedan al pie de la zona segura, bajo la cara. Sin nada debajo
+(un plan de motion puro) se colocan como el resto, en el centro óptico: al
+pie dejaban el 80 % del 9:16 en negro. El predicado es uno (`sobre_cara`).
+
+**`cadena`** — La **cadena de estados**: N nodos con icono de línea, unidos
+por un conector punteado, cada uno con su etiqueta. Es la escena del reel
+de "cara" (`De8KNkdDT68`): lo que vio cada quien, en fila. A diferencia de
+`constancia` (una lista de casillas con ✓), aquí los nodos se **encadenan**:
+el punteado dice que es una secuencia.
+
+MEDIDO sobre ese reel: el nodo es una caja de 149×140 con las esquinas
+redondeadas (radio 21) y el borde de 2 px (blanco el activo, gris el que no);
+el icono de línea mide 69 px y va centrado; la etiqueta va debajo (el nombre
+en negrita y debajo una línea en monoespaciada); el conector son guiones de
+10 px con 12 de hueco, que arrancan a 16 px del borde del nodo (unen, no
+pegan).
+
+`items[{icono, titulo, sub?, activo?}]`, `kicker?` (el guion de arriba),
+`y?`, `at{item0..n}`.
+
+Los iconos son **trazos dibujados**, no glifos (un glifo depende de que la
+fuente lo tenga: "✓" sale como caja vacía en muchas). Los que hay:
+`codigo` (los dos chevrones y la barra del signo de código), `globo`
+(círculo con elipse vertical y ecuador), `alerta` (triángulo con el signo),
+`lupa` (círculo con mango) y `reloj` (círculo con agujas). Un icono que no
+existe se dibuja como el borde de una ficha: se ve que falta, y no es un
+hole silencioso en la pieza.
 ## Qué escena para qué dato
 
 Elegir la escena por la forma del dato y por lo que el plano deja leer, no por
@@ -294,12 +484,27 @@ enuncia el hallazgo, no el tipo de gráfico («Las ventas se duplicaron», no
 
 ⚠️ Estos nombres **no existen** en `SCENES` (`scripts/render_plan.py`): usar uno
 en `plan.json` produce `KeyError`. Son ideas para implementar, no tipos válidos.
-`orbOpen` · `lineup` · `rise` · `orbChips` · `dissolve` · `outro` · `broll` ·
-`callout` · `tituloDetras` (requiere Robust Video Matting) ·
-`index` · `subscribe`
+`lineup` · `rise` · `orbChips` · `outro` · `broll` ·
+`tituloDetras` (requiere Robust Video Matting) · `subscribe`
+
+Ya implementadas (Ronda 6): `orbOpen` · `callout` · `index` · y la transición
+`dissolve`.
 
 Para añadir una nueva escena: componer con las primitivas DRY (`barra_h`,
 `cuenta_up`, `arco`, `cuadricula`, `linewrap`, `particulas`, `text_reveal`,
 `kenburns`, `cursor`, `onda_clic`, `smoothstep`, `odometro`, `estrellas`,
 `imagen_ajustada`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`) — NO duplicar lógica.
 Ver `references/scene-patterns-from-internet.md` para portar escenas validadas.
+
+---
+
+→ Canónico: `references/escenas.md` · Dominio: escenas · Vecinos: `references/plan-video.md`, `references/intencion-escena.md`, `references/escenas-extendidas.md`
+
+### 42. Lista sin orden (1.11.2)
+
+**`lista`** — Lista **sin orden**, sobria: una viñeta cuadrada de acento y el
+texto de cada punto, alineados a la izquierda y centrados como bloque en el
+centro común. Para beneficios, acciones o claves de una noticia donde el orden
+no importa (`pasos` numera; esta no). En 16:9 con más de 4 puntos, dos
+columnas. `titulo?`, `items[{titulo, texto?, at?}]` (o textos sueltos),
+`fuente?`, `at{rotulo,

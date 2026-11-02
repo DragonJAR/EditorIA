@@ -45,3 +45,7 @@ y convertir clips existentes.
   cambio (`0` = corte) y duración total exacta = fotos × duración.
   `--bpm B --beats-por-foto 4` cuadra cada cambio con la música; luego
   `scripts/musica.py musiconly` pone la pista.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/video-real.md`, `references/tecnicas-reutilizables.md`, `references/modos-rapidos.md`

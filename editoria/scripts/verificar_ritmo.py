@@ -12,11 +12,18 @@ La ráfaga (>= 3 cambios grandes en 1.5 s) es WARN cuando falta: un concepto
 sin impactos (un elemento que se transforma, una cámara continua) no es un
 defecto.
 
+Y hay un tercer veredicto, que NO es un aprobado: SIN MEDIR. Una comprobación
+que no se pudo hacer (la cadencia, cuando el video no tiene cortes
+detectables) no aprueba nada. Un "PASS — no lee como slideshow" sobre una
+medición que no ocurrió es una afirmación que este verificador no puede
+hacer: la pieza sigue sin verificar, y se dice.
+
 Uso:
   python scripts/verificar_ritmo.py video.mp4 [--cortes 0,1.6,3.0,4.8]
   Si no se dan --cortes, se detectan con scene-select de ffmpeg.
 
-Salida: una línea PASS/WARN/FAIL por prueba; exit 1 si alguna FAIL.
+Salida: una línea PASS/WARN/FAIL/SIN MEDIR por prueba; exit 1 si alguna FAIL,
+exit 2 si alguna comprobación no se pudo medir.
 """
 import argparse, os, subprocess, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
@@ -75,8 +82,17 @@ def auto_cortes(video):
 
 
 def leg(nombre, estado, detalle):
+    """Imprime una comprobación y devuelve su estado.
+
+    Los estados no son todos lo mismo:
+      PASS      — medida y cumplida
+      FAIL      — medida y NO cumplida: esto es lo que falla la pieza
+      WARN      — medida, y el concepto no la pide (no es un defecto)
+      N/A       — el mínimo no aplica, y el HECHO está declarado (el plan)
+      SIN MEDIR — la comprobación no se pudo hacer: falta el dato
+    """
     print(f"  {estado:4}  {nombre:10} {detalle}")
-    return estado != "FAIL"
+    return estado
 
 
 def main():
@@ -84,6 +100,20 @@ def main():
     ap.add_argument("video")
     ap.add_argument("--cortes", default=None,
                     help="tiempos de corte en segundos, ej. 0,1.6,3.0,4.8")
+    ap.add_argument("--plan", default=None,
+                    help="el plan.json de la pieza: de ahi salen los cortes (los "
+                         "tiempos de las escenas, que son los beats que percibe "
+                         "el espectador) y el HECHO de si la pieza se compone "
+                         "sobre footage vivo")
+    ap.add_argument("--sobre-footage-vivo", action="store_true",
+                    help="la pieza va sobre planos reales que siempre se mueven: el "
+                         "silencio visual no aplica (el minimo de cuadros quietos y "
+                         "la pausa son de una pieza de motion graphics, donde el "
+                         "silencio lo compone el piece, no el footage). Los otros "
+                         "minimos (cadencia, rafaga) se siguen midiendo igual. "
+                         "El plan lo declara SOLO con \"sobre_footage_vivo\": true, "
+                         "que es un HECHO comprobable; aqui queda el equivalente "
+                         "para medir un video suelto, sin plan.")
     import os as _os, sys as _sys
     _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
     from _comun import ayudar
@@ -91,23 +121,82 @@ def main():
     a = ap.parse_args()
 
     fps, diffs = frame_diffs(a.video)
-    ok = True
+    # Los tres finales que no son lo mismo: lo que se midio y se cumplio, lo
+    # que se midio y NO se cumplio (esto falla la pieza) y lo que NO se pudo
+    # medir (esto no falla la pieza, pero tampoco la aprueba).
+    fallos = []
+    sin_medir = []
 
-    cortes = ([float(x) for x in a.cortes.split(",")] if a.cortes
-              else auto_cortes(a.video))
+    def comprobar(nombre, cumple, detalle):
+        """Imprime la comprobacion y la guarda. `cumple` es el resultado de
+        la comparacion: lo que se midio y se cumplio, o lo que se midio y
+        no."""
+        leg(nombre, "PASS" if cumple else "FAIL", detalle)
+        if not cumple:
+            fallos.append(nombre)
+
+    # El plan es el documento de la pieza: ahi viven los cortes (los tiempos
+    # de las escenas = los beats que percibe el espectador) y el HECHO de si
+    # la pieza se compone sobre footage vivo. Un flag de CLI no deja
+    # constancia de nada: dentro de un ano, quien mida la pieza no ve por que
+    # el silencio visual no le aplica.
+    plan = None
+    footage_vivo = a.sobre_footage_vivo
+    if a.plan:
+        import json as _json
+        try:
+            with open(a.plan, encoding="utf-8") as fh:
+                plan = _json.load(fh)
+        except (OSError, ValueError) as _e:
+            sys.exit(f"ERROR: no se pudo leer el plan {a.plan}: {_e}")
+        if plan.get("sobre_footage_vivo"):
+            footage_vivo = True
+    if a.cortes:
+        # Un --cortes mal escrito (un placeholder como "0,1.6,3.0,...") no
+        # puede reventar con un traceback: el que lo escribe es un agente
+        # copiando el comando de la prosa, y un traceback no le dice nada.
+        # El error dice que se espera y como se escribe.
+        try:
+            cortes = [float(x) for x in a.cortes.split(",")]
+        except ValueError:
+            sys.exit('ERROR: --cortes debe ser una lista de segundos separados '
+                     'por comas (ej. 0,1.6,3.0,4.8). Valor recibido: '
+                     f'"{a.cortes}"')
+    elif plan and plan.get("escenas"):
+        escenas = sorted(plan["escenas"], key=lambda x: x.get("from", 0))
+        cortes = [s["from"] for s in escenas] + [max(s.get("to", 0) for s in escenas)]
+    else:
+        cortes = auto_cortes(a.video)
     if len(cortes) < 2:
-        ok &= leg("cadencia", "WARN",
-                  "sin cortes detectados — pasar --cortes para medir cadencia")
+        # Sin cortes no hay duraciones de toma que comparar: el coeficiente
+        # de variacion no se tiene. Esto NO es un PASS: una comprobacion que
+        # no se pudo hacer no aprueba nada, y un verificador que dice "no
+        # lee como slideshow" sobre una medicion que no ocurrio esta
+        # afirmando algo que no sabe. Sale SIN MEDIR, con su codigo, para que
+        # quien mida la pieza sepa que la cadencia sigue sin medirse.
+        # Para medirla: --plan (los tiempos de las escenas) o --cortes.
+        leg("cadencia", "SIN MEDIR",
+            "sin cortes detectados — pasar --plan o --cortes para medirla")
+        sin_medir.append("cadencia")
     else:
         durs = np.diff(sorted(cortes))
         cv = float(np.std(durs) / np.mean(durs)) if np.mean(durs) > 0 else 0.0
-        ok &= leg("cadencia", "PASS" if cv >= CV_MIN else "FAIL",
+        comprobar("cadencia", cv >= CV_MIN,
                   f"CV={cv:.2f} (min {CV_MIN}) en {len(durs)} tomas")
 
     quiet = diffs < STILL_THRESH
     still_frac = float(quiet.mean())
-    ok &= leg("quietud", "PASS" if still_frac >= STILL_MIN else "FAIL",
-              f"{still_frac:.0%} cuadros quietos (min {STILL_MIN:.0%})")
+    if footage_vivo:
+        # Una pieza sobre planos reales que siempre se mueven no tiene el
+        # silencio visual que compone una pieza de motion graphics: no es un
+        # defecto de la pieza, es que el minimo no aplica a este concepto
+        # (el mismo caso que la rafaga, que ya es un WARN cuando el concepto
+        # no la pide). Los demas minimos se siguen midiendo igual.
+        leg("quietud", "N/A", f"{still_frac:.0%} cuadros quietos — no aplica sobre "
+                              "footage vivo (el silencio visual lo compone el piece)")
+    else:
+        comprobar("quietud", still_frac >= STILL_MIN,
+                  f"{still_frac:.0%} cuadros quietos (min {STILL_MIN:.0%})")
 
     # pausa más larga: racha de cuadros quietos consecutivos
     best = cur = 0
@@ -115,8 +204,12 @@ def main():
         cur = cur + 1 if q else 0
         best = max(best, cur)
     stretch = best / fps
-    ok &= leg("pausa", "PASS" if stretch >= QUIET_STRETCH_MIN else "FAIL",
-              f"pausa más larga {stretch:.1f}s (min {QUIET_STRETCH_MIN:.0f}s)")
+    if footage_vivo:
+        leg("pausa", "N/A", f"pausa más larga {stretch:.1f}s — no aplica sobre "
+                            "footage vivo (el silencio visual lo compone el piece)")
+    else:
+        comprobar("pausa", stretch >= QUIET_STRETCH_MIN,
+                  f"pausa más larga {stretch:.1f}s (min {QUIET_STRETCH_MIN:.0f}s)")
 
     big = diffs > BIG_THRESH
     win = max(1, int(BURST_WIN * fps))
@@ -124,9 +217,20 @@ def main():
     leg("ráfaga", "PASS" if bursts > 0 else "WARN",
         f"{bursts} ventana(s) con ≥{BURST_COUNT} cambios grandes en {BURST_WIN}s")
 
-    print("RESULTADO:", "PASS — no lee como slideshow" if ok
-          else "FAIL — revisar cadencia/pausas (ver references/ritmo.md)")
-    sys.exit(0 if ok else 1)
+    if fallos:
+        print("RESULTADO:", "FAIL — revisar " + "/".join(fallos)
+              + " (ver references/ritmo.md)")
+        sys.exit(1)
+    if sin_medir:
+        # Un fallo se reproba; esto no. Pero tampoco es un aprobado: la
+        # comprobacion que no se pudo hacer sigue sin hacerse, y el que lea
+        # este codigo tiene que saberlo (por eso el codigo de salida es 2, no
+        # 0: un 0 aqui seria un "no lee como slideshow" sin haberlo medido).
+        print("RESULTADO:", "SIN MEDIR — " + "/".join(sin_medir)
+              + ": la pieza NO esta verificada (ver references/ritmo.md)")
+        sys.exit(2)
+    print("RESULTADO:", "PASS — no lee como slideshow")
+    sys.exit(0)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 # Lenguajes visuales aprendidos
 
-Tres direcciones probadas en producción. Elegir según el brief; se pueden hibridar.
+Tres direcciones probadas en producción, más la vía dibujada a mano. Elegir
+según el brief; se pueden hibridar.
 
 ## 1. Cinético (Demo)
 - Referencia: video demo de tipografía cinética (7 s).
@@ -149,6 +150,30 @@ Cuando el usuario pida el look de un producto real o entregue un archivo
      (`boton_halo`) y la **firma tipográfica al pie** (`pie`), descartando
      menús complejos o pies de página llenos de enlaces SEO.
 
+## 8. Dibujado a mano (vía dibujada)
+
+- Referencia: la vía de las poses redibujadas, en `references/dibujado.md`.
+- Qué es: la pieza se pinta plano a plano —tinta, lápiz, riso, serigrafía o
+  doodle sobre foto— con un personaje redibujado en cada exposición, en vez de
+  elementos que entran y se asientan.
+- No es un look más: es otro oficio. `references/animacion.md` sigue
+  rigiendo el motion graphics, y aquí solo cambia la regla de los intermedios.
+- Motores: el pictórico (`references/canvas.md`) y el kit dibujado. Los dos son
+  externos: se declaran y se clonan.
+- Ideal: personaje que se mueve, rotoscopio, animación de arena, papel
+  desplegable. No ideal para rótulos, cifras ni demos de producto.
+
+## 9. Catálogo de estilos en código (catálogo externo)
+
+Cuando el brief pide un lenguaje de motion canónico (flat vector, line
+art, isométrico, soft 3D, cel boil, collage, liquid, morph, Bauhaus,
+synthwave/VHS, aurora+glass, hanazi/variety captions, sticker explainer, pixel, HUD
+cyberpunk), la tabla de firmas, técnicas con números y motor está en
+`references/estilos-codigo.md`. Aquí viven los lenguajes ya rodados en
+producción; allí, las quince firmas para one-shots y dirección de arte, con su
+fuente declarada. El prompt se arma con la Familia 7 de
+`prompt-motion-graphics.md`.
+
 ## Acabados de estilo (`ffmpeg_tools/acabado.py`)
 
 Seis acabados de posproducción sobre un video ya renderizado, verificados en píxeles reales. Conservan audio, tamaño y fps. Los radios escalan con el tamaño del video (referencia 1080 px) y `--dry-run` no escribe nada.
@@ -162,4 +187,10 @@ Seis acabados de posproducción sobre un video ya renderizado, verificados en p�
 | `resplandor` | Doble halo sobre las zonas brillantes | Neón, sintético |
 | `aberracion` | Desplaza rojo y azul en sentidos opuestos | Impacto, glitch |
 
+Los tests, que miden píxeles reales, están en `scripts/_tests/test_acabado.py`.
+
 Ejemplo: `python3 scripts/ffmpeg_tools/acabado.py pixelar final.mp4 -o retro.mp4 --ancho 320 --colores 32`.
+
+---
+
+→ Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/brand-packs.md`, `references/scene-patterns-from-internet.md`, `references/estilos-codigo.md`

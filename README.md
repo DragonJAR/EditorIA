@@ -14,9 +14,9 @@
 
 EditorIA convierte un agente en un editor de video completo. Puede:
 
-- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con 36 tipos — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita` y `audiowave`.
+- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con 46 tipos — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen`, `frase`, `constancia`, `cadena`, `cartel`, `camino`, `subrayado` y `lista`.
 - **Componer visualmente**: escena con `--datos` (CSV), escena sobre plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto, alfa overlay y rotación.
-- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 17 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 36 escenas.
+- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 20 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 46 escenas.
 - **Voz en off y música con IA**: ElevenLabs TTS con cache content-addressed, música con ducking sidechain, alineación palabra-a-palabra (`alinear.py`) sobre Whisper local (whisper.cpp / faster-whisper / openai-whisper en cascada).
 - **Brand packs marca-blanca**: la identidad vive en `brand/*.json` (DragonJAR incluido como ejemplo). Sin pack, modo libre con criterio cinematográfico puro. Nunca identidad hardcoded en el código.
 - **QA automatizado**: máquina (`auto_qa.py` detecta negros, congelados, flashes, audio) + revisor visual del agente sobre contact sheet. Rúbrica de premios de 8 ejes (ninguno bajo 4/5).
@@ -172,8 +172,8 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 
 | Capacidad | Descripción |
 |---|---|
-| Plan declarativo | `plan.json` con 36 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
-| Catálogo unificado | 36 escenas compuestas con 17 primitivas DRY (cero lógica duplicada) |
+| Plan declarativo | `plan.json` con 46 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
+| Catálogo unificado | 46 escenas compuestas con 20 primitivas DRY (cero lógica duplicada) |
 | `--blur 5` | Motion blur de obturador 180° en la entrega final |
 | `--force` | Re-renderiza todo (sin él retoma donde iba) |
 | `--datos` | CSV-driven (auto-fit de fuente, wrap, line break) |
@@ -226,7 +226,7 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 | Loudness | `loudness.py` dos pasadas |
 | Beat sync | `beat_grid.py` (BPM, compases y secciones por energía: un lenguaje visual por sección) + `beat_sync.py` ajustan cortes a la rejilla |
 | Chapters | `chapters.py` genera capítulos YouTube |
-| Hardlinks | `verificar_ritmo.py` mide cadencia, pausas, ráfagas |
+| Ritmo | `verificar_ritmo.py` mide cadencia, pausas, ráfagas |
 
 ### Remotion / multimedia
 
@@ -244,8 +244,8 @@ EditorIA/
 ├── editoria.zip                       # Paquete listo para subir a Claude.ai
 ├── editoria/                          # Carpeta de la skill (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definición + frontmatter YAML + flujo principal
-│   ├── scripts/                       # 25 motores raíz + 19 en ffmpeg_tools/ + 2 en _tests/
-│   │   ├── render_plan.py             # Motor principal de render por plan (36 escenas)
+│   ├── scripts/                       # 51 motores raíz + 20 en ffmpeg_tools/ + 76 en _tests/ = 147 scripts
+│   │   ├── render_plan.py             # Motor principal de render por plan \(46 escenas\)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
 │   │   ├── alinear.py                 # Word-level voice alignment (Whisper)
@@ -274,10 +274,13 @@ EditorIA/
 │   │   ├── film_marca.py              # Film cinematográfico v1
 │   │   ├── film_marca_v2.py           # Film cinematográfico v2
 │   │   ├── _film.py                   # Utilidades compartidas de films
-│   │   ├── galeria.py                 # Suite visual de las 36 escenas
+│   │   ├── galeria.py                 # Suite visual de las 46 escenas
 │   │   ├── validate_skill.py          # Validador determinista de la skill
+│   │   ├── _guard_entorno.py          # ¿La suite da el mismo veredicto sin repo?
+│   │   ├── compilar_reel.py           # Compila N videos en un reel (mide y corta)
+│   │   ├── _cerrar_tip.py             # Cierra un tip: mide, compara y dice una línea
 │   │   ├── demo_plan.json             # Plan de ejemplo
-│   │   ├── escenas_muestra.json       # Muestras canónicas de las 36 escenas
+│   │   ├── escenas_muestra.json       # Muestras canónicas de las 45 escenas
 │   │   ├── _tests/                    # Suite de tests unitarios (unittest)
 │   │   │   ├── test_chapters.py
 │   │   │   ├── test_core_and_scenes.py
@@ -286,8 +289,9 @@ EditorIA/
 │   │   │   ├── test_referencia.py
 │   │   │   ├── test_beat_secciones.py
 │   │   │   └── test_direccion_arte.py
-│   │   └── ffmpeg_tools/              # 19 módulos de post-producción
+│   │   └── ffmpeg_tools/              # 20 módulos de post-producción
 │   │       ├── montaje.py             # 19 operaciones de edición
+│   │       ├── componer.py            # Tipografía sobre el footage (DoF + velo)
 │   │       ├── caption.py             # Subtítulos burn-in y karaoke
 │   │       ├── grade.py               # Color grading + presets
 │   │       ├── loudness.py            # -14 LUFS / -1.5 dBTP
@@ -306,9 +310,9 @@ EditorIA/
 │   │       ├── transcribir.py         # ASR local → SRT + JSON
 │   │       ├── _comun.py              # Helpers DRY compartidos
 │   │       └── _plataforma.py         # Abstracciones de SO
-│   ├── references/                    # 45 referencias en kebab-case.md
+│   ├── references/                    # 69 referencias en kebab-case.md
 │   │   ├── instalacion.md             # Por SO (Win/macOS/Linux)
-│   │   ├── escenas.md                 # Catálogo de 36 escenas
+│   │   ├── escenas.md                 # Catálogo de 45 escenas
 │   │   ├── escenas-extendidas.md      # Conceptos portables
 │   │   ├── plan-video.md              # Schema del plan.json
 │   │   ├── shorts-plan-schema.md      # Schema del shorts-plan.json
@@ -421,6 +425,30 @@ Las contribuciones son bienvenidas. Áreas que necesitan expansión:
 - **Voice roster** (`scripts/voz_off.py VOCES`): añade voces ElevenLabs para nuevos idiomas
 - **Brand packs** (`brand/`): nuevos packs de ejemplo
 - **Validator** (`scripts/validate_skill.py`): nuevos checks de calidad
+
+### Verificar antes de publicar
+
+Un tip se cierra con una sola línea. El envoltorio mide las tres superficies
+que importan y no deja lugar a la mirada manual (que es donde se leía el log
+equivocado):
+
+```bash
+python3 editoria/scripts/_cerrar_tip.py
+# el tip 429b980 ESTA CERRADO: repo verde, entorno honesto, copia sincronizada
+```
+
+Qué mide, en orden:
+
+1. **La puerta del repo**, en un *worktree* aislado del commit (nunca en el
+   árbol de trabajo: ahí mide lo que otra sesión esté escribiendo).
+2. **El entorno**: la misma suite **sin repo**, en una copia aislada
+   (`scripts/_guard_entorno.py`). La copia instalada no tiene repo, así que si
+   la suite da un veredicto distinto ahí, una sola puerta no basta: el guard
+   nombra los tests que cambian de veredicto.
+3. **La copia instalada**: que lo que usa el agente sea exactamente lo
+   publicado (`scripts/sincronizar_instalada.py --check`).
+
+El envoltorio no publica: medir y publicar son cosas distintas.
 
 ## 🙏 Créditos y fuentes
 

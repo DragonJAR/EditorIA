@@ -26,6 +26,24 @@ partículas, transiciones de mancha. Ver `references/plan-video.md`,
 El video real y la animación se complementan: la persona cuenta, la animación
 explica. La integración debe ser coherente, confiable y orgánica.
 
+### Footage generado: revisa los clips ANTES de componer
+
+Un generador de video por IA no entrega solo imagenes: **inventa**. En la
+practica ha metido una tarjeta de presentacion con un nombre y una foto, un
+rostro reconocible y un monitor quemado a blanco. Todo eso parece material
+real de marca y no lo es: si compone sobre el, la pieza afirma cosas que
+nunca dijeron el cliente.
+
+Por eso, antes de componer, **mira una hoja de contactos de TODOS los clips
+generados** (`scripts/contact_sheet.py --video clip.mp4 --cada 1 -o hoja.png`)
+y descarta el clip que tenga texto inventado, credenciales, un rostro
+identificable o una marca de agua. Si hay que regenerar, se regenera con el
+prompt corregido ("sin objetos sobre la mesa", "el rostro nunca visible",
+"sin pantallas ni monitores"), no se disimula con un recorte.
+
+Es el mismo principio que aplica a las capturas de producto: **no se dibuja
+lo que no existe**; se usa lo real, o se deja hueco.
+
 ### Puentes visuales (la costura invisible)
 
 - **Match cut real→animado**: el gesto o la forma del plano real continúa en la
@@ -47,6 +65,160 @@ explica. La integración debe ser coherente, confiable y orgánica.
   el número aterriza en la palabra exacta (ver `references/audio.md`: anchors).
 - Annotation pins sobre producto/pantalla que la persona muestra.
 - Subrayados y círculos dibujados (draw-on) sobre el footage para señalar.
+
+### Componer la animación sobre el footage (el paso automático)
+
+Lo anterior es para cuando **otra persona** edita la pieza. Cuando la
+compone el agente, el overlay se mete con una herramienta: la
+mascara del desenfoque sale del **ALFA** del overlay (no de un rectangulo),
+asi que el fondo se desenfoca SOLO detras de la tipografia y el resto del
+cuadro queda nitido.
+
+1. Render del overlay con alfa: `render_plan.py plan.json -o capa.mov`
+   (ProRes 4444 ✓) y el footage base **a la misma tasa** (24 fps si el
+   footage es de 24: convertirlo a 30 duplica cuadros y el medidor los lee
+   como tirones ✗).
+2. Composicion (un comando):
+
+```bash
+python scripts/ffmpeg_tools/componer.py base.mp4 capa.mov \
+    --audio mezcla.mp4 --fps 24 -o final.mp4
+```
+
+La herramienta genera el velo por defecto (la capa suave que hace que la
+caja blanca lea sobre la foto), avisa de las tres cosas que ROMPEN la
+pieza —tasas que no casan, capa sin alfa, tamanos distintos— y compone.
+
+Que hace cada trozo, porque tocarlos sin entenderlos rompe la pieza:
+
+- `split` + `boxblur` + `eq`: el base se desenfoca, se desatura y se oscurece.
+- `alphaextract`: la mascara sale del alfa del overlay (donde hay letra).
+- `boxblur` + `lut`: la mascara se ablanda (el borde del desenfoque no se
+  nota como borde) y se recorta para que solo la tipografia.
+- `maskedmerge`: el base **nítido** vuelve donde NO hay letra.
+- `overlay` dos veces: primero el overlay, luego el velo de marca (el PNG que
+  oscurece arriba y abajo, donde llega la UI de la plataforma).
+- `-r 24` y `-t DUR`: la tasa del footage y la duracion del plan.
+
+**La escala de la mascara (el fallo que esta receta arrastro):** el filtro
+`lut` trabaja en 0-255, asi que la mascara tiene que salir en esa escala.
+La expresion `min(1,(val-28)/130)` devuelve 0-1, y en 0-255 eso es **cero**:
+la mascara salia vacia y el fondo **no** se desenfocaba detras de la letra.
+La pieza se veia bien igual porque el velo y el texto tapaban lo que
+faltaba, y nadie lo midio. La expresion correcta es
+`min(255,(val-28)*255/130)`. Hoy la lleva `componer.py` y hay un test que
+mide la profundidad de verdad (detras de la letra desenfocado, fuera de la
+letra nitido): si alguien vuelve a escribir la mascara en 0-1, el test
+falla.
+
+#### El layout ENMARCADO (`--marco`): el clip en una caja
+
+A sangre (por defecto) el video ocupa el cuadro y la tipografia va encima.
+El otro layout del reel de "cara" es el contrario: el video entra en una
+**CAJA con esquinas redondeadas** sobre el lienzo negro y la tipografia va
+ENCIMA de todo (el clip arriba, el copy debajo, en su propia zona).
+
+```bash
+python scripts/ffmpeg_tools/componer.py base.mp4 capa.mov \
+    --marco "60,250,960,947" --fps 24 -o final.mp4
+```
+
+Los cuatro numeros son `x,y,ancho,alto` en px, sobre el lienzo del kit
+(1080x1920). Que significa cada parte:
+
+- el **lienzo** es el del kit (1080x1920), no el del video: el video entra
+  escalado en la caja y la capa de tipografia se escala al lienzo (asi el
+  `--marco` significa lo mismo siempre);
+- las **esquinas redondeadas** se cortan con una mascara (un PNG generado con
+  PIL, no con `geq`: `geq` reevalua pixel a pixel y sobre un video plano deja
+  el clip en negro);
+- el **velo va DENTRO de la caja**, no sobre el lienzo: el velo pertenece a la
+  imagen, y puesto sobre el lienzo ennegrece el negro de los bordes;
+- el **desenfoque se recorta a la caja**: la mascara de la letra se recorta
+  con las coordenadas de la caja, para que el desenfoque del fondo no se coma
+  la esquina.
+
+Un marco que no cabe en el lienzo **avisa antes de renderizar** (y el render
+falla: ffmpeg no recorta una caja fuera del cuadro sin avisar).
+
+#### La RECETA del reel de "cara": el clip enmarcado, la depleción y el acta
+
+Tener las piezas no es lo mismo que saber hacer la pieza. El estilo del reel
+de "cara" (`De8KNkdDT68`) es la COMPOSICION de tres cosas que ya existen,
+con su montaje medido: **el clip dentro de su caja, la línea que se depleta
+y el acta debajo**. El orden y las zonas son la receta.
+
+**Cómo se monta (el orden de las herramientas):**
+
+1. El plan se renderiza como **CAPA con alfa**, **a la tasa del clip**:
+   `render_plan.py plan.json --fps 24 -o capa.mov` (ProRes 4444) o `-o
+   capa.webm` (VP9 con alfa). La tasa tiene que casar con la del clip: si no,
+   el compositor avisa "la pieza sale con tirones" (y el medidor de movimiento
+   los cuenta).
+2. El clip entra **por debajo**: `componer.py clip.mp4 capa.mov --marco
+   "60,250,960,947" --fps 24 -o final.mp4`. El `--marco` pone el clip en su
+   caja y deja la capa ENCIMA: por eso la tipografía puede caer sobre la
+   imagen y el panel del acta debajo, sin pelearse por el sitio.
+3. La depleción la dibuja el propio render del plan (es un global del plan,
+   no una escena): va ENCIMA de la escena, en el borde del lienzo.
+
+**Lo que avisa el render (y por qué no hay que asustarse):** la depleción va
+en el borde (`y: 0`), así que el gráfico invade el 5 % exterior (title-safe) y
+el render lo avisa. Es a propósito: es una BARRA de progreso, no texto, y es
+justo lo que se ve en el reel medido. El aviso que sí hay que mirar es el de
+las tasas.
+
+**El plan (el del reel, medido):**
+
+```json
+{
+  "duracion": 7,
+  "plataforma": "reels",
+  "brand": "editoria/brand/dragonjar.json",
+  "deplecion": {"y": 0, "alto": 5, "color": "acento"},
+  "escenas": [
+    {"tipo": "constancia", "from": 0.0, "to": 7.0,
+     "kicker": "DIEGO + KEVIN",
+     "items": [{"texto": "Comparten investigaciones", "hecho": 2.4},
+               {"texto": "Posiblemente es Notepad++", "hecho": false}],
+     "at": {"item0": 0.4, "item1": 0.9}}
+  ]
+}
+```
+
+**Qué hace cada cosa y dónde:**
+
+- **la caja** (`--marco`): el clip entra en una caja de esquinas redondeadas
+  sobre el lienzo negro. Es el clip el que manda en el tamaño: la caja es lo
+  que le deja sitio a la capa.
+- **la depleción**: el global del plan. Es de la PIEZA entera, no de un
+  plano: como escena, la pieza gastaría una escena entera en la barra. Su
+  ancho es `W · (1 − t/duración)`, lineal y anclada a la izquierda.
+- **el acta**: el panel con el kicker y N casillas, DEBAJO del clip. Cada ítem
+  se **confirma** en el segundo que dice `hecho` (o `true`/`false`), y la
+  confirmación FUNDE: un bloque que cambia en un frame es un pop (medido:
+  confirmar en t=1,5 s daba un pop de 1,5 px). El ✓ se DIBUJA, no es el
+  glifo ("✓" no existe en todas las fuentes y sale como caja vacía).
+
+**Las tres reglas que hacen que sea una composición y no un montón de
+overlays:**
+
+- **El acta NO es un plano de cierre**: ocupa TODA la pieza (`from` 0 al
+  `to` final) y sus ítems se van confirmando MIENTRAS el clip avanza. Un
+  acta que aparece al final cuenta otra cosa: es un resumen, no el acta.
+- **El copy va donde la pieza lo necesita, y el clip puede traérselo.** En el
+  reel medido, el copy ("Lo encontramos antes que nadie", con la palabra
+  clave marcada) está DENTRO de la caja: el clip es una pieza ya renderizada
+  con su propia tipografía, y el reel la encuadra. Si el clip es una
+  grabación cruda, el copy que se LEE va en la CAPA, con la escena `frase`
+  (`frase`, `cps`, `seleccion`, `y`, `ventana`): entra palabra a palabra y
+  la palabra clave se marca.
+- **No se inventa nada**: el copy es el que se dijo, las cifras son las
+  reales, y los ítems del acta son lo que confirmó cada parte.
+
+Las medidas de cada pieza viven con la pieza (el panel de `constancia`, el
+nodo de `cadena`, la caja del `--marco`): aquí no se repiten a propósito,
+para que un cambio en un sitio no deje una copia vieja en otro.
 
 ### Overlays con alfa (entregar capas al editor)
 
@@ -110,3 +282,43 @@ rehechas las sombras del sujeto en el fondo — nunca flotando.
 | Hay footage pero plano/aburrido | Híbrido: ritmo en edición + beats animados |
 
 Ante la duda: híbrido. La persona da confianza, la animación da claridad.
+
+## Promo de producto desde páginas reales
+
+Cuando el producto **es** una web o una app y hay que enseñarlo: capturar
+las páginas de verdad y montar la promo sobre ellas.
+
+`Vincentwei1021/video-shotcraft` (Apache-2.0) hace exactamente ese camino:
+captura tus páginas, elige de **124 recetas de plano** (movimiento 2.5D, cortes
+al beat, diseño de sonido) y renderiza la promo en Remotion.
+
+- **Las recetas de plano son un vocabulario de movimiento**: 2.5D (la
+  página en perspectiva, con cámara), entradas por elemento, cortes al
+  compás. Alimenta `references/animacion.md` y `references/fluidez.md`.
+- **El render** es Remotion, que ya está integrado (`references/remotion.md`).
+- **La plantilla validada** ("Ink Press") y su flujo son **de ese repo**: si se
+  usa, se usa su camino (su SKILL.md) y no se copia aquí. La frontera es la
+  misma que con las recetas: fuente, no copia.
+
+El resto (la promo montada con el motor y con el overlay del website) sigue
+siendo el camino de esta skill: el website se renderiza con alfa y se compone
+como cualquier otra capa (`references/3d.md`).
+
+## Cierre en la puerta
+
+Sea el modo real, animado o híbrido, el entregable pasa por la misma puerta
+que el resto de la skill (Motor Selector: «Every row ends at the gate»):
+
+```bash
+python scripts/qa_entrega.py final.mp4 --plan plan.json   # con plan (capa animada)
+python scripts/qa_entrega.py final.mp4                    # solo footage / montaje
+python scripts/puntuar.py final.mp4 --plan plan.json --ejes "1=4,2=5,5=4,7=4"
+# sin plan: eje 4 a ojo → --ejes "1=4,2=4,4=4,5=4,7=4"
+```
+
+Si hubo mezcla de audio, `loudness.py` va **antes** de la puerta
+(`references/audio.md`). Un híbrido sin puerta es un montaje sin medir.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-rapidos.md`, `references/media-hard-rules.md`, `references/prompt-motion-graphics.md`

@@ -83,9 +83,9 @@ def main():
             tcs = tc.replace("," + timecode_filter(font_prefix), "") + stamp
             fc = (f"[0:v]scale={half}:-2{tcs}[a];[1:v]scale={half}:-2{tcs}[b];"
                   f"[a][b]scale2ref=w=iw:h=ih[a2][b2];[a2][b2]hstack=inputs=2[out]")
-            cmd = ffmpeg_base() + ["-ss", f"{sec:.3f}", "-i", args.input,
-                                   "-ss", f"{sec:.3f}", "-i", args.compare,
-                                   "-filter_complex", fc, "-map", "[out]", "-frames:v", "1", out]
+            cmd = ffmpeg_base(texto=True) + ["-ss", f"{sec:.3f}", "-i", args.input,
+                                            "-ss", f"{sec:.3f}", "-i", args.compare,
+                                            "-filter_complex", fc, "-map", "[out]", "-frames:v", "1", out]
             run(cmd)
             outputs.append(out)
     elif args.at:
@@ -96,8 +96,8 @@ def main():
             out = os.path.join(outdir, f"{args.output and Path(args.output).stem or stem}_{sec:.3f}s.png")
             stamp = "" if args.no_timecode else f",drawtext=text='{escape_drawtext(fmt_hms(sec))}':{font_prefix}{FONT}"
             vf = f"scale={args.width}:-2{tc.replace(',' + timecode_filter(font_prefix), '')}{stamp}"
-            cmd = ffmpeg_base() + ["-ss", f"{sec:.3f}", "-i", args.input, "-vf", vf,
-                                   "-frames:v", "1", out]
+            cmd = ffmpeg_base(texto=True) + ["-ss", f"{sec:.3f}", "-i", args.input, "-vf", vf,
+                                            "-frames:v", "1", out]
             run(cmd)
             outputs.append(out)
     else:
@@ -115,8 +115,8 @@ def main():
         vf = (f"select='isnan(prev_selected_t)+gte(t-prev_selected_t\\,{step * 0.98:.6f})',"
               f"scale={tile_w}:-2{tc},"
               f"tile={cols}x{rows}:padding=2:margin=2:color=0x202020")
-        cmd = ffmpeg_base() + ["-ss", f"{step / 2:.6f}", "-i", args.input, "-vf", vf,
-                               "-frames:v", "1", out]
+        cmd = ffmpeg_base(texto=True) + ["-ss", f"{step / 2:.6f}", "-i", args.input, "-vf", vf,
+                                        "-frames:v", "1", out]
         run(cmd)
         outputs.append(out)
         info(f"contact sheet: {n} frames cada {step:.2f}s")

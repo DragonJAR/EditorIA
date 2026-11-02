@@ -25,4 +25,9 @@ editoria/**/*.zip
 editoria/**/.ruff_cache/
 editoria/**/.pytest_cache/
 editoria/**/*.log
+# El historial de metricas es un artefacto de RUNTIME: lo crea
+# `medir_animacion.py --historial` al medir. No es contenido publicado
+# (viaja a la copia instalada de todo el mundo) y cambiarlo solo
+# ensucia el arbol: por eso no se versiona.
+editoria/**/*.jsonl
 editoria/**/*.tmp

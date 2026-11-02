@@ -91,3 +91,43 @@ no resume — provoca.
 **Pacing de trailer**: arrancar contenido (sin setup), escalar en 3 oleadas
 con silent stops entre ellas, el momento más grande al ~80%, y salir en el
 pico — nunca en la resolución.
+
+## Estilos de cine hechos en código (catálogo externo)
+
+`lemomo-ai/lemo-opuscar` (MIT) es una biblioteca de **59 estilos de cine
+renderizados en código** (óleo al thick, acuarela, ukiyo-e, briefing de
+satélite, desmontaje de producto, documental de archivo…), con Node y
+Three.js, y su propio flujo de dirección.
+
+Lo que aporta aquí es un **vocabulario de LOOKS**: el motor tiene 46 tipos de
+escena, que no son estilos de película. Sirve para tres cosas, y ninguna es
+duplicar el motor:
+
+1. **Referencia de intención**: elegir el aire de la pieza ("quiero que parezca
+   un briefing de satélite") antes de escribir el plan.
+2. **Material**: un render de ese estilo entra como overlay con alfa (ver
+   `references/3d.md`).
+3. **Cocina de técnicas**: su `TECHNIQUE.md` y sus estilos son material de
+   estudio para el camino de cine.
+
+Los dos catálogos de estilos hechos en código (el de cine y el de motion design)
+viven en `references/estilos-codigo.md`, con sus fuentes declaradas.
+
+**La frontera**: es otro motor (Node + Three.js) con su propio director. No
+se integra en el motor de esta skill ni se copia su código; se declara la
+fuente y se usa como referencia y como material.
+
+## Cierre en la puerta
+
+Un film (`film_marca_v2.py` / `film_marca.py` o material 3D compuesto)
+también cierra en la puerta:
+
+```bash
+python scripts/qa_entrega.py final.mp4 --plan plan.json   # si hubo plan
+python scripts/qa_entrega.py final.mp4                    # film sin plan
+python scripts/puntuar.py final.mp4 --ejes "1=4,2=5,4=4,5=4,7=4"
+```
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/modos-produccion.md`, `references/brand-packs.md`, `references/tonos.md`

@@ -6,12 +6,19 @@ vestirlo sin que se note el bisturí.
 
 ## Pipeline
 
+> **Cadena canónica talking-head → entrega** (corte → captions → motion →
+> master → puerta → publicar): `references/flujo-talking-head.md`. Este
+> archivo sigue siendo el oficio del footage; aquella es la ruta cableada
+> a Step 6 / vertical editar / publicar.
+
 1. **Probe**: `ffprobe` (o `scripts/ffmpeg_tools/_comun.py: probe()`): duración,
    resolución, fps, audio presente. Nunca asumir.
 2. **Rough-cut** (quick-cut v2, ver `references/modos-rapidos.md`):
    `scripts/ffmpeg_tools/silence.py` (quita silencios) → `retakes.py` (corta falsas tomas, "la última
    toma gana", fillers ES/EN, margen 0.3s, nunca dentro de una palabra) →
-   **revisión humana** antes de renderizar.
+   **revisión humana** antes de renderizar. Señal de toma fusionada por ASR:
+   palabra estirada > ~1 s (sobre todo con silencio interno ≥0.3 s) o “el
+   video salta atrás” — revisar antes del plan visual.
 3. **Take-selection** (elegir la mejor toma por frase): numerar las frases del
    guion y etiquetar cada segmento; elegir por frase con la redacción más viva
    (no la más literal); later-over-earlier (la gente calienta: las últimas
@@ -30,26 +37,38 @@ vestirlo sin que se note el bisturí.
    movimiento (ver "Fotos → dinámicas" en `references/tecnicas-video.md`),
    captura de pantalla o gráfica. Regla: el B-roll se corta sobre el audio del
    A-roll, no en silencio.
-7. **Captions**: palabra por palabra, agrupación frase-consciente (nunca
-   terminar en leader words), banda central.
-   `scripts/ffmpeg_tools/caption.py --phrase-aware --brand brand/tu-marca.json`
-   (aplica fuente, colores y posición de marca automáticamente). Con dos o
-   más personas (podcast, entrevista): `--hablantes "ANA=FFD400,LUIS=4FC3F7"`
-   y cues con prefijo `ANA:` (o un palabras.json con `speaker` de WhisperX):
-   cada voz con su color, ningún cue mezcla hablantes (`references/formatos.md`).
-8. **Audio**: `scripts/ffmpeg_tools/loudness.py` (−14 LUFS) → cadena de mastering
-   (highpass → acompressor → loudnorm → alimiter, ver `references/sonido.md`).
-   Si hay música: `musica.py mix` con ducking.
-9. **QA**: read-back — transcribir el RENDER y leerlo (detecta repeticiones y
-   cortes malos que el plan no revela). Final Frame Contract. Ver
-   `references/checklist-qa.md` capas L1/L2/L3.
+7. **Captions**: elegir identidad en el **catálogo único**
+   (`repertorio.py sugerir --pedido "karaoke|matte|hablantes…"` →
+   `resolver` → `motor=caption`). Modelo drop/rail/embed y matte:
+   `flujo-talking-head.md` / `captions-identidades.md`. Rail nativo:
+   `caption.py --phrase-aware --brand …` (+ `--karaoke` / `--animate`).
+   Hablantes: `--hablantes "ANA=FFD400,LUIS=4FC3F7"`. Tipografía HF /
+   embed detrás de cara: `captions_identidades.py receta` (on-demand).
+8. **Audio**: `scripts/ffmpeg_tools/loudness.py` (−14 LUFS) **después** de
+   quemar captions → cadena de mastering (highpass → acompressor →
+   loudnorm → alimiter, ver `references/sonido.md`). Si hay música:
+   `musica.py mix` con ducking.
+9. **QA + publicar**: read-back del RENDER; puerta
+   (`qa_entrega.py` / `puntuar.py`); companion en `share-copy.md`.
+   Checklist L1/L2/L3: `checklist-qa.md`.
 
 ## Ingesta de referencias y clonación viral
 
 Cuando se parte de un video de referencia o se quiere modelar una estructura viral probada:
 1. **Ingesta y separación**: `python scripts/referencia.py --video clip.mp4` (o `--url "..."` vía yt-dlp) extrae metadatos, pistas de audio en 48kHz (edición máster) y 16kHz (transcripción) y contact sheet para revisión visual rápida.
 2. **Clonación de estructura y ritmo**: `python scripts/clonar_video.py analizar --video ref.mp4` descompone la pieza en `plantilla.json` y `ANALYSIS.md` (gancho, retención, clímax, CTA).
-3. **Generación de variantes**: `python scripts/clonar_video.py variar --plantilla plantilla.json --variantes 3 --tema "..."` genera planes listos auditando tiempos de habla con `scripts/speech_estimate.py`.
+3. **Generación de variantes**: `python scripts/clonar_video.py variar --plantilla plantilla.json --variantes 3 --tema "Acme"` genera planes listos auditando tiempos de habla con `scripts/speech_estimate.py`.
+
+## Efectos que siguen la cara
+
+Cuando el brief pide overlays anclados a la cara (orbit, spotlight, LED,
+glass widgets, grid de perfil…), se eligen en el **mismo catálogo** que las
+escenas: `scripts/repertorio.py sugerir --pedido "…"` → `resolver --id`.
+La producción (si `motor=efecto`) es `efectos_talking_head.py receta` —
+clona face-track en `/tmp` solo para esa pieza. Detalle interno:
+`references/efectos-talking-head.md`. No sustituye a `grade.py`,
+`caption.py` ni hincha `SCENES`. Si `preferir=nativo` (p. ej. `moody`),
+motor EditorIA sin clone.
 
 ## Reglas editoriales (grabación cruda)
 
@@ -72,3 +91,7 @@ Cuando se parte de un video de referencia o se quiere modelar una estructura vir
 - No cortar una frase por la mitad para "apretar el ritmo": se reescribe el
   guion o se deja el aire.
 - No poner música con letra bajo una voz hablando.
+
+---
+
+→ Canónico: `references/formatos.md` · Dominio: produccion · Vecinos: `references/flujo-talking-head.md`, `references/captions-identidades.md`, `references/modos-produccion.md`, `references/montaje.md`, `references/efectos-talking-head.md`

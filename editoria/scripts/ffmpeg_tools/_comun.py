@@ -11,6 +11,7 @@ JSON, nunca sobrescribir el input, verificar el output y QA con frames.
 """
 import argparse  # noqa: F401  (anotaciones de add_common/apply_common)
 import json
+import re
 import os
 import platform
 import shutil
@@ -65,6 +66,47 @@ def leer_json(ruta: str, que: str = "el archivo") -> Any:
         sys.exit(f"ERROR: {que} no es JSON válido ({ruta}, línea {exc.lineno}, columna {exc.colno}): {exc.msg}")
 
 
+_GRAIN_CACHE = {}
+
+
+def aplicar_grano(img, W, H, frame_idx=0, amp=3):
+    """Grano cinematográfico determinista y barato: 12 máscaras pre-generadas
+    por (W, H, amp) con seed fija 42, ciclando con frame_idx. Reemplaza el
+    ruido per-pixel nuevo por cuadro (entropía única que destruía la
+    compresión H.264) por un patrón cíclico que el codec predice. amp<=0
+    devuelve la imagen intacta.
+
+    DRY: vive aquí y lo usan los films de marca (`_film.py`) Y el motor de
+    planes (`render_plan.py`). Antes el grano solo existia en el motor de
+    films: la misma técnica, dos implementaciones, y el plan salia sin grano
+    mientras el film salia con él.
+
+    El canal ALFA no se toca: con alfa, el grano va al RGB y el alfa se queda
+    (si no, los bordes salen rugosos y el canal alfa se ensucia).
+    """
+    if amp <= 0:
+        return img
+    from PIL import Image
+    key = (W, H, amp)
+    if key not in _GRAIN_CACHE:
+        import numpy as np
+        rng = np.random.default_rng(42)
+        _GRAIN_CACHE[key] = [
+            rng.integers(-amp, amp + 1, size=(H, W, 1), dtype=np.int16)
+            for _ in range(12)
+        ]
+    gr = _GRAIN_CACHE[key][frame_idx % len(_GRAIN_CACHE[key])]
+    import numpy as np
+    a = np.asarray(img)
+    if a.ndim == 3 and a.shape[2] == 4:
+        # con alfa: el grano va al RGB y el alfa se queda (si no, los bordes
+        # salen rugosos y el canal alfa se ensucia)
+        rgb = np.clip(a[:, :, :3].astype(np.int16) + gr, 0, 255).astype(np.uint8)
+        return Image.fromarray(np.dstack([rgb, a[:, :, 3]]))
+    arr = a.astype(np.int16) + gr
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+
+
 def die(msg: str, code: int = 1, kind: str = "error") -> "None":
     """Imprime el error en stderr y sale con codigo distinto de 0.
 
@@ -85,6 +127,20 @@ def die(msg: str, code: int = 1, kind: str = "error") -> "None":
 
 def info(msg: str) -> None:
     sys.stderr.write(f"{msg}\n")
+
+
+def asegurar_padre(ruta) -> None:
+    """Crea la carpeta destino de una salida si no existe.
+
+    Fuente unica del arreglo de scenes.py (F3): sin esto, escribir una
+    salida en una carpeta nueva muere con un FileNotFoundError o un codigo
+    opaco de ffmpeg que no dice que el fallo es la ruta. Se llama ANTES del
+    trabajo caro (render, transcripcion, TTS de pago), no al escribir."""
+    padre = os.path.dirname(os.path.abspath(str(ruta)))
+    try:
+        os.makedirs(padre, exist_ok=True)
+    except OSError as ex:
+        die(f"no se pudo crear la carpeta de salida {padre}: {ex}", kind="output")
 
 
 def require_tool(name: str) -> str:
@@ -165,12 +221,123 @@ def run(cmd: Sequence[str], *, quiet: bool = False, check: bool = True) -> subpr
         _cleanup_partial_output(cmd)
         if check:
             tail = "\n".join(proc.stderr.strip().splitlines()[-12:])
-            die(f"comando fallo (codigo {proc.returncode}): {cmd[0]}\n{tail}")
+            die(f"comando fallo (codigo {proc.returncode}): {cmd[0]}\n{tail}"
+                + _pista_libass(cmd, proc.stderr))
     return proc
 
 
-def ffmpeg_base(overwrite: bool = True) -> List[str]:
-    cmd = [require_tool("ffmpeg"), "-hide_banner", "-loglevel", "error", "-nostdin"]
+def _pista_libass(cmd, stderr):
+    """El motivo real cuando falta libass en el ffmpeg.
+
+    Sin este filtro, ffmpeg responde "No option name near 'sub.srt:...'", que
+    no dice nada util: el agente no sabe que le falta `ffmpeg-full` ni que el
+    motor propio (PIL) sigue funcionando. `check_env.py` ya avisa al
+    arrancar; aqui se dice en el momento en que algo falla.
+    """
+    filtros = ("subtitles=", "ass=", "drawtext=")
+    if not any(f in " ".join(cmd) for f in filtros):
+        return ""
+    if "No option name near" not in stderr and "No such filter" not in stderr:
+        return ""
+    return ("\nAVISO: este ffmpeg no trae los filtros de texto (libass). "
+            "El motor propio (PIL) sigue bien; solo los subtitulos quemados fallan.\n"
+            "      arreglo: brew install ffmpeg-full  (keg-only). Las herramientas\n"
+            "      lo encuentran solas: no hace falta exportar PATH.")
+
+
+# ---------- filtros de texto (libass + libfreetype) ----------
+# El ffmpeg de Homebrew NO trae libass. `brew install ffmpeg-full` lo deja
+# keg-only (sin symlink), de modo que el primer ffmpeg del PATH sigue siendo
+# el que NO tiene drawtext/ass/subtitles. El remedio que documenta la skill
+# (export PATH=...) no sirve dentro de un agente: cada llamada de shell es un
+# proceso nuevo, el export no persiste entre llamadas. Por eso el resolver
+# busca el binario CON los filtros por su cuenta.
+FILTROS_TEXTO = ("ass", "subtitles", "drawtext")
+_filtros_cache: Dict[str, bool] = {}
+
+
+def _filtro_en_listado(listado: str, filtro: str) -> bool:
+    """True si el listado de `-filters` trae ese filtro.
+
+    Cada filtro sale como " T. drawtext   V->V   descripcion": se compara el
+    nombre justo antes de la flecha, nunca dentro del texto descriptivo
+    (donde "libass" o "subtitles" aparecen citados sin ser filtros).
+    """
+    for linea in listado.splitlines():
+        partes = linea.split()
+        if len(partes) >= 3 and partes[1] == filtro and "->" in partes[2]:
+            return True
+    return False
+
+
+def tiene_filtros_texto(ruta: str) -> bool:
+    """True si ese ffmpeg trae los tres filtros de texto."""
+    if ruta in _filtros_cache:
+        return _filtros_cache[ruta]
+    try:
+        r = subprocess.run([ruta, "-hide_banner", "-filters"],
+                           capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        _filtros_cache[ruta] = False
+        return False
+    listado = (r.stdout or "") + (r.stderr or "")
+    ok = all(_filtro_en_listado(listado, f) for f in FILTROS_TEXTO)
+    _filtros_cache[ruta] = ok
+    return ok
+
+
+def _candidatos_ffmpeg() -> List[str]:
+    """Binarios ffmpeg que pueden traer libass, en orden de preferencia."""
+    vistos: List[str] = []
+
+    def _add(ruta: Optional[str]) -> None:
+        if (ruta and ruta not in vistos and os.path.isfile(ruta)
+                and os.access(ruta, os.X_OK)):
+            vistos.append(ruta)
+
+    _add(shutil.which("ffmpeg"))
+    # ffmpeg-full de Homebrew es keg-only: no hay symlink, no esta en el PATH.
+    prefijos = [os.environ.get("HOMEBREW_PREFIX", "")]
+    prefijos += ["/opt/homebrew", "/usr/local", "/home/linuxbrew/.linuxbrew"]
+    for prefijo in prefijos:
+        if not prefijo:
+            continue
+        _add(os.path.join(prefijo, "opt", "ffmpeg-full", "bin", "ffmpeg"))
+        # La version puede cambiar: se toma la mas nueva instalada.
+        cellar = os.path.join(prefijo, "Cellar", "ffmpeg-full")
+        if os.path.isdir(cellar):
+            for version in sorted(os.listdir(cellar), reverse=True):
+                _add(os.path.join(cellar, version, "bin", "ffmpeg"))
+    _add(shutil.which("ffmpeg-full"))
+    return vistos
+
+
+def ffmpeg_con_texto() -> Optional[str]:
+    """Ruta del primer ffmpeg que trae los filtros de texto, o None.
+
+    None significa: en esta maquina no hay ningun ffmpeg con libass (ni en el
+    PATH ni en un keg de ffmpeg-full). `check_env.py` lo dice al arrancar.
+    """
+    for ruta in _candidatos_ffmpeg():
+        if tiene_filtros_texto(ruta):
+            return ruta
+    return None
+
+
+def ffmpeg_texto() -> str:
+    """Ruta de un ffmpeg con los filtros de texto (ass/subtitles/drawtext).
+
+    Si no hay ninguno (no instalado ffmpeg-full), devuelve el ffmpeg del PATH:
+    la herramienta falla con el error de ffmpeg y `_pista_libass` explica el
+    arreglo. Nunca se queda mudo.
+    """
+    return ffmpeg_con_texto() or require_tool("ffmpeg")
+
+
+def ffmpeg_base(overwrite: bool = True, *, texto: bool = False) -> List[str]:
+    """Base del comando ffmpeg. `texto=True` elige un binario con libass."""
+    ffmpeg = ffmpeg_texto() if texto else require_tool("ffmpeg")
+    cmd = [ffmpeg, "-hide_banner", "-loglevel", "error", "-nostdin"]
     cmd.append("-y" if overwrite else "-n")
     return cmd
 
@@ -433,6 +600,94 @@ def verificar_alfa(path: str, frame: Optional[int] = None) -> float:
     return claros / (len(raw) / 4)
 
 
+PREFIJO_FIRMA = "editoria-plan:"
+
+
+def version_motor() -> str:
+    """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
+    reutiliza frames del anterior."""
+    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as fh:
+            for linea in fh:
+                m = re.match(r"\s*version:\s*[\"']?([^\"'\s]+)", linea)
+                if m:
+                    return m.group(1)
+                if linea.strip() == "---" and not linea.startswith("version"):
+                    # el segundo --- cierra el frontmatter; si ya vimos version, salimos arriba
+                    pass
+    except OSError:
+        pass
+    return "0"
+
+def version_motor() -> str:
+    """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
+    reutiliza frames del anterior."""
+    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as fh:
+            for linea in fh:
+                m = re.match(r"\s*version:\s*[\"']?([^\"'\s]+)", linea)
+                if m:
+                    return m.group(1)
+                if linea.strip() == "---" and not linea.startswith("version"):
+                    # el segundo --- cierra el frontmatter; si ya vimos version, salimos arriba
+                    pass
+    except OSError:
+        pass
+    return "0"
+
+def firma_plan(plan: Dict[str, Any], brand_path: Optional[str] = None) -> str:
+    """Hash del plan que pinta el motor: cada bloque de escena, la versión
+    del motor y el contenido del pack. Lo escribe el video y lo verifica
+    qa_entrega, también con --sin-medir."""
+    import hashlib
+    bloques = []
+    for e in (plan or {}).get("escenas") or []:
+        if isinstance(e, dict):
+            bloques.append({k: v for k, v in e.items() if not str(k).startswith("_")})
+    pack = ""
+    if brand_path and os.path.isfile(brand_path):
+        h = hashlib.sha256()
+        with open(brand_path, "rb") as fh:
+            h.update(fh.read())
+        pack = h.hexdigest()[:16]
+    payload = {
+        "motor": version_motor(),
+        "pack": pack,
+        "tamano": (plan or {}).get("tamano"),
+        "duracion": (plan or {}).get("duracion"),
+        "paleta": (plan or {}).get("paleta"),
+        "plataforma": (plan or {}).get("plataforma"),
+        "acento": (plan or {}).get("acento"),
+        "camara": (plan or {}).get("camara"),
+        "zona": (plan or {}).get("zona"),
+        "escenas": bloques,
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def estampar_firma(salida: str, firma: str) -> None:
+    """Deja la firma del plan en el comentario del contenedor, sin re-encode."""
+    ext = os.path.splitext(salida)[1]
+    tmp = salida + ".firma" + ext
+    cmd = ffmpeg_base() + ["-i", salida, "-c", "copy", "-metadata",
+                           f"comment={PREFIJO_FIRMA}{firma}"]
+    if ext.lower() == ".mp4":
+        cmd += ["-movflags", "+faststart"]
+    cmd.append(tmp)
+    run(cmd, quiet=True)
+    os.replace(tmp, salida)
+
+def firma_de_video(path: str) -> Optional[str]:
+    """La firma estampada en el video, o None si ese archivo no la trae."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags=comment",
+                        "-of", "default=nw=1:nk=1", path], capture_output=True, text=True)
+    txt = (r.stdout or "").strip()
+    if txt.startswith(PREFIJO_FIRMA):
+        return txt[len(PREFIJO_FIRMA):].strip() or None
+    return None
+
 def codificar_frames(patron: str, fps: float, salida: str, crf: int = 20,
                      preset: str = "medium") -> Dict[str, Any]:
     """Frames RGB(A) numerados -> video. La extension decide el entregable:
@@ -564,8 +819,21 @@ def default_font_file(font_name: str) -> Optional[str]:
 
     Portable: busca en los directorios de fuentes del SO (Windows/macOS/Linux)
     y usa fc-match como fallback en Unix. Devuelve None si no hay coincidencia.
+
+    El import de `_plataforma` tiene que servir en los DOS contextos: este
+    modulo se importa como parte del paquete `ffmpeg_tools` (alguien hace
+    `from ffmpeg_tools._comun import ...`) o como modulo suelto (los scripts
+    de ffmpeg_tools meten su carpeta en sys.path y hacen `from _comun import
+    ...`, que es como se ejecutan desde la linea de comandos). Con el import
+    RELATIVO a secas, el segundo caso reventaba con "attempted relative
+    import with no known parent package" en cuanto se pedia una fuente: tres
+    herramientas (look.py, scenes.py y shorts_plan.py) se caian al usarse
+    tal como las documenta la skill.
     """
-    from . import _plataforma as _plat
+    try:
+        from . import _plataforma as _plat
+    except ImportError:      # importado como modulo suelto (sys.path)
+        import _plataforma as _plat
     # Incluye la sans genérica del SO como último recurso dentro de la misma llamada.
     return _plat.resolver_fuente(font_name, generica="sans")
 
@@ -587,6 +855,17 @@ def hex_a_rgb(value: str) -> Tuple[int, int, int]:
     """
     h = color_hex(value)
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+def rgb_a_hex(color) -> str:
+    """Convierte una tupla RGB (R, G, B) 0-255 a '#E8480C'.
+
+    La vuelta de `hex_a_rgb`: una sola fuente de verdad para las dos
+    direcciones (DRY). Los tokens de la identidad son tuplas; un filtro de
+    ffmpeg los quiere en hex.
+    """
+    r, g, b = (int(v) for v in tuple(color)[:3])
+    return "#%02X%02X%02X" % (r, g, b)
 
 
 # Cadencia (references/ritmo.md, falla 1): coeficiente de variación mínimo de las
@@ -616,28 +895,213 @@ def contraste(a, b) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
+#: El texto claro y el oscuro de la skill. Entre los dos se elige el que se
+#: lee sobre el fondo que toque: el claro para fondos oscuros, el oscuro para
+#: fondos claros (un acento de marca puede ser cualquiera de los dos).
+TEXTO_CLARO = "#FAF8F6"
+TEXTO_OSCURO = "#0A0A0A"
+
+
+def _mejor_contraste(fondo, a, b) -> str:
+    """El de MAS contraste entre los dos colores, con el piso de 4.5:1.
+
+    Si ninguno llega al piso se queda con el mejor: es mejor un texto por
+    debajo del piso que un texto invisible.
+    """
+    ca, cb = contraste(a, fondo), contraste(b, fondo)
+    if ca >= 4.5 and ca >= cb:
+        return a
+    if cb >= 4.5:
+        return b
+    return a if ca >= cb else b
+
+
+def texto_sobre(fondo, claro=TEXTO_CLARO, oscuro=TEXTO_OSCURO, tokens=None) -> str:
+    """El color de texto que se lee sobre `fondo` (piso 4.5:1).
+
+    Un texto con color FIJO sobre un fondo que cambia es una letra ilegible
+    esperando: el hook de un short va sobre un box del ACENTO de la marca, y
+    el acento lo elige el usuario. Con blanco fijo, menta daba 2:1 y el
+    titular no se leia; ahora el texto sigue al fondo.
+
+    Elige el de MAS contraste entre los dos, y solo lo baja del piso si
+    ningun color llega (aun asi se queda con el mejor).
+
+    `tokens` es la identidad de la pieza (pack de marca o paleta): su TINTA
+    (blanco/negro de la marca) va primero, porque el motor ya la instala
+    (BLANCO) y el hook tiene que llevar la misma; con la tinta neutra de la
+    skill, el titular de una marca ajena se sale de su identidad. Si la tinta
+    de la marca no llega al piso sobre ese fondo, se cae a la neutra: la
+    legibilidad no se negocia.
+    """
+    if tokens is not None:
+        tinta = _mejor_contraste(fondo, rgb_a_hex(tokens["blanco"]), rgb_a_hex(tokens["negro"]))
+        if contraste(tinta, fondo) >= 4.5:
+            return tinta
+    return _mejor_contraste(fondo, claro, oscuro)
+
+
 # ---------- identidad: modo libre por defecto, el brand pack solo si se pide ----------
-# Paleta NEUTRA (modo libre): la usan todas las herramientas cuando el usuario
-# no nombró una marca. Ninguna marca concreta vive en el código; sus valores
-# están solo en su brand/*.json (references/brand-packs.md).
-NEUTRO: Dict[str, Tuple[int, int, int]] = {
-    "acento": (232, 72, 12), "acento_oscuro": (150, 46, 8), "negro": (10, 10, 10),
-    "blanco": (250, 248, 246), "gris": (170, 170, 170),
+# Ninguna marca concreta vive en el código; sus valores están solo en su
+# brand/*.json (references/brand-packs.md).
+
+# CATÁLOGO DE PALETAS (modo libre) — una entrada por armonía cromática.
+# Cada paleta es un juego completo de tokens (acento, acento_oscuro, fondo,
+# tinta, gris, superficie) más la armonía que la justifica, su temperatura y
+# para qué tipo de brief encaja. El agente elige UNA por pieza, según el
+# brief, y la declara en el plan ("paleta": "menta"). Reglas y tabla de
+# decisión: references/paleta.md.
+#
+# Todos los acentos pasan WCAG AA (>= 4.5:1) sobre el fondo #0A0A0A: el
+# acento se usa para texto de énfasis, no para pintar.
+PALETAS: Dict[str, Dict[str, Any]] = {
+    "electrico": {
+        "acento": (61, 123, 255), "acento_oscuro": (32, 68, 148),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo azul→cian (hue 214°)",
+        "tono": "frío", "para": "IA, software, datos, B2B, SaaS, ciberseguridad",
+    },
+    "menta": {
+        "acento": (20, 199, 160), "acento_oscuro": (13, 129, 104),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo verde→turquesa (hue 168°)",
+        "tono": "frío", "para": "finanzas, salud, crecimiento, clima, logística verde",
+    },
+    "grafito": {
+        "acento": (148, 163, 184), "acento_oscuro": (95, 107, 124),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "monocromático frío, sin chroma (hue 215°, sat 12 %)",
+        "tono": "frío", "para": "documentación, legal, industria, auditoría, minimal",
+    },
+    "ambar": {
+        "acento": (240, 163, 43), "acento_oscuro": (156, 106, 28),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo ámbar→dorado (hue 38°)",
+        "tono": "cálido", "para": "energía, industria, deporte, formación, startups",
+    },
+    "coral": {
+        "acento": (255, 107, 91), "acento_oscuro": (166, 70, 59),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo coral→rojo cálido (hue 6°)",
+        "tono": "cálido", "para": "salud, RRHH, cuidado, comunidad, alertas",
+    },
+    "violeta": {
+        "acento": (139, 92, 246), "acento_oscuro": (91, 60, 161),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo violeta→lila (hue 265°)",
+        "tono": "frío", "para": "creatividad, educación, premium, wellness, música",
+    },
+    "magenta": {
+        "acento": (229, 71, 155), "acento_oscuro": (149, 46, 101),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "análogo magenta→fucsia (hue 330°)",
+        "tono": "cálido", "para": "cultura, moda, entertainment, social, youthful",
+    },
+    "oro": {
+        "acento": (201, 162, 39), "acento_oscuro": (131, 105, 25),
+        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+        "gris_superficie": (26, 26, 26),
+        "esquema": "dividido complementario: dorado 45° + apoyo azul profundo",
+        "tono": "cálido", "para": "lujo, premium, invitaciones, joyeria, inmobiliaria",
+    },
 }
+
+# La paleta por defecto: la que se usa cuando el brief no dice nada. Es un
+# azul frío DELIBERADAMENTE sin identidad —el modo libre no puede parecerse
+# a ninguna marca (el pack de ejemplo es rojo)— y vive en el catálogo, no
+# duplicada aquí: si cambia, NEUTRO cambia con ella.
+PALETA_POR_DEFECTO = "electrico"
+TOKENS_COLOR = ("acento", "acento_oscuro", "negro", "blanco", "gris", "gris_superficie")
+#: paleta neutra de respaldo (modo libre sin decisión de paleta)
+NEUTRO: Dict[str, Tuple[int, int, int]] = {
+    k: v for k, v in PALETAS[PALETA_POR_DEFECTO].items() if k in TOKENS_COLOR
+}
+
+
+def paleta_libre(nombre: Optional[str] = None) -> Dict[str, Any]:
+    """Tokens de color de una paleta del catálogo. Sin nombre: la por defecto.
+
+    Lanza error claro si el nombre no existe (no degrada en silencio)."""
+    if not nombre:
+        return dict(NEUTRO)
+    clave = str(nombre).strip().lower()
+    if clave not in PALETAS:
+        die(f"paleta desconocida: {nombre}. Disponibles: {', '.join(sorted(PALETAS))}",
+            kind="input")
+    return {k: v for k, v in PALETAS[clave].items() if k in TOKENS_COLOR}
+
+
+def info_paleta(nombre: str) -> Dict[str, Any]:
+    """Metadatos de una paleta del catálogo: armonía, temperatura y para qué
+    brief sirve (references/paleta.md). Vacío si el nombre no existe."""
+    return {k: v for k, v in PALETAS.get(str(nombre).strip().lower(), {}).items()
+            if k not in TOKENS_COLOR}
+
+
+def tokens_efectivos(brand: Optional[str] = None,
+                     paleta: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]:
+    """El juego de tokens de la identidad de una pieza: pack de marca >
+    paleta del catálogo > paleta por defecto. UNA puerta para todas las
+    herramientas (caption, audio_viz, thumbnail, el motor).
+
+    El pack manda si el usuario nombró una marca; si no, la paleta la elige
+    el agente según el brief (references/paleta.md). Antes cada herramienta
+    resolvía esto por su cuenta y la galería terminaba pasándole flags que
+    no entendían.
+    """
+    if brand:
+        return dict(colores_marca(brand))
+    return dict(paleta_libre(paleta))
+
+
+def acento_efectivo(brand: Optional[str] = None, paleta: Optional[str] = None,
+                    color: Optional[str] = None) -> Tuple[int, int, int]:
+    """El acento de una pieza: color explícito > pack de marca > paleta del
+    catálogo > paleta por defecto."""
+    if color:
+        return hex_a_rgb(color)
+    return tokens_efectivos(brand, paleta)["acento"]
+
+
 SKILL_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-def resolver_pack(path: Optional[str]) -> Optional[str]:
-    """Ruta de un brand pack: absoluta, relativa al cwd o a la carpeta de la
-    skill ('brand/x.json'). None si no se pidió marca."""
+def packs_disponibles() -> List[str]:
+    """Los NOMBRES de los packs de la skill (brand/*.json): lo que acepta
+    `--brand` / `"brand"` además de una ruta."""
+    return sorted(p.stem for p in (SKILL_DIR / "brand").glob("*.json"))
+
+def buscar_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
+    """Ruta de un pack o None. Acepta una ruta (absoluta, relativa al cwd, a
+    `base` —la carpeta del plan— o a la skill) o el NOMBRE de un pack de la
+    skill: "carbon" → brand/carbon.json (el catálogo lo enseña así)."""
     if not path:
         return None
     p = os.path.expanduser(str(path))
-    for cand in (p, str(SKILL_DIR / p)):
+    cands = [p] + ([os.path.join(base, p)] if base else []) + [str(SKILL_DIR / p), str(SKILL_DIR / "brand" / p)]
+    if not p.lower().endswith(".json"):
+        cands += [c + ".json" for c in cands]
+    for cand in cands:
         if os.path.isfile(cand):
             return os.path.abspath(cand)
-    die(f"brand pack no encontrado: {path}", kind="input")
+    return None
 
+def resolver_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
+    """Ruta de un brand pack (ver `buscar_pack`). None si no se pidió marca."""
+    if not path:
+        return None
+    ruta = buscar_pack(path, base)
+    if ruta:
+        return ruta
+    die(f"brand pack no encontrado: {path} (packs de la skill: {', '.join(packs_disponibles())}; "
+        "o una ruta a un .json)", kind="input")
 
 def leer_pack(path: Optional[str]) -> Dict[str, Any]:
     ruta = resolver_pack(path)
@@ -652,7 +1116,7 @@ def leer_pack(path: Optional[str]) -> Dict[str, Any]:
 def colores_marca(path: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]:
     """Paleta efectiva: la del pack pedido o la neutra. Acepta claves en
     español (colores.acento) o inglés (colors.primary/accent)."""
-    c = dict(NEUTRO)
+    c = dict(NEUTRO)     # el respaldo del modo libre: una paleta del catálogo
     d = leer_pack(path)
     if not d:
         return c
@@ -664,9 +1128,11 @@ def colores_marca(path: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]
     c["acento"] = hex_a_rgb(ac)
     c["acento_oscuro"] = (hex_a_rgb(col["acento_oscuro"]) if col.get("acento_oscuro")
                           else tuple(max(0, int(v * 0.65)) for v in c["acento"]))
-    for k in ("negro", "blanco", "gris"):
+    for k in ("negro", "blanco", "gris", "gris_detalle", "gris_superficie"):
         if col.get(k):
             c[k] = hex_a_rgb(col[k])
+    if col.get("acento_texto"):
+        c["acento_texto"] = hex_a_rgb(col["acento_texto"])
     return c
 
 
@@ -693,20 +1159,72 @@ def fuente_marca(path_pack: Optional[str], rol: str = "titulares",
             resolver_fuente(defecto, generica=generica))
 
 
+def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:
+    """Markup de resalte del kit (UNA sola implementación).
+
+    Marcadores (sin anidar; un cierre cambia de modo):
+      *palabra*  → kind ``acento`` (tinta del acento de marca)
+      ~palabra~  → kind ``roja``   (caja del acento, texto blanco)
+      ^palabra^  → kind ``blanca`` (caja blanca, texto oscuro)
+
+    'Hola ~mundo~ y *más*' ->
+      [('Hola ', ''), ('mundo', 'roja'), (' y ', ''), ('más', 'acento')]
+
+    Lo consumen `frase` (cajas palabra a palabra) y `titular`/`rotulo`
+    (apertura, remate, pildoras…): el mismo sistema del reel de referencia
+    (cajas rojas/blancas + énfasis), no tres parsers distintos.
+    """
+    out: List[Tuple[str, str]] = []
+    buf, kind = "", ""
+    pares = {"*": "acento", "~": "roja", "^": "blanca"}
+    for ch in texto or "":
+        if ch in pares:
+            if buf:
+                out.append((buf, kind))
+            buf = ""
+            # abrir o cerrar el mismo marcador; otro marcador con uno abierto
+            # se ignora como carácter (no anida: el cierre es el mismo signo)
+            if kind == "":
+                kind = pares[ch]
+            elif kind == pares[ch]:
+                kind = ""
+            else:
+                # marcador distinto con uno abierto: se trata como texto
+                buf += ch
+            continue
+        buf += ch
+    if buf:
+        out.append((buf, kind))
+    return out
+
+
+_MARKUP_BIEN_FORMADO = re.compile(r"(?<!\w)([*~^])(?=\S)(.+?)(?<=\S)\1(?!\w)")
+
+
+def texto_plano(texto: str) -> str:
+    """El texto SIN marcadores (* ~ ^): para todo campo que se dibuja como
+    texto corrido (etiquetas, detalles, subtitulos). Un campo que no pinta
+    cajas nunca debe mostrar los signos del markup en pantalla.
+
+    Solo quita el markup BIEN FORMADO (pareja pegada a la palabra, como lo
+    lee `segmentos_resalte`): «SELECT * FROM», «~/home» o «2^10» son texto,
+    no markup, y se quedan como viven."""
+    texto = str(texto)
+    previo = None
+    while previo != texto:
+        previo, texto = texto, _MARKUP_BIEN_FORMADO.sub(r"\2", texto)
+    return texto
+
+
 def segmentos_enfasis(texto: str) -> List[Tuple[str, bool]]:
     """'Hola *mundo*' -> [('Hola ', False), ('mundo', True)]: la convención de
-    énfasis del kit (el énfasis va en el color de acento)."""
-    out, buf, enf = [], "", False
-    for ch in texto or "":
-        if ch == "*":
-            if buf:
-                out.append((buf, enf))
-            buf, enf = "", not enf
-        else:
-            buf += ch
-    if buf:
-        out.append((buf, enf))
-    return out
+    énfasis del kit (el énfasis va en el color de acento).
+
+    Envoltorio de `segmentos_resalte`: True = kind ``acento``. Las cajas
+    (`roja`/`blanca`) salen como False aquí — quien las necesita llama a
+    `segmentos_resalte` directo.
+    """
+    return [(t, k == "acento") for t, k in segmentos_resalte(texto)]
 
 
 def identidad_pieza(brand: Optional[str] = None, logo: Optional[str] = None,
@@ -750,7 +1268,11 @@ def load_brand(path: Optional[str]) -> Dict[str, Any]:
             brand[k].update(v)
         else:
             brand[k] = v
-    for key in ("font_file",):
+    for key in ("font_file", "fonts_dir"):
+        # las rutas del pack son relativas a la carpeta del JSON
+        # (references/brand-packs.md): si fonts_dir viajaba tal cual, el
+        # quemado solo encontraba las fuentes corriendo desde esa carpeta
+        # y desde cualquier otra libass caia a una fuente de sistema
         if brand.get(key) and not os.path.isabs(brand[key]):
             brand[key] = str(base / brand[key])
     return brand
@@ -832,8 +1354,22 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
             cues = parse_srt(base + ".srt")
             write_srt(cues, out_srt)
             return cues
-        info("whisper.cpp encontrado pero fallo: " + (proc.stderr.strip().splitlines() or ["?"])[-1][:200])
+        lineas = [ln.strip() for ln in (proc.stderr or "").strip().splitlines() if ln.strip()]
+        # whisper.cpp, cuando le falta el modelo, imprime su AYUDA entera: la
+        # ultima linea es texto de uso ("-vo N, --vad-samples-overlap...") y
+        # no dice nada del fallo real. Se busca la primera linea de error de
+        # verdad y, si no hay, se dice que falta el modelo (que es el caso
+        # normal: el binario esta, el modelo no).
+        causa = next((ln for ln in lineas
+                      if "error" in ln.lower() or "fail" in ln.lower()
+                      or "not found" in ln.lower() or "no such" in ln.lower()),
+                     None)
+        if causa is None:
+            causa = (f"no se encuentra el modelo {model_path!r}" if not os.path.exists(model_path)
+                     else (lineas[-1] if lineas else "?"))
+        info("whisper.cpp encontrado pero fallo: " + causa[:200])
     # 2. faster-whisper (paquete python)
+    motivo_fw = None
     try:
         from faster_whisper import WhisperModel  # type: ignore
         m = WhisperModel(model, device="cpu", compute_type="int8")
@@ -843,8 +1379,11 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
             info("transcrito con faster-whisper")
             write_srt(cues, out_srt)
             return cues
-    except ImportError:
-        pass
+    except Exception as ex:  # noqa: BLE001
+        # Instalado pero roto (p. ej. PyAV incompatible) no es "no hay
+        # motor": el motivo se guarda y el error final es el suyo (F1).
+        motivo_fw = f"faster-whisper esta instalado pero fallo: {ex}"
+        info(motivo_fw)
     # 3. openai-whisper CLI
     if shutil.which("whisper"):
         cmd = ["whisper", wav, "--model", model, "--output_format", "srt",
@@ -858,6 +1397,11 @@ def _transcribir_en_tmpdir(video, out_srt, tmpdir, language, model, audio_stream
             cues = parse_srt(srt)
             write_srt(cues, out_srt)
             return cues
+    if motivo_fw:
+        die(motivo_fw + "\nRepara faster-whisper (pip install -U faster-whisper, "
+            "o pip install \"av==12.3.0\" si es el fallo de PyAV) o instala otro motor:\n"
+            "  whisper.cpp:    brew install whisper-cpp   (luego descarga un modelo: ggml-base.bin)\n"
+            "  openai-whisper: pip install openai-whisper")
     die("no hay motor local de voz-a-texto.\n"
         "Instala uno (todos corren offline):\n"
         "  whisper.cpp:    brew install whisper-cpp   (luego descarga un modelo: ggml-base.bin)\n"
@@ -873,6 +1417,10 @@ def leer_palabras(path: str) -> List[Dict[str, Any]]:
     ({segments: [{speaker?, words: [...]}]}). `hablante` (o `speaker`, por
     palabra o por segmento) es opcional: None si el archivo no lo trae."""
     data = leer_json(path, "el JSON de palabras")
+    # El formato canonico es el de scripts/alinear.py:
+    # {"palabras": [{"texto": ..., "inicio": 0.0, "fin": 0.4, "confianza": ...}]}
+    # Se aceptan tambien la lista plana [{text|word|w, start, end}] y la
+    # salida segmentada de Whisper/WhisperX (ver el docstring).
     items: List[Tuple[Dict[str, Any], Any]] = []
     if isinstance(data, dict) and isinstance(data.get("segments"), list):
         for seg in data["segments"]:
@@ -883,7 +1431,7 @@ def leer_palabras(path: str) -> List[Dict[str, Any]]:
         items = [(w, None) for w in (lista or []) if isinstance(w, dict)]
     out = []
     for w, hab_seg in items:
-        texto = str(w.get("texto") or w.get("text") or w.get("word") or "").strip()
+        texto = str(w.get("texto") or w.get("text") or w.get("word") or w.get("w") or "").strip()
         a, b = _to_float(w.get("inicio", w.get("start"))), _to_float(w.get("fin", w.get("end")))
         if texto and a is not None and b is not None:
             out.append({"texto": texto, "inicio": a, "fin": max(b, a + 0.05),
