@@ -523,8 +523,8 @@ def acento_legible(fondo, tam, acento=None):
     a 4.5:1 (3:1 en display, >= DISPLAY_MIN) el acento pasa tal cual; si no,
     su paso más claro del mismo tono (`_legible`); si ese paso ya es casi
     blanco, el énfasis cae a la tinta de la pieza (blanco sobre oscuro).
-    Medido: el rojo de DragonJAR sobre la placa gris del callout 1.33:1 y en
-    un kicker chico sobre casi negro 3.23:1."""
+    Medido: el acento del pack de ejemplo sobre la placa gris del callout
+    queda en 1.33:1, y en un kicker chico sobre casi negro en 3.23:1."""
     import colorsys
     from _comun import contraste
     a = tuple((acento or ACENTO)[:3]); f = tuple(fondo[:3])
@@ -2392,27 +2392,45 @@ def sc_medianoche(ctx,e,t):
         pon_texto(dp, (tw/2,160),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"]*esc,600),fill=(255,255,255,200),anchor="ma")
         pon_texto(dp, (tw/2,280),e["hora"],font=ctx.fT(150,700),fill=BLANCO,anchor="ma")   # dígitos hasta y≈438
         nots=e["notificaciones"]
-        # la tarjeta de la notificación se mide con su letra
-        f_tit=ctx.fX(ESCALA["nota"]*esc,800); fnt_n=ctx.fX(ESCALA["nota"]*esc,400)
+        # La letra se dibuja grande para que, ya reducido el teléfono, siga
+        # en el piso. En 16:9 `esc` la agranda y una sola línea ya no cabe:
+        # se PARTE (linewrap, la misma primitiva del catálogo) y la tarjeta
+        # crece. Recortar aquí perdía el copy en silencio.
+        tam_n=ESCALA["nota"]*esc
+        f_tit=ctx.fX(tam_n,800); fnt_n=ctx.fX(tam_n,400)
         h_t,h_b=sum(f_tit.getmetrics()),sum(fnt_n.getmetrics())
-        hn=int(max(140,2*22+h_t+4+h_b)); paso_n=hn+30
-        for i,n in enumerate(nots):
+        ancho_txt=tw-44-110-14
+        def _lineas(texto, fnt, alto):
+            lineas=linewrap(str(texto), fnt, ancho_txt, ctx.tmp) or [""]
+            if len(lineas)>2:
+                lineas=[lineas[0], recorta_para(" ".join(lineas[1:]), fnt, ancho_txt, ctx.tmp)]
+            nln=len(lineas)
+            return lineas, alto*nln+(4*(nln-1))
+        cajas=[]
+        for n in nots:
+            lt,at_=_lineas(n["titulo"], f_tit, h_t)
+            lb,ab_=_lineas(n["texto"], fnt_n, h_b)
+            hn=int(max(140, 44+at_+4+ab_))
+            cajas.append((n, lt, lb, at_, ab_, hn))
+        for i,(n, lt, lb, at_, ab_, hn) in enumerate(cajas):
             kn=entra(t, n["at"], "suave")
             if kn<=0: continue
             # cada notificación nueva EMPUJA a las anteriores con resorte (antes
             # saltaban 170 px en un frame: el conteo era un escalón)
-            despues=sum(min(1.0,entra(t, m["at"], "suave")) for m in nots[i+1:])
-            ny=480+despues*paso_n+(1-min(1,kn))*ELEV   # sube ELEV como toda entrada
+            despues=sum((c[-1]+30)*min(1.0, entra(t, c[0]["at"], "suave")) for c in cajas[i+1:])
+            ny=480+despues+(1-min(1,kn))*ELEV   # sube ELEV como toda entrada
             nw=Image.new("RGBA",(tw-44,hn),(0,0,0,0)); dn=ImageDraw.Draw(nw)
             dn.rounded_rectangle([0,0,tw-44,hn],radius=28,fill=(255,255,255,36))
             dn.ellipse([22,hn/2-32,86,hn/2+32],fill=ACENTO+(255,))
             pinta_glifo_canal(ctx,dn,n["canal"],54,hn/2,32,BLANCO,icono=n.get("icono"),tam=34*esc)
-            y_t=(hn-h_t-4-h_b)/2
-            pon_texto(dn, (110,y_t),recorta_para(n["titulo"],f_tit,tw-44-110-14,ctx.tmp),font=f_tit,fill=BLANCO)
-            # el cuerpo es un "nota" de la escala (por `esc`, ya reducido
-            # sigue en el piso) y el copy se recorta al ancho real
-            pon_texto(dn, (110,y_t+h_t+4),recorta_para(n["texto"],fnt_n,tw-44-110-14,ctx.tmp),
-                    font=fnt_n,fill=(255,255,255,190))
+            y=(hn-(at_+4+ab_))/2
+            for li, ln in enumerate(lt):
+                pon_texto(dn, (110, y), ln, font=f_tit, fill=BLANCO)
+                y += h_t+(4 if li<len(lt)-1 else 0)
+            y += 4
+            for li, ln in enumerate(lb):
+                pon_texto(dn, (110, y), ln, font=fnt_n, fill=(255,255,255,190))
+                y += h_b+(4 if li<len(lb)-1 else 0)
             a=nw.split()[3].point(lambda v, _kn=kn:int(v*clamp01(_kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((max(1,int(tw*sc)),max(1,int(th*sc))),Image.LANCZOS)

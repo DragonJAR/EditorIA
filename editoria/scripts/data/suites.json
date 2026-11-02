@@ -4,6 +4,7 @@
  "suites": [
   "test_actualizar_conteos.py",
   "test_alfa_webm.py",
+  "test_armonia_catalogo.py",
   "test_auditar_mapa.py",
   "test_auditar_plan.py",
   "test_beat_secciones.py",
