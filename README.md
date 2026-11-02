@@ -294,7 +294,7 @@ EditorIA/
 │   │   │   ├── test_referencia.py
 │   │   │   ├── test_beat_secciones.py
 │   │   │   └── test_direccion_arte.py
-│   │   └── ffmpeg_tools/              # 20 módulos de post-producción
+│   │   └── ffmpeg_tools/              # 21 módulos de post-producción
 │   │       ├── montaje.py             # 19 operaciones de edición
 │   │       ├── componer.py            # Tipografía sobre el footage (DoF + velo)
 │   │       ├── caption.py             # Subtítulos burn-in y karaoke
