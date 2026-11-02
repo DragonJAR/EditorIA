@@ -54,7 +54,7 @@ JUICIO = [1, 2, 5, 7]
 UMBRAL_EJE = 4
 UMBRAL_MEDIA = 4.3
 DENSIDAD_OK = (0.8, 1.5)
-LETRA_OK = 26            # el mismo LETRA_MIN del motor
+from _comun import LETRA_MIN as LETRA_OK   # el mismo LETRA_MIN del motor (una sola fuente)
 
 
 def _puntuar_animacion(m):
