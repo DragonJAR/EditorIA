@@ -254,12 +254,18 @@ def medir(job):
          for (num, tipo, texto), tam in ultimos_escena.items()),
         key=lambda d: d["letra_px"])
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
+    # los RECORTES del motor (lo que no cabe ni partido al piso): el copy que
+    # se pierde. Viaja en la medicion para que la puerta pueda rechazar la
+    # pieza: un recorte anotado y no WATCHED es una perdida silenciosa.
+    recortes = sorted({str(rc.get("texto", "")) for rc in getattr(R, "RECORTES", [])}
+                       - {""})
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # se LEE quieta (render_plan.QUIETAS)
         # su flotación (render_plan.vida) no llega al umbral de `muerto` (diff de
         # cuadro entero); `quieto` (por bloque) sí la ve y se mide como en todas
         m["muerto"] = 0.0
         m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
+                recortes=recortes,
                 letra_por_escena=letra_por_escena, costo=round(costo, 3))
 
 

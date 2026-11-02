@@ -600,22 +600,6 @@ def verificar_alfa(path: str, frame: Optional[int] = None) -> float:
 PREFIJO_FIRMA = "editoria-plan:"
 
 
-def version_motor() -> str:
-    """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
-    reutiliza frames del anterior."""
-    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    try:
-        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as fh:
-            for linea in fh:
-                m = re.match(r"\s*version:\s*[\"']?([^\"'\s]+)", linea)
-                if m:
-                    return m.group(1)
-                if linea.strip() == "---" and not linea.startswith("version"):
-                    # el segundo --- cierra el frontmatter; si ya vimos version, salimos arriba
-                    pass
-    except OSError:
-        pass
-    return "0"
 
 def version_motor() -> str:
     """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
@@ -1025,6 +1009,15 @@ LETRA_MIN = 26
 #: medido, las escenas más angostas POR DISEÑO (apertura, cartel: solo tipo)
 #: ocupan 0.17–0.23; las de datos 0.50–0.86. La comparten medición y puerta.
 OCUPACION_MIN = 0.20
+
+#: s: racha congelada maxima (= auto_qa.FROZEN_MAX).
+QUIETO_MAX = 1.0
+
+#: s: lo que tarda en leerse una frase corta (y el minimo, siempre).
+LECTURA_MIN_S = 2.0
+
+#: palabras por segundo que se leen en un movil (letra grande, sin pausa).
+PALABRAS_POR_S = 3.0
 TOKENS_COLOR = ("acento", "acento_oscuro", "negro", "blanco", "gris", "gris_superficie")
 #: paleta neutra de respaldo (modo libre sin decisión de paleta)
 NEUTRO: Dict[str, Tuple[int, int, int]] = {
@@ -1206,6 +1199,19 @@ def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:
 
 
 _MARKUP_BIEN_FORMADO = re.compile(r"(?<!\w)([*~^])(?=\S)(.+?)(?<=\S)\1(?!\w)")
+
+
+def tiempo_de_lectura(texto) -> float:
+    """Segundos para leer `texto` (str o lista de lineas) una vez asentado.
+
+    El piso es LECTURA_MIN_S: una frase corta tambien necesita un par de
+    segundos en pantalla, o se lee a medias.
+    """
+    import re as _re
+    if isinstance(texto, (list, tuple)):
+        texto = " ".join(str(x) for x in texto)
+    n = len(_re.findall(r"\w+", str(texto or "")))
+    return round(max(LECTURA_MIN_S, n / PALABRAS_POR_S), 2)
 
 
 def texto_plano(texto: str) -> str:

@@ -85,6 +85,78 @@ def at_fuera(at, fr, to):
     return mal
 
 
+_MARKUP_RE = re.compile(r"\*[^*]+\*|~[^~]+~|\^[^^]+\^")
+
+
+def revisar_campos(e, idx):
+    """Lo que la ESCENA lee de verdad, escena por escena.
+
+    El motor (render_plan) es el dueño del esquema: estos chequeos usan SU
+    tabla, no una copia. Sin motor (sin PIL/numpy) se devuelven vacios: el
+    auditor no se cae nunca por un chequeo opcional.
+
+    · el ESQUEMA: obligatorios que faltan y tipos que no casan (ERROR);
+    · el markup en un campo que NO lo admite (AVISO: el motor lo quita);
+    · el tiempo de lectura de la apertura (AVISO: si no cabe, no se lee);
+    · la DURACION de la escena frente a lo que la escena aguanta (ERROR si
+      pasa del maximo, AVISO si pasa de lo recomendado).
+    """
+    out = []
+    try:
+        import render_plan as rp
+    except Exception:   # sin PIL/numpy: este chequeo no aplica
+        return out
+    tipo = e.get("tipo")
+    for err in rp.errores_de_esquema(e, idx):
+        out.append(("ERROR", err))
+    for p_ in rp.esquema_de(tipo):
+        v = e.get(p_["nombre"])
+        if isinstance(v, str) and not p_["markup"] and p_["tipo"] == "texto" and _MARKUP_RE.search(v):
+            out.append(("AVISO", f"escena {idx} ({tipo}): `{p_['nombre']}` no admite markup: "
+                                 f"los signos se quitan y sale texto plano («{v[:30]}»)"))
+    # el tipo frente a la MUESTRA: un numero escrito como palabra
+    ej = rp.muestra(tipo) or {}
+    for k, v in e.items():
+        m = ej.get(k)
+        if isinstance(m, (int, float)) and not isinstance(m, bool) and k not in ("from", "to"):
+            if isinstance(v, str):
+                try:
+                    float(v.replace(",", "."))
+                except ValueError:
+                    out.append(("ERROR", f"escena {idx} ({tipo}): `{k}` debe ser un numero "
+                                         f"(la muestra usa {m}); llego «{v}»"))
+            elif not isinstance(v, (int, float)) or isinstance(v, bool):
+                out.append(("ERROR", f"escena {idx} ({tipo}): `{k}` debe ser un numero "
+                                     f"(la muestra usa {m})"))
+    # la apertura: la 1.a frase tiene que dar tiempo de leerse
+    if tipo == "apertura":
+        from _comun import tiempo_de_lectura
+        try:
+            ap = rp.completar_escena(dict(e), idx)
+            at_ = ap.get("at") or {}
+            if at_.get("p1") and "cambio" in at_:
+                leido = float(at_["cambio"]) - float(at_["p1"][-1]) - 0.45
+                if leido < tiempo_de_lectura(ap.get("texto1")) - 0.05:
+                    out.append(("AVISO", f"escena {idx} (apertura): la 1.a frase se lee "
+                                         f"{max(0, leido):.1f} s (< {tiempo_de_lectura(ap.get('texto1'))} s): "
+                                         f"alarga la apertura o acorta la frase"))
+        except SystemExit:
+            pass
+    # la duracion de la escena frente a lo que la escena aguanta
+    rango = rp.duracion_de(tipo)
+    fr, to = _t_num(e.get("from")), _t_num(e.get("to"))
+    if rango and fr is not None and to is not None:
+        d = to - fr
+        if d > rango["max"]:
+            out.append(("ERROR", f"escena {idx} ({tipo}): dura {d:.1f} s, mas que el maximo de la "
+                                 f"escena ({rango['max']} s): parte el contenido en dos escenas"))
+        elif d > rango["recomendada"][1]:
+            out.append(("AVISO", f"escena {idx} ({tipo}): dura {d:.1f} s, por encima de lo "
+                                 f"recomendado ({rango['recomendada'][0]}-{rango['recomendada'][1]} s; "
+                                 f"maximo {rango['max']} s)"))
+    return out
+
+
 def auditar_estructura(plan, tol=0.05, min_final=2.0):
     """Audita un diccionario de plan ya cargado y devuelve lista de hallazgos."""
     if not isinstance(plan, dict):
@@ -127,6 +199,11 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
             add("ERROR", fr if fr is not None else 0.0,
                 f"escena {idx} ({tipo}): falta from/to numérico")
             continue
+        # lo que la ESCENA lee de verdad (esquema, markup, tipo frente a la
+        # muestra, tiempo de lectura y duracion): una sola implementacion,
+        # la misma para la biblioteca y para la CLI
+        for _nivel, _msg in revisar_campos(e, idx):
+            add(_nivel, fr, _msg)
         for donde, sub in (("at", e.get("at")),):
             for v in at_fuera(sub, fr, to):
                 add("AVISO", fr,
@@ -568,7 +645,12 @@ def main():
         sys.exit(msg)
 
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
-    # copy de muestra sin reemplazar → ERROR (el plan no es entregable)
+    # el pack que NO existe no puede pasar en silencio: antes se resolvia
+    # la ruta a mano (2 candidatos) y un `except` moria el error; ahora
+    # `buscar_pack` acepta tambien el NOMBRE del pack ("carbon") y el
+    # error dice que packs hay.
+    # el copy de MUESTRA sin reemplazar es un ERROR (el plan no es entregable):
+    # el mensaje va aqui, junto al resto, y no duplicado por escena
     if isinstance(plan, dict):
         for idx, e in enumerate(plan.get("escenas") or []):
             if isinstance(e, dict) and e.get("_muestra"):
@@ -577,13 +659,6 @@ def main():
                     "msg": (f"escena {idx} ({e.get('tipo','?')}): copy de MUESTRA sin reemplazar "
                             f"(va: «{str(e['_muestra'])[:50]}»); escribe el del brief y borra `_muestra`"),
                 })
-            if isinstance(e, dict) and e.get("tipo"):
-                try:
-                    import render_plan as rp
-                    for err in rp.errores_de_esquema(e, idx):
-                        hallazgos.append({"nivel": "ERROR", "t": float(e.get("from") or 0.0), "msg": err})
-                except Exception:
-                    pass
     if isinstance(plan, dict) and isinstance(plan.get("brand"), str):
         from _comun import buscar_pack, packs_disponibles
         ruta_brand = buscar_pack(plan["brand"], os.path.dirname(os.path.abspath(a.plan)))

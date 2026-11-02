@@ -171,10 +171,17 @@ def main():
     ap.add_argument("-o", "--out", required=True, dest="out",
                     help="video final con todo el audio")
     ap.add_argument("--plataforma", default="reels",
+<<<<<<< HEAD
                     help="objetivo de sonoridad de la entrega (tabla de _delivery: reels, tiktok, "
                          "shorts, youtube, podcast, broadcast...; def. reels = -14 LUFS, TP -1.0)")
     ap.add_argument("--sin-normalizar", action="store_true",
                     help="no normaliza la mezcla (sale cruda, para masterizar aparte)")
+=======
+                    help="plataforma de entrega: su objetivo de sonoridad y su "
+                         "techo de true peak (def. reels)")
+    ap.add_argument("--sin-normalizar", action="store_true",
+                    help="deja la mezcla como sale (sin normalizar a la plataforma)")
+>>>>>>> mi-integracion-1114
     args = ap.parse_args()
 
     for etiqueta, ruta in (("plan", args.plan), ("video", args.video)):
@@ -287,7 +294,12 @@ def main():
         print(f"ERROR: plataforma desconocida: {args.plataforma} "
               f"(opciones: {', '.join(sorted(_delivery.PLATFORMS))})", file=sys.stderr)
         return 2
+<<<<<<< HEAD
     crudo = args.out if args.sin_normalizar else f"{args.out}.mezcla{os.path.splitext(args.out)[1] or '.mp4'}"
+=======
+    crudo = (args.out if args.sin_normalizar
+             else f"{args.out}.mezcla{os.path.splitext(args.out)[1] or '.mp4'}")
+>>>>>>> mi-integracion-1114
     cmd = ["ffmpeg", "-y", "-v", "error"] + entradas + \
           ["-filter_complex", ";".join(fc), "-map", "0:v", "-map", "[aout]",
            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
@@ -299,11 +311,21 @@ def main():
     nivel = None
     if not args.sin_normalizar:
         # la MISMA normalizacion de loudness.py / render_plan (dos pasadas y
+<<<<<<< HEAD
         # techo de true peak verificado tras el AAC)
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
         from loudness import normalizar_para
         try:
             nivel = normalizar_para(crudo, args.out, args.plataforma, duracion=dur_s or None)
+=======
+        # techo de true peak verificado despues del AAC): sin esto la entrega
+        # puede salir por encima del techo de la plataforma y la puerta la
+        # rechaza (medido: la cama con SFX salia a -33 LUFS).
+        from loudness import normalizar_para
+        try:
+            nivel = normalizar_para(crudo, args.out, args.plataforma,
+                                     duracion=dur_s or None)
+>>>>>>> mi-integracion-1114
         finally:
             if os.path.exists(crudo) and crudo != args.out:
                 os.remove(crudo)
@@ -311,8 +333,13 @@ def main():
                 else ("musica sola" if hay_mus else ""))
     sonoridad = ""
     if nivel and not nivel.get("silent"):
+<<<<<<< HEAD
         sonoridad = (f" · {float(nivel['input_i']):.1f} LUFS, TP {float(nivel['input_tp']):.1f} dBTP "
                      f"({args.plataforma})")
+=======
+        sonoridad = (f" · {float(nivel['input_i']):.1f} LUFS, "
+                     f"TP {float(nivel['input_tp']):.1f} dBTP ({args.plataforma})")
+>>>>>>> mi-integracion-1114
     print(f"OK {args.out}: {len(colocados)} SFX, "
           f"{'voz ' if args.voz else ''}"
           f"{modo_mus + ' ' if modo_mus else ''}({dur_s:.1f}s){sonoridad}")

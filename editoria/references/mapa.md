@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-69 referencias, 52 scripts, 20 herramientas de ffmpeg y 80 suites de tests. Este
+69 referencias, 52 scripts, 20 herramientas de ffmpeg y 86 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -171,6 +171,8 @@ escribir es un tapón).
 | `creditos.md` | el material de terceros estudiado o adaptado, con su licencia | operacion |
 | `paleta.md` | el color en modo libre: catálogo y regla de elección | color |
 | `capacidades.md` | con qué cuenta la skill y qué falta | herramienta |
+| `tiempo-html.md` | el tiempo en los motores HTML: el kit `assets/js/tiempo.mjs` (espejo del motor), motion blur, trampas y las tres puertas | herramienta |
+| `creditos.md` | el material de terceros estudiado o adaptado, con su licencia | operacion |
 | `remotion.md` | la integración con Remotion | herramienta |
 | `hyperframes.md` | la integración con HyperFrames | herramienta |
 | `3d.md` | el 3D como material: Blender por MCP y objeto de referencia a Three.js | herramienta |

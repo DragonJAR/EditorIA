@@ -90,6 +90,9 @@ FM=resolver_fuente("Montserrat", generica="sans")
 MONO_FAMILIA="IBM Plex Mono"   # empaquetada (OFL): la mono del motor y la de respaldo del pack
 MONO=resolver_fuente(MONO_FAMILIA, "DejaVu Sans Mono", "Consolas", "Menlo", generica="mono")
 LOGO=None; ISOTIPO=None; MARCA_NOMBRE=None
+#: los nombres de la marca que conservan su caja (regla del pack
+#: `conservar_caso`): «DragonJAR» no es «DRAGONJAR».
+CASO_MARCA=set()
 TRANSICIONES="libre"   # idioma de transición; el pack puede fijar "corte_seco"
 ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida por alfa)
 
@@ -100,7 +103,9 @@ ALFA=False   # salida .webm/.mov: overlay transparente (sin fondo vivo, salida p
 # la comprueba contra lo que dice references/brand-packs.md y contra lo que
 # declara cada pack (si un pack declara una regla que no está en ninguna de
 # las dos listas, nadie la cumple).
-REGLAS_DEL_MOTOR = {"transiciones"}          # el motor las lee y las hace cumplir
+REGLAS_DEL_MOTOR = {"transiciones",          # el motor las lee y las hace cumplir
+                   "rebote", "particulas", "volumen", "outro_sobrio",
+                   "conservar_caso"}
 REGLAS_DEL_AGENTE = {"rejillas_decorativas", # guia del agente: las lee el que
                       "efectos_glitch",      # escribe el plan, no el motor
                       "isotipo_con_protagonista"}
@@ -223,6 +228,9 @@ def spring(t,t0,stiff=120,damp=13):
     """Resorte subamortiguado 0->1 con overshoot. La base de la fluidez."""
     if t<=t0: return 0.0
     dt=t-t0; w=math.sqrt(stiff); d=damp/(2*w)
+    # regla del pack `rebote: false` (marca de precision): el MISMO resorte,
+    # con amortiguamiento critico: llega con la misma frecuencia y no se pasa
+    if not REBOTE: d=max(d,1.0)
     if d>=1: return 1-math.exp(-w*dt)*(1+w*dt)
     wd=w*math.sqrt(1-d*d)
     return 1-math.exp(-d*w*dt)*(math.cos(wd*dt)+d*w/wd*math.sin(wd*dt))
@@ -492,8 +500,31 @@ class Ctx:
         return rgb
 
 def es_marca_del_pack(nombre):
-    """Un logo solo acompaña a su propia marca (nunca isotipo ajeno junto a otro nombre)."""
-    return bool(MARCA_NOMBRE) and str(nombre).strip().lower()==MARCA_NOMBRE.strip().lower()
+    """Un logo solo acompaña a su propia marca (nunca isotipo ajeno junto a otro nombre).
+
+    Cuenta tambien los nombres de la regla `conservar_caso` del pack: son la
+    misma marca con otro nombre («DragonJAR Education»).
+    """
+    n = str(nombre).strip().lower()
+    if not n:
+        return False
+    if MARCA_NOMBRE and n == MARCA_NOMBRE.strip().lower():
+        return True
+    return any(n == str(x).strip().lower() for x in CASO_MARCA)
+
+
+def conserva_su_caja(texto):
+    """El texto tal cual, salvo los nombres de la marca: «DragonJAR» no es
+    «DRAGONJAR» (regla del pack `conservar_caso`)."""
+    s = str(texto)
+    for nombre in CASO_MARCA:
+        n = str(nombre)
+        if not n:
+            continue
+        for variante in {n, n.upper(), n.lower(), n.capitalize()}:
+            if variante != n:
+                s = s.replace(variante, n)
+    return s
 
 def mundo(ctx,t,oscuro=True,seed=1):
     """Fondo vivo: blobs a la deriva + viñeta. Sin rejillas ni líneas."""
@@ -893,11 +924,38 @@ def vy(f):
     y=H*f; top=SAFE["top"]
     return y if y<=top else top+(y-top)*vk()
 
-def bajo_rotulo(y,tam=None,aire=0.45):
+def rotulo_fondo(ctx, texto, y=None, tam=None):
+    """y del borde inferior REAL del rótulo (1 o 2 líneas, tamaño ajustado).
+
+    Lo que va debajo se mide desde aquí: un rótulo largo parte en dos líneas
+    y la segunda pisaba la fecha / el arco que estaban a un offset fijo.
+    """
+    yy = rotulo_y() if y is None else y
+    if not texto:
+        return yy
+    lineas_r, _, tam_, _ = _rotulo_ajuste(ctx, texto, tam)
+    return yy + len(lineas_r) * tam_ * 1.2
+
+
+def rotulo_extra(ctx, texto, y=None):
+    """Lo que el rótulo real mide de MÁS frente al de diseño (una línea a
+    ESCALA['rotulo']): el desplazamiento que heredan los bloques de debajo."""
+    yy = rotulo_y() if y is None else y
+    return max(0.0, rotulo_fondo(ctx, texto, yy) - (yy + ESCALA["rotulo"] * 1.2))
+
+
+def bajo_rotulo(y, tam=None, aire=0.45, texto=None, ctx=None):
     """Primer y libre bajo un rótulo anclado arriba en `y` (alto de línea +
     aire; `tam` por defecto, el rol `rotulo` de la ESCALA). Lo que va debajo del rótulo se mide desde aquí, nunca con una
-    fracción fija de H: en 16:9 H*0.04 son 43 px y el rótulo mide ~55."""
-    return y+(ESCALA["rotulo"] if tam is None else tam)*(1.2+aire)
+    fracción fija de H: en 16:9 H*0.04 son 43 px y el rótulo mide ~55.
+
+    Con `texto` y `ctx`, el alto es el REAL del rótulo (1 o 2 líneas): un
+    rótulo largo parte en dos y la segunda línea pisaba lo que va debajo.
+    """
+    base = y + (ESCALA["rotulo"] if tam is None else tam) * (1.2 + aire)
+    if texto and ctx is not None:
+        base += rotulo_extra(ctx, texto, y)
+    return base
 
 # ---------- UNA primitiva de capa propia ----------
 SS=3   # sobremuestreo de las formas chicas (círculos, píldoras, biseles)
@@ -1054,14 +1112,19 @@ def insignia_3d(d, cx, cy, r, icono, fnt, color=None, alpha=255, t=0.0):
     rr = max(8, int(r * 0.42))
 
     def sombra(d, q, s):      # contacto: bajo la pieza, sin perforar lo de abajo
+        if not VOLUMEN:
+            return
         d.ellipse(q(cx - r * 0.82, cy + r * 0.78, cx + r * 0.82, cy + r * 1.12), fill=(0, 0, 0, 90))
 
     def cuerpo(d, q, s):      # extrusión (volumen) + cara
-        d.rounded_rectangle(q(cx - r, cy_f - r + 7, cx + r, cy_f + r + 7), radius=rr * s, fill=osc + (255,))
+        if VOLUMEN:
+            d.rounded_rectangle(q(cx - r, cy_f - r + 7, cx + r, cy_f + r + 7), radius=rr * s, fill=osc + (255,))
         d.rounded_rectangle(q(cx - r, cy_f - r, cx + r, cy_f + r), radius=rr * s, fill=col + (255,),
                             outline=claro + (140,), width=2 * s)
 
     def reflejo(d, q, s):     # el brillo SUMA luz a la cara (antes la perforaba)
+        if not VOLUMEN or max(col) - min(col) <= 24:
+            return   # sobre un acento gris el brillo se lee como una mancha
         d.ellipse(q(cx - r * 0.55, cy_f - r * 0.72, cx + r * 0.55, cy_f - r * 0.18), fill=claro + (75,))
     sobre_capa(d, (cx - r, cy_f - r, cx + r, max(cy_f + r + 7, cy + r * 1.12)),
                sombra, cuerpo, reflejo, ss=SS, alfa=int(alpha))
@@ -1506,8 +1569,8 @@ def elipse_se_dibuja(d, cx, cy, rx, ry, t, t0, dur=0.8, color=None, grosor=4):
 def particulas(d, t, t0, cx, cy, n=60, color=None, semilla=11):
     """Confetti / celebración determinista (seeded). Sin random: reproducible.
     `color` por defecto usa ACENTO. La usan `confeti`, `listo` (extra), etc."""
-    if t < t0:
-        return
+    if t < t0 or not PARTICULAS:
+        return   # regla del pack `particulas: false`: la pieza sale limpia
     color = color or ACENTO
     rng = random.Random(semilla)
     dt = t - t0
@@ -1764,6 +1827,23 @@ def cifra(d, xy, texto, font, fill, anchor="mm", final=None):
     (U+2007) para que pasar de "8" a "11" no corra el número ni lo re-centre."""
     if final and len(final) > len(texto):
         texto = "\u2007" * (len(final) - len(texto)) + texto
+    # simbolo de moneda delante: aire propio (con cifras tabulares el «$»
+    # tocaba el «1» de «$180.000»); se dibuja aparte y el numero sigue tabular
+    pref = ""
+    while texto and texto[0] in "$€£¥₡₲₱₹":
+        pref += texto[0]
+        texto = texto[1:]
+    if pref and texto:
+        aire = font.size * 0.035   # el asta del «1» casi toca el «$» sin este aire
+        w_p = largo(pref, font)
+        w_n = (d.textlength(texto, font=font, features=TNUM) if TNUM
+               else largo(texto, font, True))
+        x, y = xy
+        x_izq = x - {"l": 0, "m": (w_p + aire + w_n) / 2,
+                     "r": w_p + aire + w_n}[anchor[0]]
+        pon_texto(d, (x_izq, y), pref, font=font, fill=fill, anchor="l" + anchor[1])
+        cifra(d, (x_izq + w_p + aire, y), texto, font, fill, anchor="l" + anchor[1])
+        return
     if TNUM:
         pon_texto(d, xy, texto, font=font, fill=fill, anchor=anchor, features=TNUM)
         return
@@ -1829,16 +1909,22 @@ def linea_que_cabe(fabrica, texto, tam, ancho_max, peso=700, minimo=None):
                           minimo=MIN_LETRA if minimo is None else minimo)
     return fnt, recorta_para(texto, fnt, ancho_max)
 
-def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minimo=None):
+def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minimo=None,
+                   markup=False):
     """Ajusta un texto a un ancho PARTIÉNDOLO antes de encogerlo.
 
     Partir es mejor que encoger: el texto partido conserva el tamaño de la
     escala (se lee igual), mientras que encogerlo lo deja ilegible. Si aun
     partido en `max_lineas` no cabe, se encoge (hasta `minimo`, por defecto
     el piso legible MIN_LETRA) y, en el piso, la última línea se RECORTA con
-    … (anotado en RECORTES: antes las líneas de más se perdían sin aviso).
+    ... (anotado en RECORTES: antes las líneas de más se perdían sin aviso).
     Devuelve (fuente, lineas).
+
+    El markup (*énfasis*, ~caja~, ^caja^) se QUITA por defecto: un campo que
+    se pinta como texto corrido no puede mostrar los signos. Con `markup=True`
+    se conservan (para quien los sabe pintar).
     """
+    texto = str(texto) if markup else texto_plano(str(texto))
     minimo = MIN_LETRA if minimo is None else minimo
     tam = int(tam)
     fnt = fabrica(tam, peso)
@@ -2234,6 +2320,73 @@ def fundir(layer, sub, k, dy=ELEV):
     layer.alpha_composite(sub, (0, oy))
 
 
+def markup_palabras(texto):
+    """[[(texto, tipo_caja|None, es_clave), ...] por palabra] del texto.
+
+    Se apoya en `segmentos_resalte` (el parser UNICO del kit): el markup se
+    lee una vez y todos lo que lo necesitan usan la misma lectura.
+    """
+    palabras, actual = [], []
+    for txt, kind in segmentos_resalte(str(texto or "")):
+        for p_ in re.split(r"(\s+)", txt):
+            if not p_:
+                continue
+            if p_.isspace():
+                if actual:
+                    palabras.append(actual)
+                    actual = []
+            else:
+                actual.append((p_, kind if kind in ("roja", "blanca") else None,
+                               kind == "acento"))
+    if actual:
+        palabras.append(actual)
+    return palabras
+
+
+def marcas_de_frase(texto):
+    """[(palabra_limpia, es_clave, tipo_caja)] por palabra de `texto.split()`.
+
+    El marcado se lee sobre la frase ENTERA (markup_palabras): en
+    «*tres palabras clave*» la del medio tambien es clave (antes solo lo
+    eran las que llevaban el asterisco pegado)."""
+    crudas = str(texto or "").split()
+    mp = markup_palabras(texto)
+    if len(mp) == len(crudas):
+        return [("".join(sg[0] for sg in w), any(sg[2] for sg in w),
+                 next((sg[1] for sg in w if sg[1]), None)) for w in mp]
+    # un marcador suelto entre espacios descuadra el conteo: palabra a palabra
+    return [(w.replace("*", "").replace("~", "").replace("^", ""), "*" in w,
+             "roja" if "~" in w else ("blanca" if "^" in w else None)) for w in crudas]
+
+
+#: una palabra con mayuscula interna (MiMarcaPRO, iPhone, YouTube) es un
+#: nombre propio: la versalita NO la toca.
+_CAPS_INTERNAS = re.compile(r"[a-záéíóúñü][A-ZÁÉÍÓÚÑÜ]")
+
+
+def versalitas(texto):
+    """El texto en MAYUSCULAS para kickers y rotulos, salvo las palabras que
+    son nombres propios con caja fija: las de CASO_MARCA (la regla `conservar_caso`
+    del pack) y las que traen una mayuscula interna."""
+    out = []
+    for w in re.split(r"(\s+)", str(texto or "")):
+        nucleo = w.strip(".,;:!?¡¿\"'()[]«»")
+        if w.isspace() or not w:
+            out.append(w)
+        elif nucleo in CASO_MARCA or _CAPS_INTERNAS.search(nucleo):
+            out.append(w)
+        else:
+            out.append(w.upper())
+    return "".join(out)
+
+
+def texto_fuente(fuente):
+    """«Fuente: X» una sola vez: si el plan ya trae el prefijo («Fuente:
+    Binance», «Source: X»), no se duplica (antes salia «Fuente: Fuente: ...»)."""
+    prefijo = re.compile(r"^\s*(fuente|source|fuente de)\s*[:\-]?\s*", re.IGNORECASE)
+    return "Fuente: " + prefijo.sub("", str(fuente)).strip()
+
+
 def _revela_clip(layer, tile, xy, k):
     """Revelado por máscara (animacion.md §6): `tile` es el texto dibujado en
     su sitio FINAL y su borde inferior es la línea de clip. Con el resorte k
@@ -2255,6 +2408,8 @@ def _revela_clip(layer, tile, xy, k):
     if a < 1:
         tile.putalpha(tile.split()[3].point(lambda v: int(v * a)))
     x, y = int(xy[0]), int(xy[1])
+    if -x >= tile.width or -y >= tile.height or x >= layer.width or y >= layer.height:
+        return   # el tile cae entero fuera del lienzo: nada que componer (antes: ValueError)
     if x < 0 or y < 0:   # alpha_composite no acepta destinos negativos: recortar
         tile = tile.crop((max(0, -x), max(0, -y), tile.width, tile.height))
         x, y = max(0, x), max(0, y)
@@ -2393,7 +2548,7 @@ def sc_canales(ctx,e,t):
     ancho110=ctx.tmp.textlength(e["marca"],font=ctx.fT(110,800))+(176 if iso_ok else 0)
     a_m,b_m=tinta(ctx.fT(110*0.55*min(1.0,(zx1_-zx0_)*0.94/ancho110),800),e["marca"],"lm")
     n_c=len(e["canales"]); H_TJ=124
-    centros,_=pila([max(b_m-a_m,int(150*0.55) if iso_ok else 0)]+[H_TJ]*n_c,bajo_rotulo(rotulo_y()),zy1_,gap=SEPARA-16)
+    centros,_=pila([max(b_m-a_m,int(150*0.55) if iso_ok else 0)]+[H_TJ]*n_c,bajo_rotulo(rotulo_y(), texto=e.get("rotulo"), ctx=ctx),zy1_,gap=SEPARA-16)
     fl=flota(t,at["junta"]+0.6,5,0.36)
     k=entra(t, at["marca"], "lento")
     if k>0:
@@ -2648,7 +2803,7 @@ def sc_leads(ctx,e,t):
     at=e["at"]
     kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     if kr>0:   # el total entra con su rótulo (y va en su marco fijo)
-        pon_texto(ImageDraw.Draw(capa_fija(layer)), (W/2,bajo_rotulo(rotulo_y(),aire=0.15)),e.get("total",""),font=ctx.fM(ESCALA["dato"],700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
+        pon_texto(ImageDraw.Draw(capa_fija(layer)), (W/2,bajo_rotulo(rotulo_y(),aire=0.15,texto=e.get("rotulo"),ctx=ctx)),e.get("total",""),font=ctx.fM(ESCALA["dato"],700),fill=ACENTO+(int(255*clamp01(kr*1.5)),),anchor="ma")
     filas=e["filas"]; n=len(filas)
     zx0,_,zx1,zy1=caja_segura()   # compuesta DENTRO de la zona segura: no se encoge
     y0=rotulo_y()+140
@@ -2703,7 +2858,7 @@ def sc_handoff(ctx,e,t):
     h_ctx=(n_ctx-1)*PASO_CTX+40+tinta(f_v,"Ág")[1] if n_ctx else 0
     # el grupo, con SU aire (SEPARA: el reparto lo partía en dos islas), en el
     # centro óptico del sitio libre
-    y_libre=bajo_rotulo(rotulo_y()); total=ALTO_CARD+SEPARA+h_ctx
+    y_libre=bajo_rotulo(rotulo_y(), texto=e.get("rotulo"), ctx=ctx); total=ALTO_CARD+SEPARA+h_ctx
     y0_=max(y_libre,y_libre+CENTRO_OPTICO*(zy1-y_libre)-total/2)
     top_card,top_ctx=apila([ALTO_CARD,h_ctx],y0_)
     y_card=top_card+fy
@@ -2749,7 +2904,7 @@ def sc_pago(ctx,e,t):
     alturas=[b-a for a,b in tintas]+[2,H_BOTON]   # filas, filete, botón
     huecos=[28,14,PAD,PAD]
     chh=2*PAD+sum(alturas)+sum(huecos)
-    y_card=pila([chh],bajo_rotulo(rotulo_y()),zy1)[0][0]-chh/2   # centrada bajo el rótulo
+    y_card=pila([chh],bajo_rotulo(rotulo_y(), texto=e.get("rotulo"), ctx=ctx),zy1)[0][0]-chh/2   # centrada bajo el rótulo
     if k>0:
         yy=y_card+(1-min(1,k))*ELEV
         tarjeta(ctx,layer,x,yy,cw,chh,radio=32,alpha=int(255*min(1,k)))
@@ -2843,7 +2998,7 @@ def sc_hoy(ctx,e,t):
     # rótulo y fecha apilados y la fecha entra con el rótulo
     kr=rotulo(ctx,layer,t,e.get("rotulo",""),at["rotulo"],y=rotulo_y())
     if kr>0:   # la fecha es parte del rótulo: va en su marco fijo
-        pon_texto(ImageDraw.Draw(capa_fija(layer)), (W/2,bajo_rotulo(rotulo_y(),aire=0.0)+(1-min(1,kr))*ELEV),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],400),
+        pon_texto(ImageDraw.Draw(capa_fija(layer)), (W/2,bajo_rotulo(rotulo_y(),aire=0.0,texto=e.get("rotulo"),ctx=ctx)+(1-min(1,kr))*ELEV),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"],400),
                fill=GRIS+(int(255*clamp01(kr*1.5)),),anchor="ma")
     ck=prog(t,at["cuenta"],at["cuenta"]+0.8,ease_out)   # una sola curva
     tarjetas=e["tarjetas"]; n=len(tarjetas)
@@ -2857,7 +3012,7 @@ def sc_hoy(ctx,e,t):
     # tapaban media cifra y en 9:16 quedaban a 6 px)
     f_c=ctx.fT(130,800); final=str(e["cuenta"]); tc=tinta(f_c,final,"ma")
     h_grid=filas_*(ALTO_TJ+24)-24
-    libre=bajo_rotulo(rotulo_y(),aire=0)+ESCALA["secundario"]*1.2+SEPARA   # bajo la fecha
+    libre=bajo_rotulo(rotulo_y(),aire=0,texto=e.get("rotulo"),ctx=ctx)+ESCALA["secundario"]*1.2+SEPARA   # bajo la fecha
     (c_cifra,c_grid),_=pila([tc[1]-tc[0],h_grid],libre,zy1,gap=SEPARA)
     # la cifra late en el hold (antes se congelaba al llegar al tope)
     pulso_c = latido(t, at["cuenta"] + 0.9, 1.7, 0.06) if t >= at["cuenta"] + 0.9 else 1.0
@@ -2982,7 +3137,7 @@ def zona_contenido(ctx, titulo="", fuente=False):
     (`bajo_rotulo`, la misma medida que el resto del catálogo) y sobre la
     línea de fuente. El centro óptico es CENTRO_OPTICO, el del encuadre."""
     _, zy0, _, zy1 = caja_segura()
-    y0 = bajo_rotulo(rotulo_y(), aire=0.2) if titulo else zy0 + 0.04 * H
+    y0 = bajo_rotulo(rotulo_y(), aire=0.2, texto=titulo, ctx=ctx) if titulo else zy0 + 0.04 * H
     y1 = zy1 - (ESCALA["nota"] * 2.2 if fuente else 0.02 * H)
     return y0, y1
 
@@ -3424,8 +3579,16 @@ def sc_stats(ctx, e, t):
                                 tabular=True)
         cifra(d, (cx + cw / 2, cy + ch * 0.42), val, fnt_v, col, anchor="mm")
         # etiqueta
-        fnt_l = fuente_que_cabe(ctx.fX, c.get("etiqueta", ""), min(ch * 0.15, 52), cw * 0.86, 600)
-        pon_texto(d, (cx + cw / 2, cy + ch * 0.78), c.get("etiqueta", ""), font=fnt_l, fill=GRIS + (al,), anchor="mm")
+        # la etiqueta se PARTE en 2 lineas antes de encogerse (texto_que_cabe):
+        # con una sola linea, «en Tether y USD Coin» salia «en Tether y USD C...»
+        # en 1:1, y lo que ni asi cabe se ANOTA en RECORTES (un recorte sin
+        # aviso es un copy perdido en silencio)
+        fnt_l, lin_l = texto_que_cabe(ctx.fX, c.get("etiqueta", ""), min(ch * 0.15, 52),
+                                      cw * 0.86, 600, max_lineas=2)
+        lh_l = fnt_l.size * 1.12
+        for li, ln in enumerate(lin_l):
+            pon_texto(d, (cx + cw / 2, cy + ch * 0.78 + (li - (len(lin_l) - 1) / 2) * lh_l),
+                      ln, font=fnt_l, fill=GRIS + (al,), anchor="mm")
     pie_fuente(ctx, d, e, t, e["from"] + 2.0)
     return capa_salida(layer, t, e["to"])
 
@@ -3694,7 +3857,8 @@ def sc_confetti(ctx, e, t):
     t_t = at.get("texto", t_p + 0.3)
     # confeti con semilla determinista (estable si el usuario no cambia la fecha)
     semilla = at.get("timestamp_seed", 11)
-    if t >= t_p:
+    if t >= t_p and PARTICULAS:
+        # regla del pack `particulas: false`: la pieza sale limpia (solo el texto)
         # lluvia CONTINUA densamente solapada: si cada columna siempre tiene
         # pieza en movimiento, las celdas no "arrancan" tras calma → dens baja
         # (medido: 58 piezas escasas → dens 2.65; columnas llenas → ≤2.0).
@@ -5166,18 +5330,21 @@ def sc_oferta(ctx, e, t):
     if e.get("rotulo"):
         rotulo(ctx, layer, t, e["rotulo"], at.get("rotulo", fr), y=rotulo_y(),
                 tam=ESCALA["rotulo"])
-    bloques = [("badge", tam * 1.12), ("antes", 100),
+    # el descuento GRANDE solo si el plan lo pide (`descuento` o `mostrar`):
+    # derivarlo de antes/ahora dibujaba un «-25%» que el brief no decia
+    con_badge = ("descuento" in e) or bool(e.get("mostrar"))
+    bloques = [("badge", (tam * 1.12) if con_badge else 0), ("antes", 100),
                ("precio", 160), ("codigo", 124 if e.get("codigo") else 0),
                ("vence", 50 if e.get("vence") else 0), ("cta", 120 if e.get("cta") else 0)]
     bloques = [b for b in bloques if b[1]]
-    top_pila = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=0.3) if e.get("rotulo") else zy0 + 20
+    top_pila = bajo_rotulo(rotulo_y(), ESCALA["rotulo"], aire=0.3, texto=e.get("rotulo"), ctx=ctx) if e.get("rotulo") else zy0 + 20
     ys, f = pila([a for _, a in bloques], top_pila,
                 techo_fuente(ctx, e) if e.get("fuente") else zy1 - 10, gap=26)
     Y = {n: y for (n, _), y in zip(bloques, ys)}
     px = lambda v: max(MIN_LETRA, int(v * f))   # noqa: E731  (nunca ilegible)
     t_d = at.get("descuento", fr + 0.4)
     kd = entra(t, t_d, "pop")
-    if kd > 0:
+    if kd > 0 and con_badge:
         sc = 1 + 0.12 * (1 - min(1, kd))   # aterriza desde un poco más grande
         pon_texto(d, (W / 2, Y["badge"]), badge, font=ctx.fT(int(px(tam) * sc), 800),
                fill=ACENTO + (int(255 * clamp01(kd * 1.5)),), anchor="mm")
@@ -5190,7 +5357,7 @@ def sc_oferta(ctx, e, t):
         kt = ease_out(clamp01((t - t_t) / 0.35))
         if kt > 0:
             x0 = W / 2 - tw_ / 2 - 12
-            d.line([(x0, y + 6), (x0 + (tw_ + 24) * kt, y - 6)], fill=ACENTO + (255,), width=px(10))
+            d.line([(x0, y + 6), (x0 + (tw_ + 24) * kt, y - 6)], fill=ACENTO + (255,), width=max(3, int(fnt.size * 0.06)))
     t_p = at.get("precio", t_t + 0.5)
     if t >= t_p:
         kp = entra(t, t_p, "pop")
@@ -5295,7 +5462,7 @@ def sc_demo(ctx, e, t):
     barra, pie = 48, 152   # pie: aire + botón del beneficio bajo la ventana
     # el bloque (ventana + botón) se centra ENTRE el rótulo y el borde seguro
     # inferior: con H*0.44 fijo, en 16:9 la ventana tapaba el rótulo
-    arriba = bajo_rotulo(rotulo_y()) + 16 if e.get("rotulo") else caja_segura()[1]
+    arriba = bajo_rotulo(rotulo_y(), texto=e.get("rotulo"), ctx=ctx) + 16 if e.get("rotulo") else caja_segura()[1]
     libre = caja_segura()[3] - arriba
     bh = int(min(H * 0.48, bw * asp, libre - barra - pie))
     x0 = (W - bw) // 2
@@ -5535,7 +5702,7 @@ def sc_hero(ctx, e, t):
         # UNA línea lo dejaba en 18 px (ilegible) para después partirlo en dos.
         fs, lns_s = texto_que_cabe(ctx.fX, sub_txt, ESCALA["secundario"],
                                    int(ancho_u * 0.90), 600, max_lineas=2)
-        ys = bajo_rotulo(yt, ESCALA["rotulo"], aire=1.15)
+        ys = bajo_rotulo(yt, ESCALA["rotulo"], aire=1.15, texto=e.get("rotulo"), ctx=ctx)
         for li, ln_s in enumerate(lns_s):
             pon_texto(ImageDraw.Draw(layer), (W / 2, ys + li * int(fs.size * 1.22)), ln_s,
                                        font=fs, fill=GRIS + (als,), anchor="ma")
@@ -6681,6 +6848,7 @@ def aplicar_brand(brand_path):
     La lectura vive en _comun (colores_marca, fuente_marca, ruta_de_pack):
     la misma para todas las herramientas del kit."""
     global LOGO, ISOTIPO, MARCA_NOMBRE, TRANSICIONES   # fuentes: vía globals()
+    global CASO_MARCA
     global SOLAPE, SOLAPE_PRE
     global OUTRO_SOBRIO, REBOTE, PARTICULAS, VOLUMEN
     from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
@@ -6704,6 +6872,11 @@ def aplicar_brand(brand_path):
     LOGO = ruta_de_pack(brand_path, logos.get("logotipo") or logos.get("fondo_oscuro"))
     ISOTIPO = ruta_de_pack(brand_path, logos.get("isotipo"))
     MARCA_NOMBRE = d.get("nombre")
+    # regla `conservar_caso`: los nombres de la marca conservan su caja
+    CASO_MARCA.clear()
+    CASO_MARCA.update(x for x in
+                      ([MARCA_NOMBRE] + list((d.get("reglas") or {}).get("conservar_caso") or []))
+                      if x)
     reglas = d.get("reglas") or {}
     TRANSICIONES = reglas.get("transiciones", "libre")
     OUTRO_SOBRIO = bool(reglas.get("outro_sobrio", False))
@@ -7331,6 +7504,72 @@ def _escalar_t(v,k,t0):
     if isinstance(v,(int,float)) and not isinstance(v,bool): return round(t0+v*k,3)
     return v
 
+def _regla_de_lectura(e):
+    """La 1.a frase de la apertura se queda ASENTADA el tiempo de leerla
+    (`_comun.tiempo_de_lectura`, >= 2 s) antes del cambio: si el plan la
+    reemplaza antes, el cambio (y la 2.a frase) se corren, sin pasarse del
+    final de la escena. Antes se leia «Tu pyme tambien es» en 0,9 s."""
+    from _comun import tiempo_de_lectura
+    if e.get("tipo") != "apertura" or not isinstance(e.get("at"), dict):
+        return
+    at = e["at"]
+    p1 = at.get("p1") or []
+    p2 = at.get("p2") or []
+    if not p1 or "cambio" not in at:
+        return
+    asentado = float(p1[-1]) + 0.45   # la ultima palabra termina de entrar
+    falta = asentado + tiempo_de_lectura(e.get("texto1")) - float(at["cambio"])
+    if falta <= 0:
+        return
+    margen = float(e["to"]) - 1.2 - (float(p2[-1]) if p2 else float(at["cambio"]))
+    corre = max(0.0, min(falta, margen))
+    if corre > 0:
+        at["cambio"] = round(float(at["cambio"]) + corre, 3)
+        at["p2"] = [round(float(x) + corre, 3) for x in p2]
+
+
+def duracion_de(tipo):
+    """{min, recomendada:[a,b], max, semantica} en segundos, de la MUESTRA de
+    la escena. `min`: lo que tarda en entrar todo + 1 s de lectura;
+    `recomendada`: de ahi a 2x la muestra (o +3 s); `max` (duro): 3x la
+    muestra, minimo 12 s: mas es una escena muerta (parte el contenido)."""
+    ej = muestra(tipo)
+    if not ej:
+        return None
+    d = float(ej["to"]) - float(ej["from"])
+
+    def _ats(v):
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            yield float(v)
+        elif isinstance(v, list):
+            for x in v:
+                yield from _ats(x)
+        elif isinstance(v, dict):
+            for x in v.values():
+                yield from _ats(x)
+
+    ult = max([0.0] + [x - float(ej["from"]) for x in _ats(ej.get("at", {}))])
+    mn = round(max(1.5, min(d, ult + 1.0)), 1)
+    rec = round(max(d * 2.0, d + 3.0), 1)
+    return {"min": mn, "recomendada": [mn, rec], "max": round(max(12.0, d * 3.0), 1),
+            "semantica": "segundos de la escena (to - from): recomendada = rango con oficio; "
+                         "max = tope duro (mas es una escena muerta: parte el contenido)"}
+
+
+CAMPOS_TEXTO_ITEM = ("texto", "titulo", "etiqueta", "detalle", "desc", "sub",
+                      "nombre", "fecha", "etapa", "k", "v")
+
+
+def _sin_markup_en_items(e):
+    """Los items se dibujan como texto corrido: `*clave*` en una tarjeta salia
+    con los asteriscos en pantalla. Solo se quita el markup bien formado
+    (`texto_plano`): «SELECT * FROM» o «~/home» se quedan como están."""
+    for k, v in list(e.items()):
+        if isinstance(v, list) and v and all(isinstance(x, dict) for x in v):
+            e[k] = [{c: (texto_plano(x[c]) if c in CAMPOS_TEXTO_ITEM
+                         and isinstance(x[c], str) else x[c]) for c in x} for x in v]
+
+
 def completar_escena(e,i=0):
     """Tiempos por defecto: los `at` que el plan no trae se toman de la muestra
     de esa escena, escalados a SU duración (una escena de 8 s reparte sus
@@ -7357,6 +7596,14 @@ def completar_escena(e,i=0):
         for clave,v in m["at"].items():
             if clave not in at: at[clave]=_escalar_t(v,k,e["from"])
         e["at"]=at
+    _regla_de_lectura(e)
+    _sin_markup_en_items(e)
+    # regla UNICA del markup: lo admite todo campo de texto; donde la escena
+    # NO pinta enfasis (boton, cta, precio...: el esquema dice `markup: false`)
+    # los signos se quitan, o salen literales en pantalla ("*Hablemos*")
+    for p_ in esquema_de(tipo):
+        if not p_["markup"] and isinstance(e.get(p_["nombre"]), str):
+            e[p_["nombre"]] = texto_plano(e[p_["nombre"]])
     return e
 
 COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}

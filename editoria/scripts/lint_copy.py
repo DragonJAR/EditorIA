@@ -308,6 +308,43 @@ def _norm(t):
     return " ".join(str(t).lower().split())
 
 
+_ENFASIS = re.compile(r"\*[^*\s][^*]*\*")
+
+
+def _sin_markup():
+    """Los campos que el motor pinta como dato o boton: ahi `*x*` no es enfasis
+    (se quita). La lista es la del motor (render_plan.SIN_MARKUP)."""
+    try:
+        from render_plan import SIN_MARKUP
+        return set(SIN_MARKUP)
+    except Exception:  # pragma: no cover - sin el motor, lo minimo
+        return {"boton", "cta", "fecha", "monto", "precio", "valor", "metrica",
+                "badge", "fuente"}
+
+
+def _chequear_markup(plan, avisos):
+    """`*enfasis*` en un campo SIN markup (boton, cta, precio...): el motor
+    quita los asteriscos y el enfasis no sale. Antes pasaba sin aviso."""
+    campos = _sin_markup()
+
+    def recorrer(nodo, ruta):
+        if isinstance(nodo, dict):
+            for k, v in nodo.items():
+                r = f"{ruta}.{k}"
+                if k in campos and isinstance(v, str) and _ENFASIS.search(v):
+                    avisos.append({"ruta": r,
+                                   "msg": f"markup *...* en '{k}', un campo sin enfasis: el motor "
+                                          f"quita los asteriscos y no resalta nada; quitalos"})
+                elif isinstance(v, (dict, list)):
+                    recorrer(v, r)
+        elif isinstance(nodo, list):
+            for j, v in enumerate(nodo):
+                recorrer(v, f"{ruta}[{j}]")
+
+    for i, esc in enumerate(plan.get("escenas") or []):
+        recorrer(esc, f"escenas[{i}]")
+
+
 def _chequear_sfx(plan, fallos, avisos):
     """Los cues de SFX del plan: sonido conocido, ancla valida y densidad.
 

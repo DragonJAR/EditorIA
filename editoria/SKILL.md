@@ -5,7 +5,7 @@ license: MIT
 compatibility: 'Python 3.9+, FFmpeg, Pillow, NumPy; optional ElevenLabs API and Node 18+ for Remotion or HyperFrames'
 metadata:
   author: Jaime Andrés Restrepo
-  version: 1.11.3
+  version: 1.11.4
   category: video-editing
   tags: [video-editing, motion-graphics, ffmpeg, animation]
 ---
@@ -282,7 +282,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (80 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (86 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

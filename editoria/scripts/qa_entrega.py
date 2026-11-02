@@ -39,11 +39,11 @@ import tempfile
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(BASE, "scripts")
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
-from _comun import LETRA_MIN, OCUPACION_MIN  # noqa: E402  UNA cifra: la del motor y la medición
+from _comun import LETRA_MIN, OCUPACION_MIN, QUIETO_MAX  # noqa: E402  los umbrales de la casa (una sola fuente)
 NOTA_MINIMA = 90.0     # nota de movimiento minima para dar la pieza por buena
 ZONA_MIN = 0.70        # el motor escala hasta 0.70: si toca el piso, el texto sale de la zona segura
-QUIETO_MAX = 1.0       # s: racha congelada maxima (= auto_qa.FROZEN_MAX; checklist-qa.md:
-                       # "ningun hold > 0.6 s salvo el CTA final", frozen <= 1 s por cada 30 s)
+# QUIETO_MAX: s de racha congelada maxima (= auto_qa.FROZEN_MAX; checklist-qa.md:
+# "ningun hold > 0.6 s salvo el CTA final", frozen <= 1 s por cada 30 s)
 
 
 def _correr(args):
@@ -144,7 +144,8 @@ def _fps(video):
         return 30
 
 
-def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None):
+def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None,
+                          recortes=None):
     """Los fallos de composicion, con su motivo Y su dueno. Puro: sin video ni plan.
 
     Un «2 textos se pisan» sin escena ni instante no es accionable: obligaba
@@ -170,7 +171,12 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
     if solapes:
         fallos.append(f"{len(solapes)} textos se pisan: " +
                         "; ".join(str(s) for s in solapes[:4]) +
-                        ("; …" if len(solapes) > 4 else ""))
+                        ("; ..." if len(solapes) > 4 else ""))
+    if recortes:
+        fallos.append(f"{len(recortes)} textos recortados por el motor (no caben ni "
+                        f"partidos al piso): " + "; ".join(str(s) for s in recortes[:4]) +
+                        ("; ..." if len(recortes) > 4 else "") +
+                        " — acorta ese copy o alarga su escena")
     return fallos
 
 
@@ -294,9 +300,11 @@ def _paso_composicion(plan, video):
                            if d.get("letra_px", 999) < LETRA_MIN]
         culpables_zona = [{"escena": r.get("escena", "?"), "zona": float(r.get("zona", 1.0))}
                           for r in res if float(r.get("zona", 1.0)) <= ZONA_MIN]
+        recortes = sorted({x for r in res for x in (r.get("recortes") or [])})
         fallos = _defectos_composicion(letra, zona, solapes,
-                                       culpables_letra, culpables_zona)
-        detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
+                                       culpables_letra, culpables_zona, recortes)
+        detalle = (f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · "
+                   f"{len(solapes)} solapes · {len(recortes)} recortes")
         if fallos:
             detalle = "; ".join(fallos)
         return {"nombre": "composicion", "ok": not fallos, "detalle": detalle}

@@ -77,9 +77,9 @@ Mismo método que el motor (`animacion.md` §2): pintar los instantes de
 `subframes(t)` y promediarlos en float. Dos atajos sin código:
 
 - `ffmpeg -vf "tmix=frames=4:weights='1 1 1 1',fps=30"` sobre una captura a 120 fps.
-- Muestreo adaptativo, como `render_plan.py --blur auto`: pintar 1, luego 3,
-  luego 9 instantes anidados y parar cuando el promedio deja de cambiar. Un
-  frame quieto cuesta poco; un latigazo recibe todas las muestras.
+- Muestreo adaptativo: pintar 1, luego 3, luego 9 instantes anidados y parar
+  cuando el promedio deja de cambiar. Un frame quieto cuesta poco; un
+  latigazo recibe todas las muestras.
 
 El grano se añade **después**, en ffmpeg (`scripts/ffmpeg_tools/artesanal.py`
 o `noise`), no en la página: el grano pintado en cada frame hace el video
