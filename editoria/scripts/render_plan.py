@@ -588,13 +588,8 @@ def acento_legible(fondo, tam, acento=None):
     a 4.5:1 (3:1 en display, >= DISPLAY_MIN) el acento pasa tal cual; si no,
     su paso más claro del mismo tono (`_legible`); si ese paso ya es casi
     blanco, el énfasis cae a la tinta de la pieza (blanco sobre oscuro).
-<<<<<<< HEAD
-    Medido: el rojo del pack de ejemplo sobre la placa gris del callout 1.33:1 y en
-    un kicker chico sobre casi negro 3.23:1."""
-=======
     Medido: el acento del pack de ejemplo sobre la placa gris del callout
     queda en 1.33:1, y en un kicker chico sobre casi negro en 3.23:1."""
->>>>>>> refs/remotes/sister/ronda17
     import colorsys
     from _comun import contraste
     a = tuple((acento or ACENTO)[:3]); f = tuple(fondo[:3])
@@ -2656,17 +2651,6 @@ def sc_medianoche(ctx,e,t):
         tam_n=ESCALA["nota"]*esc
         f_tit=ctx.fX(tam_n,800); fnt_n=ctx.fX(tam_n,400)
         h_t,h_b=sum(f_tit.getmetrics()),sum(fnt_n.getmetrics())
-<<<<<<< HEAD
-        # el cuerpo PARTE en hasta dos líneas antes de recortarse: en 16:9 la
-        # letra sube (`esc`) y «2 unidades · pagado» se recortaba en silencio
-        ancho_n=tw-44-110-14
-        cuerpos=[linewrap(n["texto"],fnt_n,ancho_n,ctx.tmp)[:2] or [""] for n in nots]
-        cuerpos=[c[:-1]+[recorta_para(" ".join(linewrap(n["texto"],fnt_n,ancho_n,ctx.tmp)[len(c)-1:]),fnt_n,ancho_n,ctx.tmp)]
-                 for c,n in zip(cuerpos,nots)]
-        n_l=max(len(c) for c in cuerpos) if cuerpos else 1
-        hn=int(max(140,2*22+h_t+4+h_b*n_l)); paso_n=hn+30
-        for i,n in enumerate(nots):
-=======
         text_x=100                                  # el disco del canal acaba en x=86
         ancho_txt=(tw-44)-text_x-10
         def _bloque(texto, fnt, em):
@@ -2734,7 +2718,6 @@ def sc_medianoche(ctx,e,t):
         pon_texto(dp, (tw/2,y_fecha),e.get("fecha",""),font=f_fecha,fill=(255,255,255,200),anchor="ma")
         pon_texto(dp, (tw/2,y_hora),e["hora"],font=f_hora,fill=BLANCO,anchor="ma")
         for i,(n, lt, lb, at_, ab_, hn) in enumerate(cajas):
->>>>>>> refs/remotes/sister/ronda17
             kn=entra(t, n["at"], "suave")
             if kn<=0: continue
             # cada notificación nueva EMPUJA a las anteriores con resorte (antes
@@ -2745,14 +2728,6 @@ def sc_medianoche(ctx,e,t):
             dn.rounded_rectangle([0,0,tw-44,hn],radius=28,fill=(255,255,255,36))
             dn.ellipse([22,hn/2-32,86,hn/2+32],fill=ACENTO+(255,))
             pinta_glifo_canal(ctx,dn,n["canal"],54,hn/2,32,BLANCO,icono=n.get("icono"),tam=34*esc)
-<<<<<<< HEAD
-            y_t=(hn-h_t-4-h_b*len(cuerpos[i]))/2
-            pon_texto(dn, (110,y_t),recorta_para(n["titulo"],f_tit,ancho_n,ctx.tmp),font=f_tit,fill=BLANCO)
-            # el cuerpo es un "nota" de la escala (por `esc`, ya reducido
-            # sigue en el piso): parte en dos líneas y solo lo que sobra se recorta
-            for j,ln in enumerate(cuerpos[i]):
-                pon_texto(dn, (110,y_t+h_t+4+j*h_b),ln,font=fnt_n,fill=(255,255,255,190))
-=======
             y=(hn-(at_+4+ab_))/2
             for li, ln in enumerate(lt):
                 pon_texto(dn, (text_x, y), ln, font=f_tit, fill=BLANCO)
@@ -2761,7 +2736,6 @@ def sc_medianoche(ctx,e,t):
             for li, ln in enumerate(lb):
                 pon_texto(dn, (text_x, y), ln, font=fnt_n, fill=(255,255,255,190))
                 y += h_b+(4 if li<len(lb)-1 else 0)
->>>>>>> refs/remotes/sister/ronda17
             a=nw.split()[3].point(lambda v, _kn=kn:int(v*clamp01(_kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((max(1,int(tw*sc)),max(1,int(th*sc))),Image.LANCZOS)

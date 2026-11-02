@@ -1,7 +1,7 @@
 # Mapa de EditorIA — el índice de la skill
 
 <<<<<<< HEAD
-70 referencias, 52 scripts, 20 herramientas de ffmpeg y 86 suites de tests. Este
+71 referencias, 52 scripts, 21 herramientas de ffmpeg y 89 suites de tests. Este
 =======
 68 referencias, 52 scripts, 20 herramientas de ffmpeg y 77 suites de tests. Este
 >>>>>>> refs/remotes/sister/ronda17
@@ -329,7 +329,7 @@ escribir es un tapón).
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
 <<<<<<< HEAD
-    guard nuevo se cuentan contra las 70 referencias, no se estiman.
+    guard nuevo se cuentan contra las 71 referencias, no se estiman.
 =======
     guard nuevo se cuentan contra las 68 referencias, no se estiman.
 >>>>>>> refs/remotes/sister/ronda17

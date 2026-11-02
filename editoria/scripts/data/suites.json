@@ -2,6 +2,7 @@
  "_que_es": "La lista CANONICA de suites de la skill. La escribe `scripts/actualizar_conteos.py` y la compara `scripts/auditar_mapa.py` con el arbol: si aqui falta una suite que existe, o sobra una que no, la promesa del SKILL.md envejece en silencio. Vive aqui (y no en el SKILL.md) porque es dato de la herramienta, no prosa que el agente tenga que leerse en cada peticion.",
  "_como_se_regenera": "python3 scripts/actualizar_conteos.py",
  "suites": [
+  "test_acabado.py",
   "test_actualizar_conteos.py",
   "test_alfa_webm.py",
   "test_armonia_catalogo.py",
