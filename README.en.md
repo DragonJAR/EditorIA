@@ -293,7 +293,7 @@ EditorIA/
 │   │   │   ├── test_referencia.py
 │   │   │   ├── test_beat_secciones.py
 │   │   │   └── test_direccion_arte.py
-│   │   └── ffmpeg_tools/              # 20 post-production modules
+│   │   └── ffmpeg_tools/              # 21 post-production modules
 │   │       ├── montage.py             # 19 editing operations
 │   │       ├── componer.py            # Type over footage (DoF + veil)
 │   │       ├── caption.py             # Subtitle burn-in and karaoke
