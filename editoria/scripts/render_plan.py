@@ -18,6 +18,7 @@ except ModuleNotFoundError as _e_dep:
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _plataforma import resolver_fuente, variante_de_peso
 from _comun import NEUTRO, aplicar_grano, segmentos_enfasis, segmentos_resalte  # paleta, grano y markup * ~ ^
+from _comun import LETRA_MIN as MIN_LETRA   # piso de LETRA LEGIBLE (una sola fuente: _comun)
 ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
 
@@ -125,7 +126,6 @@ ESCALA={
     "secundario":  32,   # cuerpo: mensajes, titulos de item, pares clave-valor
     "nota":        28,   # apoyo: estado, detalle, fecha, caption
 }
-MIN_LETRA=26   # piso de LETRA LEGIBLE: lo mide el QA (LETRA_MIN, misma cifra)
 TAM_CHECK=14   # glifo "✓" de verificado, dentro de un badge de 18 px. NO es
                 # texto (no tiene alfanumericos): no cuenta para el piso de
                 # letra legible, igual que lo excluye la medicion del QA.
@@ -6911,7 +6911,7 @@ def render(plan_path,plan,out,a):
         W,H=(int(v) for v in str(a.tamano or plan.get("tamano","1080x1920")).lower().split("x"))
     except ValueError:
         sys.exit("ERROR: tamano debe ser ANCHOxALTO, ej. 1920x1080")
-    from _comun import resolver_pack
+    from _comun import resolver_pack, firma_plan
     brand_path = resolver_pack(a.brand or plan.get("brand"))   # marca SOLO si se pide
     if brand_path:
         aplicar_brand(brand_path)   # la marca manda SIEMPRE que se haya pedido
@@ -6933,11 +6933,25 @@ def render(plan_path,plan,out,a):
     if a.preview:
         return _preview(ctx,escenas,dur,fps,a,manchas_ok)
     tmpd=f"{out}.frames"; os.makedirs(tmpd,exist_ok=True)
+    # la caché de frames vale SOLO para este plan, este motor, este pack y
+    # estos fps/blur/tamaño. Sin esto, cambiar el plan y re-renderizar sin
+    # `--force` reutiliza los frames VIEJOS: el video sale del plan anterior
+    # y la puerta lo aprueba (medido: una cifra cambiada, el video viejo).
+    firma=firma_plan(plan, brand_path)
+    clave="|".join([firma, str(fps), str(a.blur), f"{W}x{H}", "1" if ALFA else "0"])
+    marca_cache=os.path.join(tmpd,".firma")
+    previa=open(marca_cache,encoding="utf-8").read().strip() if os.path.isfile(marca_cache) else ""
+    if a.force or previa!=clave:
+        for nombre in os.listdir(tmpd):
+            if nombre.startswith("f_") and nombre.endswith(".png"):
+                os.remove(os.path.join(tmpd,nombre))
+        with open(marca_cache,"w",encoding="utf-8") as fh:
+            fh.write(clave+"\n")
     print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}"+(" · overlay con alfa" if ALFA else ""),flush=True)
     if a.blur and a.blur>1:
         print(f"  blur x{a.blur}: cada frame se compone {a.blur} veces; en una VM modesta "
               f"una pieza de ~60 s puede tardar varios minutos (progreso con ETA abajo; "
-              f"sin --force, reanudar retoma los frames ya hechos)",flush=True)
+              f"sin --force, se reutilizan frames solo si el plan, el motor y el pack no cambiaron)",flush=True)
     pend=[fi for fi in range(n) if a.force or not os.path.exists(f"{tmpd}/f_{fi:04d}.png")]
     if len(pend)<n: print(f"  retoma: {n-len(pend)} frames ya existen",flush=True)
     jobs=[(fi,f"{tmpd}/f_{fi:04d}.png",fps,a.blur,a.obturador) for fi in pend]
@@ -6968,6 +6982,10 @@ def render(plan_path,plan,out,a):
     res=codificar_frames(f"{tmpd}/f_%04d.png", fps, out, crf=20)
     if res.get("alfa"):
         print(f"  alfa verificado: el frame central decodifica {res['transparente']:.0%} transparente",flush=True)
+    # el video deja la FIRMA del plan en su comentario: sin reencodear, y la
+    # puerta la compara con el plan que se le pasa (tambien con --sin-medir)
+    from _comun import estampar_firma
+    estampar_firma(out, firma)
     # la música con la que se editó al ritmo va en el entregable (sin voz y sin
     # alfa; con voz en off la mezcla con ducking es musica.py mix)
     if plan.get("musica") and not ALFA and (getattr(a, "con_musica", False) or not any(e.get("voz") for e in escenas)):

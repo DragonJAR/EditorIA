@@ -38,12 +38,13 @@ import tempfile
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(BASE, "scripts")
+sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 NOTA_MINIMA = 90.0     # nota de movimiento minima para dar la pieza por buena
-LETRA_MIN = 26         # px: por debajo, el texto no se lee en un telefono (mismo LETRA_MIN del motor)
+from _comun import LETRA_MIN, OCUPACION_MIN, QUIETO_MAX  # los umbrales de la casa (una sola fuente)
 ZONA_MIN = 0.70        # el motor escala hasta 0.70: si toca el piso, el texto sale de la zona segura
-QUIETO_MAX = 1.0       # s: racha congelada maxima (= auto_qa.FROZEN_MAX; checklist-qa.md:
-                       # "ningun hold > 0.6 s salvo el CTA final", frozen <= 1 s por cada 30 s)
-OCUPACION_MIN = 0.20   # caja de contenido / zona segura (= medir_animacion.OCUPACION_MIN)
+# QUIETO_MAX: s de racha congelada maxima (= auto_qa.FROZEN_MAX; checklist-qa.md:
+# "ningun hold > 0.6 s salvo el CTA final", frozen <= 1 s por cada 30 s)
+# OCUPACION_MIN: caja de contenido / zona segura
 
 
 def _correr(args):
@@ -175,14 +176,29 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
 
 
 def _defecto_plan_desincronizado(ruta_plan, ruta_video):
-    """El plan es posterior al video: el MP4 no puede contener ese plan.
+    """El video no salió de este plan.
 
-    Puro en tiempos (mtime). La puerta mide la composicion SOBRE EL PLAN:
-    si el plan se edito despues del render (una fuente retirada, un copy
-    acortado) y no se volvio a renderizar, la puerta aprueba un plan que
-    no es el video entregado. Eso paso: el video llevaba una fuente que
-    el plan ya no tenia, pisada con un hito, y la puerta dijo 0 solapes.
+    Si el contenedor trae la FIRMA del plan, manda esa firma (también con
+    --sin-medir): copiar el video viejo después de editar el plan deja el
+    mtime del video más nuevo y la fecha no ve el desfase. Sin firma (un video
+    de un motor anterior) se conserva la comparación de mtime.
     """
+    try:
+        with open(ruta_plan, encoding="utf-8") as f:
+            plan = json.load(f)
+    except (OSError, ValueError):
+        plan = None
+    if isinstance(plan, dict):
+        from _comun import firma_plan, buscar_pack, firma_de_video
+        brand = (buscar_pack(plan.get("brand"), os.path.dirname(os.path.abspath(ruta_plan)))
+                 if plan.get("brand") else None)
+        esperado = firma_plan(plan, brand)
+        leido = firma_de_video(ruta_video)
+        if leido and leido != esperado:
+            return ("el video no se renderizo desde este plan "
+                    "(la firma del plan no coincide): vuelve a renderizar")
+        if leido == esperado:
+            return None
     try:
         if os.path.getmtime(ruta_plan) > os.path.getmtime(ruta_video) + 1:
             return ("el plan es posterior al video: el MP4 no se renderizo "

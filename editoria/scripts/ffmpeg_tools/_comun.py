@@ -981,16 +981,56 @@ def acento_efectivo(brand: Optional[str] = None, paleta: Optional[str] = None,
 SKILL_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-def resolver_pack(path: Optional[str]) -> Optional[str]:
-    """Ruta de un brand pack: absoluta, relativa al cwd o a la carpeta de la
-    skill ('brand/x.json'). None si no se pidió marca."""
+# ============================================================================
+# LOS UMBRALES DE LA CASA (una cifra, una fuente)
+# ============================================================================
+#
+# Antes cada script tenia su copia (el motor, el QA, el medidor, el linter y
+# el puntificador: cinco). Cuando uno cambia y otro no, el motor deja de letra
+# y la puerta no dice por que. Aqui viven las tres, y cada uno las importa.
+
+#: px (sobre lado corto 1080) bajo los cuales el texto no se lee en un movil.
+LETRA_MIN = 26
+
+#: fraccion de la zona segura bajo la cual la pieza es una banda chica.
+OCUPACION_MIN = 0.20
+
+#: s: racha congelada maxima (= auto_qa.FROZEN_MAX).
+QUIETO_MAX = 1.0
+
+
+def packs_disponibles() -> List[str]:
+    """Los NOMBRES de los packs de la skill (brand/*.json): lo que acepta
+    `--brand` / `"brand"` además de una ruta."""
+    return sorted(p.stem for p in (SKILL_DIR / "brand").glob("*.json"))
+
+
+def buscar_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
+    """Ruta de un pack o None. Acepta una ruta (absoluta, relativa al cwd, a
+    `base` —la carpeta del plan— o a la skill) o el NOMBRE de un pack de la
+    skill: "carbon" → brand/carbon.json (el catálogo lo enseña así)."""
     if not path:
         return None
     p = os.path.expanduser(str(path))
-    for cand in (p, str(SKILL_DIR / p)):
+    cands = [p] + ([os.path.join(base, p)] if base else []) + \
+            [str(SKILL_DIR / p), str(SKILL_DIR / "brand" / p)]
+    if not p.lower().endswith(".json"):
+        cands += [c + ".json" for c in cands]
+    for cand in cands:
         if os.path.isfile(cand):
             return os.path.abspath(cand)
-    die(f"brand pack no encontrado: {path}", kind="input")
+    return None
+
+
+def resolver_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
+    """Ruta de un brand pack (ver `buscar_pack`). None si no se pidió marca."""
+    if not path:
+        return None
+    ruta = buscar_pack(path, base)
+    if ruta:
+        return ruta
+    die(f"brand pack no encontrado: {path} (packs de la skill: "
+        f"{', '.join(packs_disponibles())}; o una ruta a un .json)", kind="input")
 
 
 def leer_pack(path: Optional[str]) -> Dict[str, Any]:
@@ -1001,6 +1041,91 @@ def leer_pack(path: Optional[str]) -> Dict[str, Any]:
         return json.loads(Path(ruta).read_text(encoding="utf-8"))
     except ValueError as exc:
         die(f"el brand pack {path} no es JSON valido: {exc}", kind="input")
+
+
+# ============================================================================
+# LA FIRMA DEL PLAN: el video dice de que plan salio
+# ============================================================================
+#
+# Por que existe: el motor reanuda frames (sin `--force` no los vuelve a
+# pintar), y sin esto reanuda los de OTRO plan. MEDIDO: cambiar una cifra y
+# re-renderizar daba el video viejo, y la puerta lo aprueba (el plan no es
+# "posterior" al video: se edito, se copio el mp4 y ya no se ve).
+#
+# La firma va en el COMENTARIO del contenedor: no reencoda y no toca el
+# video. La puerta la compara con la firma del plan que se le pasa.
+
+PREFIJO_FIRMA = "editoria-plan:"
+
+
+def version_motor() -> str:
+    """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
+    reutiliza frames del anterior."""
+    import re as _re
+    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as fh:
+            for linea in fh:
+                m = _re.match(r"\s*version:\s*[\"']?([^\"'\s]+)", linea)
+                if m:
+                    return m.group(1)
+    except OSError:
+        pass
+    return "sin-version"
+
+
+def firma_plan(plan: Dict[str, Any], brand_path: Optional[str] = None) -> str:
+    """Hash del plan que pinta el motor: cada bloque de escena, la versión
+    del motor y el contenido del pack. Lo escribe el video y lo verifica
+    qa_entrega, también con --sin-medir."""
+    import hashlib
+    bloques = []
+    for e in (plan or {}).get("escenas") or []:
+        if isinstance(e, dict):
+            bloques.append({k: v for k, v in e.items() if not str(k).startswith("_")})
+    pack = ""
+    if brand_path and os.path.isfile(brand_path):
+        h = hashlib.sha256()
+        with open(brand_path, "rb") as fh:
+            h.update(fh.read())
+        pack = h.hexdigest()[:16]
+    payload = {
+        "motor": version_motor(),
+        "pack": pack,
+        "tamano": (plan or {}).get("tamano"),
+        "duracion": (plan or {}).get("duracion"),
+        "paleta": (plan or {}).get("paleta"),
+        "plataforma": (plan or {}).get("plataforma"),
+        "acento": (plan or {}).get("acento"),
+        "camara": (plan or {}).get("camara"),
+        "zona": (plan or {}).get("zona"),
+        "escenas": bloques,
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def estampar_firma(salida: str, firma: str) -> None:
+    """Deja la firma del plan en el comentario del contenedor, sin re-encode."""
+    ext = os.path.splitext(salida)[1]
+    tmp = salida + ".firma" + ext
+    cmd = ffmpeg_base() + ["-i", salida, "-c", "copy", "-metadata",
+                           f"comment={PREFIJO_FIRMA}{firma}"]
+    if ext.lower() == ".mp4":
+        cmd += ["-movflags", "+faststart"]
+    cmd.append(tmp)
+    run(cmd, quiet=True)
+    os.replace(tmp, salida)
+
+
+def firma_de_video(path: str) -> Optional[str]:
+    """La firma estampada en el video, o None si ese archivo no la trae."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags=comment",
+                        "-of", "default=nw=1:nk=1", path], capture_output=True, text=True)
+    txt = (r.stdout or "").strip()
+    if txt.startswith(PREFIJO_FIRMA):
+        return txt[len(PREFIJO_FIRMA):].strip() or None
+    return None
 
 
 def colores_marca(path: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]:
