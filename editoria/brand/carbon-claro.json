@@ -1,0 +1,84 @@
+{
+ "_nota": "PACK DE ESTILO neutro en TEMA CLARO, gemelo de brand/carbon.json: papel cálido, tinta carbón, acento ámbar oscurecido hasta AA. Neutros y tipografías propios (Space Grotesk + Space Mono, OFL); ninguno es de una marca.",
+ "version": 1,
+ "nombre": "Carbón claro",
+ "lema": "El dato se lee en un dial.",
+ "caption": {
+  "_nota": "Banda central, nunca abajo donde pisa la UI.",
+  "bold": true,
+  "karaoke": true,
+  "outline": 2,
+  "position": "center",
+  "size": 28
+ },
+ "colores": {
+  "_nota": "Fondo casi negro con un halo calido detras del dial. El acento ambar se reserva para la MAGNITUD (las marcas llenas del anillo): el ojo va ahi antes que a la palabra.",
+  "acento": "#8F5E12",
+  "acento_oscuro": "#5D3D0C",
+  "blanco": "#1E1B17",
+  "gris": "#5C564D",
+  "gris_superficie": "#E6E0D4",
+  "negro": "#F5F1E8",
+  "serie": [
+   "#8F5E12",
+   "#0B6FA4",
+   "#B34700",
+   "#1B7F5E",
+   "#7A4E9C"
+  ],
+  "exito": "#1B7F5E",
+  "aviso": "#B34700",
+  "_nota_estado": "serie/exito/aviso: categorías (pie, leyendas) y estados (pagado, tibio). Derivados del acento con tokens_de_estado (render_plan.py): serie[0] es el acento y el resto Okabe-Ito, distinguibles con daltonismo y legibles sobre el negro.",
+  "gris_detalle": "#B8AF9F"
+ },
+ "colors": {
+  "accent": "#8F5E12",
+  "accent_dark": "#5D3D0C",
+  "white": "#1E1B17",
+  "gray": "#5C564D",
+  "surface": "#E6E0D4",
+  "black": "#F5F1E8"
+ },
+ "font": "Space Grotesk",
+ "font_file": "assets/fonts/SpaceGrotesk-wght.ttf",
+ "fonts_dir": "assets/fonts",
+ "tipografias": {
+  "etiquetas_mono": {
+   "archivo": "assets/fonts/SpaceMono-Regular.ttf",
+   "familia": "Space Mono",
+   "uso": "kickers, datos técnicos"
+  },
+  "texto": {
+   "archivo": "assets/fonts/SpaceGrotesk-wght.ttf",
+   "familia": "Space Grotesk",
+   "pesos": [
+    400,
+    500
+   ]
+  },
+  "titulares": {
+   "archivo": "assets/fonts/SpaceGrotesk-wght.ttf",
+   "familia": "Space Grotesk",
+   "pesos": [
+    600,
+    700
+   ]
+  }
+ },
+ "voces": {
+  "_nota": "Voces por defecto (ElevenLabs). Se pueden sobreescribir por proyecto.",
+  "es": "Fernanda Sanmiguel"
+ },
+ "reglas": {
+  "_nota_isotipo": "Si hay un protagonista grande en el plano, el isotipo no compite: o no aparece, o aparece con un rol claro y recurrente.",
+  "_nota_transiciones": "Cortes secos entre escenas; el fondo es el MISMO dial y la camara es UNA trayectoria: el plano continua aunque cambie la frase.",
+  "isotipo_con_protagonista": false,
+  "rejillas_decorativas": false,
+  "transiciones": "corte_seco",
+  "efectos_glitch": false,
+  "_nota_glitch": "RGB split, shake, strobe y hue shift solo si el brief los pide: compiten con la identidad."
+ },
+ "logos": {
+  "_nota": "Este pack no trae isotipo: es un aire, no una marca."
+ }
+}

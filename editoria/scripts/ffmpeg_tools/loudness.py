@@ -48,12 +48,51 @@ def measure(path, I, tp, lra):
 
 
 def normalizar(entrada, salida, lufs=-14.0, tp=-1.5, lra=11.0, bitrate="192k", sample_rate=None, stats=None,
-               duracion=None):
+               duracion=None, tp_max=None, reintentos=2):
     """Normaliza en dos pasadas (mide → loudnorm lineal) de `entrada` a `salida`;
     el video se copia intacto. `duracion` recorta el audio a ese largo
     (loudnorm + AAC agregan ~0.1 s: el audio no debe pasar al video).
-    Devuelve la medición del resultado. Una sola implementación para la CLI
-    y para render_plan (música del entregable)."""
+    Devuelve la medición del resultado. Una sola implementación para la CLI,
+    render_plan (música del entregable) y mezclar_audio (la mezcla final).
+
+    TECHO VERIFICADO: el AAC suma sobrepico DESPUÉS de loudnorm (medido: con
+    -14 LUFS y techo -1.5, el entregable salía a -0.8 dBTP y la entrega de
+    Reels, techo -1.0, lo rechazaba). Si el resultado pasa `tp_max` (por
+    defecto `tp` + 0.5), se repite con el techo bajado lo que se pasó, hasta
+    `reintentos` veces."""
+    tp_max = (tp + 0.5) if tp_max is None else tp_max
+    stats = stats or measure(entrada, lufs, tp, lra)
+    if stats.get("silent") and not STATE.dry_run:
+        # en silencio no hay nada que normalizar (loudnorm con -inf falla)
+        import shutil
+        shutil.copyfile(entrada, salida)
+        return stats
+    res = _normalizar_una(entrada, salida, lufs, tp, lra, bitrate, sample_rate, stats, duracion)
+    for _ in range(max(0, int(reintentos))):
+        if STATE.dry_run or res.get("silent"):
+            break
+        exceso = float(res["input_tp"]) - tp_max
+        if exceso <= 0:
+            break
+        tp = round(tp - exceso - 0.3, 2)
+        info(f"true peak {float(res['input_tp']):.1f} dBTP sobre el techo {tp_max}: repito con TP {tp}")
+        res = _normalizar_una(entrada, salida, lufs, tp, lra, bitrate, sample_rate, None, duracion)
+    return res
+
+
+def normalizar_para(entrada, salida, plataforma="reels", duracion=None, bitrate="192k"):
+    """Normaliza al objetivo de la PLATAFORMA (tabla canónica _delivery:
+    LUFS integrado y techo de true peak). Apunta 0.5 dB por debajo del techo
+    y lo verifica (`normalizar`)."""
+    from _delivery import spec_of
+    sp = spec_of(plataforma)
+    techo = float(sp.get("tp", -1.0))
+    return normalizar(entrada, salida, lufs=float(sp.get("lufs", -14)), tp=techo - 0.5,
+                      bitrate=bitrate, duracion=duracion, tp_max=techo)
+
+
+def _normalizar_una(entrada, salida, lufs, tp, lra, bitrate, sample_rate, stats, duracion):
+    """Una pasada de normalización (la medición de la entrada se reutiliza)."""
     meta = probe(entrada)
     stats = stats or measure(entrada, lufs, tp, lra)
     af = (f"loudnorm=I={lufs}:TP={tp}:LRA={lra}"
@@ -85,6 +124,9 @@ def main():
                     help="objetivo de sonoridad integrada en LUFS (default -14)")
     ap.add_argument("--tp", type=float, default=-1.5,
                     help="techo de true peak en dBTP (default -1.5; recomendado para prevenir sobrepicos AAC)")
+    ap.add_argument("--tp-max", type=float,
+                    help="techo que el RESULTADO no puede pasar (default: --tp + 0.5); si lo pasa, "
+                         "se repite con el techo más bajo")
     ap.add_argument("--lra", type=float, default=11.0,
                     help="objetivo de rango de sonoridad en LU (default 11)")
     ap.add_argument("--measure-only", action="store_true",
@@ -125,7 +167,7 @@ def main():
 
     output = args.output or default_output(args.input, "loudnorm")
     after = normalizar(args.input, output, args.lufs, args.tp, args.lra,
-                       args.audio_bitrate, args.sample_rate, stats=stats)
+                       args.audio_bitrate, args.sample_rate, stats=stats, tp_max=args.tp_max)
     if not after.get("silent"):
         info(f"resultado: {float(after['input_i']):.1f} LUFS, "
              f"TP {float(after['input_tp']):.1f} dBTP (objetivo {args.lufs} LUFS)")

@@ -3,9 +3,9 @@
 
 Flujo: brief → sugerir del catálogo único → producir según el motor
 interno de la opción. El agente NO elige entre «catálogo A vs B»:
-escenas del plan, overlays talking-head y gestos de interfaz son la
-misma familia por intención. El motor (plan / efecto CVE / gesto UI /
-HyperFrames / Remotion / grade…) es metadato de producción, no un menú.
+escenas del plan, overlays talking-head, gestos de interfaz y técnicas
+(canvas, hand-draw, Remotion, HyperFrames, 3d, diagrama) son la misma
+familia por intención. El motor es metadato de producción, no un menú.
 
 Fuentes de detalle (DRY, no menús paralelos):
   scripts/data/repertorio.json          intención → escenas (SCENES)
@@ -55,6 +55,7 @@ MOTOR_EFECTO = "efecto"       # CVE en /tmp vía efectos_talking_head.receta
 MOTOR_GESTO = "gesto"         # motion UI sobre escena u otro motor
 MOTOR_CAPTION = "caption"     # caption.py nativo o HyperFrames on-demand
 MOTOR_NATIVO = "nativo"       # grade/hand_draw/… cuando el fx lo declara
+MOTOR_TECNICA = "tecnica"     # canvas, trazo, remotion, hyperframes, 3d, diagrama
 
 
 def cargar(ruta=DATOS):
@@ -76,6 +77,38 @@ def _cargar_captions():
     with open(DATOS_CAPTIONS, encoding="utf-8") as fh:
         return json.load(fh)
 
+
+def _tecnicas(datos):
+    return list((datos or {}).get("tecnicas") or [])
+
+
+def _perillas(*trozos):
+    out = []
+    for t in trozos:
+        if isinstance(t, list):
+            out.extend(str(x).strip() for x in t if str(x).strip())
+        elif str(t or "").strip():
+            out.append(str(t).strip())
+    return out
+
+
+def _fila_tecnica(fila, intencion=None):
+    out = {
+        "id": fila["id"],
+        "motor": MOTOR_TECNICA,
+        "firma": fila.get("firma", ""),
+        "ocasion": fila.get("ocasion", ""),
+        "no_usar": str(fila.get("no_usar") or "").strip(),
+        "pedido": fila.get("pedido", ""),
+        "perillas": _perillas(fila.get("perillas")),
+        "producir": fila.get("producir", ""),
+        "aliases": fila.get("aliases", []),
+        "keywords": fila.get("keywords", []),
+        "intenciones": list(fila.get("intenciones") or []),
+    }
+    if intencion:
+        out["intencion"] = intencion
+    return out
 
 def catalogo():
     """Los tipos salen del dict SCENES de render_plan.py (fuente única)."""
@@ -193,6 +226,10 @@ def opciones(intencion, datos=None, efectos=None, gestos=None, captions=None):
             "keywords": fila.get("keywords", []),
             "ocasion": fila.get("ocasion", ""),
         })
+    for fila in _tecnicas(datos):
+        if intencion not in (fila.get("intenciones") or []):
+            continue
+        out.append(_fila_tecnica(fila, intencion))
     return out
 
 
@@ -302,6 +339,10 @@ def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
                 "producir": _producir_caption(c),
                 "ocasion": c.get("ocasion", ""),
             }
+    for t in _tecnicas(datos):
+        ids = {t["id"]} | {a.lower().replace("_", "-") for a in t.get("aliases", [])}
+        if clave in ids or nombre == t["id"]:
+            return _fila_tecnica(t)
     return None
 
 
@@ -452,15 +493,40 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
             f"captions: conteo={captions.get('conteo')} pero hay {len(cap_ids)}"
         )
 
+    tec_ids = set()
+    skill = os.path.dirname(BASE)
+    for t in _tecnicas(datos):
+        tid = t.get("id")
+        if not tid:
+            malos.append("tecnica sin id")
+            continue
+        if tid in tec_ids:
+            malos.append(f"tecnica repetida: {tid}")
+        tec_ids.add(tid)
+        for campo in ("ocasion", "no_usar", "firma", "pedido", "producir"):
+            if not str(t.get(campo) or "").strip():
+                malos.append(f"tecnica '{tid}': falta {campo}")
+        if not _perillas(t.get("perillas")):
+            malos.append(f"tecnica '{tid}': sin perillas")
+        ints = t.get("intenciones") or []
+        if not ints:
+            malos.append(f"tecnica '{tid}': sin intenciones")
+        for inten in ints:
+            if inten not in ids:
+                malos.append(f"tecnica '{tid}': intención desconocida '{inten}'")
+        ruta = str(t.get("producir") or "").split("·", 1)[0].strip()
+        if not ruta.startswith("references/") or not os.path.isfile(os.path.join(skill, ruta)):
+            malos.append(f"tecnica '{tid}': producir no es un doc real ({ruta})")
+
     # colisiones de id entre capas (rompería resolver)
-    capas = (tipos, fx_ids, g_ids, cap_ids)
+    capas = (tipos, fx_ids, g_ids, cap_ids, tec_ids)
     choque = set()
     for i, a in enumerate(capas):
         for b in capas[i + 1:]:
             choque |= (a & b)
     for c in sorted(choque):
         malos.append(f"id '{c}' choca entre capas del catálogo único "
-                     "(escena/efecto/gesto/caption deben ser disjuntos)")
+                     "(escena/efecto/gesto/caption/tecnica deben ser disjuntos)")
 
     return malos
 
@@ -698,12 +764,14 @@ def _resumen_conteos(datos=None, efectos=None, gestos=None, captions=None):
     n_fx = len(efectos.get("efectos", []))
     n_g = len(gestos.get("tecnicas", []))
     n_cap = len(captions.get("identidades", []))
+    n_tec = len(_tecnicas(datos))
     return {
         "n_escenas": n_esc,
         "n_efectos": n_fx,
         "n_gestos": n_g,
         "n_captions": n_cap,
-        "n_opciones": n_esc + n_fx + n_g + n_cap,
+        "n_tecnicas": n_tec,
+        "n_opciones": n_esc + n_fx + n_g + n_cap + n_tec,
         "n_intenciones": len(datos.get("intenciones", [])),
     }
 
@@ -770,7 +838,8 @@ def main():
             print(
                 f"REPERTORIO VALIDO: {counts['n_opciones']} opciones "
                 f"({counts['n_escenas']} escenas + {counts['n_efectos']} efectos + "
-                f"{counts['n_gestos']} gestos + {counts['n_captions']} captions) "
+                f"{counts['n_gestos']} gestos + {counts['n_captions']} captions + "
+                f"{counts.get('n_tecnicas', 0)} tecnicas) "
                 f"en {counts['n_intenciones']} intenciones "
                 f"— una sola superficie de elección"
             )
@@ -806,7 +875,8 @@ def main():
             print(
                 f"catálogo único: {counts['n_opciones']} opciones "
                 f"({counts['n_escenas']} escenas + {counts['n_efectos']} efectos + "
-                f"{counts['n_gestos']} gestos + {counts['n_captions']} captions)"
+                f"{counts['n_gestos']} gestos + {counts['n_captions']} captions + "
+                f"{counts.get('n_tecnicas', 0)} tecnicas)"
             )
             for k, v in salida.get("otras_dimensiones", {}).items():
                 print(f"{k}: {v if isinstance(v, str) else ', '.join(map(str, v))}")

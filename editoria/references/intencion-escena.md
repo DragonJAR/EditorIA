@@ -226,11 +226,11 @@ sabes la intención, mira `ocasion` antes de inventar otra.
 | demostracion | `demo`, `callout`, `buscador`, `audiowave` |
 | estado | `listo`, `pago`, `recupera`, `notificacion`, `constancia` |
 | imagen-texto | `kenburns`, `typewriter`, `rotulo_inferior`, `quote` |
-| estructura | `index`, `canales`, `medianoche` |
+| estructura | `lista`, `index`, `canales`, `medianoche` |
 <!-- REPERTORIO_TABLA_FIN -->
 
 Una escena puede servir a varias intenciones (`bars` da un dato y también
-compara): por eso las 45 escenas del motor quedan alcanzables, incluidas
+compara): por eso las 46 escenas del motor quedan alcanzables, incluidas
 las que la antigua tabla dejaba fuera (`versus`, `demo`, `callout`,
 `kenburns`, `typewriter`, `listo`, `pago`, `recupera`, `index`, `canales`,
 `medianoche`, `orbOpen`, `rotulo_inferior`).

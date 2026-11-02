@@ -568,10 +568,32 @@ def main():
         sys.exit(msg)
 
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
+    # copy de muestra sin reemplazar → ERROR (el plan no es entregable)
+    if isinstance(plan, dict):
+        for idx, e in enumerate(plan.get("escenas") or []):
+            if isinstance(e, dict) and e.get("_muestra"):
+                hallazgos.append({
+                    "nivel": "ERROR", "t": float(e.get("from") or 0.0),
+                    "msg": (f"escena {idx} ({e.get('tipo','?')}): copy de MUESTRA sin reemplazar "
+                            f"(va: «{str(e['_muestra'])[:50]}»); escribe el del brief y borra `_muestra`"),
+                })
+            if isinstance(e, dict) and e.get("tipo"):
+                try:
+                    import render_plan as rp
+                    for err in rp.errores_de_esquema(e, idx):
+                        hallazgos.append({"nivel": "ERROR", "t": float(e.get("from") or 0.0), "msg": err})
+                except Exception:
+                    pass
     if isinstance(plan, dict) and isinstance(plan.get("brand"), str):
-        ruta_brand = plan["brand"]
-        if not os.path.isabs(ruta_brand):
-            ruta_brand = os.path.join(os.path.dirname(os.path.abspath(a.plan)), ruta_brand)
+        from _comun import buscar_pack, packs_disponibles
+        ruta_brand = buscar_pack(plan["brand"], os.path.dirname(os.path.abspath(a.plan)))
+        if not ruta_brand:
+            hallazgos.append({
+                "nivel": "ERROR", "t": 0.0, "codigo": "pack-inexistente",
+                "msg": (f"brand pack no encontrado: {plan['brand']!r} (packs de la skill: "
+                        f"{', '.join(packs_disponibles())}; o una ruta a un .json)"),
+            })
+            ruta_brand = os.devnull
         try:
             with open(ruta_brand, encoding="utf-8") as fh:
                 pack = json.load(fh)

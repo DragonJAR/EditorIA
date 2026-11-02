@@ -198,7 +198,7 @@ completo: un frame por instante, no los 600 del video. Sin `-o` no hace
 falta.
 
 **Tamaño**: `"tamano": "1920x1080"` en el plan (o `--tamano`) para 16:9; la
-zona segura pasa a la de YouTube. Default 1080×1920. Las 45 escenas se
+zona segura pasa a la de YouTube. Default 1080×1920. Las 46 escenas se
 componen en los dos formatos (validadas en 9:16 y 16:9 por `validate_skill.py`
 y `galeria.py`): los tamaños de letra van en `unidad()` (lado corto), las
 pilas se miden con `pila()` y las escenas de lectura en columna (`chat`,
@@ -242,13 +242,13 @@ python scripts/render_plan.py plan.json --datos ponentes.csv -o "lt_{archivo}.mo
 - El plan resuelto de cada fila queda junto a su video (`*.plan.json`).
 - Una variante por variable: en tests A/B, la tabla cambia UNA columna.
 
-## Tipos de escena (45)
+## Tipos de escena (46)
 `apertura` · `canales` · `medianoche` · `chat` · `leads` · `handoff` · `pago` ·
 `listo` · `pildoras` · `hoy` · `recupera` · `remate` · `final` · `bars` ·
 `gauge` · `ranking` · `stats` · `timeline` · `quote` · `versus` · `confetti` ·
 `typewriter` · `kenburns` · `pasos` · `countdown` · `oferta` · `demo` ·
 `rotulo_inferior` · `hero` · `bento` · `buscador` · `notificacion` · `comentario` ·
-`pie` · `orbita` · `audiowave` · `index` · `callout` · `orbOpen` · `frase` ·
+`pie` · `orbita` · `audiowave` · `lista` · `index` · `callout` · `orbOpen` · `frase` ·
 `constancia` · `cadena` · `cartel` · `camino` · `subrayado`
 
 Ver `references/escenas.md` para los parámetros de cada una.

@@ -2,7 +2,7 @@
 
 El motor pictórico pinta dentro de un `canvas` de navegador con p5.js y p5.brush, y
 renderiza con Chrome headless (puppeteer-core) más ffmpeg. Es la vía para lo que el motor
-Python (PIL, 45 escenas planas en `references/escenas.md`) no da: trazo a pincel, acuarela
+Python (PIL, 46 escenas planas en `references/escenas.md`) no da: trazo a pincel, acuarela
 con sangrado de borde, textura de pigmento, sombreado a plumilla, luz que ilumina de
 verdad, doodle generativo y el formato videoclip, donde la música manda la dirección
 (`references/formatos.md`).
@@ -143,7 +143,7 @@ para films MG one-shot (`estilos-codigo.md`) en HyperFrames/HTML.
 
 ## Cómo convive con EditorIA
 
-- **Motor Python** (por defecto): las 45 escenas planas, rótulos, cifras y la animación de
+- **Motor Python** (por defecto): las 46 escenas planas, rótulos, cifras y la animación de
   resortes. Es lo que se itera en segundos.
 - **Remotion** (`references/remotion.md`): cuando la pieza es data-driven y el equipo vive
   en React.
@@ -168,4 +168,4 @@ lo que no es de la skill se declara y se clona, no se promete.
 
 ---
 
-→ Canónico: `references/canvas.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/hyperframes.md`, `references/3d.md`, `references/hand-draw.md`
+→ Canónico: `references/canvas.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/hyperframes.md`, `references/3d.md`, `references/hand-draw.md`, `references/tiempo-html.md`

@@ -11,6 +11,7 @@ JSON, nunca sobrescribir el input, verificar el output y QA con frames.
 """
 import argparse  # noqa: F401  (anotaciones de add_common/apply_common)
 import json
+import re
 import os
 import platform
 import shutil
@@ -596,6 +597,94 @@ def verificar_alfa(path: str, frame: Optional[int] = None) -> float:
     return claros / (len(raw) / 4)
 
 
+PREFIJO_FIRMA = "editoria-plan:"
+
+
+def version_motor() -> str:
+    """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
+    reutiliza frames del anterior."""
+    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as fh:
+            for linea in fh:
+                m = re.match(r"\s*version:\s*[\"']?([^\"'\s]+)", linea)
+                if m:
+                    return m.group(1)
+                if linea.strip() == "---" and not linea.startswith("version"):
+                    # el segundo --- cierra el frontmatter; si ya vimos version, salimos arriba
+                    pass
+    except OSError:
+        pass
+    return "0"
+
+def version_motor() -> str:
+    """metadata.version de SKILL.md. Entra en la firma: un motor nuevo no
+    reutiliza frames del anterior."""
+    raiz = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        with open(os.path.join(raiz, "SKILL.md"), encoding="utf-8") as fh:
+            for linea in fh:
+                m = re.match(r"\s*version:\s*[\"']?([^\"'\s]+)", linea)
+                if m:
+                    return m.group(1)
+                if linea.strip() == "---" and not linea.startswith("version"):
+                    # el segundo --- cierra el frontmatter; si ya vimos version, salimos arriba
+                    pass
+    except OSError:
+        pass
+    return "0"
+
+def firma_plan(plan: Dict[str, Any], brand_path: Optional[str] = None) -> str:
+    """Hash del plan que pinta el motor: cada bloque de escena, la versión
+    del motor y el contenido del pack. Lo escribe el video y lo verifica
+    qa_entrega, también con --sin-medir."""
+    import hashlib
+    bloques = []
+    for e in (plan or {}).get("escenas") or []:
+        if isinstance(e, dict):
+            bloques.append({k: v for k, v in e.items() if not str(k).startswith("_")})
+    pack = ""
+    if brand_path and os.path.isfile(brand_path):
+        h = hashlib.sha256()
+        with open(brand_path, "rb") as fh:
+            h.update(fh.read())
+        pack = h.hexdigest()[:16]
+    payload = {
+        "motor": version_motor(),
+        "pack": pack,
+        "tamano": (plan or {}).get("tamano"),
+        "duracion": (plan or {}).get("duracion"),
+        "paleta": (plan or {}).get("paleta"),
+        "plataforma": (plan or {}).get("plataforma"),
+        "acento": (plan or {}).get("acento"),
+        "camara": (plan or {}).get("camara"),
+        "zona": (plan or {}).get("zona"),
+        "escenas": bloques,
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, default=str)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def estampar_firma(salida: str, firma: str) -> None:
+    """Deja la firma del plan en el comentario del contenedor, sin re-encode."""
+    ext = os.path.splitext(salida)[1]
+    tmp = salida + ".firma" + ext
+    cmd = ffmpeg_base() + ["-i", salida, "-c", "copy", "-metadata",
+                           f"comment={PREFIJO_FIRMA}{firma}"]
+    if ext.lower() == ".mp4":
+        cmd += ["-movflags", "+faststart"]
+    cmd.append(tmp)
+    run(cmd, quiet=True)
+    os.replace(tmp, salida)
+
+def firma_de_video(path: str) -> Optional[str]:
+    """La firma estampada en el video, o None si ese archivo no la trae."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags=comment",
+                        "-of", "default=nw=1:nk=1", path], capture_output=True, text=True)
+    txt = (r.stdout or "").strip()
+    if txt.startswith(PREFIJO_FIRMA):
+        return txt[len(PREFIJO_FIRMA):].strip() or None
+    return None
+
 def codificar_frames(patron: str, fps: float, salida: str, crf: int = 20,
                      preset: str = "medium") -> Dict[str, Any]:
     """Frames RGB(A) numerados -> video. La extension decide el entregable:
@@ -981,17 +1070,35 @@ def acento_efectivo(brand: Optional[str] = None, paleta: Optional[str] = None,
 SKILL_DIR = Path(__file__).resolve().parent.parent.parent
 
 
-def resolver_pack(path: Optional[str]) -> Optional[str]:
-    """Ruta de un brand pack: absoluta, relativa al cwd o a la carpeta de la
-    skill ('brand/x.json'). None si no se pidió marca."""
+def packs_disponibles() -> List[str]:
+    """Los NOMBRES de los packs de la skill (brand/*.json): lo que acepta
+    `--brand` / `"brand"` además de una ruta."""
+    return sorted(p.stem for p in (SKILL_DIR / "brand").glob("*.json"))
+
+def buscar_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
+    """Ruta de un pack o None. Acepta una ruta (absoluta, relativa al cwd, a
+    `base` —la carpeta del plan— o a la skill) o el NOMBRE de un pack de la
+    skill: "carbon" → brand/carbon.json (el catálogo lo enseña así)."""
     if not path:
         return None
     p = os.path.expanduser(str(path))
-    for cand in (p, str(SKILL_DIR / p)):
+    cands = [p] + ([os.path.join(base, p)] if base else []) + [str(SKILL_DIR / p), str(SKILL_DIR / "brand" / p)]
+    if not p.lower().endswith(".json"):
+        cands += [c + ".json" for c in cands]
+    for cand in cands:
         if os.path.isfile(cand):
             return os.path.abspath(cand)
-    die(f"brand pack no encontrado: {path}", kind="input")
+    return None
 
+def resolver_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
+    """Ruta de un brand pack (ver `buscar_pack`). None si no se pidió marca."""
+    if not path:
+        return None
+    ruta = buscar_pack(path, base)
+    if ruta:
+        return ruta
+    die(f"brand pack no encontrado: {path} (packs de la skill: {', '.join(packs_disponibles())}; "
+        "o una ruta a un .json)", kind="input")
 
 def leer_pack(path: Optional[str]) -> Dict[str, Any]:
     ruta = resolver_pack(path)
@@ -1018,9 +1125,11 @@ def colores_marca(path: Optional[str] = None) -> Dict[str, Tuple[int, int, int]]
     c["acento"] = hex_a_rgb(ac)
     c["acento_oscuro"] = (hex_a_rgb(col["acento_oscuro"]) if col.get("acento_oscuro")
                           else tuple(max(0, int(v * 0.65)) for v in c["acento"]))
-    for k in ("negro", "blanco", "gris"):
+    for k in ("negro", "blanco", "gris", "gris_detalle", "gris_superficie"):
         if col.get(k):
             c[k] = hex_a_rgb(col[k])
+    if col.get("acento_texto"):
+        c["acento_texto"] = hex_a_rgb(col["acento_texto"])
     return c
 
 
@@ -1084,6 +1193,24 @@ def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:
     if buf:
         out.append((buf, kind))
     return out
+
+
+_MARKUP_BIEN_FORMADO = re.compile(r"(?<!\w)([*~^])(?=\S)(.+?)(?<=\S)\1(?!\w)")
+
+
+def texto_plano(texto: str) -> str:
+    """El texto SIN marcadores (* ~ ^): para todo campo que se dibuja como
+    texto corrido (etiquetas, detalles, subtitulos). Un campo que no pinta
+    cajas nunca debe mostrar los signos del markup en pantalla.
+
+    Solo quita el markup BIEN FORMADO (pareja pegada a la palabra, como lo
+    lee `segmentos_resalte`): «SELECT * FROM», «~/home» o «2^10» son texto,
+    no markup, y se quedan como viven."""
+    texto = str(texto)
+    previo = None
+    while previo != texto:
+        previo, texto = texto, _MARKUP_BIEN_FORMADO.sub(r"\2", texto)
+    return texto
 
 
 def segmentos_enfasis(texto: str) -> List[Tuple[str, bool]]:
