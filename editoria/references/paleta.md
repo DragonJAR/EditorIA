@@ -65,7 +65,7 @@ la pieza, para quién es y si es urgente o Informativo. Elegirlo a ciegas
 | `grafito` | `#94A3B8` | monocromático frío, sin chroma | frío | documentación, legal, industria, auditoría, minimal |
 | `ambar` | `#F0A32B` | análogo ámbar→dorado (38°) | cálido | energía, industria, deporte, formación, startups |
 | `coral` | `#FF6B5B` | análogo coral→rojo cálido (6°) | cálido | salud, RRHH, cuidado, comunidad, alertas |
-| `violeta` | `#8B5CF6` | análogo violeta→lila (265°) | frío | creatividad, educación, premium, wellness, música |
+| `violeta` | `#9366F8` | análogo violeta→lila (265°) | frío | creatividad, educación, premium, wellness, música |
 | `magenta` | `#E5479B` | análogo magenta→fucsia (330°) | cálido | cultura, moda, entertainment, social, público joven |
 | `oro` | `#C9A227` | dividido complementario: dorado 45° | cálido | lujo, premium, invitaciones, joyería, inmobiliaria |
 
@@ -115,6 +115,22 @@ En el `plan.json` (lo que se guarda con la pieza y lo que se puede revisar):
 ```json
 {"duracion": 30, "paleta": "menta", "escenas": [ ... ]}
 ```
+
+La sintaxis completa es UNA (`_comun.SINTAXIS_PALETA`, la misma que
+imprimen `render_plan.py --help` y `repertorio.py --help`):
+`"paleta": "<nombre>|#RRGGBB[:claro]"`.
+
+- `"menta"`: una paleta del catálogo, tema oscuro.
+- `"menta:claro"`: la misma en tema claro (fondo crema, tinta casi negra,
+  tarjetas claras); el acento se oscurece hasta leerse sobre ese fondo.
+- `"#1E88E5"` / `"#1E88E5:claro"`: el color del usuario es el acento y el
+  resto son los neutros del motor (`paleta_desde_color`).
+
+Ningún color pasa en silencio a un texto ilegible: `asegurar_contraste`
+exige tinta 7:1, gris de apoyo 4.5:1 y acento 4.5:1 sobre el PEOR de fondo
+y tarjeta; lo que no llega se corrige en luz (mismo tono) y el render lo
+imprime como `AVISO contraste`. `auditar_plan.py` lo avisa antes del
+render.
 
 O en la línea de comandos:
 

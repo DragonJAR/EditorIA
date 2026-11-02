@@ -777,7 +777,10 @@ def _resumen_conteos(datos=None, efectos=None, gestos=None, captions=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sys.path.insert(0, os.path.join(BASE, "ffmpeg_tools"))
+    from _comun import ayuda_paleta   # el color: el MISMO texto que render_plan --paleta
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0],
+                                 epilog="Color de la pieza — " + ayuda_paleta().replace("%", "%%"))
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     # El texto de las opciones se dice UNA vez: --json aparece en cinco

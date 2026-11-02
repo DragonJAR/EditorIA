@@ -56,14 +56,11 @@ def distancia_daltonica(a,b):
                d(_simula(a,_PROTANOPIA),_simula(b,_PROTANOPIA)))
 
 def _legible(c,fondo,minimo=4.5):
-    """Sube la luz (HLS, mismo tono) hasta que el color se lee sobre el fondo."""
-    import colorsys
-    from _comun import contraste
-    h,l,s=colorsys.rgb_to_hls(*[v/255 for v in c[:3]])
-    rgb=tuple(c[:3])
-    while contraste(rgb,fondo)<minimo and l<0.97:
-        l+=0.01; rgb=tuple(int(round(v*255)) for v in colorsys.hls_to_rgb(h,l,s))
-    return rgb
+    """Mueve la luz (HLS, mismo tono) hasta que el color se lee sobre el fondo:
+    sube sobre oscuro, baja sobre claro. La cuenta vive UNA vez en
+    `_comun._hasta_contraste` (la misma que corrige la paleta del usuario)."""
+    from _comun import _hasta_contraste
+    return _hasta_contraste(c, fondo, minimo)
 
 def tokens_de_estado(acento,negro):
     """{serie, exito, aviso} derivados del acento (ver el bloque de arriba)."""
@@ -6655,9 +6652,13 @@ def _instalar_tokens(c):
     para que los dos caminos instalen exactamente los mismos globals.
     """
     global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS, SERIE, EXITO, AVISO
-    global ACENTO_TEXTO, ACENTO_GRANDE
+    global ACENTO_TEXTO, ACENTO_GRANDE, PANEL, PANEL2
     ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS = (c["acento"], c["acento_oscuro"],
                                                c["negro"], c["blanco"], c["gris"])
+    # la superficie de tarjetas es un token del juego (con el tema claro las
+    # tarjetas pasan a claras); si no la declara, se deriva de fondo y tinta
+    PANEL = tuple(c.get("gris_superficie") or (int(n + (b - n) * 0.06) for n, b in zip(NEGRO, BLANCO)))
+    PANEL2 = tuple(max(0, v - 12) if sum(NEGRO) > sum(BLANCO) else min(255, v + 12) for v in PANEL)
     # categoría y estado: los declarados (pack) mandan; si no, del acento
     est=tokens_de_estado(ACENTO,NEGRO)
     SERIE=[tuple(x) for x in (c.get("serie") or est["serie"])]
@@ -6674,8 +6675,10 @@ def aplicar_paleta(nombre):
     el agente según el brief (teoría del color) y se declara en el plan
     ("paleta": "menta") o con --paleta.
     """
-    from _comun import info_paleta, paleta_libre
-    _instalar_tokens(paleta_libre(nombre))
+    from _comun import info_paleta, paleta_libre, asegurar_contraste
+    tokens, avisos = asegurar_contraste(paleta_libre(nombre), f"paleta '{nombre}'")
+    for av in avisos: print("AVISO contraste: "+av, flush=True)
+    _instalar_tokens(tokens)
     _info = info_paleta(nombre)
     _detalle = (f" ({_info['esquema']}, {_info['tono']})" if _info else "")
     print(f"paleta '{nombre}'{_detalle}: acento #%02X%02X%02X" % ACENTO, flush=True)
@@ -7213,7 +7216,7 @@ def render(plan_path,plan,out,a):
     elif a.paleta or plan.get("paleta"):
         aplicar_paleta(a.paleta or plan.get("paleta"))   # paleta elegida segun el brief
     elif plan.get("acento"):   # modo libre: el plan puede fijar solo el acento
-        ACENTO=hex_a_rgb(plan["acento"]); ACENTO_OSC=tuple(max(0,int(c*0.65)) for c in ACENTO)
+        aplicar_paleta("#"+str(plan["acento"]).lstrip("#"))   # el juego entero, con contraste comprobado
     aplicar_globales(plan)   # antes de formato: la banda de subtítulos entra en la zona segura
     formato(W,H,a.plataforma or plan.get("plataforma"))
     if BANDA_SUBS["fraccion"]:
@@ -7703,6 +7706,48 @@ def _tipo_blur(v):
         raise argparse.ArgumentTypeError("--blur espera 0/1 (sin blur), 2 o más, o 'auto'")
     return n
 
+# Campos del PLAN (nivel raíz): la tabla que lee el agente y valida
+# auditar_plan (un campo raíz que no está aquí es un error con sugerencia).
+# La sintaxis de la paleta sale de _comun.SINTAXIS_PALETA (UNA fuente).
+PLAN_CAMPOS = [
+    {"nombre": "duracion", "tipo": "número (s)", "obligatorio": True,
+     "significado": "duración total de la pieza en segundos"},
+    {"nombre": "escenas", "tipo": "lista de objetos", "obligatorio": True,
+     "significado": "las escenas, cada una con `tipo`, `from`, `to` (segundos ABSOLUTOS de la pieza)"},
+    {"nombre": "tamano", "tipo": "texto ANCHOxALTO", "obligatorio": False,
+     "significado": "1080x1920 (9:16, default), 1920x1080 (16:9) o 1080x1080 (1:1); --tamano manda"},
+    {"nombre": "brand", "tipo": "texto", "obligatorio": False,
+     "significado": "brand pack por nombre (brand/<nombre>.json) o ruta; solo si el usuario nombró la marca; --brand manda"},
+    {"nombre": "paleta", "tipo": "texto", "obligatorio": False,
+     "significado": "sin brand: " + __import__("_comun").SINTAXIS_PALETA
+                    + " — nombre de paleta del catálogo o color del usuario; «:claro» = tema claro (\"#2563EB:claro\")"},
+    {"nombre": "acento", "tipo": "texto #RRGGBB", "obligatorio": False,
+     "significado": "sin brand ni paleta: el acento del usuario (= \"paleta\": \"#RRGGBB\")"},
+    {"nombre": "camara", "tipo": "objeto {z0, z1, flota, t0, t1, x0, x1, y0, y1}", "obligatorio": False,
+     "significado": "trayectoria de cámara continua sobre el reloj de la pieza; z0/z1 escalas (1.0–3.0), flota px (0–12)"},
+    {"nombre": "zona", "tipo": "lista [x0, y0, x1, y1] (fracciones 0–1)", "obligatorio": False,
+     "significado": "zona libre declarada donde va el contenido (p. ej. al lado de la cara)"},
+    {"nombre": "musica", "tipo": "texto (ruta) u objeto", "obligatorio": False,
+     "significado": "pista de música; sin música ni voz la pieza es muda (QA no exige audio)"},
+    {"nombre": "subtitulos", "tipo": "booleano u objeto", "obligatorio": False,
+     "significado": "subtítulos quemados de la voz; solo aplica si hay `voz` en escenas"},
+    {"nombre": "plataforma", "tipo": "texto", "obligatorio": False,
+     "significado": "reels, tiktok, shorts, youtube, linkedin o ninguna: zonas seguras; --plataforma manda"},
+    {"nombre": "numeros", "tipo": "texto", "obligatorio": False,
+     "significado": "formato de cifras: es (default, 1.299,50) | en (1,299.50)"},
+    {"nombre": "ritmo", "tipo": "booleano", "obligatorio": False,
+     "significado": "con `musica`, cortes al compás (beat_sync); false lo apaga"},
+    {"nombre": "grano", "tipo": "entero", "obligatorio": False, "significado": "amplitud del grano de película (0 = sin grano)"},
+    {"nombre": "deplecion", "tipo": "objeto {y, alto, color}", "obligatorio": False,
+     "significado": "barra de la pieza que se vacía con el tiempo (capa fija, no una escena)"},
+    {"nombre": "mancha_max", "tipo": "entero", "obligatorio": False,
+     "significado": "tope de manchas de acento por pantalla (default 2; 1 con corte_seco)"},
+    {"nombre": "cabecera", "tipo": "objeto {chip, marca}", "obligatorio": False,
+     "significado": "rack fijo arriba en toda la pieza (capa fija, no una escena)"},
+    {"nombre": "datos", "tipo": "objeto {nombre: {valor, fuente}}", "obligatorio": False,
+     "significado": "cifras con su fuente; una escena las cita con {\"$dato\": \"nombre\"}"},
+]
+
 CAMPOS_CON_RANGO = {
     "y": {"tipo": "número (fracción del alto)", "rango": [0.08, 0.92],
           "significado": "centro vertical del bloque; si falta, el centro común del layout"},
@@ -7994,10 +8039,9 @@ def main():
     ap.add_argument("--fps",type=int,default=30)
     ap.add_argument("--brand", default=None,
                     help="brand pack (brand/*.json); el plan también acepta campo \"brand\"")
+    from _comun import ayuda_paleta
     ap.add_argument("--paleta", default=None,
-                    help="paleta del modo libre (references/paleta.md): electrico, menta, grafito, "
-                         "ambar, coral, violeta, magenta, oro. El plan también acepta campo "
-                         "\"paleta\". Si hay --brand, la marca manda")
+                    help=ayuda_paleta().replace("%", "%%") + " (references/paleta.md)")
     ap.add_argument("--blur",type=_tipo_blur,default=1,
                     help="sub-frames de motion blur (1=off, 4-6 para entrega final)")
     ap.add_argument("--obturador",type=float,default=0.5,
