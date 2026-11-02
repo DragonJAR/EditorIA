@@ -54,7 +54,6 @@ JUICIO = [1, 2, 5, 7]
 UMBRAL_EJE = 4
 UMBRAL_MEDIA = 4.3
 DENSIDAD_OK = (0.8, 1.5)
-LETRA_OK = LETRA_MIN     # el mismo LETRA_MIN del motor (_comun)
 
 
 def _puntuar_animacion(m):
@@ -87,15 +86,15 @@ def _puntuar_composicion(plan_m):
     s -= min(2.5, solapes * 1.5)
     if zona < 1.0:
         s -= round((1.0 - zona) * 5, 1)
-    if letra and letra < LETRA_OK:
-        s -= round((LETRA_OK - letra) * 0.2, 1)
+    if letra and letra < LETRA_MIN:
+        s -= round((LETRA_MIN - letra) * 0.2, 1)
         # el piso de letra es una REGLA DURA: si el texto no se lee en un
         # telefono, la tipografia no puede recibir un 4. La puerta de entrega
         # falla esta misma pieza; las dos no pueden decir cosas distintas.
         s = min(s, 3.5)
     return max(1.0, round(s, 1)), (
         f"{solapes} solapes · zona segura x{zona} · letra minima {letra or '?'} px"
-        + (f" (bajo el piso de {LETRA_OK})" if letra and letra < LETRA_OK else "")
+        + (f" (bajo el piso de {LETRA_MIN})" if letra and letra < LETRA_MIN else "")
         + (": " + "; ".join(str(x) for x in (plan_m.get("solapes") or [])[:3])
            if solapes else ""))
 

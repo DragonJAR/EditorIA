@@ -108,6 +108,14 @@ REGLAS_DEL_PACK = REGLAS_DEL_MOTOR | REGLAS_DEL_AGENTE
 # nadie se entera hasta que lee la pieza.
 RECORTES=[]
 
+# Cajas de CONTENIDO que no pasan por ImageDraw.text del cuadro (palabras del
+# titular compuestas en teselas, la ventana de una demo): el QA de balance
+# vertical (medir_animacion.composicion_asentada) las suma a las del texto.
+CAJAS_CONTENIDO=[]
+
+def registrar_caja(caja, texto=""):
+    CAJAS_CONTENIDO.append((tuple(int(v) for v in caja), texto))
+
 W,H=1080,1920
 MARGEN=151   # margen lateral seguro simétrico (unión Reels/TikTok/Shorts, ver _delivery.py)
 SAFE={"top":192,"bottom":422,"left":151,"right":151}   # zona segura en px (se recalcula en main)
@@ -827,9 +835,10 @@ def orientacion():
     """'vertical' | 'cuadrado' | 'horizontal': la decisión de composición, en
     UN sitio. En 1:1 `H>W` y `W>H` son falsas las dos, y cada escena caía en
     una rama distinta (timeline dibujaba el eje horizontal y las etiquetas
-    chocaban). Cuadrado = proporción entre 0,9 y 1,1."""
-    r = W / max(1, H)
-    return "cuadrado" if 0.9 <= r <= 1.1 else ("horizontal" if r > 1 else "vertical")
+    chocaban). Cuadrado = proporción entre 0,9 y 1,1: la MISMA cuenta que la
+    medición y la puerta (`_comun.formato_de`)."""
+    from _comun import formato_de
+    return {"v": "vertical", "c": "cuadrado", "h": "horizontal"}[formato_de(W, H)]
 
 def rotulo_y():
     """Altura canónica unificada para rótulos según formato (H*0.20 en 9:16, H*0.16 en 16:9).
@@ -848,6 +857,15 @@ def _rotulo_ajuste(ctx,texto,tam=None):
     while tam>TAM_MIN_ROTULO and seg_width(sg,fnt)>ancho:
         tam-=2; fnt=ctx.fX(tam,700)
     return partir_segs(sg,fnt,ancho),fnt,tam,ancho
+
+def rotulo_fondo(ctx,texto,y=None,tam=None):
+    """y del borde inferior REAL del rótulo (1 o 2 líneas, tamaño ajustado):
+    la misma medida que lo dibuja (`_rotulo_ajuste`). La usa el QA de
+    balance vertical para medir el bloque de contenido bajo el rótulo."""
+    yy=rotulo_y() if y is None else y
+    if not texto: return yy
+    lineas_r,_,tam_,_=_rotulo_ajuste(ctx,texto,tam)
+    return yy+len(lineas_r)*tam_*1.2
 
 def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=None):
     """Rótulo con entrada real: cada línea sube desde detrás de su línea base
@@ -1670,13 +1688,21 @@ def pie_fuente(ctx, d, e, t, t_def):
 
 BASE_FUENTE = 24   # px de la línea base de la fuente sobre el borde seguro inferior
 
+_PREFIJO_FUENTE = re.compile(r"^\s*(fuente|fuentes|source|sources)\s*:\s*", re.I)
+
+
+def texto_fuente(fuente):
+    """«Fuente: X» una sola vez: si el plan ya trae el prefijo («Fuente:
+    Binance», «Source: X»), no se duplica (antes salía «Fuente: Fuente: …»)."""
+    return "Fuente: " + _PREFIJO_FUENTE.sub("", str(fuente)).strip()
+
 
 def _lineas_fuente(ctx, e):
     """(fuente, líneas) de la línea de fuente: el piso es el rol `nota` de la
     escala, no el mínimo del QA (a 26 px la rúbrica la penalizaba por
     construcción); si no cabe, parte en dos."""
     x0, _, x1, _ = caja_segura()
-    txt = f"Fuente: {e['fuente']}"
+    txt = texto_fuente(e["fuente"])
     fnt = fuente_que_cabe(ctx.fX, txt, ESCALA["nota"], x1 - x0, 400, minimo=ESCALA["nota"])
     return fnt, ["".join(t_ for t_, _ in ln).strip() for ln in partir_segs([(txt, False)], fnt, x1 - x0)]
 
@@ -3001,6 +3027,12 @@ def y_bloque(ctx, alto, titulo="", fuente=False):
             y1 = caja_segura()[3]
     libre = max(0.0, (y1 - y0) - alto)
     return y0 + libre * CENTRO_OPTICO
+
+
+def centro_comun(ctx, titulo="", fuente=False):
+    """y del centro común (para escenas que se componen alrededor de un eje y
+    para el QA de balance vertical: la MISMA cuenta que `y_bloque`)."""
+    return y_bloque(ctx, 0, titulo, fuente)
 
 
 def sc_final(ctx,e,t):
@@ -5272,6 +5304,79 @@ def imagen_ajustada(ruta, ancho, alto):
     return _IMG_CACHE[clave]
 
 
+def asp_captura(ruta, asp=0.625):
+    """alto/ancho de la captura (el archivo manda sobre `aspecto`)."""
+    if ruta and os.path.isfile(os.path.expanduser(ruta)):
+        try:
+            with Image.open(os.path.expanduser(ruta)) as im_:
+                return im_.height / im_.width
+        except Exception:
+            pass
+    return asp
+
+
+def medidas_demo(e):
+    """(bw, bh, asp, barra, pie, arriba, libre) de la ventana de `demo`: UNA
+    cuenta para el render y para el chequeo de QA del recorte del foco."""
+    zx0_, _, zx1_, _ = caja_segura()
+    bw = int(min(W * 0.86, zx1_ - zx0_))   # la ventana cabe en la zona segura
+    asp = asp_captura(e.get("captura"), e.get("aspecto", 0.625))
+    barra, pie = 48, 152   # pie: aire + botón del beneficio bajo la ventana
+    # el bloque (ventana + botón) se centra ENTRE el rótulo y el borde seguro
+    # inferior: con H*0.44 fijo, en 16:9 la ventana tapaba el rótulo
+    arriba = bajo_rotulo(rotulo_y()) + 16 if e.get("rotulo") else caja_segura()[1]
+    libre = caja_segura()[3] - arriba
+    bh = int(min(H * 0.48, bw * asp, libre - barra - pie))
+    return bw, bh, asp, barra, pie, arriba, libre
+
+
+CAJA_FOCO = (0.22, 0.07)   # caja del objetivo por defecto (fracción de la captura)
+
+
+def _cap_px(asp, bw, bh):
+    """(ancho, alto) en px de la captura escalada para CUBRIR la ventana."""
+    f = max(bw / 1.0, bh / asp)
+    return f, f * asp
+
+
+def a_vista_demo(x, y, asp, bw, bh):
+    """Fracción (x, y) de la CAPTURA → px de la vista (cubrir + recorte centrado,
+    la misma cuenta que `imagen_ajustada`)."""
+    cw, ch = _cap_px(asp, bw, bh)
+    return x * cw - (cw - bw) / 2, y * ch - (ch - bh) / 2
+
+
+def encuadre_foco(fxp, fyp, z, bw, bh):
+    """Esquina (cx, cy) de la ventana de zoom: centra el foco y se queda dentro
+    de la captura (un objetivo del borde queda entero, nunca cortado)."""
+    vw, vh = bw / z, bh / z
+    cx = min(max(0.0, fxp - vw / 2), bw - vw)
+    cy = min(max(0.0, fyp - vh / 2), bh - vh)
+    return cx, cy
+
+
+def foco_recortado(paso, asp, bw, bh):
+    """True si la caja del objetivo de un paso de demo NO cabe entera en la
+    vista con su zoom (el chequeo de QA del recorte del foco)."""
+    z = min(2.0, float(paso.get("zoom", 1.6)))
+    cw, ch = _cap_px(asp, bw, bh)
+    bx, by = paso.get("caja", CAJA_FOCO)
+    fxp, fyp = a_vista_demo(paso.get("x", .5), paso.get("y", .5), asp, bw, bh)
+    cx, cy = encuadre_foco(fxp, fyp, z, bw, bh)
+    if not (0 <= fxp <= bw and 0 <= fyp <= bh):   # la ventana (cubrir) ya lo deja fuera
+        return True
+    x0, x1 = fxp - bx * cw / 2, fxp + bx * cw / 2
+    y0, y1 = fyp - by * ch / 2, fyp + by * ch / 2
+    return x0 < cx - 1 or y0 < cy - 1 or x1 > cx + bw / z + 1 or y1 > cy + bh / z + 1
+
+
+def focos_recortados(e):
+    """Pasos de una `demo` cuyo objetivo queda cortado en su zoom: ["paso N"]."""
+    bw, bh, asp = medidas_demo(e)[:3]
+    return [f"paso {i + 1} (x={p_.get('x')}, y={p_.get('y')}, zoom={p_.get('zoom', 1.6)})"
+            for i, p_ in enumerate(e.get("pasos", [])) if foco_recortado(p_, asp, bw, bh)]
+
+
 def sc_demo(ctx, e, t):
     """Demo de producto desde capturas (sin grabar pantalla): ventana con barra
     y URL, cursor que viaja con smoothstep al objetivo, onda del clic y cambio
@@ -5293,21 +5398,8 @@ def sc_demo(ctx, e, t):
     if kv <= 0:
         return capa_salida(layer, t, e["to"])
     zx0_, _, zx1_, _ = caja_segura()
-    bw = int(min(W * 0.86, zx1_ - zx0_))   # la ventana cabe en la zona segura
     ruta = e.get("captura")
-    asp = e.get("aspecto", 0.625)
-    if ruta and os.path.isfile(os.path.expanduser(ruta)):
-        try:
-            with Image.open(os.path.expanduser(ruta)) as im_:
-                asp = im_.height / im_.width
-        except Exception:
-            pass
-    barra, pie = 48, 152   # pie: aire + botón del beneficio bajo la ventana
-    # el bloque (ventana + botón) se centra ENTRE el rótulo y el borde seguro
-    # inferior: con H*0.44 fijo, en 16:9 la ventana tapaba el rótulo
-    arriba = bajo_rotulo(rotulo_y()) + 16 if e.get("rotulo") else caja_segura()[1]
-    libre = caja_segura()[3] - arriba
-    bh = int(min(H * 0.48, bw * asp, libre - barra - pie))
+    bw, bh, asp, barra, pie, arriba, libre = medidas_demo(e)   # la MISMA cuenta que el QA del foco
     x0 = (W - bw) // 2
     y0 = int(arriba + (libre - (barra + bh + pie)) / 2 + (1 - min(1, kv)) * 40)
     pasos = sorted(e.get("pasos", []), key=lambda p_: p_.get("at", 0))

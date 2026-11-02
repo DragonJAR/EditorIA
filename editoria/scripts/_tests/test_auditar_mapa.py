@@ -1163,7 +1163,7 @@ class TestCifrasDelCodigo(unittest.TestCase):
         q = os.path.join(raiz, "scripts", "qa_entrega.py")
         with open(q, encoding="utf-8") as f:
             txt = f.read()
-        marca = '    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma)))'
+        marca = '    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma, plan_muda(plan_dict), por)))'
         self.assertIn(marca, txt, "el fixture tiene que traer la puerta")
         with open(q, "w", encoding="utf-8") as f:
             f.write(txt.replace(marca, marca + "\n" + marca, 1))

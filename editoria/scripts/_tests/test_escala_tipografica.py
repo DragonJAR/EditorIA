@@ -46,7 +46,7 @@ def _piso_unico(tc):
     import _comun, medir_animacion, qa_entrega, puntuar, render_plan
     tc.assertEqual(_comun.LETRA_MIN, 26)
     for mod, nombre in ((render_plan, "MIN_LETRA"), (medir_animacion, "LETRA_MIN"),
-                        (qa_entrega, "LETRA_MIN"), (puntuar, "LETRA_OK")):
+                        (qa_entrega, "LETRA_MIN"), (puntuar, "LETRA_MIN")):   # un nombre: sin alias LETRA_OK
         tc.assertEqual(getattr(mod, nombre), _comun.LETRA_MIN, f"{mod.__name__}.{nombre}")
     tc.assertRegex(tc.src, r"(?m)^MIN_LETRA\s*=\s*LETRA_MIN\b",
                    "el motor toma su piso de _comun.LETRA_MIN")

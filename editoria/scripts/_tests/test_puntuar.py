@@ -17,7 +17,9 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.dirname(HERE)
 sys.path.insert(0, SCRIPTS)
+sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
+from _comun import LETRA_MIN  # noqa: E402
 import puntuar as P  # noqa: E402
 
 
@@ -73,6 +75,18 @@ class TestRubrica(unittest.TestCase):
         s_bueno, _ = P._puntuar_composicion(bueno)
         self.assertLess(s_malo, s_bueno)
         self.assertEqual(s_bueno, 5.0)
+
+    def test_el_piso_es_letra_min(self):
+        """El eje 4 usa la misma constante que el motor, no un 26 aparte."""
+        bajo = {"solapes": [], "zona": 1.0, "letra_min": LETRA_MIN - 1}
+        s, d = P._puntuar_composicion(bajo)
+        self.assertLess(s, 4.0)
+        self.assertIn(str(LETRA_MIN), d)
+        self.assertIn("LETRA_MIN", P._puntuar_composicion.__code__.co_names)
+        en_piso = {"solapes": [], "zona": 1.0, "letra_min": LETRA_MIN}
+        s_ok, d_ok = P._puntuar_composicion(en_piso)
+        self.assertEqual(s_ok, 5.0)
+        self.assertNotIn("bajo el piso", d_ok)
 
     def test_letra_bajo_el_piso_no_alcanza_un_cuatro(self):
         # el piso de letra es una regla dura: el eje 4 no puede pasar

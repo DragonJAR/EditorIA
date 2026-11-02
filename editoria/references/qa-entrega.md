@@ -106,12 +106,22 @@ por eso comparten la medicion y no dos implementaciones.
 - **copy**: los fallos son texto que el motor no puede colocar; los avisos
   son copy que se lee como generado o que se encoge de mas. Un plan con
   avisos es entregable; un plan con fallos, no.
-- **plataforma**: se comprueba la que dice `--plataforma` (por defecto
-  `reels`). Para una pieza que sale en varios sitios, correr la puerta una
-  vez por destino.
+- **plataforma**: se comprueba la que dice `--plataforma`; sin ella, la del
+  plan (`"plataforma"`) y, si tampoco, la del tamaño del video (9:16 reels,
+  16:9 youtube, 1:1 linkedin: `_comun.inferir_plataforma`, la misma cuenta de
+  formato que usa la medición). El veredicto dice de dónde salió. Una pieza
+  sin voz ni música (`plan_muda`) no tiene que llevar audio, y sus
+  subtítulos salen como «no aplica: la pieza no tiene voz». Para una pieza
+  que sale en varios sitios, correr la puerta una vez por destino.
 - **composicion**: la letra real, en reposo, tiene que llegar a **26 px**; la
   escena no puede tocar el piso de la zona segura (0,70) y los textos no se
-  pueden pisar. La letra se mide con el tamano con el que el texto **se
+  pueden pisar. Tampoco puede haber copy **recortado** por el motor (lo que
+  no cabe ni partido al piso: `render_plan.RECORTES`), un bloque
+  **descentrado** en vertical (más del 18 % del alto útil fuera del centro
+  común, `DESBALANCE_MAX`) ni un zoom de `demo` que **corte su objetivo**.
+  La pasada es `medir_animacion --plan --composicion`: tramos de ≤ 2 s en
+  paralelo a 10 fps (la letra y la zona no necesitan 30 fps; el movimiento
+  lo mide `--video`). La letra se mide con el tamano con el que el texto **se
   queda**: si un boton entra con resorte y pasa por 21 px a mitad de camino,
   eso no cuenta (ver `references/coherencia-espacial.md`). Y el texto tiene
   que **contrastar** con lo que tapa: un color de acento sobre una banda del

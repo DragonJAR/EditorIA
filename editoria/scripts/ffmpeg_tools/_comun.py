@@ -1047,6 +1047,41 @@ LETRA_MIN = 26
 #: ocupan 0.17–0.23; las de datos 0.50–0.86. La comparten medición y puerta.
 OCUPACION_MIN = 0.20
 
+# FORMATO y PLATAFORMA de una pieza por su tamaño: UNA cuenta para la
+# medición (medir_animacion: qué FORMATO medir) y la puerta (qa_entrega: qué
+# spec exigir). 9:16 → v, 16:9 → h, ~1:1 → c.
+PLATAFORMA_POR_FORMATO = {"v": "reels", "h": "youtube", "c": "linkedin"}
+
+
+def formato_de(ancho: int, alto: int) -> str:
+    """'v' (vertical), 'h' (horizontal) o 'c' (cuadrado, ±10 %) de un tamaño."""
+    r = ancho / max(1, alto)
+    return "c" if 0.9 <= r <= 1.1 else ("h" if r > 1 else "v")
+
+
+def inferir_plataforma(plan, tamano) -> Tuple[str, str]:
+    """(plataforma, por qué). La del plan si la declara; si no, por el tamaño
+    (`formato_de`: 9:16 reels, 16:9 youtube, 1:1 linkedin). El spec de Reels
+    solo se aplica a lo vertical o si se pide (antes era el default de todo)."""
+    p = plan.get("plataforma") if isinstance(plan, dict) else None
+    if p and p != "ninguna":
+        return p, "declarada en el plan"
+    if tamano:
+        w, h = tamano
+        return (PLATAFORMA_POR_FORMATO[formato_de(w, h)],
+                f"inferida del tamaño {w}x{h} (fija otra con --plataforma)")
+    return "reels", "por defecto"
+
+
+def plan_muda(plan) -> bool:
+    """El plan no tiene voz ni música: la pieza es muda a propósito (la puerta
+    no le exige audio ni subtítulos)."""
+    if not isinstance(plan, dict):
+        return False
+    return not plan.get("musica") and not any(
+        isinstance(e, dict) and str(e.get("voz") or "").strip() for e in plan.get("escenas") or [])
+
+
 # VELOCIDAD DE LECTURA: una frase que se reemplaza por otra en pantalla se
 # queda al menos esto ASENTADA (sin contar su entrada). UNA cifra para el
 # motor y auditar_plan (avisa si el plan no le da sitio).

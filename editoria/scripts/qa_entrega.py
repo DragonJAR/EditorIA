@@ -40,10 +40,12 @@ BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(BASE, "scripts")
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 from _comun import LETRA_MIN, OCUPACION_MIN  # noqa: E402  UNA cifra: la del motor y la medición
+from _comun import inferir_plataforma, plan_muda  # noqa: E402,F401  la MISMA cuenta que la medición
+sys.path.insert(0, SCRIPTS)
+from auto_qa import FROZEN_MAX as QUIETO_MAX  # noqa: E402  s: la MISMA racha congelada que auto_qa
 NOTA_MINIMA = 90.0     # nota de movimiento minima para dar la pieza por buena
 ZONA_MIN = 0.70        # el motor escala hasta 0.70: si toca el piso, el texto sale de la zona segura
-QUIETO_MAX = 1.0       # s: racha congelada maxima (= auto_qa.FROZEN_MAX; checklist-qa.md:
-                       # "ningun hold > 0.6 s salvo el CTA final", frozen <= 1 s por cada 30 s)
+FPS_COMPOSICION = 10   # muestreo de la revisión de composición (no de movimiento)
 
 
 def _correr(args):
@@ -80,11 +82,27 @@ def _paso_autoqa(video, ignorar_inicio=0.0, ignorar_fin=0.0):
             "detalle": f"{n} defectos" if n != "?" else out.strip()[-120:]}
 
 
-def _paso_delivery(video, plataforma):
+def _paso_delivery(video, plataforma, muda=False, por=""):
     rc, out = _correr([os.path.join(SCRIPTS, "ffmpeg_tools", "delivery_check.py"),
                        video, "--platform", plataforma])
-    return {"nombre": f"delivery:{plataforma}", "ok": rc == 0,
-            "detalle": "cumple el spec" if rc == 0 else out.strip().splitlines()[-1:]}
+    det = "cumple el spec" if rc == 0 else " ".join(out.strip().splitlines()[-1:])
+    if rc == 0 and muda:
+        det += " · pieza muda (el plan no tiene voz ni música): no se exige audio"
+    if por:
+        det += f" · plataforma {por}"
+    return {"nombre": f"delivery:{plataforma}", "ok": rc == 0, "detalle": det}
+
+
+def _tamano_video(video):
+    """(ancho, alto) del primer stream de video, o None."""
+    p = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                        "stream=width,height", "-of", "csv=p=0", video],
+                       capture_output=True, text=True, timeout=120)
+    try:
+        w, h = (int(x) for x in p.stdout.strip().split(",")[:2])
+        return w, h
+    except ValueError:
+        return None
 
 
 def _paso_medir(video):
@@ -144,7 +162,8 @@ def _fps(video):
         return 30
 
 
-def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None):
+def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None,
+                          recortes=None, desbalance=None, focos=None):
     """Los fallos de composicion, con su motivo Y su dueno. Puro: sin video ni plan.
 
     Un «2 textos se pisan» sin escena ni instante no es accionable: obligaba
@@ -167,10 +186,20 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
             f += " — " + "; ".join(
                 f"escena {d['escena']} x{d['zona']:.3f}" for d in culpables_zona[:3])
         fallos.append(f)
+    if recortes:
+        fallos.append(f"{len(recortes)} textos recortados por el motor (no caben ni partidos al "
+                      "piso de letra): " + "; ".join(f"«{r[:40]}»" for r in recortes[:4]) +
+                      " — acorta el copy o dale más caja")
     if solapes:
         fallos.append(f"{len(solapes)} textos se pisan: " +
                         "; ".join(str(s) for s in solapes[:4]) +
                         ("; …" if len(solapes) > 4 else ""))
+    if desbalance:
+        fallos.append("bloque descentrado en vertical: " + "; ".join(desbalance[:3]) +
+                      " — el contenido va al centro común (y_bloque)")
+    if focos:
+        fallos.append("el zoom de la demo corta su objetivo: " + "; ".join(focos[:3]) +
+                      " — baja `zoom` o ajusta `caja` del paso")
     return fallos
 
 
@@ -253,8 +282,16 @@ def _paso_subtitulos(plan_path, plataforma, archivo=None):
     except (OSError, ValueError) as ex:
         return {"nombre": "subtitulos", "ok": False, "detalle": f"no se pudo leer el plan: {ex}"}
     defecto = _defecto_subtitulos(plan, plataforma, plan_path, archivo)
-    return {"nombre": "subtitulos", "ok": defecto is None,
-            "detalle": defecto or "declarados para la pieza narrada"}
+    narrada = any(isinstance(e, dict) and str(e.get("voz") or "").strip() for e in plan.get("escenas") or [])
+    if defecto:
+        det = defecto
+    elif not narrada:
+        det = "no aplica: la pieza no tiene voz"
+    elif plataforma not in PLATAFORMAS_SOCIALES:
+        det = f"no se exigen en {plataforma}"
+    else:
+        det = "declarados para la pieza narrada"
+    return {"nombre": "subtitulos", "ok": defecto is None, "detalle": det}
 
 
 def _paso_composicion(plan, video):
@@ -268,8 +305,11 @@ def _paso_composicion(plan, video):
     tmp = tempfile.mkdtemp(prefix="editoria_qa_")
     try:
         salida = os.path.join(tmp, "medidas.json")
+        # composición: ventanas cortas EN PARALELO y a FPS_COMPOSICION (letra,
+        # zona, solapes y recortes no necesitan 30 fps): antes un solo proceso
+        # componía cada frame (340 s para 40 s de video con 1 de 8 núcleos)
         rc, out = _correr([os.path.join(SCRIPTS, "medir_animacion.py"),
-                           "--plan", plan, "--fps", str(_fps(video)),
+                           "--plan", plan, "--composicion", "--fps", str(FPS_COMPOSICION),
                            "--json", salida])
         if rc != 0 or not os.path.exists(salida):
             # el motor explica por que no se pudo medir: se pasa su motivo,
@@ -294,9 +334,13 @@ def _paso_composicion(plan, video):
                            if d.get("letra_px", 999) < LETRA_MIN]
         culpables_zona = [{"escena": r.get("escena", "?"), "zona": float(r.get("zona", 1.0))}
                           for r in res if float(r.get("zona", 1.0)) <= ZONA_MIN]
-        fallos = _defectos_composicion(letra, zona, solapes,
-                                       culpables_letra, culpables_zona)
-        detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
+        recortes = sorted({x for r in res for x in (r.get("recortes") or [])})
+        desbalance = [x for r in res for x in (r.get("desbalance") or [])]
+        focos = [x for r in res for x in (r.get("focos") or [])]
+        fallos = _defectos_composicion(letra, zona, solapes, culpables_letra, culpables_zona,
+                                       recortes, desbalance, focos)
+        detalle = (f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
+                   f" · {len(recortes)} recortes")
         if fallos:
             detalle = "; ".join(fallos)
         return {"nombre": "composicion", "ok": not fallos, "detalle": detalle}
@@ -311,8 +355,9 @@ def main():
         epilog="Sale 0 si todo pasa, 1 si algo falla, 2 si la entrada no existe.")
     ap.add_argument("video", help="ruta del MP4 final a verificar")
     ap.add_argument("--plan", help="ruta del plan.json (opcional: añade el chequeo de plan y de copy)")
-    ap.add_argument("--plataforma", default="reels",
-                    help="destino de entrega: reels, linkedin, youtube, tiktok, shorts (def. reels)")
+    ap.add_argument("--plataforma", default=None,
+                    help="destino de entrega: reels, tiktok, shorts, youtube, linkedin… (def.: la del "
+                         "plan o, si no, por el tamaño: 9:16 reels, 16:9 youtube, 1:1 linkedin)")
     ap.add_argument("--json", action="store_true",
                     help="devuelve el informe en JSON por stdout en vez de texto")
     ap.add_argument("--subtitulos", default=None,
@@ -336,6 +381,16 @@ def main():
     if args.plan and not os.path.exists(args.plan):
         print(f"ERROR: no existe el plan '{args.plan}'", file=sys.stderr)
         return 2
+    plan_dict = None
+    if args.plan:
+        try:
+            with open(args.plan, encoding="utf-8") as f:
+                plan_dict = json.load(f)
+        except (OSError, ValueError):
+            plan_dict = None
+    por = ""
+    if not args.plataforma:
+        args.plataforma, por = inferir_plataforma(plan_dict, _tamano_video(args.video))
 
     # Cada paso se anuncia ANTES de correr y se cierra con su tiempo: en una
     # VM modesta la puerta de una pieza de ~60 s tarda minutos (medir el
@@ -363,7 +418,7 @@ def main():
                       "detalle": desync or "el plan no es posterior al video",
                       "segundos": 0.0})
     pasos.append(_ejecutar("auto_qa", lambda: _paso_autoqa(args.video, args.ignorar_inicio, args.ignorar_fin)))
-    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma)))
+    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma, plan_muda(plan_dict), por)))
     if args.plan:
         pasos.append(_ejecutar("subtitulos", lambda: _paso_subtitulos(args.plan, args.plataforma, args.subtitulos)))
     if not args.sin_medir:

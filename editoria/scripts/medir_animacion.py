@@ -50,6 +50,7 @@ sys.path.insert(0, os.path.join(AQUI, "ffmpeg_tools"))
 
 from _plataforma import dir_temp  # noqa: E402
 from _comun import LETRA_MIN, OCUPACION_MIN  # noqa: E402,F401  el piso legible y la ocupación: UNA cifra
+from _comun import formato_de  # noqa: E402  v/h/c por el tamaño: la MISMA cuenta que la puerta
 
 LADO = 180             # lado CORTO de análisis (misma escala en 9:16 y 16:9: 1080 → 180)
 BLOQUE = 10            # px del bloque para detectar pops
@@ -60,7 +61,23 @@ POP_PROPORCION = 0.35  # fracción de bloques abruptos sin origen para llamarlo 
 MOV_RADIO = 10         # px de análisis (≈ 60 px a 1080, 1800 px/s): lo que se mueve más rápido
                        # que esto se lee como teletransporte (aparición), no como movimiento
 QUIETO_SIGMAS = 4      # un bloque se movió si cambia más que 4 veces el piso de grano medido
-FORMATOS = {"v": (1080, 1920), "h": (1920, 1080)}
+FORMATOS = {"v": (1080, 1920), "h": (1920, 1080), "c": (1080, 1080)}
+
+
+def formato_de_tamano(tamano):
+    """La clave de FORMATOS para un `tamano` de plan («1080x1080», «1920x1080»…).
+    UNA lectura para todos los formatos: el canónico de su proporción
+    (`_comun.formato_de`) si coincide; si no, el tamaño se registra tal cual
+    (antes solo 9:16 y 16:9; un plan 1:1 se medía como 9:16)."""
+    try:
+        w, h = (int(x) for x in str(tamano or "1080x1920").lower().split("x"))
+    except ValueError:
+        return "v"
+    k = formato_de(w, h)
+    if FORMATOS.get(k) == (w, h):
+        return k
+    FORMATOS[f"{w}x{h}"] = (w, h)
+    return f"{w}x{h}"
 
 _W = {}
 
@@ -219,6 +236,7 @@ def medir(job):
     frames, t0 = [], time.time()
     i0, i1 = (int(ventana[0] * fps), int(ventana[1] * fps)) if ventana else (0, int(e["to"] * fps))
     n = i1 - i0
+    R.RECORTES.clear()   # el copy que el motor tuvo que recortar (render_plan.RECORTES)
     try:
         for i in range(i0, i1):
             if n >= 100 and i % max(1, n // 4) == 0:
@@ -239,6 +257,8 @@ def medir(job):
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
     m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_, caja=R.caja_segura())
+    if ventana:   # el tiempo de un pop en una ventana es local: el join lo necesita
+        m["ventana"] = [round(float(ventana[0]), 3), round(float(ventana[1]), 3)]
     if not ventana and len(escenas) > 1:   # la escena chica, con su nombre: la media la diluye
         m["ocupacion_escena"] = ocupacion_por_escena(
             F, fps, [(j + 1, s_.get("tipo", "?"), s_["from"], s_["to"]) for j, s_ in enumerate(escenas)],
@@ -253,13 +273,21 @@ def medir(job):
           "letra_px": int(tam * 1080 / min(w, h))}
          for (num, tipo, texto), tam in ultimos_escena.items()),
         key=lambda d: d["letra_px"])
-    pisan = [] if ventana else solapes(R, ctx, escenas, dur)
+    comp = {"solapes": [], "desbalance": [], "focos": []} if ventana else \
+        composicion_asentada(R, ctx, escenas, dur)
+    pisan = comp["solapes"]
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # se LEE quieta (render_plan.QUIETAS)
         # su flotación (render_plan.vida) no llega al umbral de `muerto` (diff de
         # cuadro entero); `quieto` (por bloque) sí la ve y se mide como en todas
         m["muerto"] = 0.0
         m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
+    # un recorte NUNCA es silencioso: viaja al veredicto (qa_entrega lo rechaza).
+    # Los nombres de archivo (rótulo de un audio) se acortan a propósito.
+    recortes = sorted({str(rc.get("texto", "")) for rc in R.RECORTES
+                       if not str(rc.get("texto", "")).lower().endswith(
+                           (".wav", ".mp3", ".mp4", ".m4a", ".mov"))})
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
+                recortes=recortes, desbalance=comp["desbalance"], focos=comp["focos"],
                 letra_por_escena=letra_por_escena, costo=round(costo, 3))
 
 
@@ -530,6 +558,16 @@ def copy_x2(R, nodo, clave=""):
 
 
 def solapes(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
+    """Solo los solapes (compatibilidad): ver `composicion_asentada`."""
+    return composicion_asentada(R, ctx, escenas, dur, fracs)["solapes"]
+
+
+# escenas cuyo contenido es imagen/video a sangre: el texto no es el bloque
+SIN_BALANCE = {"kenburns", "rotulo_inferior", "metraje", "talking_head", "subtitulos"}
+DESBALANCE_MAX = 0.18   # centro del texto a más de 18 % del alto útil del centro común
+
+
+def composicion_asentada(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
     """Textos visibles que se pisan con cada escena ASENTADA (a 55 % y 80 % de
     su duración). Caja de TINTA real (la tipográfica de “ abarca aire), alfa
     > 60, solape > 20 % del menor. Las métricas de movimiento no ven
@@ -551,6 +589,7 @@ def solapes(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
                 cajas.append(((x0 - 2 + b[0], y0 - 2 + b[1], x0 - 2 + b[2], y0 - 2 + b[3]), str(text)))
         return original(self, xy, text, fill, font, *a, **k)
     hallados = []
+    desbalance = []
     ImageDraw.ImageDraw.text = espia
     try:
         for s_ in escenas:
@@ -558,7 +597,9 @@ def solapes(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
                 t = s_["from"] + (s_["to"] - s_["from"]) * fr
                 R.componer(ctx, escenas, dur, t, set())   # calienta escala_segura (dibuja otros instantes)
                 cajas.clear()
+                R.CAJAS_CONTENIDO.clear()
                 R.componer(ctx, escenas, dur, t, set())
+                extra = list(R.CAJAS_CONTENIDO)
                 for i, ((a0, b0, a1, b1), ta) in enumerate(cajas):
                     for (c0, d0, c1, d1), tb in cajas[i + 1:]:
                         iw, ih = min(a1, c1) - max(a0, c0), min(b1, d1) - max(b0, d0)
@@ -567,9 +608,41 @@ def solapes(R, ctx, escenas, dur, fracs=(0.55, 0.8)):
                             par = f"{s_.get('tipo')}@{t:.1f}s: «{ta[:14]}»/«{tb[:14]}»"
                             if par not in hallados:
                                 hallados.append(par)
+                # BALANCE VERTICAL (al último instante asentado): el centro del
+                # texto contra el centro común de la zona segura. Un bloque
+                # pegado arriba con media pantalla vacía abajo no lo veía nadie.
+                if fr == fracs[-1] and cajas and s_.get("tipo") not in SIN_BALANCE:
+                    zy0, zy1 = R.caja_segura()[1], R.caja_segura()[3]
+                    # el rótulo (arriba) y la fuente (al pie) tienen sitio FIJO:
+                    # el balance es el del bloque de contenido entre los dos
+                    tit = next((s_[k] for k in ("rotulo", "titulo", "etiqueta")
+                                if isinstance(s_.get(k), str) and s_.get(k)), "")
+                    techo = R.rotulo_fondo(ctx, tit) if tit else -1
+                    fte = R.texto_fuente(s_["fuente"]) if s_.get("fuente") else ""
+                    # una línea de contenido que es subcadena de la fuente (el
+                    # comentario cita la misma página) solo se excluye si de
+                    # verdad está en la banda del pie. Si no, el bloque se
+                    # mide sin su última línea y sale alto.
+                    banda_pie = zy1 - R.ESCALA["nota"] * 2.6
+                    bloque = [c for c, tx in cajas + extra
+                              if c[1] >= techo - 2 and not (
+                                  fte and tx.strip() and tx.strip() in fte
+                                  and c[1] >= banda_pie)]
+                    if not bloque:
+                        continue
+                    top = min(c[1] for c in bloque)
+                    bot = max(c[3] for c in bloque)
+                    centro = (top + bot) / 2
+                    esperado = R.centro_comun(ctx, tit, bool(s_.get("fuente")))
+                    dev = (centro - esperado) / max(1, zy1 - zy0)
+                    if abs(dev) > DESBALANCE_MAX:
+                        desbalance.append(f"{s_.get('tipo')}@{t:.1f}s: bloque {'alto' if dev < 0 else 'bajo'} "
+                                          f"({abs(dev) * 100:.0f} % del alto útil fuera del centro)")
+        focos = [f"{s_.get('tipo')} {x}" for s_ in escenas if s_.get("tipo") == "demo"
+                 for x in R.focos_recortados(s_)]
     finally:
         ImageDraw.ImageDraw.text = original
-    return hallados
+    return {"solapes": hallados, "desbalance": desbalance, "focos": focos}
 
 
 def frames_de_video(ruta, fps=None):
@@ -700,10 +773,101 @@ def _escena_en(t, escenas):
     return "?"
 
 
+TRAMO_COMPOSICION = 2.0   # s por trabajo de --composicion (reparte una escena larga entre núcleos)
+
+
+def tramos(t0, t1, largo=TRAMO_COMPOSICION):
+    """[(a, b)] contiguos de ≤ `largo` s que cubren [t0, t1]."""
+    n = max(1, int(np.ceil((t1 - t0) / largo - 1e-9)))
+    paso = (t1 - t0) / n
+    return [(t0 + i * paso, t0 + (i + 1) * paso if i < n - 1 else t1) for i in range(n)]
+
+
+def _asentar_composicion(ventanas, escenas):
+    """La pasada `--composicion` no es la nota de movimiento.
+
+    Cada ventana dura ≤ TRAMO_COMPOSICION y se muestrea al fps que se pida
+    (qa usa 10): un paso de un frame se lee como pop, y el instante queda
+    local a la ventana, así que unirlos cuenta cinco pops de una entrada
+    suave. La ocupación de esa entrada es una banda a medio llegar. Lo que
+    sí es de la pieza es la ocupación de la ventana que ya cayó en el reposo
+    de cada escena (empieza en o después de la mitad y antes del final
+    − 0.6 s). El movimiento lo mide `--video`."""
+    por_escena = []
+    for s in escenas or []:
+        try:
+            t0, t1 = float(s["from"]), float(s["to"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        reposo_0 = t0 + (t1 - t0) * 0.5
+        reposo_1 = t1 - 0.6
+        if reposo_1 <= reposo_0:
+            continue
+        dentro, solapan = [], []
+        for r in ventanas:
+            v = r.get("ventana")
+            ocup = r.get("ocupacion")
+            if not v or ocup is None:
+                continue
+            a, b = float(v[0]), float(v[1])
+            if a >= reposo_0 - 1e-6 and a < reposo_1:
+                dentro.append(float(ocup))
+            elif b > reposo_0 and a < reposo_1:
+                solapan.append((a, float(ocup)))
+        if dentro:
+            por_escena.append(min(dentro))
+        elif solapan:
+            por_escena.append(max(solapan)[1])
+    if por_escena:
+        ocup = min(por_escena)
+    else:
+        ocup = max((float(r.get("ocupacion") or 0) for r in ventanas), default=0.0)
+    return {"pops": [], "tirones": 0, "t_tirones": [], "arranques": [],
+            "muerto": 0.0, "quieto": 0.0, "quieto_max": 0.0, "jerk": 0.0,
+            "densidad": 1.0, "ocupacion": round(ocup, 3)}
+
+
+def _juntar_composicion(res, plan, fmts):
+    """Las ventanas por escena de `--composicion` → un resultado por formato:
+    letra mínima (de las que midieron texto), zona, recortes y letra por
+    escena de todas; los solapes, una vez sobre el plan entero (instantes
+    asentados, no frames). El movimiento de cada ventana no se publica:
+    lo mide `--video`."""
+    out = []
+    for f in fmts:
+        rs = [r for r in res if r["formato"] == f]
+        if not rs:
+            continue
+        base = dict(min(rs, key=lambda r: r.get("nota", 100) if "nota" in r else 0))
+        letras = [r["letra_min"] for r in rs if r.get("letra_min")]
+        base["letra_min"] = min(letras) if letras else 0
+        base["zona"] = min(r["zona"] for r in rs)
+        base["recortes"] = sorted({x for r in rs for x in r.get("recortes", [])})
+        vistos = {}
+        for r in rs:
+            for d in r.get("letra_por_escena", []):
+                k = (d["escena"], d["texto"])
+                vistos[k] = min(vistos.get(k, d), d, key=lambda x: x["letra_px"])
+        base["letra_por_escena"] = sorted(vistos.values(), key=lambda d: d["letra_px"])
+        base.update(_asentar_composicion(rs, plan.get("escenas")))
+        R = _W["R"]
+        ctx = _ctx(f)
+        import io
+        import contextlib
+        with contextlib.redirect_stdout(io.StringIO()):
+            comp = composicion_asentada(R, ctx, sorted(plan["escenas"], key=lambda s_: s_["from"]),
+                                        plan["duracion"])
+        base["solapes"], base["desbalance"], base["focos"] = comp["solapes"], comp["desbalance"], comp["focos"]
+        base["escena"] = rs[0]["escena"]
+        base["costo"] = round(sum(r.get("costo", 0) for r in rs) / len(rs), 3)
+        out.append(base)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--solo", help="escenas separadas por coma")
-    ap.add_argument("--formato", choices=["v", "h", "ambos"], default="ambos")
+    ap.add_argument("--formato", choices=["v", "h", "c", "ambos"], default="ambos")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--json", help="guardar el detalle en este archivo")
@@ -714,10 +878,13 @@ def main():
                                    "junto a --video, ubica cada defecto en su escena")
     ap.add_argument("--video", nargs="+", help="medir videos YA renderizados (captions, films, pases, entregas)")
     ap.add_argument("--cortes", action="store_true", help="medir el corte entre cada par consecutivo del catálogo")
+    ap.add_argument("--composicion", action="store_true",
+                    help="con --plan: solo composición (letra, zona, solapes, recortes, balance, foco), RÁPIDO: "
+                         "tramos de ≤ 2 s en paralelo y muestreo a --fps (usa 10); lo usa qa_entrega")
     import os as _os, sys as _sys
     _sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ffmpeg_tools"))
     from _comun import ayudar
-    ayudar(ap, {'--formato': 'v (9:16), h (16:9) o ambos', '--fps': 'cuadros por segundo del análisis (30 = el del render)'})
+    ayudar(ap, {'--formato': 'v (9:16), h (16:9), c (1:1) o ambos (con --plan: el `tamano` del plan, cualquiera)', '--fps': 'cuadros por segundo del análisis (30 = el del render)'})
     a = ap.parse_args()
     if a.historial and (a.solo or a.formato != "ambos" or a.plan or a.video):
         sys.exit("ERROR: --historial solo registra corridas del catálogo completo (o --cortes) en los dos "
@@ -778,14 +945,22 @@ def main():
             plan = json.load(open(a.plan, encoding="utf-8"))
             R.resolver_medios(plan, os.path.dirname(os.path.abspath(a.plan)))
             nombre = os.path.splitext(os.path.basename(a.plan))[0]
-            fmts_plan = fmts if a.formato != "ambos" else (
-                ["h"] if str(plan.get("tamano", "")).startswith("1920") else ["v"])
+            fmts_plan = fmts if a.formato != "ambos" else [formato_de_tamano(plan.get("tamano"))]
             _init()
             globales = {k: plan[k] for k in ("numeros", "subtitulos") if k in plan}
             _W["R"].aplicar_globales(globales)
             for f in fmts_plan:   # misma puerta que render_plan: tiempos por defecto y error claro
                 plan["escenas"] = R.preparar_escenas(_ctx(f), plan)
-            jobs = [(nombre, f, plan["escenas"], plan["duracion"], a.fps, None, globales) for f in fmts_plan]
+            if a.composicion:   # ventanas cortas (≤ TRAMO_COMPOSICION s), todas en paralelo
+                # antes una ventana por escena: una escena de 14 s en 16:9 era
+                # UN trabajo de 140 frames y fijaba el tiempo total (360 s para
+                # 40 s de video con los demás núcleos parados). Letra, zona y
+                # recortes no dependen de la ventana: se parten en tramos.
+                jobs = [(nombre, f, plan["escenas"], plan["duracion"], a.fps, v, globales)
+                        for f in fmts_plan for s_ in plan["escenas"]
+                        for v in tramos(max(0.0, float(s_["from"])), float(s_["to"]))]
+            else:
+                jobs = [(nombre, f, plan["escenas"], plan["duracion"], a.fps, None, globales) for f in fmts_plan]
         else:
             jobs = [(n, f, [dict(e, tipo=n)], e["to"], a.fps) for f in fmts for n, e in muestras.items()
                     if not solo or n in solo]
@@ -800,6 +975,8 @@ def main():
                 res.append(r)
                 print(f"  medido {len(res)}/{len(jobs)}: {r['escena']} ({r['formato']})",
                       flush=True)
+        if a.plan and a.composicion:   # las ventanas se juntan en UN resultado por formato
+            res = _juntar_composicion(res, plan, fmts_plan)
         for r in res:
             if a.cortes:   # en una ventana de 2.5 s la densidad no dice nada: se juzgan pops, saltos y quietud
                 r["densidad"] = 1.0
@@ -813,6 +990,10 @@ def main():
         for r in res:
             for x in r.get("solapes", []):
                 print(f"  SOLAPE {r['formato']} {x}")
+            for x in r.get("desbalance", []):
+                print(f"  BALANCE {r['formato']} {x} — centra el bloque (render_plan.y_bloque)")
+            for x in r.get("focos", []):
+                print(f"  FOCO {r['formato']} {x}: el objetivo queda cortado — baja `zoom` o ajusta `caja`")
             for d in (r.get("ocupacion_escena") or []):
                 if d["ocupacion"] < OCUPACION_MIN:
                     print(f"  OCUPACION {r['formato']} escena {d['escena']}: {d['ocupacion']:.2f} de la zona "
@@ -820,7 +1001,7 @@ def main():
             for d in (r.get("letra_por_escena") or []):
                 if d["letra_px"] < LETRA_MIN:
                     print(f"  LETRA {r['formato']} escena {d['escena']}: «{d['texto']}» "
-                          f"{d['letra_px']} px (< {LETRA_MIN}) — acorta ese texto o alarga su escena")
+                          f"{d['letra_px']} px (< {LETRA_MIN}) — acorta ese texto, pártelo en dos líneas/escenas o dale más caja (no se arregla alargando la escena)")
         global_ = round(float(np.mean([r["nota"] for r in res])), 2)
         minima = min(res, key=lambda r: r["nota"])
         if a.plan and plan.get("musica"):   # edición al ritmo: tiempos reales del plan vs la rejilla
@@ -830,8 +1011,14 @@ def main():
             print(f"SINCRONÍA con la música ({s_['bpm']} BPM): entradas en medio beat {s_['entradas_pct']} % "
                   f"de {s_['entradas']} (azar ≈ {s_['azar_pct']} %) · cortes en el uno del compás "
                   f"{s_['cortes_compas_pct']} % de {s_['cortes']}")
-        print(f"\nNOTA GLOBAL {global_} · mínima {minima['nota']} ({minima['escena']} {minima['formato']}) · "
-              f"pops {sum(len(r['pops']) for r in res)} · tirones {sum(r['tirones'] for r in res)}")
+        if a.plan and a.composicion:   # ventanas sueltas: la nota de movimiento no aplica (la mide --video)
+            for r in res:
+                print(f"\nCOMPOSICIÓN ({r['formato']}): letra mínima {r['letra_min']} px · zona x{r['zona']} · "
+                      f"{len(r['solapes'])} solapes · {len(r['recortes'])} recortes · "
+                      f"{len(r.get('desbalance', []))} desbalances · {len(r.get('focos', []))} focos cortados")
+        else:
+            print(f"\nNOTA GLOBAL {global_} · mínima {minima['nota']} ({minima['escena']} {minima['formato']}) · "
+                  f"pops {sum(len(r['pops']) for r in res)} · tirones {sum(r['tirones'] for r in res)}")
         if a.json:
             asegurar_padre(a.json)
             json.dump(res, open(a.json, "w", encoding="utf-8"), ensure_ascii=False, indent=1)

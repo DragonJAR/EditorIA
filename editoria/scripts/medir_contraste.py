@@ -36,8 +36,9 @@ sys.path.insert(0, os.path.join(BASE, "scripts", "ffmpeg_tools"))
 
 MINIMO = 3.0        # ratio de contraste (WCAG): 3.0 para texto grande
 ALFA_MIN = 128      # un texto por debajo de este alfa todavia no se ve
-FONDO = (10, 10, 10, 255)   # el mundo vivo del motor es negro: si la capa es
-                             # transparente, el fondo real es este
+FORMATOS = ((1080, 1920), (1920, 1080), (1080, 1080))   # 9:16, 16:9 y 1:1
+# el fondo real bajo una capa transparente es el `negro` (rol FONDO) del tema
+# instalado: oscuro o claro, de la paleta o del pack (antes, un negro fijo)
 
 try:                       # a nivel de modulo: la espia los usa y no puede
     import numpy as np     # cerrarlos sobre el de `medir`
@@ -59,13 +60,16 @@ def _ratio(a, b):
     return (hi + 0.05) / (lo + 0.05)
 
 
-def _espia(registro, dibujar, _orig):
-    """Devuelve una version de ImageDraw.text que registra (o no) cada texto."""
+def _espia(registro, dibujar, _orig, tam_cuadro=None):
+    """Devuelve una version de ImageDraw.text que registra (o no) cada texto.
+    Con `tam_cuadro` solo registra lo que se dibuja en una capa del tamaño del
+    cuadro: un texto en una sub-capa (la pantalla de un teléfono) tiene
+    coordenadas locales y medirlo contra el cuadro daba falsos positivos."""
     def _f(self, xy, text, fill=None, font=None, *a, **k):
         if fill is not None and font is not None and str(text).strip():
             try:
                 img = getattr(self, "_image", None)
-                if img is not None:
+                if img is not None and (tam_cuadro is None or tuple(img.size) == tuple(tam_cuadro)):
                     t = str(text)
                     bb = self.textbbox(xy, t, font=font, *a, **k)
                     x0, y0, x1, y1 = (int(v) for v in bb)
@@ -74,7 +78,8 @@ def _espia(registro, dibujar, _orig):
                         _orig(ImageDraw.Draw(m), (xy[0] - x0, xy[1] - y0), t,
                               font=font, fill=255, *a, **k)
                         registro.append(dict(texto=t[:40], fill=fill, msc=m,
-                                             caja=(x0, y0, x1, y1)))
+                                             caja=(x0, y0, x1, y1),
+                                             tam=int(getattr(font, "size", 0))))
             except Exception:
                 pass
         if not dibujar:
@@ -83,7 +88,13 @@ def _espia(registro, dibujar, _orig):
     return _f
 
 
-def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None):
+#: texto GRANDE (WCAG: ≥ 18 pt): a partir de este tamaño, en px sobre el lado
+#: corto de 1080, rige `umbral`; por debajo, `umbral_chico` (si se pide)
+TAM_GRANDE = 48
+
+
+def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None, formatos=FORMATOS, muestras=None,
+          umbral_chico=None, todos=False):
     """Recorre el catalogo y devuelve los textos con poco contraste.
 
     `escenas`: limita la medición a esas escenas (None = todas). Sirve para
@@ -94,12 +105,14 @@ def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None):
         return []
     import render_plan as R
 
-    with open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8") as f:
-        muestras = json.load(f)["escenas"]
+    if muestras is None:
+        with open(os.path.join(BASE, "scripts", "escenas_muestra.json"), encoding="utf-8") as f:
+            muestras = json.load(f)["escenas"]
+    FONDO = tuple(R.NEGRO) + (255,)
     hallazgos = []
     _orig = ImageDraw.ImageDraw.text
 
-    for ancho, alto in ((1080, 1920), (1920, 1080)):
+    for ancho, alto in formatos:
         R.formato(ancho, alto)
         ctx = R.Ctx()
         for nombre in R.SCENES:
@@ -130,7 +143,7 @@ def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None):
                     continue
 
                 # pasada B: la escena normal, registrando cada texto
-                ImageDraw.ImageDraw.text = _espia(registros, True, _orig)
+                ImageDraw.ImageDraw.text = _espia(registros, True, _orig, (R.W, R.H))
                 try:
                     R.pintar(ctx, e, t)
                 except Exception:
@@ -174,12 +187,19 @@ def medir(umbral=MINIMO, alfa_min=ALFA_MIN, escenas=None):
                           + 0.0722 * _lineal(sup_np[..., 2]))[sel]
                     ratios = np.sort(_ratio(lt, ls))
                     med = float(ratios[len(ratios) // 2])
-                    if peor is None or med < peor[0]:
-                        peor = (med, r["texto"], fill[:3])
-            if peor and peor[0] < umbral:
+                    exigido = (umbral_chico if umbral_chico and r.get("tam", 99) < TAM_GRANDE * min(R.W, R.H) / 1080
+                               else umbral)
+                    if todos and med < exigido:
+                        hallazgos.append(dict(escena=nombre, formato=f"{ancho}x{alto}", t=round(t, 2),
+                                              ratio=round(med, 2), texto=r["texto"],
+                                              color=list(fill[:3]), exigido=exigido,
+                                              fondo=[int(v) for v in np.median(sup_np[sel], axis=0)]))
+                    if peor is None or med / exigido < peor[0] / peor[3]:
+                        peor = (med, r["texto"], fill[:3], exigido)
+            if peor and peor[0] < peor[3] and not todos:
                 hallazgos.append(dict(escena=nombre, formato=f"{ancho}x{alto}",
                                       ratio=round(peor[0], 2), texto=peor[1],
-                                      color=list(peor[2])))
+                                      color=list(peor[2]), exigido=peor[3]))
     return hallazgos
 
 
