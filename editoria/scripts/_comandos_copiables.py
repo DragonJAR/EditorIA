@@ -59,6 +59,7 @@ EJECUTABLES = {
     "scripts/clonar_video.py",
     "scripts/contact_sheet.py",
     "scripts/direccion_arte.py",
+    "scripts/ffmpeg_tools/acabado.py",
     "scripts/ffmpeg_tools/aplicar_edl.py",
     "scripts/ffmpeg_tools/caption.py",
     "scripts/ffmpeg_tools/componer.py",

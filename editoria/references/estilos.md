@@ -189,7 +189,9 @@ Seis acabados de posproducción sobre un video ya renderizado, verificados en p�
 
 Los tests, que miden píxeles reales, están en `scripts/_tests/test_acabado.py`.
 
-Ejemplo: `python3 scripts/ffmpeg_tools/acabado.py pixelar final.mp4 -o retro.mp4 --ancho 320 --colores 32`.
+Ejemplo: `python3 scripts/ffmpeg_tools/acabado.py pixelar final.mp4 -o retro.mp4 --ancho 160 --colores 32`
+(el ancho interno tiene que ser MENOR que el del video: el script lo
+dice si no lo es).
 
 ---
 
