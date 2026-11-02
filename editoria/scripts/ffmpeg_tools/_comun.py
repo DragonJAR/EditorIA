@@ -1033,8 +1033,10 @@ PALETA_POR_DEFECTO = "electrico"
 # SINTAXIS de la paleta: UNA fuente para la ayuda de `render_plan.py --paleta`,
 # la de `repertorio.py`, el campo `paleta` del plan (PLAN_CAMPOS) y SKILL.md
 # (test_composicion_1112 comprueba que SKILL.md la cita literal). Un nombre
-# del catálogo o un color del usuario; `:claro` = tema claro.
-SINTAXIS_PALETA = '"paleta": "<nombre>|#RRGGBB[:claro]"'
+# del catálogo o un color del usuario; `:claro` = tema claro. El marcador va
+# entre llaves, la convención de placeholders de la skill (validate_skill no
+# admite < > en el markdown que la cita).
+SINTAXIS_PALETA = '"paleta": "{nombre}|#RRGGBB[:claro]"'
 
 
 def ayuda_paleta() -> str:

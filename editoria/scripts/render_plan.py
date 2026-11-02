@@ -7505,7 +7505,7 @@ def completar_escena(e,i=0):
     # equivocado es un mensaje con escena, campo y ejemplo, no un TypeError
     errs=errores_de_esquema(e,i)
     if errs:
-        sys.exit("ERROR: "+"\n  ".join(errs)+f"\n  Ejemplo de `{tipo}`: "+json.dumps(m or {},ensure_ascii=False)[:400])
+        sys.exit(_error_con_ejemplo(e,i,"; ".join(x.split("): ",1)[-1] for x in errs)))
     # regla ÚNICA del markup: donde la escena no pinta énfasis (`boton`…:
     # esquema `markup: false`) los signos se quitan; auditar_plan lo avisa
     for p_ in esquema_de(tipo):
@@ -7585,8 +7585,14 @@ def avisos_de_campos(e,i=0):
 def error_de_escena(e,i,ex):
     """Un campo que falta, explicado (nunca un KeyError crudo): qué escena,
     qué campo y un ejemplo completo de esa escena para copiar."""
-    tipo=e.get("tipo"); campo=ex.args[0] if isinstance(ex,KeyError) and ex.args else None
-    que=f"falta el campo `{campo}`" if campo else f"{type(ex).__name__}: {ex}"
+    campo=ex.args[0] if isinstance(ex,KeyError) and ex.args else None
+    return _error_con_ejemplo(e,i,f"falta el campo `{campo}`" if campo else f"{type(ex).__name__}: {ex}")
+
+def _error_con_ejemplo(e,i,que):
+    """UN formato para todo error de escena: cuál, qué falla y la muestra
+    completa para copiar (lo usan `error_de_escena` y el esquema de
+    `completar_escena`)."""
+    tipo=e.get("tipo")
     ej=json.dumps(muestra(tipo) or {},ensure_ascii=False)
     return (f"ERROR: escena {i+1} ({tipo}, {e.get('from')}–{e.get('to')} s): {que}.\n"
             f"  Ejemplo completo de `{tipo}` (scripts/escenas_muestra.json):\n  {ej}")
@@ -8181,7 +8187,7 @@ def errores_de_esquema(e, i=0):
         if c == "at":
             continue
         if p["obligatorio"] and (c not in e or e[c] in ("", None, [])):
-            out.append(f"escena {i+1} ({tipo}): falta el campo obligatorio `{c}` ({p['significado'] or p['tipo']})")
+            out.append(f"escena {i+1} ({tipo}): falta el campo `{c}` (obligatorio: {p['significado'] or p['tipo']})")
             continue
         if c in e and e[c] is not None:
             v, t = e[c], p["tipo"]
@@ -8199,7 +8205,7 @@ def errores_de_esquema(e, i=0):
     # el cierre pide UN nombre grande: `marca` (pack) o `titulo` (texto). Ninguno
     # es obligatorio por sí solo; faltan los dos sí.
     if tipo == "final" and not str(e.get("marca") or "").strip() and not str(e.get("titulo") or "").strip():
-        out.append(f"escena {i+1} (final): falta el campo obligatorio `marca` o `titulo` (nombre grande del cierre)")
+        out.append(f"escena {i+1} (final): falta el campo `marca` o `titulo` (obligatorio uno: el nombre grande del cierre)")
     return out
 
 def main():

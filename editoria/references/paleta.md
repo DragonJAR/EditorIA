@@ -118,7 +118,7 @@ En el `plan.json` (lo que se guarda con la pieza y lo que se puede revisar):
 
 La sintaxis completa es UNA (`_comun.SINTAXIS_PALETA`, la misma que
 imprimen `render_plan.py --help` y `repertorio.py --help`):
-`"paleta": "<nombre>|#RRGGBB[:claro]"`.
+`"paleta": "{nombre}|#RRGGBB[:claro]"`.
 
 - `"menta"`: una paleta del catálogo, tema oscuro.
 - `"menta:claro"`: la misma en tema claro (fondo crema, tinta casi negra,

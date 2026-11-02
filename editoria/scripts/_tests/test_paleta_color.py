@@ -1,6 +1,6 @@
 """La paleta del modo libre, de UNA fuente (`ffmpeg_tools/_comun.py`).
 
-Sintaxis `"paleta": "<nombre>|#RRGGBB[:claro]"`: un nombre del catálogo o
+Sintaxis `"paleta": "{nombre}|#RRGGBB[:claro]"`: un nombre del catálogo o
 el color del usuario, en tema oscuro o claro. Lo que no llega al contraste
 mínimo se corrige en luminancia y se avisa (nunca un acento ilegible en
 silencio). El motor, la auditoría y las ayudas leen de aquí.
