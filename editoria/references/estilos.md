@@ -174,6 +174,23 @@ producción; allí, las quince firmas para one-shots y dirección de arte, con s
 fuente declarada. El prompt se arma con la Familia 7 de
 `prompt-motion-graphics.md`.
 
+## Acabados de estilo (`ffmpeg_tools/acabado.py`)
+
+Seis acabados de posproducción sobre un video ya renderizado, verificados en píxeles reales. Conservan audio, tamaño y fps. Los radios escalan con el tamaño del video (referencia 1080 px) y `--dry-run` no escribe nada.
+
+| Subcomando | Qué hace | Uso típico |
+|---|---|---|
+| `escalonado` | Mantiene cada pose varios cuadros (`--cada 2` o `--fps-pose 12`) sin cambiar el fps | Animación recortada, stop motion |
+| `pixelar` | Reduce el ancho, limita la paleta con tramado y amplía por vecino más cercano | Pixel art, retro |
+| `vhs` | Separación RGB, líneas de barrido y suavizado | Videocasete, found footage |
+| `crt` | Pantalla curva, líneas de barrido y doble resplandor | Monitor antiguo |
+| `resplandor` | Doble halo sobre las zonas brillantes | Neón, sintético |
+| `aberracion` | Desplaza rojo y azul en sentidos opuestos | Impacto, glitch |
+
+Los tests, que miden píxeles reales, están en `scripts/_tests/test_acabado.py`.
+
+Ejemplo: `python3 scripts/ffmpeg_tools/acabado.py pixelar final.mp4 -o retro.mp4 --ancho 320 --colores 32`.
+
 ---
 
 → Canónico: `references/principios.md` · Dominio: estructura · Vecinos: `references/tonos.md`, `references/brand-packs.md`, `references/scene-patterns-from-internet.md`, `references/estilos-codigo.md`

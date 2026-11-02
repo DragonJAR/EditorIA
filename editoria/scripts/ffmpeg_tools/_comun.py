@@ -379,7 +379,10 @@ def _output_failed(path: str, why: str) -> "None":
 
 def verify_output(path: str) -> Dict[str, Any]:
     """Criterio de exito: el archivo existe, no esta vacio y ffprobe lee al
-    menos un stream. Borra archivos vacios para que no pasen como resultados."""
+    menos un stream. Borra archivos vacios para que no pasen como resultados.
+    Con --dry-run no se escribio nada a proposito: no hay nada que verificar."""
+    if STATE.dry_run:
+        return {}
     if not os.path.exists(path):
         _output_failed(path, "no se escribio")
     if os.path.getsize(path) == 0:

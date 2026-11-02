@@ -391,6 +391,7 @@ escribir es un tapón).
 | `scripts/_guard_entorno.py` | que la suite dé el MISMO veredicto con repo y sin repo: la copia instalada no tiene repo, y si los tests cambian de veredicto ahí, una sola puerta no basta (lo mide, no lo supone) |
 | `scripts/compilar_reel.py` | compilar varios videos en un reel: mide cada clip, elige su mejor momento, los corta con disolvencia y escribe el plan con los tiempos ya calculados (el fondo y el plan salen de la MISMA cuenta: si hicieran cuentas distintas, la voz se desfasaria del footage) |
 | `scripts/ffmpeg_tools/componer.py` | meter la tipografía ENCIMA del footage con profundidad: la máscara del desenfoque sale del ALFA de la capa (el fondo se desenfoca SOLO detrás de la letra y el resto queda nítido), genera el velo y avisa de las tres cosas que rompen la pieza (tasas que no casan, capa sin alfa, tamaños distintos) |
+| `scripts/ffmpeg_tools/acabado.py` | los acabados de estilo sobre un video ya renderizado (poses sostenidas, pixel art, VHS, CRT, resplandor, aberración cromática); ver `references/estilos.md` |
 | `scripts/_cerrar_tip.py` | cerrar un tip: mide en un worktree aislado (puerta, entorno y copia instalada) y lo dice en una línea; no mide en el árbol compartido y no publica |
 
 **Y el canónico de las suites**: `scripts/data/suites.json` declara la lista
