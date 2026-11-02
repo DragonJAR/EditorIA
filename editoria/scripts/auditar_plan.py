@@ -649,7 +649,8 @@ def main():
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
     # el pack que NO existe no puede pasar en silencio: antes se resolvia
     # la ruta a mano (2 candidatos) y un `except` moria el error; ahora
-    # `buscar_pack` acepta tambien el NOMBRE del pack ("carbon") y el
+    # `buscar_pack` acepta tambien el NOMBRE de un pack (el catalogo lo
+    # enseña asi) y el
     # error dice que packs hay.
     # el copy de MUESTRA sin reemplazar es un ERROR (el plan no es entregable):
     # el mensaje va aqui, junto al resto, y no duplicado por escena

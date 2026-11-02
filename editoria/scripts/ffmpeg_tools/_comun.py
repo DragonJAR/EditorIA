@@ -1081,7 +1081,7 @@ def packs_disponibles() -> List[str]:
 def buscar_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
     """Ruta de un pack o None. Acepta una ruta (absoluta, relativa al cwd, a
     `base` —la carpeta del plan— o a la skill) o el NOMBRE de un pack de la
-    skill: "carbon" → brand/carbon.json (el catálogo lo enseña así)."""
+    skill: el NOMBRE de un pack → brand/<nombre>.json (el catálogo lo enseña así)."""
     if not path:
         return None
     p = os.path.expanduser(str(path))

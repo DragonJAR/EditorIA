@@ -7594,7 +7594,10 @@ def completar_escena(e,i=0):
     # revienta, pero saldría vacío sin aviso y la puerta lo daría por medido
     faltan=[x for x in errores_de_esquema(e,i) if "falta" in x]
     if faltan:
-        sys.exit("ERROR: "+"; ".join(faltan))
+        # el error sale con el EJEMPLO COMPLETO de la escena (el formato que
+        # el guard y el agente ya conocen: que campo y como se escribe)
+        campo = faltan[0].split("`")[1] if "`" in faltan[0] else ""
+        sys.exit(error_de_escena(e, i, KeyError(campo)))
     e=dict(e); m=muestra(tipo)
     # `at` SIEMPRE existe: una escena nueva (sin muestra) que no traiga tiempos
     # se rompe al leer `e["at"]` dentro de la escena (KeyError, no un aviso)
@@ -8223,7 +8226,7 @@ def errores_de_esquema(e, i=0):
         if c == "at":
             continue
         if p["obligatorio"] and not narrada and (c not in e or e[c] in ("", None, [])):
-            out.append(f"escena {i+1} ({tipo}): falta el campo obligatorio `{c}` ({p['significado'] or p['tipo']})")
+            out.append(f"escena {i+1} ({tipo}): falta el campo `{c}` ({p['significado'] or p['tipo']})")
             continue
         if c in e and e[c] is not None:
             v, t = e[c], p["tipo"]
@@ -8241,7 +8244,7 @@ def errores_de_esquema(e, i=0):
     # el cierre pide UN nombre grande: `marca` (pack) o `titulo` (texto). Ninguno
     # es obligatorio por sí solo; faltan los dos sí.
     if tipo == "final" and not str(e.get("marca") or "").strip() and not str(e.get("titulo") or "").strip():
-        out.append(f"escena {i+1} (final): falta el campo obligatorio `marca` o `titulo` (nombre grande del cierre)")
+        out.append(f"escena {i+1} (final): falta el campo `marca` o `titulo` (nombre grande del cierre)")
     return out
 
 def main():
