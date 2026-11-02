@@ -23,6 +23,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import _copy as C  # noqa: E402
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
+from _comun import LETRA_MIN  # noqa: E402  # el MISMO piso que el motor y qa_entrega
+
 def _regex_patrones(patrones):
     return [re.compile(p, re.I) for p in patrones]
 
@@ -70,10 +73,11 @@ def analizar(plan):
         else:
             tam_final, escala = C.ajustar_texto(valor, rol, tam_efectivo=tam_nom)
             if tam_final is not None:
-                if tam_final <= 18:
+                if tam_final < LETRA_MIN:
                     fallos.append({"ruta": e["ruta"],
-                                   "msg": "el texto no cabe ni al minimo (18 px): el motor lo "
-                                          "recorta o se sale de la zona segura"})
+                                   "msg": f"el texto queda en {tam_final} px (< {LETRA_MIN}: no se lee en un "
+                                          f"teléfono y qa_entrega lo rechaza): acórtalo o pártelo en dos "
+                                          f"líneas o dos escenas"})
                 elif escala < 0.85:
                     avisos.append({"ruta": e["ruta"],
                                    "msg": f"el texto queda en {tam_final} px (de {tam_nom}): "
@@ -207,7 +211,9 @@ def analizar(plan):
         if isinstance(esc, dict) and str(esc.get("tipo", "")).lower() == "bento":
             if len(esc.get("items") or []) == 3:
                 avisos.append({"ruta": f"escenas[{i}]",
-                               "msg": "bento de tres: usa el numero que tiene el contenido"})
+                               "msg": "bento de tres: deja una tarjeta sola en la grilla; usa 2 o 4 "
+                                      "tarjetas (las que tenga el contenido), o `lista`/`pasos`/"
+                                      "`constancia` si son tres puntos en fila"})
 
     # 14) el guion em dash como costumbre
     n_em = _plan_has_em_dash(entradas)
