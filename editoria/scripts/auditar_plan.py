@@ -27,6 +27,7 @@ import repertorio as REP
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _comun import CV_MIN_CADENCIA  # noqa: E402
+from _comun import tiempo_de_lectura  # noqa: E402  EL piso de lectura: uno, el de _comun
 
 
 def tipos_validos():
@@ -216,13 +217,13 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
         if es_vacia(e):
             add("AVISO", fr, f"escena {idx} ({tipo}): escena vacía (sin texto ni voz)")
         # EL PISO DE LECTURA: un texto que no esta lo bastante tiempo en
-        # pantalla no se lee, por grande que sea. La formula es de `_copy`
-        # (una sola: la usaban dos referencias con dos constantes y no la
-        # comprobaba nadie). Es AVISO y no ERROR porque una excepcion
+        # pantalla no se lee, por grande que sea. La formula es
+        # `_comun.tiempo_de_lectura` (una sola: la usaban dos referencias con
+        # dos constantes y no la comprobaba nadie). Es AVISO y no ERROR porque una excepcion
         # deliberada es legitima, pero el numero va con el aviso para que se
         # pueda corregir sin adivinar.
         for _item in textos_por_escena.get(idx, []):
-            _necesita = C.tiempo_lectura(_item.get("valor", ""))
+            _necesita = tiempo_de_lectura(_item.get("valor", ""))
             if _necesita <= 0:
                 continue
             _llegada, _salida = _ventana_del_texto(e, _item, fr, to)
@@ -422,7 +423,6 @@ def revisar_campos(e, idx):
                                  f"signos se quitan y sale texto plano («{v[:30]}»)"))
     fr, to = _t_num(e.get("from")), _t_num(e.get("to"))
     if tipo == "apertura" and not errores and fr is not None and to is not None and to > fr:
-        from _comun import tiempo_de_lectura
         import contextlib, io
         try:
             with contextlib.redirect_stderr(io.StringIO()):

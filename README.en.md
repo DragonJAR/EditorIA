@@ -248,7 +248,7 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 53 root + 21 in ffmpeg_tools/ + 84 in _tests/ = 158 scripts
+│   ├── scripts/                       # 53 root + 21 in ffmpeg_tools/ + 86 in _tests/ = 160 scripts
 │   │   ├── render_plan.py             # Main plan renderer \(46 scenes\)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
@@ -284,7 +284,7 @@ EditorIA/
 │   │   ├── compilar_reel.py           # Compile N videos into one reel (measures and cuts)
 │   │   ├── _cerrar_tip.py             # Closes a tip: measures, compares, one-line verdict
 │   │   ├── demo_plan.json             # Sample plan
-│   │   ├── escenas_muestra.json       # Canonical samples for all 45 scenes
+│   │   ├── escenas_muestra.json       # Canonical samples for all 46 scenes
 │   │   ├── _tests/                    # Unit test suite (unittest)
 │   │   │   ├── test_chapters.py
 │   │   │   ├── test_core_and_scenes.py
@@ -314,9 +314,9 @@ EditorIA/
 │   │       ├── transcribir.py         # Local ASR → SRT + JSON
 │   │       ├── _comun.py              # Shared DRY helpers
 │   │       └── _plataforma.py         # OS abstractions
-│   ├── references/                    # 70 references in kebab-case.md
+│   ├── references/                    # 71 references in kebab-case.md
 │   │   ├── instalacion.md             # Per OS (Win/macOS/Linux)
-│   │   ├── escenas.md                 # Catalog of 45 scenes
+│   │   ├── escenas.md                 # Catalog of 46 scenes
 │   │   ├── escenas-extendidas.md      # Portable concepts
 │   │   ├── plan-video.md              # plan.json schema
 │   │   ├── shorts-plan-schema.md      # shorts-plan.json schema

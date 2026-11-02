@@ -28,7 +28,7 @@ medición: las dos no pueden decir cosas distintas.
 | 5 | **Sistema visual** | Una paleta, una familia de curvas, un idioma de transición y un momento firma memorable | Coherente, sin momento firma | Estilos mezclados |
 | 6 | **Sonido** | Música con intención, cada golpe visual con su sonido, silencio usado como recurso; mezcla medida (LUFS y true peak en spec) | Música de fondo correcta, sin diseño sonoro | Música genérica, picos, voz tapada |
 | 7 | **Verdad y marca** | Cero confabulación; marca con fidelidad total (o modo libre con identidad propia y consistente) | Algún texto genérico o claim sin fuente marcado `[PENDIENTE]` | Claims inventados o logo deformado |
-| 8 | **Acabado técnico** | `auto_qa.py` limpio, `delivery_check.py` PASS, sin bandas, grano y dither, entrega en spec | Pasa QA con avisos menores | Frames negros, clipping, formato erróneo |
+| 8 | **Acabado técnico** | `auto_qa.py` limpio, `delivery_check.py` PASS, sin bandas, grano y dither, sin aliasing (ningún trazo en escalera), entrega en spec | Pasa QA con avisos menores | Frames negros, clipping, formato erróneo |
 
 ## Preguntas de jurado (respóndelas antes de puntuar)
 
@@ -48,7 +48,7 @@ una pieza con un defecto visible compense con otros ejes.
 | Si pasa esto | Tope |
 |---|---|
 | `auto_qa.py` con un defecto sin descartar, o `delivery_check.py` en FAIL | eje 8 ≤ 2 |
-| Emoji convertido en tofu, texto cortado o fuera de la zona segura, banda o clipping visible | eje 8 ≤ 3 |
+| Emoji convertido en tofu, texto cortado o fuera de la zona segura, banda o clipping visible, aliasing (un trazo o un texto en escalera) | eje 8 ≤ 3 |
 | Placeholder visible (caja gris, «Imagen aquí», lorem, `[PENDIENTE]`) | eje 7 ≤ 2 |
 | Cifra o claim sin fuente que se pasó por verificado | eje 7 ≤ 3 |
 | La pasada 3 de `auto-qa.md` falla (podría ser de cualquiera) o la idea pasa la prueba del competidor | eje 1 ≤ 3 |

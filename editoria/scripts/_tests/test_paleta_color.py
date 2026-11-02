@@ -85,10 +85,14 @@ class ColorDelUsuario(unittest.TestCase):
 
 class Lectura(unittest.TestCase):
     def test_piso_y_palabras(self):
-        self.assertEqual(C.tiempo_de_lectura("Hola"), C.LECTURA_MIN_S)
+        # 1–3 palabras son una etiqueta (ritmo.md: ~0.8 s); desde 4, 0.3 s por
+        # palabra con el piso del titular (LECTURA_MIN_S). Antes este test
+        # fijaba un piso de 2 s y 3 palabras/s que la prosa no decía.
+        self.assertEqual(C.tiempo_de_lectura("Hola"), C.LECTURA_ETIQUETA_S)
+        self.assertEqual(C.tiempo_de_lectura("una frase de cuatro"), C.LECTURA_MIN_S)
         seis = "una dos tres cuatro cinco seis siete ocho nueve"
         self.assertEqual(C.tiempo_de_lectura(seis), round(9 / C.PALABRAS_POR_S, 2))
-        self.assertEqual(C.tiempo_de_lectura(["una dos", "tres"]), C.LECTURA_MIN_S)
+        self.assertEqual(C.tiempo_de_lectura(["una dos", "tres"]), C.LECTURA_ETIQUETA_S)
 
 
 class AyudaUnica(unittest.TestCase):

@@ -76,13 +76,14 @@ def _puntuar_animacion(m):
 
 
 def _puntuar_composicion(plan_m):
-    """Eje 4: cada frame es un poster; zona segura, letra y solapes."""
+    """Eje 4: cada frame es un poster; zona segura, letra, solapes y lectura."""
     if not plan_m:
-        return None, "pasa --plan para medir letra, zona segura y solapes"
+        return None, "pasa --plan para medir letra, zona segura, solapes y lectura"
     solapes = len(plan_m.get("solapes") or [])
     zona = float(plan_m.get("zona", 1.0))
     letra = int(plan_m.get("letra_min", 0) or 0)
     gancho = plan_m.get("gancho_px")
+    lectura = list(plan_m.get("lectura") or [])
     s = 5.0
     s -= min(2.5, solapes * 1.5)
     if zona < 1.0:
@@ -98,11 +99,17 @@ def _puntuar_composicion(plan_m):
         # el gancho tambien es una REGLA DURA (la puerta de entrega falla la
         # misma pieza): si el primer plano no dice que es, no hay pieza.
         s = min(s, 3.5)
+    if lectura:
+        # el texto que no aguanta lo que se lee es el mismo defecto que la
+        # letra baja: la REGLA DURA del eje 4 (lectura minima, ritmo.md).
+        s -= round(min(1.5, 0.5 * len(lectura)), 1)
+        s = min(s, 3.5)
     return max(1.0, round(s, 1)), (
         f"{solapes} solapes · zona segura x{zona} · letra minima {letra or '?'} px"
         + (f" (bajo el piso de {LETRA_MIN})" if letra and letra < LETRA_MIN else "")
         + (f" · gancho {gancho} px (bajo el piso de {GANCHO_MIN})"
            if gancho is not None and gancho < GANCHO_MIN else "")
+        + (f" · {len(lectura)} textos sin sostén para leer" if lectura else "")
         + (": " + "; ".join(str(x) for x in (plan_m.get("solapes") or [])[:3])
            if solapes else ""))
 

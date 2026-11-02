@@ -2742,37 +2742,102 @@ def sc_medianoche(ctx,e,t):
         brillo.putalpha(ImageChops.multiply(brillo.getchannel("A"),masc))
         ph.alpha_composite(brillo)
         dp.rounded_rectangle([tw/2-85,42,tw/2+85,90],radius=24,fill=(0,0,0,255))
-        pon_texto(dp, (tw/2,160),e.get("fecha",""),font=ctx.fX(ESCALA["secundario"]*esc,600),fill=(255,255,255,200),anchor="ma")
-        pon_texto(dp, (tw/2,280),e["hora"],font=ctx.fT(150,700),fill=BLANCO,anchor="ma")   # dígitos hasta y≈438
+        f_fecha=ctx.fX(ESCALA["secundario"]*esc,600); f_hora=ctx.fT(150,700)
         nots=e["notificaciones"]
-        # la tarjeta de la notificación se mide con su letra
-        f_tit=ctx.fX(ESCALA["nota"]*esc,800); fnt_n=ctx.fX(ESCALA["nota"]*esc,400)
+        # La letra se dibuja grande para que, ya reducido el teléfono, siga
+        # en el piso. El copy se PARTE con linewrap (la misma primitiva del
+        # catálogo). La pila clásica (fecha 160, hora 280, tarjetas desde 480,
+        # aire 30/44) se queda así cuando cabe. Si el copy largo se saldría
+        # del teléfono, se aprieta el aire y, solo entonces, el reloj sube
+        # hacia la fecha. No se encoge la letra ni se elide el copy.
+        tam_n=ESCALA["nota"]*esc
+        f_tit=ctx.fX(tam_n,800); fnt_n=ctx.fX(tam_n,400)
         h_t,h_b=sum(f_tit.getmetrics()),sum(fnt_n.getmetrics())
-        # el cuerpo PARTE en hasta dos líneas antes de recortarse: en 16:9 la
-        # letra sube (`esc`) y «2 unidades · pagado» se recortaba en silencio
-        ancho_n=tw-44-110-14
-        cuerpos=[linewrap(n["texto"],fnt_n,ancho_n,ctx.tmp)[:2] or [""] for n in nots]
-        cuerpos=[c[:-1]+[recorta_para(" ".join(linewrap(n["texto"],fnt_n,ancho_n,ctx.tmp)[len(c)-1:]),fnt_n,ancho_n,ctx.tmp)]
-                 for c,n in zip(cuerpos,nots)]
-        n_l=max(len(c) for c in cuerpos) if cuerpos else 1
-        hn=int(max(140,2*22+h_t+4+h_b*n_l)); paso_n=hn+30
-        for i,n in enumerate(nots):
+        text_x=100                                  # el disco del canal acaba en x=86
+        ancho_txt=(tw-44)-text_x-10
+        def _bloque(texto, fnt, em):
+            lineas=linewrap(str(texto), fnt, ancho_txt, ctx.tmp) or [""]
+            nln=len(lineas)
+            return lineas, em*nln+(4*(nln-1))
+        bloques=[]
+        for n in nots:
+            lt,at_=_bloque(n["titulo"], f_tit, h_t)
+            lb,ab_=_bloque(n["texto"], fnt_n, h_b)
+            bloques.append((n, lt, lb, at_, ab_))
+        def _cajas(pad):
+            return [(*b, int(max(140, pad+b[3]+4+b[4]))) for b in bloques]
+        def _fondo(cajas, y0, sep):
+            if not cajas: return y0
+            return y0+sum(c[-1] for c in cajas)+sep*(len(cajas)-1)
+        def _ink(texto, fnt, y):
+            if not str(texto): return y, y
+            bb=ctx.tmp.textbbox((tw/2, y), str(texto), font=fnt, anchor="ma")
+            return bb[1], bb[3]
+        limite=th-28                               # margen: la entrada baja ELEV px
+        # Del aire clásico al más prieto. El primero que cabe gana, así la
+        # muestra corta no mueve el reloj.
+        comodo=[(g,p) for g in (30,26,22,18,16) for p in (44,36,30,24,20)]
+        apretado=[(g,p) for g in (30,26,22,18,16,14,12,10) for p in (44,36,30,24,20,16,12)]
+        def _busca(y0, tabla):
+            for sep,pad in tabla:
+                cajas=_cajas(pad)
+                if _fondo(cajas, y0, sep)<=limite:
+                    return cajas, sep, y0
+            return None
+        def _encaja(y0):
+            return _busca(y0, comodo) or _busca(y0, apretado)
+        y_fecha,y_hora=160,280
+        puesto=_encaja(480)
+        if puesto is None:
+            _,hb=_ink(e["hora"], f_hora, y_hora)
+            puesto=_encaja(int(hb)+14)
+        if puesto is None:
+            _,fb=_ink(e.get("fecha",""), f_fecha, y_fecha)
+            rel=ctx.tmp.textbbox((0,0), str(e["hora"]), font=f_hora, anchor="ma")
+            for yh in range(y_hora, 120, -4):
+                if yh+rel[1] < fb+12: break       # el reloj no pisa la fecha
+                puesto=_encaja(int(yh+rel[3])+14)
+                if puesto is not None:
+                    y_hora=yh
+                    break
+        if puesto is None:
+            # La fecha sube hasta dejar libre el notch y el reloj la sigue.
+            rf=ctx.tmp.textbbox((0,0), str(e.get("fecha","")), font=f_fecha, anchor="ma")
+            rh=ctx.tmp.textbbox((0,0), str(e["hora"]), font=f_hora, anchor="ma")
+            yf=y_fecha
+            while puesto is None and yf+rf[1] >= 98:
+                fb=yf+rf[3]
+                yh=fb+12-rh[1]
+                puesto=_encaja(int(yh+rh[3])+14)
+                if puesto is not None:
+                    y_fecha,y_hora=yf,yh
+                    break
+                yf-=4
+        if puesto is None:
+            cajas,sep,y0=_cajas(12),10,480
+        else:
+            cajas,sep,y0=puesto
+        pon_texto(dp, (tw/2,y_fecha),e.get("fecha",""),font=f_fecha,fill=(255,255,255,200),anchor="ma")
+        pon_texto(dp, (tw/2,y_hora),e["hora"],font=f_hora,fill=BLANCO,anchor="ma")
+        for i,(n, lt, lb, at_, ab_, hn) in enumerate(cajas):
             kn=entra(t, n["at"], "suave")
             if kn<=0: continue
             # cada notificación nueva EMPUJA a las anteriores con resorte (antes
             # saltaban 170 px en un frame: el conteo era un escalón)
-            despues=sum(min(1.0,entra(t, m["at"], "suave")) for m in nots[i+1:])
-            ny=480+despues*paso_n+(1-min(1,kn))*ELEV   # sube ELEV como toda entrada
+            despues=sum((c[-1]+sep)*min(1.0, entra(t, c[0]["at"], "suave")) for c in cajas[i+1:])
+            ny=y0+despues+(1-min(1,kn))*ELEV   # sube ELEV como toda entrada
             nw=Image.new("RGBA",(tw-44,hn),(0,0,0,0)); dn=ImageDraw.Draw(nw)
             dn.rounded_rectangle([0,0,tw-44,hn],radius=28,fill=(255,255,255,36))
             dn.ellipse([22,hn/2-32,86,hn/2+32],fill=ACENTO+(255,))
             pinta_glifo_canal(ctx,dn,n["canal"],54,hn/2,32,BLANCO,icono=n.get("icono"),tam=34*esc)
-            y_t=(hn-h_t-4-h_b*len(cuerpos[i]))/2
-            pon_texto(dn, (110,y_t),recorta_para(n["titulo"],f_tit,ancho_n,ctx.tmp),font=f_tit,fill=BLANCO)
-            # el cuerpo es un "nota" de la escala (por `esc`, ya reducido
-            # sigue en el piso): parte en dos líneas y solo lo que sobra se recorta
-            for j,ln in enumerate(cuerpos[i]):
-                pon_texto(dn, (110,y_t+h_t+4+j*h_b),ln,font=fnt_n,fill=(255,255,255,190))
+            y=(hn-(at_+4+ab_))/2
+            for li, ln in enumerate(lt):
+                pon_texto(dn, (text_x, y), ln, font=f_tit, fill=BLANCO)
+                y += h_t+(4 if li<len(lt)-1 else 0)
+            y += 4
+            for li, ln in enumerate(lb):
+                pon_texto(dn, (text_x, y), ln, font=fnt_n, fill=(255,255,255,190))
+                y += h_b+(4 if li<len(lb)-1 else 0)
             a=nw.split()[3].point(lambda v, _kn=kn:int(v*clamp01(_kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((max(1,int(tw*sc)),max(1,int(th*sc))),Image.LANCZOS)

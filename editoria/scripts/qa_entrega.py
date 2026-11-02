@@ -163,7 +163,8 @@ def _fps(video):
 
 
 def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None,
-                          recortes=None, desbalance=None, focos=None, gancho=None):
+                          recortes=None, desbalance=None, focos=None, gancho=None,
+                          lectura=None):
     """Los fallos de composicion, con su motivo Y su dueno. Puro: sin video ni plan.
 
     Un «2 textos se pisan» sin escena ni instante no es accionable: obligaba
@@ -209,6 +210,12 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
     if focos:
         fallos.append("el zoom de la demo corta su objetivo: " + "; ".join(focos[:3]) +
                       " — baja `zoom` o ajusta `caja` del paso")
+    if lectura:
+        fallos.append(f"{len(lectura)} textos no aguantan lo que se leen: " +
+                      "; ".join(f"escena {d['escena']} «{d['texto']}» "
+                                f"{d['sosten']} s (necesita {d['minimo']} s)"
+                                for d in lectura[:4]) +
+                      ("; …" if len(lectura) > 4 else ""))
     return fallos
 
 
@@ -348,11 +355,17 @@ def _paso_composicion(plan, video):
         recortes = sorted({x for r in res for x in (r.get("recortes") or [])})
         desbalance = [x for r in res for x in (r.get("desbalance") or [])]
         focos = [x for r in res for x in (r.get("focos") or [])]
+        # los textos que no aguantan lo que se leen: la MISMA medicion que
+        # usa la rubrica para el eje 4 (ritmo.md, el piso de lectura)
+        lectura = [d for r in res for d in (r.get("lectura") or [])]
         fallos = _defectos_composicion(letra, zona, solapes, culpables_letra, culpables_zona,
-                                       recortes, desbalance, focos, gancho)
+                                       recortes, desbalance, focos, gancho,
+                                       lectura=lectura)
         detalle = (f"letra {letra or '?'} px (min {LETRA_MIN}) · gancho {gancho if gancho is not None else '?'} px "
                    f"(min {GANCHO_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
                    f" · {len(recortes)} recortes")
+        if lectura:
+            detalle += f" · {len(lectura)} textos sin sostén para leer"
         if fallos:
             detalle = "; ".join(fallos)
         return {"nombre": "composicion", "ok": not fallos, "detalle": detalle}

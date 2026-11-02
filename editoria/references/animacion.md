@@ -204,6 +204,34 @@ ninguno.
   que late escala alrededor de su centro (su radio corría la columna de
   texto de `notificacion` 6 px).
 
+## 4b. Los tres relojes (y por qué la cámara nunca se escalona)
+
+Una pieza puede moverse a tres velocidades a la vez, y confundirlas es lo que
+hace que un video "parezca frames dropeados" en vez de "parezca un estilo":
+
+| reloj | va a | qué va a esa velocidad |
+|---|---|---|
+| **el cuerpo** | 12 fps (animate on twos) | los objetos que se mueven: stop-motion, pixel art, cel, dibujo a mano |
+| **la actuación** | 8–12 fps | los gestos: el squash & stretch, el rebote, el peso de un personaje |
+| **la cámara y la luz** | **cada frame** | el encuadre, el paneo, la luz, las sombras |
+
+La cuenta es sobre el SEGUNDO, no sobre el frame: `floor(t*12)/12` da los
+mismos 12 fps a 24, a 30 y a 60 fps de salida (`round(fps/12)` daba 15 a 30 y
+24 a 60: el doble del efecto). La receta completa está en
+`references/tecnicas-video.md` (mapa editorial, regla (a)).
+
+**La cámara NUNCA se escalona.** Si la cámara va a 12 fps mientras el resto va
+a 24, el corte entre la toma y el movimiento se ve como un video roto, no como
+un estilo: lo que se escalona es el overlay (el squash de un objeto, un
+personaje dibujado), y la toma base sigue suave en cada frame. En esta skill
+la cámara es un global del plan (`"camara"`) y su reloj es global: por
+construcción es continua.
+
+Y dos reglas que van con el estilo escalonado: en pixel art y en vector
+**el grano no se pone** (el grano es de la película, no del dibujo; encima
+hace la imagen "sucia" y sube el bitrate sin nada que contar), y el
+posteado/pixelado se hace con `nearest`, nunca con bicúbico.
+
 ## 5. Cámara virtual
 
 **El marco no viaja con la cámara.** El rótulo canónico (`rotulo_y()`) y la
@@ -307,9 +335,9 @@ El movimiento de cámara convierte un layout plano en un espacio.
   `assets/fonts/` lo son) el peso puede animar 400→800 en la palabra clave.
 - **Kerning y ortografía**: revisar pares problemáticos en tamaños
   gigantes (AV, To, Te, "10") y tildes/¿¡ siempre presentes.
-- **Lectura**: cada línea en pantalla ≥ (palabras × 0.3 s) + 0.5 s. La
-  fórmula vive en `_copy.tiempo_lectura` (una sola) y la comprueba
-  `auditar_plan.py`: el aviso lleva los dos números (lo que necesita y lo
+- **Lectura**: cada línea en pantalla aguanta su piso de lectura
+  (`references/ritmo.md`). La fórmula vive en `_comun.tiempo_de_lectura`
+  (una sola) y la comprueban `auditar_plan.py` y `medir_animacion.py`: el aviso lleva los dos números (lo que necesita y lo
   que tiene) para poder corregir sin adivinar.
 
 ## 7. Transiciones con intención

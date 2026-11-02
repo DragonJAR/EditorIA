@@ -143,25 +143,31 @@ Cuesta un frame por instante (no los 600 del video) y sirve para mirar lo
 que de verdad importa en una pieza corta: el **primer cuadro** (el hook se
 lee sin sonido), un plano clave y el **ultimo cuadro** (el loop empalma).
 
-## Piso de lectura (ley dura)
+## Piso de lectura (ley dura, y MEDIDA)
 
 El ritmo alto viene del movimiento rápido, las transiciones ágiles y los
 cortes ajustados — NUNCA de retirar texto antes de que se pueda leer. Todo
-elemento de texto que el espectador deba leer necesita su tiempo asentado
-(ya entró, aún no sale).
+elemento de texto que el espectador deba leer necesita su tiempo:
 
-**La cifra vive en `_copy.tiempo_lectura` (una sola) y la comprueba
-`auditar_plan.py`**: 0.3 s por palabra + 0.5 s, y 0.8 s es el suelo (una
-etiqueta corta necesita un instante, no un segundo y medio). El aviso lleva
-los dos números —lo que el texto necesita y lo que tiene en pantalla— para
-que corregir sea corregir, no adivinar. Antes esta misma idea vivía en dos
-referencias con dos constantes distintas y no la comprobaba nadie.
-
-- Etiqueta corta o línea de 1–3 palabras: **~0.8 s asentada**.
+- Etiqueta corta o línea de 1–3 palabras: **~0.8 s**.
 - Titular o frase completa: **~0.3 s por palabra**, mínimo ~1.2 s. La línea
   del hook lleva el mayor hold.
 - Entradas y transiciones: ágiles (0.3–0.6 s). Una línea puede ENTRAR de golpe
   y luego SOSTENERSE — fast-in + hold adecuado se lee punchy Y legible.
+
+**Estos números tienen un canónico: el código.** La regla vive en
+`scripts/ffmpeg_tools/_comun.py` (`tiempo_de_lectura()` y sus constantes
+`LECTURA_ETIQUETA_S`, `LECTURA_PALABRA_S`, `LECTURA_MIN_S`): esta prosa la
+cita, no la vuelve a escribir. `auditar_plan.py` la comprueba ANTES del
+render con la misma función: el aviso lleva los dos números —lo que el
+texto necesita y lo que tiene en pantalla— para que corregir sea corregir,
+no adivinar. La miden dos: el motor (que postpone el
+cambio de beat si la primera frase no cabe) y `scripts/medir_animacion.py`,
+que espía la puerta del motor (`titular`, `pon_texto`, `draw_seg`) y anota,
+por LÍNEA, los frames en que el texto estuvo en pantalla. La medida sale
+como `lectura` y la beben dos consumidores: la puerta de entrega
+(`qa_entrega.py`, que falla la pieza) y la rúbrica de premios (eje 4, que no
+llega a 4 con un texto que no se lee).
 
 Dos modos de falla que se diseñan fuera en el plan:
 

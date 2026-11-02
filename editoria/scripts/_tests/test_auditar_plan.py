@@ -312,8 +312,8 @@ class TestPisoDeLectura(unittest.TestCase):
 
     El piso estaba en DOS referencias con DOS constantes distintas
     (`references/ritmo.md` y `references/animacion.md`) y no lo comprobaba
-    nadie: era prosa, no un contrato. Ahora hay UNA formula (`_copy.
-    tiempo_lectura`) y la cuenta el auditor.
+    nadie: era prosa, no un contrato. Ahora hay UNA formula (`_comun.
+    tiempo_de_lectura`) y la cuenta el auditor.
     """
 
     def _avisos_de_lectura(self, plan):
@@ -346,10 +346,20 @@ class TestPisoDeLectura(unittest.TestCase):
         self.assertIn("tiene", aviso)
 
     def test_la_formula_es_una_sola_y_las_referencias_apuntan_a_ella(self):
-        """Dos referencias, una idea: el piso de lectura vive en `_copy`."""
+        """Dos referencias, una idea: el piso de lectura vive en
+        `_comun.tiempo_de_lectura` (el MISMO que mide medir_animacion y que
+        cita ritmo.md); `_copy` no lleva una cuenta propia. Hubo tres: la
+        sesion 6405 en `_copy` (0.3 s/palabra + 0.5 s), la 7c3f en `_comun`
+        (piso 2 s, 3 palabras/s) y la a153 en `_comun` con las cifras de
+        ritmo.md. Al unir se queda la de ritmo.md (5 palabras = 1.5 s)."""
         import _copy as C
-        self.assertEqual(C.tiempo_lectura("Hola"), 0.8)
-        self.assertEqual(C.tiempo_lectura("Una frase con cuatro palabras"), 2.0)
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        from _comun import tiempo_de_lectura
+        self.assertFalse(hasattr(C, "tiempo_lectura"),
+                         "_copy no puede llevar un segundo piso de lectura")
+        self.assertIs(AP.tiempo_de_lectura, tiempo_de_lectura)
+        self.assertEqual(tiempo_de_lectura("Hola"), 0.8)
+        self.assertEqual(tiempo_de_lectura("Una frase con cuatro palabras"), 1.5)
         refs = os.path.join(os.path.dirname(SCRIPTS), "references")
         for nombre in ("ritmo.md", "animacion.md"):
             ruta = os.path.join(refs, nombre)
@@ -357,10 +367,11 @@ class TestPisoDeLectura(unittest.TestCase):
                 continue
             with open(ruta, encoding="utf-8") as f:
                 txt = f.read()
-            self.assertIn("tiempo_lectura", txt,
+            self.assertIn("tiempo_de_lectura", txt,
                           f"{nombre} describe el piso de lectura con sus propias "
-                          f"cifras: la formula vive en _copy.tiempo_lectura")
-
+                          f"cifras: la formula vive en _comun.tiempo_de_lectura")
+            self.assertNotIn("_copy.tiempo_lectura", txt,
+                             f"{nombre} cita un piso de lectura que ya no existe")
 
 if __name__ == "__main__":
     unittest.main()

@@ -27,10 +27,6 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
   - The copy passes `python scripts/lint_copy.py plan.json`: text that the engine cannot place is a render defect, and copy that reads as generated is a quality defect (`references/copy.md`).
   - No credentials or API keys appear in `plan.json` or `brand/*.json` (`$ELEVENLABS_API_KEY` is read from `~/.secrets.env`): `auditar_plan.py` fails with an ERROR if it finds one.
 - **Best-result rule**: the bar is the quality of the result, not the comfort
-  of the environment. When a piece needs a capability that is not there,
-  **say so in the first answer**, with the command that installs it, and
-  deliver the best version possible meanwhile. Never deliver less in silence
-  (`references/capacidades.md`).
   of the environment. When a piece needs a capability that is not there (3D,
   Remotion, HyperFrames, Canvas, Drawn, local transcription), **say so in the
   first answer**, with the command that installs it, and deliver the best
@@ -95,7 +91,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 70 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 71 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
@@ -216,9 +212,7 @@ Run the delivery gate: it executes every deterministic check in order and return
 python scripts/qa_entrega.py final.mp4 --plan plan.json
 ```
 
-Expected output: `ENTREGA: aprobada` with zero defects, zero pops, a motion note of 90 or more, the platform spec met, and the composition measured on the plan (letter at rest ≥ 26 px, safe zone not at its floor, no overlapping text).
-
-The gate ignores the last 0.5 s when checking for black frames: the engine always closes with a fade to black (the last frame is black by design), so without that margin every piece would reject its own ending. Pass `--ignorar-fin 0` to demand that even the last half second has no black.
+Expected output: `ENTREGA: aprobada` with zero defects, zero pops, a motion note of 90 or more, the platform spec met, and the composition measured on the plan (letter at rest ≥ 26 px, safe zone not at its floor, no overlapping text). The fade-to-black margin lives in `references/qa-entrega.md`.
 
 The awards gate scores the piece on the rubric's eight axes. Four are measured from the render and the plan; four are judgment and the agent answers them by looking at the piece:
 
@@ -283,7 +277,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (84 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (86 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 
