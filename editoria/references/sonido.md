@@ -282,6 +282,7 @@ reconocible (ver disciplina de referencias en `checklist-qa.md`).
 - **Tipos**: whooshes en transiciones, risers solo en 2–3 beats héroe,
   ticks 2400–2800Hz en números, sub-bass 50–80Hz bajo el hook del frame 0,
   **silencio** como herramienta antes/después del impacto.
+  Los silencios se miden, no se suponen: `scripts/medir_silencios.py` cuenta las caídas sostenidas y exige 2 desde 20 s (método completo en `references/metodo-direccion.md`, §6).
 - Los tags v3 (`[applause]`, `[explosion]`) sirven para demos; en producción
   preferir SFX dedicados.
 

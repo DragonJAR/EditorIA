@@ -63,6 +63,7 @@
   "test_marco_y_deplecion.py",
   "test_medir_animacion_quieto.py",
   "test_medir_contraste.py",
+  "test_medir_silencios.py",
   "test_mezclar_audio.py",
   "test_motion_ui.py",
   "test_movimiento.py",

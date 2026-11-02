@@ -11,7 +11,7 @@ Aquí viven los dos catálogos, cada uno con su fuente declarada:
 
 | catálogo | fuente | licencia | qué aporta |
 |---|---|---|---|
-| Cine | `lemomo-ai/lemo-opuscar` | MIT | 59 estilos de cine renderizados en código (óleo al thick, acuarela, ukiyo-e, briefing de satélite, desmontaje de producto, documental de archivo…), con Node y Three.js y su propio flujo de dirección |
+| Cine | `lemomo-ai/lemo-opuscar` | MIT | 66 estilos de cine renderizados en código (óleo al thick, acuarela, ukiyo-e, briefing de satélite, desmontaje de producto, documental de archivo…), con Node y Three.js y su propio flujo de dirección |
 | Motion design | `Vincentwei1021/mg-styles-15` | MIT | 15 películas de motion design de 10 s, una por estilo, y con cada una su receta: rasgos, técnicas con números, prompt y código |
 
 **La frontera**: son otro motor (Node + Three.js; Node + Canvas) con su propio director.
