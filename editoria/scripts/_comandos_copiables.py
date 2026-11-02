@@ -59,6 +59,7 @@ EJECUTABLES = {
     "scripts/clonar_video.py",
     "scripts/contact_sheet.py",
     "scripts/direccion_arte.py",
+    "scripts/ffmpeg_tools/acabado.py",
     "scripts/ffmpeg_tools/aplicar_edl.py",
     "scripts/ffmpeg_tools/caption.py",
     "scripts/ffmpeg_tools/componer.py",
@@ -75,6 +76,7 @@ EJECUTABLES = {
     "scripts/lint_copy.py",
     "scripts/medir_contraste.py",
     "scripts/medir_mezcla.py",
+    "scripts/medir_silencios.py",
     "scripts/mezclar_audio.py",
     "scripts/proyecto.py",
     "scripts/puntuar.py",
@@ -261,6 +263,22 @@ def _assets(tmp, skill_dir):
     aud = os.path.join(tmp, "audio.wav")
     if _ffmpeg(aud, ["-f", "lavfi", "-i", "sine=frequency=440:duration=1"], duracion=1):
         a["audio"] = aud
+    # una MEZCLA de verdad para `medir_silencios.py` (ASSET_PROPIO): 6 s con
+    # dos caidas (0-0,8 s y 3-3,8 s) en lugar del tono de 1 s
+    largo = os.path.join(tmp, "mezcla_larga.wav")
+    p = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "aevalsrc=0.5*sin(440*2*PI*t)*gt(mod(t\\,3)\\,0.8):d=6:s=44100",
+                        largo], capture_output=True, text=True, timeout=120)
+    if p.returncode == 0 and os.path.exists(largo):
+        a["audio_largo"] = largo
+    # un video MAS ANCHO que el comun para `acabado.py pixelar` (ASSET_PROPIO)
+    ancho = os.path.join(tmp, "video_ancho.mp4")
+    p = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "testsrc=duration=1:size=640x360:rate=10", "-f", "lavfi", "-i",
+                        "sine=frequency=440:duration=1", "-shortest", "-pix_fmt", "yuv420p",
+                        ancho], capture_output=True, text=True, timeout=120)
+    if p.returncode == 0 and os.path.exists(ancho):
+        a["video_ancho"] = ancho
     mp3 = os.path.join(tmp, "audio.mp3")
     if _ffmpeg(mp3, ["-f", "lavfi", "-i", "sine=frequency=440:duration=1"], duracion=1):
         a["mp3"] = mp3
@@ -376,6 +394,24 @@ PLAN_LIGERO_PARA = {
 }
 
 
+# Las CLIs cuyo comando documentado RECHAZA el asset comun por una razon de
+# su dominio (y no porque este roto): se les da un asset a su medida, con el
+# motivo al lado. Mismo patron que PLAN_LIGERO_PARA. (script -> (clave que
+# se sustituye, asset que la reemplaza, motivo))
+ASSET_PROPIO = {
+    "scripts/medir_silencios.py": (
+        "audio", "audio_largo",
+        "mide silencios de una mezcla: con 1 s (el audio comun) no hay sitio "
+        "entre el arranque y el cierre (0,5 s cada uno), y la herramienta lo "
+        "rechaza con razon; se le da una mezcla de 6 s con dos caidas"),
+    "scripts/ffmpeg_tools/acabado.py": (
+        "video", "video_ancho",
+        "`pixelar --ancho 320` baja la resolucion: sobre el video comun "
+        "(320 px) no hay nada que bajar y la herramienta lo rechaza con "
+        "razon; se le da un video de 640 px"),
+}
+
+
 def _sustituir(partes, assets, scratch=None, plan_key="plan"):
     """(partes, resuelto). Resuelto=False si algo no se puede sustituir."""
     salida = []
@@ -480,6 +516,11 @@ def _correr_comando(skill_dir, cmd, tmp, assets, timeout=120):
     if not os.path.exists(ruta):
         return True, "", ""            # lo ve otro guard
     plan_key = "plan_ligero" if script in PLAN_LIGERO_PARA else "plan"
+    if script in ASSET_PROPIO:
+        clave, propio, _motivo = ASSET_PROPIO[script]
+        if propio not in assets:
+            return True, "", ""        # se salta: no se pudo fabricar su asset
+        assets = dict(assets, **{clave: assets[propio]})
     nuevas, resuelto = _sustituir(partes[1:], assets, scratch=os.path.join(tmp, "cwd"),
                                   plan_key=plan_key)
     if not resuelto:
