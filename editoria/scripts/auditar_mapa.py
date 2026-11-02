@@ -243,7 +243,11 @@ REGLAS_UNICAS = [
     # en prosa (la del indice y la del SKILL.md) tienen que decir el mismo
     # numero, o quien las lee cuenta mal. Mismo motivo que las demas reglas:
     # si el numero cambia, la prosa se queda con el viejo y nadie lo dice.
+<<<<<<< HEAD
     {"nombre": "numero de referencias", "tipo": "exacto", "valor": 70,
+=======
+    {"nombre": "numero de referencias", "tipo": "exacto", "valor": 68,
+>>>>>>> refs/remotes/sister/ronda17
      "patron": r"index of this skill: (\d+) references|contra las (\d+) referencias"},
 ]
 

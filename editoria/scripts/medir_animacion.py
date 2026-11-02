@@ -259,6 +259,9 @@ def medir(job):
     # pieza: un recorte anotado y no WATCHED es una perdida silenciosa.
     recortes = sorted({str(rc.get("texto", "")) for rc in getattr(R, "RECORTES", [])}
                        - {""})
+    # la capa de LECTURAS del fork (`cortas`/`_defectos_lectura`) no se porta
+    # en este lote: pide su propia instrumentacion (`lecturas` a nivel de
+    # linea en titular/pon_texto). Queda documentada en el plan.
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # se LEE quieta (render_plan.QUIETAS)
         # su flotación (render_plan.vida) no llega al umbral de `muerto` (diff de
         # cuadro entero); `quieto` (por bloque) sí la ve y se mide como en todas

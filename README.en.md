@@ -248,8 +248,13 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
+<<<<<<< HEAD
 │   ├── scripts/                       # 52 root + 20 in ffmpeg_tools/ + 86 in _tests/ = 158 scripts
 │   │   ├── render_plan.py             # Main plan renderer \(46 scenes\)
+=======
+│   ├── scripts/                       # 52 root + 20 in ffmpeg_tools/ + 77 in _tests/ = 149 scripts
+│   │   ├── render_plan.py             # Main plan renderer \(45 scenes\)
+>>>>>>> refs/remotes/sister/ronda17
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
 │   │   ├── alinear.py                 # Word-level voice alignment (Whisper)
@@ -314,7 +319,11 @@ EditorIA/
 │   │       ├── transcribir.py         # Local ASR → SRT + JSON
 │   │       ├── _comun.py              # Shared DRY helpers
 │   │       └── _plataforma.py         # OS abstractions
+<<<<<<< HEAD
 │   ├── references/                    # 70 references in kebab-case.md
+=======
+│   ├── references/                    # 68 references in kebab-case.md
+>>>>>>> refs/remotes/sister/ronda17
 │   │   ├── instalacion.md             # Per OS (Win/macOS/Linux)
 │   │   ├── escenas.md                 # Catalog of 45 scenes
 │   │   ├── escenas-extendidas.md      # Portable concepts
