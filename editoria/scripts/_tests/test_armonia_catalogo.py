@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import unittest
+from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = os.path.dirname(HERE)
@@ -108,6 +109,144 @@ class TestMedianocheCabe(unittest.TestCase):
                     fallos.append(f"{ancho}x{alto} {p}")
         finally:
             ImageDraw.ImageDraw.text = original
+            Image.Image.resize = orig_resize
+        self.assertEqual(fallos, [])
+
+    def test_el_copy_largo_cabe_entero_dentro_del_telefono(self):
+        """copy x2 es el copy que escribe un agente. Las tarjetas se apilan
+        dentro del teléfono: el texto no se sale del bitmap y no se elide."""
+        import render_plan as R
+        import medir_animacion as MA
+        from PIL import Image, ImageDraw
+
+        e0 = dict(_muestras()["medianoche"], tipo="medianoche")
+        original = ImageDraw.ImageDraw.text
+        orig_ac = Image.Image.alpha_composite
+        orig_resize = Image.Image.resize
+        fallos = []
+        try:
+            for ancho, alto in ((1080, 1920), (1920, 1080)):
+                R.formato(ancho, alto)
+                ctx = R.Ctx()
+                e = dict(MA.copy_x2(R, e0), tipo="medianoche")
+                R.RECORTES.clear()
+                textos, puestos, marcos, escala_tel = [], [], [], []
+                sello = 0
+
+                def marca(img):
+                    nonlocal sello
+                    token = getattr(img, "_qa_medianoche", None)
+                    if token is None:
+                        sello += 1
+                        token = sello
+                        setattr(img, "_qa_medianoche", token)
+                    return token
+
+                def espia(self, xy, text, fill=None, font=None, *a, **k):
+                    if font is not None and str(text).strip() and any(
+                            c.isalnum() for c in str(text)):
+                        img = self._image
+                        bb = self.textbbox(xy, str(text), font=font,
+                                           anchor=k.get("anchor"))
+                        # Sello en la imagen, no id(): Pillow reutiliza el id
+                        # en cuanto la tarjeta anterior se libera.
+                        textos.append((marca(img), str(text), bb[1], bb[3],
+                                       img.size, float(font.size)))
+                    return original(self, xy, text, fill, font, *a, **k)
+
+                def comp(self, im, *a, **k):
+                    dest = a[0] if a else k.get("dest", (0, 0))
+                    if not isinstance(dest, tuple):
+                        dest = (0, 0)
+                    if self.size == (560, 1140) and im.size[0] < 560:
+                        dy, ah = dest[1], im.size[1]
+                        token = getattr(im, "_qa_medianoche", None)
+                        quedan = []
+                        for tid, texto, top, bot, sz, tam in textos:
+                            if token is not None and tid == token:
+                                puestos.append((texto, dy + top, dy + bot,
+                                                tam, dy, ah))
+                            else:
+                                quedan.append((tid, texto, top, bot, sz, tam))
+                        textos[:] = quedan
+                        marcos.append((dy, ah))
+                    elif self.size == im.size and self.size != (560, 1140):
+                        origen, destino = marca(im), marca(self)
+                        textos[:] = [
+                            (destino if tid == origen else tid, texto, top, bot, sz, tam)
+                            for tid, texto, top, bot, sz, tam in textos]
+                    return orig_ac(self, im, *a, **k)
+
+                def resize(self, size, *a, **k):
+                    if self.size == (560, 1140) and size[0]:
+                        escala_tel.append(size[0] / 560.0)
+                    return orig_resize(self, size, *a, **k)
+
+                ImageDraw.ImageDraw.text = espia
+                Image.Image.alpha_composite = comp
+                Image.Image.resize = resize
+                try:
+                    R.SCENES["medianoche"](ctx, e, 4.2)
+                except Exception as ex:
+                    fallos.append(f"{ancho}x{alto} {type(ex).__name__}: {ex}")
+                    continue
+                finally:
+                    ImageDraw.ImageDraw.text = original
+                    Image.Image.alpha_composite = orig_ac
+                    Image.Image.resize = orig_resize
+                if not escala_tel:
+                    fallos.append(f"{ancho}x{alto} el telefono no se escalo")
+                    continue
+                esc = escala_tel[-1]
+                if not marcos:
+                    fallos.append(f"{ancho}x{alto} no se pego ninguna tarjeta")
+                    continue
+
+                reloj_fondo = 0.0
+                vistos = Counter()
+                for iid, texto, top, bot, sz, tam in textos:
+                    if "…" in texto:
+                        fallos.append(f"{ancho}x{alto} elide {texto[-24:]!r}")
+                    if sz != (560, 1140):
+                        continue
+                    if top < 0 or bot > 1140:
+                        fallos.append(
+                            f"{ancho}x{alto} reloj fuera {texto!r} {bot:.0f}")
+                    reloj_fondo = max(reloj_fondo, bot)
+                    if tam * esc < R.MIN_LETRA - 0.05:
+                        fallos.append(
+                            f"{ancho}x{alto} reloj bajo el piso {texto!r}")
+                for texto, top, bot, tam, dy, ah in puestos:
+                    if "…" in texto:
+                        fallos.append(f"{ancho}x{alto} elide {texto[-24:]!r}")
+                    if dy < 0 or dy + ah > 1140 or top < 0 or bot > 1140:
+                        fallos.append(
+                            f"{ancho}x{alto} {texto[-24:]!r} sale a y={bot:.0f}")
+                    if tam * esc < R.MIN_LETRA - 0.05:
+                        fallos.append(f"{ancho}x{alto} bajo el piso {texto[-16:]!r}")
+                    vistos.update(texto.split())
+                for dy, ah in marcos:
+                    if dy < reloj_fondo - 1:
+                        fallos.append(
+                            f"{ancho}x{alto} tarjeta pisa el reloj y={dy:.0f}")
+                        break
+                need = Counter()
+                for n in e["notificaciones"]:
+                    for campo in ("titulo", "texto"):
+                        need.update(str(n[campo]).replace("*", "").split())
+                for pal, veces in need.items():
+                    if vistos[pal] < veces:
+                        fallos.append(
+                            f"{ancho}x{alto} falta {pal!r} ({vistos[pal]}/{veces})")
+                recortes = [rc for rc in list(R.RECORTES)
+                            if not str(rc.get("texto", "")).lower().endswith(
+                                (".wav", ".mp3", ".mp4", ".m4a", ".aiff", ".mov"))]
+                if recortes:
+                    fallos.append(
+                        f"{ancho}x{alto} recorta {recortes[0]['texto'][:40]!r}")
+        finally:
+            ImageDraw.ImageDraw.text = original
+            Image.Image.alpha_composite = orig_ac
             Image.Image.resize = orig_resize
         self.assertEqual(fallos, [])
 
