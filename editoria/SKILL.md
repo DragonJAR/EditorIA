@@ -5,7 +5,7 @@ license: MIT
 compatibility: 'Python 3.9+, FFmpeg, Pillow, NumPy; optional ElevenLabs API and Node 18+ for Remotion or HyperFrames'
 metadata:
   author: Jaime Andrés Restrepo
-  version: 1.10.2
+  version: 1.11.4
   category: video-editing
   tags: [video-editing, motion-graphics, ffmpeg, animation]
 ---
