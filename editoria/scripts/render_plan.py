@@ -2874,8 +2874,12 @@ def sc_final(ctx,e,t):
     fy=flota(t,asienta,7,0.30)
     pulso=latido(t,asienta,1.6,0.04)
     push=1+0.035*prog(t,e["from"],e["to"],ease_in_out)   # push-in de cámara
+    # `titulo` sustituye a `marca` cuando el cierre no trae el nombre del
+    # pack: antes `e["marca"]` reventaba con KeyError y el error no decia
+    # de que campo se trataba.
+    nombre=(e.get("marca") or e.get("titulo") or "").strip()
     if k>0:
-        if ctx.logo and es_marca_del_pack(e["marca"]):
+        if ctx.logo and nombre and es_marca_del_pack(nombre):
             lw=int(760*min(1,k)*push*pulso)
             if lw > 0:
                 lh=max(1,int(lw*ctx.logo.height/ctx.logo.width))
@@ -2883,9 +2887,9 @@ def sc_final(ctx,e,t):
                 layer.alpha_composite(lg,(int(W/2-lw/2),int(vy(0.40)-lg.height/2+fy)))
         else:
             zx0,_,zx1,_=caja_segura()
-            tam_m=fuente_que_cabe(ctx.fT,e["marca"],120,(zx1-zx0)*0.92/1.035,800).size   # con el push máximo: tamaño fijo, sin saltos
+            tam_m=fuente_que_cabe(ctx.fT,nombre or " ",120,(zx1-zx0)*0.92/1.035,800).size   # con el push máximo: tamaño fijo, sin saltos
             fnt_m=ctx.fT(int(tam_m*min(1,k)*push*pulso),800)
-            pon_texto(d, (W/2,vy(0.40)+fy),e["marca"],font=fnt_m,
+            pon_texto(d, (W/2,vy(0.40)+fy),nombre,font=fnt_m,
                    fill=BLANCO+(int(255*clamp01(k*1.4)),),anchor="mm")
     if e.get("lema") and t>=at["lema"]:
         rotulo(ctx,layer,t,e["lema"],at["lema"],y=vy(0.58)+fy*0.6,tam=52)
@@ -7040,6 +7044,25 @@ def _escalar_t(v,k,t0):
     if isinstance(v,(int,float)) and not isinstance(v,bool): return round(t0+v*k,3)
     return v
 
+def _regla_de_lectura(e):
+    """La 1.a frase de la apertura se queda ASENTADA el tiempo de leerla
+    (`_comun.tiempo_de_lectura`, ≥ 2 s) antes del cambio: si el plan la
+    reemplaza antes, el cambio (y la 2.a frase) se corren, sin pasarse del
+    final de la escena. Antes se leía «Tu pyme también es» en 0,9 s."""
+    from _comun import tiempo_de_lectura
+    if e.get("tipo")!="apertura" or not isinstance(e.get("at"),dict): return
+    at=e["at"]; p1=at.get("p1") or []; p2=at.get("p2") or []
+    if not p1 or "cambio" not in at: return
+    asentado=float(p1[-1])+0.45   # la última palabra termina de entrar
+    falta=asentado+tiempo_de_lectura(e.get("texto1"))-float(at["cambio"])
+    if falta<=0: return
+    margen=float(e["to"])-1.2-(float(p2[-1]) if p2 else float(at["cambio"]))
+    corre=max(0.0,min(falta,margen))
+    if corre>0:
+        at["cambio"]=round(float(at["cambio"])+corre,3)
+        at["p2"]=[round(float(x)+corre,3) for x in p2]
+
+
 def completar_escena(e,i=0):
     """Tiempos por defecto: los `at` que el plan no trae se toman de la muestra
     de esa escena, escalados a SU duración (una escena de 8 s reparte sus
@@ -7060,6 +7083,7 @@ def completar_escena(e,i=0):
         for clave,v in m["at"].items():
             if clave not in at: at[clave]=_escalar_t(v,k,e["from"])
         e["at"]=at
+    _regla_de_lectura(e)
     return e
 
 COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}

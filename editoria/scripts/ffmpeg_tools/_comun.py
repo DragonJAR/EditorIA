@@ -415,6 +415,19 @@ def _fraction(v: Optional[str]) -> Optional[Fraction]:
         return None
 
 
+def tiempo_de_lectura(texto) -> float:
+    """Segundos para leer `texto` (str o lista de lineas) una vez asentado.
+
+    El piso es LECTURA_MIN_S: una frase corta tambien necesita un par de
+    segundos en pantalla, o se lee a medias.
+    """
+    import re as _re
+    if isinstance(texto, (list, tuple)):
+        texto = " ".join(str(x) for x in texto)
+    n = len(_re.findall(r"\w+", str(texto or "")))
+    return round(max(LECTURA_MIN_S, n / PALABRAS_POR_S), 2)
+
+
 def probe(path: str, role: str = "input") -> Dict[str, Any]:
     """Descripcion compacta del archivo: formato, duracion, video y audio."""
     if not os.path.exists(path):
@@ -997,6 +1010,12 @@ OCUPACION_MIN = 0.20
 
 #: s: racha congelada maxima (= auto_qa.FROZEN_MAX).
 QUIETO_MAX = 1.0
+
+#: s: lo que tarda en leerse una frase corta (y el mínimo, siempre).
+LECTURA_MIN_S = 2.0
+
+#: palabras por segundo que se leen en un móvil (letra grande, sin pausa).
+PALABRAS_POR_S = 3.0
 
 
 def packs_disponibles() -> List[str]:
