@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-67 referencias, 51 scripts, 20 herramientas de ffmpeg y 71 suites de tests. Este
+69 referencias, 51 scripts, 20 herramientas de ffmpeg y 76 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -24,7 +24,7 @@ contradigan.
 | **movimiento** | `animacion.md` | los 12 principios, overshoot medido, curvas, coreografía, cámara, tipografía en movimiento; la elección de qué poner (escena/efecto/gesto) es UNA vía `repertorio.py`; el detalle de gestos UI y overlays con cara es interno (`motion-ui.md`, `efectos-talking-head.md`) | siempre que algo se mueva |
 | **estructura** | `principios.md` | la idea, el arco, la dirección, el tono, los lenguajes visuales | antes de escribir el guion |
 | **plan** | `plan-video.md` | el schema de `plan.json`, el bloque `datos`, los límites del motor | al escribir el plan |
-| **escenas** | `escenas.md` | el catálogo de 45 tipos de escena y sus parámetros | al elegir escena |
+| **escenas** | `escenas.md` | el catálogo de 46 tipos de escena y sus parámetros | al elegir escena |
 | **sonido** | `sonido.md` | voz, música y SFX; el ritmo musical vive en `audio.md`, la capa de efectos en `sfx.md` | al mezclar |
 | **copy** | `copy.md` | el texto en pantalla, la aritmética del rótulo, la prueba sin inventarla | al escribir el copy |
 | **qa** | `qa-entrega.md` | la puerta de entrega; el loop y sus causas en `auto-qa.md`, la lista humana en `checklist-qa.md`, el gate de premios en `rubrica-premios.md` | antes de entregar |
@@ -126,7 +126,7 @@ escribir es un tapón).
 | `arquitectura.md` | cómo encaja la skill por dentro | plan |
 | `shorts-plan-schema.md` | el contrato de `shorts-plan.json` | plan |
 | `media-hard-rules.md` | las reglas duras del media-tooling | plan |
-| `escenas.md` | el catálogo de 45 tipos de escena | escenas |
+| `escenas.md` | el catálogo de 46 tipos de escena | escenas |
 | `escenas-extendidas.md` | los conceptos portables del catálogo | escenas |
 | `animacion.md` | los 12 principios del movimiento | movimiento |
 | `fluidez.md` | el motor: resortes, continuidad, ritmo, personalidad | movimiento |
@@ -168,6 +168,7 @@ escribir es un tapón).
 | `i18n.md` | los idiomas de la skill | operacion |
 | `auto-mejora.md` | el protocolo de mejora de la propia skill | operacion |
 | `lecciones-produccion.md` | las lecciones aprendidas en producción | operacion |
+| `creditos.md` | el material de terceros estudiado o adaptado, con su licencia | operacion |
 | `paleta.md` | el color en modo libre: catálogo y regla de elección | color |
 | `capacidades.md` | con qué cuenta la skill y qué falta | herramienta |
 | `remotion.md` | la integración con Remotion | herramienta |
@@ -175,6 +176,7 @@ escribir es un tapón).
 | `3d.md` | el 3D como material: Blender por MCP y objeto de referencia a Three.js | herramienta |
 | `diagramas.md` | diagramas como HTML+SVG con la marca de la pieza | herramienta |
 | `canvas.md` | el motor pictórico (p5.js): acuarela, pincel y doodle generativo | herramienta |
+| `tiempo-html.md` | el tiempo en los motores HTML: el kit `assets/js/tiempo.mjs` (espejo del motor), motion blur, trampas y las tres puertas | herramienta |
 | `dibujado.md` | la vía dibujada a mano: el método de las poses redibujadas, los cinco looks y el kit | herramienta |
 | `hand-draw.md` | trazos a mano: suavizado, overlay con alfa y gestos (sin MediaPipe en la skill) | herramienta |
 | `herramientas-agente.md` | las herramientas conectadas del agente y su handoff | herramienta |
@@ -221,7 +223,7 @@ escribir es un tapón).
      encuentra es un archivo que nadie usa.
    - *¿Esta en la ENTRADA que el agente lee primero?* -> el guard del indice
      del `SKILL.md` (`scripts/auditar_mapa.py`): una CLI enlazada solo en una
-     referencia es media invisible. El caso: `galeria.py` (las 45 escenas del
+     referencia es media invisible. El caso: `galeria.py` (las 46 escenas del
      catalogo) y `beat_file.py` (el camino inverso a `beat_grid.py`: el beat se
      autora primero y la musica nace de el) estaban enlazadas en una
      referencia y no en el indice: el agente no las encontraba.
@@ -318,7 +320,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 67 referencias, no se estiman.
+    guard nuevo se cuentan contra las 69 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que

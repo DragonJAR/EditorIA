@@ -1,5 +1,5 @@
 {
- "_nota": "PACK DE ESTILO, no de marca: es una paleta y un aire, no una empresa. Vive en brand/ porque la doctrina prohibe que un color concreto viva en el codigo de la skill. OJO: el NOMBRE del pack es un literal PROHIBIDO en scripts/ (el guard lo vigila): no puede ser una palabra que ya exista en el codigo. Por eso este no se llama 'ambar' (ambar es un color de la paleta) ni 'estudio' (es una direccion de arte): dos veces que se eligio el nombre por lo que sonaba y el guard lo veto.",
+ "_nota": "PACK DE ESTILO, no de marca: es una paleta y un aire, no una empresa. Vive en brand/ porque la doctrina prohibe que un color concreto viva en el codigo de la skill. OJO: el NOMBRE del pack es un literal PROHIBIDO en scripts/ (el guard lo vigila): no puede ser una palabra que ya exista en el codigo. Por eso este no se llama 'ambar' (ambar es un color de la paleta) ni 'estudio' (es una direccion de arte): dos veces que se eligio el nombre por lo que sonaba y el guard lo veto. Sus neutros y tipografías son PROPIOS (no los del motor ni los de ninguna marca): negro cálido, tinta hueso, Space Grotesk + Space Mono (OFL, en brand/assets/fonts). Su gemelo claro es brand/carbon-claro.json.",
  "version": 1,
  "nombre": "Carbón",
  "lema": "El dato se lee en un dial.",
@@ -15,10 +15,10 @@
   "_nota": "Fondo casi negro con un halo calido detras del dial. El acento ambar se reserva para la MAGNITUD (las marcas llenas del anillo): el ojo va ahi antes que a la palabra.",
   "acento": "#E8B464",
   "acento_oscuro": "#8A6524",
-  "blanco": "#FAFAF7",
-  "gris": "#8C8C8C",
-  "gris_superficie": "#141414",
-  "negro": "#080808",
+  "blanco": "#EDE8DF",
+  "gris": "#A39D92",
+  "gris_superficie": "#1F1C18",
+  "negro": "#13110F",
   "serie": [
    "#E8B464",
    "#007FC6",
@@ -28,49 +28,41 @@
   ],
   "exito": "#009E73",
   "aviso": "#E69F00",
-  "_nota_estado": "serie/exito/aviso: categorías (pie, leyendas) y estados (pagado, tibio). Derivados del acento con tokens_de_estado (render_plan.py): serie[0] es el acento y el resto Okabe-Ito, distinguibles con daltonismo y legibles sobre el negro."
+  "_nota_estado": "serie/exito/aviso: categorías (pie, leyendas) y estados (pagado, tibio). Derivados del acento con tokens_de_estado (render_plan.py): serie[0] es el acento y el resto Okabe-Ito, distinguibles con daltonismo y legibles sobre el negro.",
+  "gris_detalle": "#5A544B"
  },
  "colors": {
   "accent": "#E8B464",
   "accent_dark": "#8A6524",
-  "white": "#FAFAF7",
-  "gray": "#8C8C8C",
-  "surface": "#141414",
-  "black": "#080808"
+  "white": "#EDE8DF",
+  "gray": "#A39D92",
+  "surface": "#1F1C18",
+  "black": "#13110F"
  },
- "font": "Plus Jakarta Sans",
- "font_file": "../assets/fonts/PlusJakartaSans-wght.ttf",
- "fonts_dir": "../assets/fonts",
+ "font": "Space Grotesk",
+ "font_file": "assets/fonts/SpaceGrotesk-wght.ttf",
+ "fonts_dir": "assets/fonts",
  "tipografias": {
   "etiquetas_mono": {
-   "archivo": "DejaVu Sans Mono",
-   "familia": "DejaVu Sans Mono",
+   "archivo": "assets/fonts/SpaceMono-Regular.ttf",
+   "familia": "Space Mono",
    "uso": "kickers, datos técnicos"
   },
   "texto": {
-   "archivo": "../assets/fonts/Montserrat-wght.ttf",
-   "familia": "Montserrat",
+   "archivo": "assets/fonts/SpaceGrotesk-wght.ttf",
+   "familia": "Space Grotesk",
    "pesos": [
     400,
-    600
+    500
    ]
   },
   "titulares": {
-   "archivo": "../assets/fonts/PlusJakartaSans-wght.ttf",
-   "familia": "Plus Jakarta Sans",
+   "archivo": "assets/fonts/SpaceGrotesk-wght.ttf",
+   "familia": "Space Grotesk",
    "pesos": [
-    700,
-    800
+    600,
+    700
    ]
-  },
-  "titulares_itálica": {
-   "archivo": "../assets/fonts/PlusJakartaSans-Italic-wght.ttf",
-   "familia": "Plus Jakarta Sans",
-   "pesos": [
-    700,
-    800
-   ],
-   "uso": "display cinetico en itálica (el reel de referencia)"
   }
  },
  "voces": {

@@ -948,6 +948,28 @@
     "texto": 0.2,
     "linea": 0.9
    }
+  },
+  "lista": {
+   "from": 0,
+   "to": 5,
+   "titulo": "Qué hacer *hoy*",
+   "items": [
+    {
+     "titulo": "Cambia tus contraseñas"
+    },
+    {
+     "titulo": "Activa la verificación en dos pasos"
+    },
+    {
+     "titulo": "Revisa los accesos de tu cuenta"
+    }
+   ],
+   "at": {
+    "rotulo": 0.2,
+    "item0": 0.7,
+    "item1": 1.2,
+    "item2": 1.7
+   }
   }
  }
 }

@@ -110,4 +110,4 @@ router es `/hyperframes`: lee primero, instala cada workflow on demand.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/captions-identidades.md`, `references/flujo-talking-head.md`, `references/motion-ui.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/remotion.md`, `references/instalacion.md`, `references/captions-identidades.md`, `references/flujo-talking-head.md`, `references/motion-ui.md`, `references/tiempo-html.md`

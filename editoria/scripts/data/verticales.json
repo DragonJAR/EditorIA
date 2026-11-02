@@ -31,7 +31,7 @@
     "compilar_reel"
    ],
    "sin_test": {
-    "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 45 escenas del catalogo), no un test",
+    "scripts/galeria.py": "lo ejecuta la validacion (renderiza las 46 escenas del catalogo), no un test",
     "scripts/film_marca.py": "renderiza una pieza entera de cine: la validacion ya lo hace con la v2"
    },
    "entrada": [
