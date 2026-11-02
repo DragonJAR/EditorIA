@@ -47,7 +47,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(AQUI)
 sys.path.insert(0, AQUI)
 sys.path.insert(0, os.path.join(AQUI, "ffmpeg_tools"))
-from _comun import tiempo_de_lectura  # noqa: E402  (el canonico del piso de lectura)
+from _comun import (LETRA_MIN, OCUPACION_MIN,  # noqa: E402  (la fuente unica
+                     tiempo_de_lectura)  # el canonico del piso de lectura
 
 from _plataforma import dir_temp  # noqa: E402
 
@@ -59,9 +60,7 @@ CELDA_MOV = 1.0      # niveles de gris/frame: una celda que se mueve de verdad (
 POP_PROPORCION = 0.35  # fracción de bloques abruptos sin origen para llamarlo aparición
 MOV_RADIO = 10         # px de análisis (≈ 60 px a 1080, 1800 px/s): lo que se mueve más rápido
                        # que esto se lee como teletransporte (aparición), no como movimiento
-LETRA_MIN = 26         # px (sobre lado corto 1080) bajo los cuales no se lee en un teléfono
 QUIETO_SIGMAS = 4      # un bloque se movió si cambia más que 4 veces el piso de grano medido
-OCUPACION_MIN = 0.20   # fracción de la zona segura bajo la cual la pieza es una banda chica:
                        # medido en HEAD, las escenas más angostas POR DISEÑO (apertura,
                        # cartel: solo tipo) ocupan 0.17–0.23; las de datos 0.50–0.86
 FORMATOS = {"v": (1080, 1920), "h": (1920, 1080)}
