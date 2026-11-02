@@ -13,6 +13,7 @@ import argparse  # noqa: F401  (anotaciones de add_common/apply_common)
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -1189,6 +1190,27 @@ def fuente_marca(path_pack: Optional[str], rol: str = "titulares",
     return (ruta_de_pack(path_pack, t.get("archivo")) or
             (resolver_fuente(t["familia"]) if t.get("familia") else None) or
             resolver_fuente(defecto, generica=generica))
+
+
+#: Markup BIEN FORMADO: un par de marcadores pegado al texto, como lo lee
+#: `segmentos_resalte`. «SELECT * FROM», «~/home» o «2^10» son texto, no
+#: markup: el marcador suelto no abre nada.
+_MARKUP_BIEN_FORMADO = re.compile(r"(?<!\w)([*~^])(?=\S)(.+?)(?<=\S)\1(?!\w)")
+
+
+def texto_plano(texto: str) -> str:
+    """El texto SIN marcadores (* ~ ^): para todo campo que se dibuja como
+    texto corrido (etiquetas, detalles, subtitulos). Un campo que no pinta
+    cajas nunca debe mostrar los signos del markup en pantalla.
+
+    Solo quita el markup BIEN FORMADO (pareja pegada a la palabra, como lo
+    lee `segmentos_resalte`): «SELECT * FROM», «~/home» o «2^10» son texto,
+    no markup, y se quedan como están."""
+    texto = str(texto)
+    previo = None
+    while previo != texto:
+        previo, texto = texto, _MARKUP_BIEN_FORMADO.sub(r"\2", texto)
+    return texto
 
 
 def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:

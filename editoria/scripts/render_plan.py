@@ -7063,6 +7063,21 @@ def _regla_de_lectura(e):
         at["p2"]=[round(float(x)+corre,3) for x in p2]
 
 
+CAMPOS_TEXTO_ITEM = ("texto", "titulo", "etiqueta", "detalle", "desc", "sub",
+                      "nombre", "fecha", "etapa", "k", "v")
+
+
+def _sin_markup_en_items(e):
+    """Los items se dibujan como texto corrido: `*clave*` en una tarjeta salia
+    con los asteriscos en pantalla. Solo se quita el markup bien formado
+    (`texto_plano`): «SELECT * FROM» o «~/home» se quedan como están."""
+    from _comun import texto_plano
+    for k, v in list(e.items()):
+        if isinstance(v, list) and v and all(isinstance(x, dict) for x in v):
+            e[k] = [{c: (texto_plano(x[c]) if c in CAMPOS_TEXTO_ITEM
+                         and isinstance(x[c], str) else x[c]) for c in x} for x in v]
+
+
 def completar_escena(e,i=0):
     """Tiempos por defecto: los `at` que el plan no trae se toman de la muestra
     de esa escena, escalados a SU duración (una escena de 8 s reparte sus
@@ -7083,7 +7098,22 @@ def completar_escena(e,i=0):
         for clave,v in m["at"].items():
             if clave not in at: at[clave]=_escalar_t(v,k,e["from"])
         e["at"]=at
+    _sin_markup_en_items(e)
     _regla_de_lectura(e)
+    # el esquema se valida ANTES de pintar: un obligatorio que falta o un tipo
+    # equivocado es un mensaje con escena y campo, no un TypeError en el
+    # render (MEDIDO: el cierre sin `marca` reventaba con KeyError).
+    errs = errores_de_esquema(e, i)
+    if errs:
+        sys.exit("ERROR: " + "\n  ".join(errs) +
+                 f"\n  Ejemplo de `{tipo}`: " +
+                 json.dumps(m or {}, ensure_ascii=False)[:400])
+    # regla UNICA del markup: lo admite todo campo de texto; donde la escena
+    # no pinta enfasis (boton...: esquema `markup: false`) los signos se quitan
+    for p_ in esquema_de(tipo):
+        if not p_["markup"] and isinstance(e.get(p_["nombre"]), str):
+            from _comun import texto_plano
+            e[p_["nombre"]] = texto_plano(e[p_["nombre"]])
     return e
 
 COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}
@@ -7135,6 +7165,307 @@ def campos_de(tipo):
                 campos=campos|_de(c,set())
             _CAMPOS[t_]=comunes|campos
     return _CAMPOS.get(tipo,set(COMUNES))
+
+CAMPOS_CON_RANGO = {
+    "y": {"tipo": "número (fracción del alto)", "rango": [0.08, 0.92],
+          "significado": "centro vertical del bloque; si falta, el centro común del layout"},
+    "max_lineas": {"tipo": "entero", "rango": [1, 4],
+                   "significado": "tope de líneas del texto antes de achicar la letra"},
+    "zona": {"tipo": "lista [x0, y0, x1, y1] (fracciones 0–1)", "rango": [0, 1],
+             "significado": "zona libre declarada donde va el contenido (p. ej. al lado de la cara)"},
+}
+
+SIGNIFICADOS = {
+    "apagar": "segundo en que la escena se apaga (absoluto)",
+    "archivo": "nombre de archivo mostrado (dato, sin markup)",
+    "aspecto": "relación de aspecto del recuadro de imagen",
+    "autor": "quién lo dice (firma de la cita/comentario)",
+    "barras": "lista de barras {etiqueta, valor}",
+    "canales": "lista de canales de entrada {nombre, ...}",
+    "centro": "texto o cifra en el centro del gráfico",
+    "clave": "palabra clave a resaltar",
+    "cliente": "nombre del cliente mostrado",
+    "color": "color #RRGGBB (si falta, el de la marca)",
+    "colores": "lista de colores #RRGGBB (si falta, la serie de la marca)",
+    "contexto": "lista de líneas de contexto del traspaso",
+    "cps": "caracteres por segundo del tecleo",
+    "cuenta": "cifra/cuenta grande del bloque",
+    "cy": "centro vertical (fracción del alto); si falta, el centro común",
+    "decimal": "separador decimal (coma o punto)",
+    "decimales": "número de decimales de la cifra",
+    "derecha": "texto/columna derecha",
+    "detalle": "línea de detalle bajo el dato",
+    "disposicion": "distribución de las tarjetas (auto si falta)",
+    "dur_kb": "duración del movimiento Ken Burns (s)",
+    "estaciones": "lista de estaciones del camino {titulo, texto}",
+    "estado": "etiqueta de estado (dato, sin markup)",
+    "estrellas": "valoración 0–5 (número)",
+    "estrellas_max": "máximo de estrellas (default 5)",
+    "fecha": "fecha mostrada (dato, sin markup)",
+    "figura": "figura 3D (esfera, toro…)",
+    "filas": "lista de filas {nombre, dato}",
+    "final": "cifra final de la cuenta",
+    "frase": "la frase principal; admite *énfasis*",
+    "grosor": "grosor del trazo en px",
+    "hablante": "quién habla (dato, sin markup)",
+    "hace": "tiempo relativo («hace 2 min»)",
+    "hecho": "texto del estado hecho",
+    "hora": "hora mostrada (dato)",
+    "icono": "emoji o 1–2 caracteres; si falta, sin icono",
+    "iniciales": "iniciales del avatar",
+    "italica": "booleano: frase en itálica",
+    "itálica": "booleano: frase en itálica (alias)",
+    "izquierda": "texto/columna izquierda",
+    "lado": "izquierda | derecha",
+    "likes": "cantidad de likes; si falta, no hay línea de likes",
+    "link": "enlace mostrado",
+    "mensajes": "lista de mensajes {de, texto, at}",
+    "miles": "separador de miles",
+    "moneda_despues": "booleano: símbolo después de la cifra",
+    "monto": "importe mostrado (dato)",
+    "mostrar": "monto | porcentaje: qué ahorro se muestra",
+    "nota": "nota al pie",
+    "notificaciones": "lista de notificaciones {app, texto, at}",
+    "objeto": "objeto 3D {figura, color}",
+    "pan_x": "desplazamiento horizontal Ken Burns (fracción)",
+    "pan_y": "desplazamiento vertical Ken Burns (fracción)",
+    "porciones": "lista de porciones {etiqueta, valor}",
+    "query": "texto de búsqueda (dato)",
+    "radio": "radio en px",
+    "resultados": "lista de resultados {titulo, texto}",
+    "resumen": "resumen en una línea",
+    "ruta": "ruta del archivo de medio",
+    "seleccion": "índice del elemento seleccionado",
+    "sufijo": "sufijo de la cifra (%, x, k)",
+    "tam": "tamaño de letra en px (si falta, el rol)",
+    "tam_frase": "tamaño de la frase en px (si falta, el rol)",
+    "tarjetas": "lista de tarjetas {titulo, texto}",
+    "temp": "temperatura del color de la luz",
+    "ticks": "marcas de la escala",
+    "total": "valor total / segundos totales",
+    "transcripcion": "texto transcrito; admite *énfasis*",
+    "url": "URL mostrada (dato)",
+    "usuario": "@usuario (dato); si falta, no se dibuja",
+    "valor_desde": "cifra desde la que cuenta",
+    "ventana": "título de la ventana",
+    "verificado": "booleano: insignia de verificado",
+    "x0": "inicio horizontal (fracción)",
+    "x1": "fin horizontal (fracción)",
+    "y_frase": "posición vertical de la frase (fracción del alto)",
+    "zoom_from": "zoom inicial (1.0–3.0)",
+    "zoom_to": "zoom final (1.0–3.0)",
+    "titulo": "titular/kicker de la escena (arriba, en la escala `rotulo`)",
+    "rotulo": "kicker de la escena (arriba); si falta, no se dibuja",
+    "subtitulo": "línea de apoyo bajo el titular",
+    "fuente": "fuente del dato; el motor antepone «Fuente:» si no lo trae",
+    "items": "elementos de la escena, en orden de entrada",
+    "cards": "tarjetas de cifra: {valor, etiqueta, acento?}",
+    "texto": "copy principal de la escena",
+    "texto1": "primera frase del titular (1–2 líneas)", "texto2": "segunda frase, entra en `at.cambio`",
+    "lineas": "líneas de copy sobre la cifra gigante", "gigante": "la cifra o palabra gigante",
+    "subtexto_gigante": "línea bajo la cifra gigante (texto)", "etiqueta": "qué mide la cifra",
+    "marca": "nombre grande del cierre (escala titular)", "lema": "frase bajo la marca (escala dato)",
+    "boton": "texto del botón (escala dato, sin markup)", "cta": "texto del botón de acción; si falta, no hay botón",
+    "badge": "píldora de anuncio arriba; si falta, no se dibuja", "metrica": "cifra de la tarjeta central",
+    "etiqueta_metrica": "qué mide la métrica", "captura": "imagen de la interfaz (ruta relativa al plan)",
+    "foto": "imagen (ruta relativa al plan)", "pie": "línea de cierre bajo la grilla",
+    "antes": "precio anterior (número)", "ahora": "precio actual (número)", "codigo": "código de descuento",
+    "vence": "fecha o plazo de la oferta", "moneda": "símbolo de moneda", "valor": "número",
+    "nombre": "nombre de la persona", "rol": "cargo o rol", "kicker": "etiqueta corta sobre el titular",
+    "pasos": "pasos de la demo: {texto, at, x?, y?}", "sobrio": "true: sin latido ni halo",
+    "orden": "false: lista sin orden (viñetas en vez de números)",
+}
+ROL_TAMANO = {"marca": "titular", "gigante": "titular", "texto1": "titular", "texto2": "titular",
+              "titulo": "rotulo", "rotulo": "rotulo", "lema": "dato", "boton": "dato", "cta": "dato",
+              "valor": "dato", "metrica": "dato", "subtitulo": "secundario", "texto": "secundario",
+              "etiqueta": "nota", "fuente": "nota", "pie": "nota", "subtexto_gigante": "secundario"}
+MAX_LINEAS = {"texto1": 2, "texto2": 2, "titulo": 2, "rotulo": 2, "marca": 2, "lema": 2, "boton": 1,
+              "cta": 1, "etiqueta": 2, "fuente": 1, "subtitulo": 2, "subtexto_gigante": 2}
+# campos que se pintan como DATO o botón, nunca con énfasis: ahí `*x*` se
+# quitaría (regla única del markup; ver completar_escena)
+SIN_MARKUP = {"boton", "cta", "usuario", "fecha", "likes", "archivo", "estado", "hablante",
+              "query", "url", "monto", "hora", "icono", "badge", "metrica", "precio", "moneda",
+              "antes", "ahora", "descuento", "valor", "marca", "logo", "foto", "imagen", "video",
+              "clip", "captura", "color", "figura", "formato", "mostrar", "fuente", "ruta"}
+BOOLEANOS = {"halo", "latido", "sobrio", "acento", "orden", "activo", "loop", "mayusculas"}
+NUMERICOS = {"antes", "ahora", "descuento", "valor", "decimales", "y", "max_lineas"}
+_MARKUP = re.compile(r"\b(segs|draw_seg|dibuja_markup|dibuja_frase|marcas_de_frase|partir_markup|markup_palabras|rotulo|titular)\s*\(|markup=True")
+_ESQ = {}
+
+
+def _tipo_de(v):
+    if isinstance(v, bool): return "booleano"
+    if isinstance(v, (int, float)): return "número"
+    if isinstance(v, str): return "texto"
+    if isinstance(v, list):
+        if v and all(isinstance(x, dict) for x in v):
+            return "lista de objetos {" + ", ".join(sorted({k for x in v for k in x})) + "}"
+        return "lista"
+    if isinstance(v, dict): return "objeto"
+    return "cualquiera"
+
+
+def _significado_doc(fn, c):
+    """Lo que el docstring de la escena dice del campo (la frase que lo nombra).
+
+    Un paréntesis o un backtick se consume entero: cortar en `;` o a 160
+    caracteres partía `formato` y `sobrio` a mitad de la explicación."""
+    doc = " ".join((fn.__doc__ or "").split())
+    m = re.search(r"`%s\??`" % re.escape(c), doc)
+    if not m:
+        return ""
+    i, j = m.start(), m.end()
+    prof = bt = 0
+    while j < len(doc):
+        ch = doc[j]
+        if ch == "`":
+            bt ^= 1
+        elif bt == 0 and ch == "(":
+            prof += 1
+        elif bt == 0 and ch == ")" and prof:
+            prof -= 1
+        elif bt == 0 and prof == 0 and ch in ".;":
+            j += 1
+            break
+        j += 1
+    return doc[i:j].strip()
+
+
+# campos de COLOR: admiten "#RRGGBB" (o un nombre: "serie") o la lista RGB(A)
+CAMPOS_COLOR = {"color": "color (\"#RRGGBB\" o [r, g, b(, a)])",
+                "colores": "colores (\"serie\" o lista de \"#RRGGBB\" / [r, g, b(, a)])"}
+# defaults que viven fuera de la función de la escena (helpers compartidos)
+DEFECTOS_ESCENA = {("oferta", "moneda"): '"$"'}
+SIGNIFICADOS.setdefault("mayusculas", "true = el texto en versalitas (como el reel); por defecto se respeta la caja del texto")
+# significados que dependen de la escena (el mismo nombre quiere decir otra cosa)
+SIGNIFICADOS_ESCENA = {
+    ("camino", "ruta"): "forma del trazo entre los dos puntos (no un archivo): \"s\" (default) o \"recta\"",
+    ("oferta", "moneda"): "símbolo de moneda delante del precio (default \"$\")",
+}
+
+
+def esquema_de(tipo):
+    """[{nombre, tipo, obligatorio, significado, markup, rol_tamano, max_lineas, default}]
+    de una escena, más la entrada `at` con sus claves. Fuente única: la usan
+    el catálogo (params) y auditar_plan (obligatorios y tipos)."""
+    if tipo in _ESQ:
+        return _ESQ[tipo]
+    import inspect
+    fn = SCENES[tipo]
+    src = inspect.getsource(fn)
+    doc = fn.__doc__ or ""
+    opc_doc = set(re.findall(r"`(\w+)\?", doc))
+    corchete = set(re.findall(r'\be\["(\w+)"\]', src))
+    ej = muestra(tipo) or {}
+    lineas = src.split("\n")
+    con_markup = set()
+    for i, ln in enumerate(lineas):
+        if _MARKUP.search(ln):
+            for ln2 in lineas[max(0, i - 15):i + 1]:
+                con_markup |= set(re.findall(r'\be(?:\.get\(|\[)"(\w+)"', ln2))
+    out = []
+    for c in sorted(campos_de(tipo) - COMUNES):
+        defecto = None
+        m = re.search(r'\be\.get\("%s",\s*([^)]+?)\)' % c, src)
+        if m and m.group(1).strip() not in ('""', "''", "None", "[]", "{}"):
+            defecto = m.group(1).strip()[:30]
+        m2 = re.search(r'\be\.get\("%s"\)\s+or\s+("[^"]*"|\d+(?:\.\d+)?)' % c, src)
+        if defecto is None and m2:   # `e.get("x") or "y"`: "" y ausente valen lo mismo
+            defecto = m2.group(1)[:30]
+        defecto = DEFECTOS_ESCENA.get((tipo, c), defecto)
+        guardado = re.search(r'"%s" in e\b|\be\.get\("%s"' % (c, c), src) is not None
+        obligatorio = c in corchete and not guardado and c not in opc_doc and defecto is None
+        v = ej.get(c)
+        tipo_c = (_tipo_de(v) if c in ej else
+                  "booleano" if c in BOOLEANOS or (defecto or "").startswith(("not ", "True", "False", "OUTRO")) else
+                  "número" if c in NUMERICOS else "texto")
+        if c in CAMPOS_CON_RANGO:
+            tipo_c = CAMPOS_CON_RANGO[c]["tipo"]
+        if c in CAMPOS_COLOR:   # un color se escribe en hex o como [r, g, b(, a)]
+            tipo_c = CAMPOS_COLOR[c]
+        out.append({"nombre": c, "tipo": tipo_c,
+                    "obligatorio": bool(obligatorio),
+                    "significado": SIGNIFICADOS_ESCENA.get((tipo, c)) or SIGNIFICADOS.get(c) or CAMPOS_CON_RANGO.get(c, {}).get("significado") or _significado_doc(fn, c),
+                    "markup": c not in SIN_MARKUP
+                              and not re.search(r'texto_plano\(\s*e(?:\.get\(|\[)"%s"' % c, src)
+                              and (tipo_c == "texto" or (tipo_c == "lista" and c in con_markup)),
+                    "rol_tamano": ROL_TAMANO.get(c), "max_lineas": MAX_LINEAS.get(c),
+                    **({"rango": CAMPOS_CON_RANGO[c]["rango"]} if c in CAMPOS_CON_RANGO else {}),
+                    "default": defecto, "defecto": defecto})
+    # sin otro obligatorio, la LISTA de contenido de la muestra (cards, items…)
+    # es lo que la escena muestra: sin ella saldría vacía
+    if not any(p["obligatorio"] for p in out):
+        for p in out:
+            if p["tipo"].startswith("lista") and isinstance(ej.get(p["nombre"]), list) and p["nombre"] not in opc_doc:
+                p["obligatorio"] = True
+    ats = sorted((ej.get("at") or {}).keys())
+    out.append({"nombre": "at", "tipo": "objeto {clave: segundos}", "obligatorio": False,
+                "significado": ("cuándo entra cada parte, en segundos ABSOLUTOS del plan (no relativos a "
+                                "`from`); una lista = un instante por elemento/palabra. Claves: "
+                                + (", ".join(ats) or "—")),
+                "markup": False, "rol_tamano": None, "max_lineas": None, "default": None,
+                "claves": ats})
+    _ESQ[tipo] = out
+    return out
+
+
+def duracion_de(tipo):
+    """{min, recomendada:[a,b], max, semantica} en segundos. `min`: lo que
+    tarda en entrar todo + 1 s de lectura; `recomendada`: de ahí a 2× la
+    muestra (o +3 s); `max` (duro): 3× la muestra, mínimo 12 s. Así una pieza
+    de 45 s con 5 escenas cabe en lo recomendado (antes la suma de máximos de
+    un plan típico era 38 s)."""
+    ej = muestra(tipo)
+    if not ej:
+        return None
+    d = float(ej["to"]) - float(ej["from"])
+    def _ats(v):
+        if isinstance(v, (int, float)) and not isinstance(v, bool): yield float(v)
+        elif isinstance(v, list):
+            for x in v: yield from _ats(x)
+        elif isinstance(v, dict):
+            for x in v.values(): yield from _ats(x)
+    ult = max([0.0] + [x - float(ej["from"]) for x in _ats(ej.get("at", {}))])
+    mn = round(max(1.5, min(d, ult + 1.0)), 1)
+    rec = round(max(d * 2.0, d + 3.0), 1)
+    return {"min": mn, "recomendada": [mn, rec], "max": round(max(12.0, d * 3.0), 1),
+            "semantica": "segundos de la escena (to − from): recomendada = rango con oficio; "
+                         "max = tope duro (más es una escena muerta: parte el contenido)"}
+
+
+def errores_de_esquema(e, i=0):
+    """Obligatorios que faltan y tipos que no casan, con escena y campo
+    (nunca un TypeError crudo en el render)."""
+    tipo = e.get("tipo")
+    if tipo not in SCENES:
+        return []
+    out = []
+    for p in esquema_de(tipo):
+        c = p["nombre"]
+        if c == "at":
+            continue
+        if p["obligatorio"] and (c not in e or e[c] in ("", None, [])):
+            out.append(f"escena {i+1} ({tipo}): falta el campo obligatorio `{c}` ({p['significado'] or p['tipo']})")
+            continue
+        if c in e and e[c] is not None:
+            v, t = e[c], p["tipo"]
+            ok = ((t == "texto" and isinstance(v, (str, int, float)) and not isinstance(v, bool))
+                  or ((t.startswith("número") or t == "entero") and isinstance(v, (int, float, str))
+                      and not isinstance(v, bool))
+                  or (t.startswith("lista") and isinstance(v, list))
+                  or (t == "booleano" and isinstance(v, bool))
+                  or (t.startswith("objeto") and isinstance(v, dict))
+                  or (t.startswith("color") and isinstance(v, (str, list)))
+                  or t == "cualquiera")
+            if not ok:
+                out.append(f"escena {i+1} ({tipo}): `{c}` debe ser {t}, no {type(v).__name__} "
+                           f"({json.dumps(v, ensure_ascii=False)[:40]})")
+    # el cierre pide UN nombre grande: `marca` (pack) o `titulo` (texto). Ninguno
+    # es obligatorio por sí solo; faltan los dos sí.
+    if tipo == "final" and not str(e.get("marca") or "").strip() and not str(e.get("titulo") or "").strip():
+        out.append(f"escena {i+1} (final): falta el campo obligatorio `marca` o `titulo` (nombre grande del cierre)")
+    return out
+
 
 def avisos_de_campos(e,i=0):
     """Un campo que la escena no lee es casi siempre un error del plan (`pasos`

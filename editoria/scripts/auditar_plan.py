@@ -85,6 +85,96 @@ def at_fuera(at, fr, to):
     return mal
 
 
+_RP = None
+
+
+def _render_plan():
+    """render_plan se importa solo si hace falta (es pesado) y una vez.
+
+    El auditor vive sin PIL ni numpy (lee el motor como texto); estos
+    chequeos NEEDEN el motor (el esquema sale de su codigo). Si no se puede
+    importar, se devuelven vacios: el auditor no se cae nunca por un chequeo
+    opcional.
+    """
+    global _RP
+    if _RP is None:
+        import contextlib, io
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                import render_plan as rp
+        except Exception:
+            return None
+        _RP = rp
+    return _RP
+
+
+_MARKUP_RE = re.compile(r"\*[^*]+\*|~[^~]+~|\^[^^]+\^")
+
+
+def revisar_campos(e, idx):
+    """Lo que antes pasaba como PLAN VALIDO y salia vacio o reventaba en el
+    render: campos que la escena no lee (con «¿quisiste decir...?», la misma
+    funcion que usa render_plan) y valores de tipo equivocado frente a la
+    muestra de la escena (un numero escrito como palabra)."""
+    out = []
+    rp = _render_plan()
+    if rp is None:   # sin PIL/numpy: este chequeo no aplica
+        return out
+    # el motor numera las escenas desde 1 y este auditor desde 0: se pasa i-1
+    # para que el informe hable de la MISMA escena en todos los mensajes
+    for av in rp.avisos_de_campos(e, idx - 1):
+        out.append(("AVISO", av.replace("AVISO: ", "", 1)))
+    ej = rp.muestra(e.get("tipo")) or {}
+    for k, v in e.items():
+        m = ej.get(k)
+        if isinstance(m, (int, float)) and not isinstance(m, bool) and k not in ("from", "to"):
+            if isinstance(v, str):
+                try:
+                    float(v.replace(",", "."))
+                except ValueError:
+                    out.append(("ERROR", f"escena {idx} ({e.get('tipo')}): `{k}` debe ser un numero "
+                                         f"(la muestra usa {m}); llego «{v}»"))
+            elif not isinstance(v, (int, float)) or isinstance(v, bool):
+                out.append(("ERROR", f"escena {idx} ({e.get('tipo')}): `{k}` debe ser un numero "
+                                     f"(la muestra usa {m})"))
+    # el ESQUEMA del catalogo (render_plan.esquema_de): obligatorios y tipos.
+    # Antes pasaban como PLAN VALIDO y el render moria (falta `marca`,
+    # TypeError con `subtexto_gigante` en lista).
+    for err in rp.errores_de_esquema(e, idx - 1):
+        out.append(("ERROR", err))
+    tipo = e.get("tipo")
+    for p_ in rp.esquema_de(tipo):
+        v = e.get(p_["nombre"])
+        if isinstance(v, str) and not p_["markup"] and p_["tipo"] == "texto" and _MARKUP_RE.search(v):
+            out.append(("AVISO", f"escena {idx} ({tipo}): `{p_['nombre']}` no admite markup: los "
+                                 f"signos se quitan y sale texto plano («{v[:30]}»)"))
+    if tipo == "apertura":
+        from _comun import tiempo_de_lectura
+        ap = rp.completar_escena(dict(e), idx) if not rp.errores_de_esquema(e, idx - 1) else None
+        if ap:
+            at_ = ap["at"]
+            leido = float(at_["cambio"]) - float(at_["p1"][-1]) - 0.45
+            if leido < tiempo_de_lectura(ap.get("texto1")) - 0.05:
+                out.append(("AVISO", f"escena {idx} (apertura): la 1.a frase se lee {max(0, leido):.1f} s "
+                                     f"(< {tiempo_de_lectura(ap.get('texto1'))} s): alarga la apertura o "
+                                     f"acorta la frase"))
+    if e.get("_muestra"):
+        out.append(("ERROR", f"escena {idx} ({tipo}): copy de MUESTRA sin reemplazar (va: «{str(e['_muestra'])[:50]}»); "
+                             f"escribe el del brief y borra `_muestra`"))
+    rango = rp.duracion_de(tipo)
+    fr, to = _t_num(e.get("from")), _t_num(e.get("to"))
+    if rango and fr is not None and to is not None:
+        d = to - fr
+        if d > rango["max"]:
+            out.append(("ERROR", f"escena {idx} ({tipo}): dura {d:.1f} s, mas que el maximo de la "
+                                 f"escena ({rango['max']} s): parte el contenido en dos escenas"))
+        elif d > rango["recomendada"][1]:
+            out.append(("AVISO", f"escena {idx} ({tipo}): dura {d:.1f} s, por encima de lo "
+                                 f"recomendado ({rango['recomendada'][0]}-{rango['recomendada'][1]} s; "
+                                 f"maximo {rango['max']} s)"))
+    return out
+
+
 def auditar_estructura(plan, tol=0.05, min_final=2.0):
     """Audita un diccionario de plan ya cargado y devuelve lista de hallazgos."""
     if not isinstance(plan, dict):
@@ -148,6 +238,13 @@ def auditar_estructura(plan, tol=0.05, min_final=2.0):
             add("AVISO", fr, f"escena {idx} ({tipo}): muy corta ({to-fr:.2f}s)")
         if es_vacia(e):
             add("AVISO", fr, f"escena {idx} ({tipo}): escena vacía (sin texto ni voz)")
+        # lo que la ESCENA lee de verdad: campos que no usa, tipos que no
+        # casan, obligatorios que faltan, markup donde no cabe y duraciones
+        # fuera de rango. El motor numera las escenas desde 1 y este auditor
+        # desde 0: se pasa idx-1 para que el informe hable de la MISMA
+        # escena en todos los mensajes.
+        for nivel, msg in revisar_campos(e, idx):
+            add(nivel, fr, msg)
         if "voz" in e and isinstance(e["voz"], str) and not e["voz"].strip():
             add("AVISO", fr, f"escena {idx} ({tipo}): campo voz presente pero vacío")
         if prev_to_val is not None:
@@ -569,17 +666,27 @@ def main():
 
     hallazgos = auditar_estructura(plan, tol=a.tol, min_final=a.min_final)
     if isinstance(plan, dict) and isinstance(plan.get("brand"), str):
-        ruta_brand = plan["brand"]
-        if not os.path.isabs(ruta_brand):
-            ruta_brand = os.path.join(os.path.dirname(os.path.abspath(a.plan)), ruta_brand)
-        try:
-            with open(ruta_brand, encoding="utf-8") as fh:
-                pack = json.load(fh)
-            aviso = _aviso_caption_central(plan, (pack.get("caption") or {}).get("position"))
-            if aviso:
-                hallazgos.append(aviso)
-        except (OSError, ValueError):
-            pass   # un pack ilegible lo reporta el render; aqui no se inventa
+        # el pack que NO existe no puede pasar en silencio: antes se resolvia
+        # la ruta a mano (2 candidatos) y un `except` moria el error; ahora
+        # `buscar_pack` acepta tambien el NOMBRE del pack ("carbon") y el
+        # error dice que packs hay.
+        from _comun import buscar_pack, packs_disponibles
+        base = os.path.dirname(os.path.abspath(a.plan))
+        ruta_brand = buscar_pack(plan["brand"], base)
+        if not ruta_brand:
+            hallazgos.append({
+                "nivel": "ERROR", "t": 0.0,
+                "msg": f"el brand pack «{plan['brand']}» no existe (packs de la skill: "
+                       f"{', '.join(packs_disponibles())}; o una ruta a un .json)"})
+        else:
+            try:
+                with open(ruta_brand, encoding="utf-8") as fh:
+                    pack = json.load(fh)
+                aviso = _aviso_caption_central(plan, (pack.get("caption") or {}).get("position"))
+                if aviso:
+                    hallazgos.append(aviso)
+            except (OSError, ValueError):
+                pass   # un pack ilegible lo reporta el render; aqui no se inventa
     if not a.sin_tells:
         anteriores = []
         for ruta in a.anterior:
