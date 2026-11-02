@@ -6,6 +6,7 @@ nada ni volver a pagar TTS (references/referencia-video.md).
   proyecto/
   ├── BRIEF.md          lo que el usuario pidió: objetivo, hechos, límites, presupuesto acordado
   ├── TRATAMIENTO.md    tu respuesta creativa: premisa, arco, sistemas visuales y sonoros
+  ├── CREDITOS.md       cada activo de terceros de la pieza, con su fuente y su licencia
   ├── PROGRESO.md       foto del ahora: pregunta viva, lo que falta, siguiente acción, renders útiles
   │                     (SISTEMA.md —las decisiones visuales durables— lo escribe direccion_arte.py elegir)
   └── referencias/
@@ -58,13 +59,32 @@ _Tu respuesta creativa al Brief, en lenguaje de dirección (sin nombres de
 scripts ni parámetros). Se reescribe cuando cambia el diseño, no cuando se
 corrige la implementación._
 
+- **Referente** (una o dos obras que fijan el listón para ESTE tema; elegidas para esta pieza):
+  - Qué aprender (composición, ritmo, gramática de cámara, lógica de color, forma de la banda sonora):
+  - Qué no tomar (personajes, diseños, melodías, planos, logos, tipografías):
+- **Tres estructuras candidatas** (unas líneas cada una: viaje único, antes/después, cuenta atrás, lista que gira...), la elegida y por qué. La primera idea que llega para un estilo suele ser su cliché:
+  1.
+  2.
+  3.
 - **Premisa y experiencia del espectador**:
-- **Arco**: gancho → desarrollo → giro/payoff → CTA
-- **Ritmo y trabajo de cada pasaje**:
+- **Arco**: gancho (primeros 3 s) → desarrollo → giro/payoff → CTA. Cierre que hace eco del arranque
+- **Momento nativo** (lo que solo este medio puede hacer; va en el pico emocional):
+- **Ritmo y trabajo de cada pasaje** (mapa de señales: en qué pulso cae cada corte, acción clave y subtítulo):
 - **Sistemas visuales**: A-roll, B-roll, subtítulos, tipografía, gráficas, efectos
-- **Sonido**: voz, música, SFX y silencios
+- **Sonido** (tabla por sección: ambiente, foley principal, estado de la música; al menos dos silencios antes del giro):
 - **Cómo se propagan los cambios pedidos** por cada sistema:
 - **Preguntas creativas abiertas**:
+"""
+
+CREDITOS = """# Créditos
+
+_Todo lo de terceros que entró en la pieza: música, muestras, tipografías,
+imágenes, clips, motor de voz. Una fila por activo, con fuente y licencia
+(CC0, CC BY, OFL o permiso del usuario). Lo propio del usuario va como tal.
+Los créditos de la skill están en references/creditos.md._
+
+| activo | fuente | licencia | dónde se usa |
+|---|---|---|---|
 """
 
 PROGRESO = """# Progreso
@@ -124,6 +144,7 @@ def main():
     creados = []
     escribir(os.path.join(raiz, "BRIEF.md"), BRIEF, creados)
     escribir(os.path.join(raiz, "TRATAMIENTO.md"), TRATAMIENTO, creados)
+    escribir(os.path.join(raiz, "CREDITOS.md"), CREDITOS, creados)
     escribir(os.path.join(raiz, "PROGRESO.md"), PROGRESO.format(hoy=date.today().isoformat()), creados)
 
     pasos = []

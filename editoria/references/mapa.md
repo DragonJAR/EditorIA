@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-69 referencias, 51 scripts, 20 herramientas de ffmpeg y 76 suites de tests. Este
+70 referencias, 52 scripts, 21 herramientas de ffmpeg y 78 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -117,6 +117,7 @@ escribir es un tapón).
 | `principios.md` | los principios permanentes (3 pilares, el gusto, la marca) | estructura |
 | `dramaturgia.md` | el arco: marco, tensión, giro, resonancia | estructura |
 | `direccion.md` | el listón medido, los 10 patrones, la dirección de energía | estructura |
+| `metodo-direccion.md` | del brief a la entrega: referente, tres estructuras, tratamiento, sonido, cierre y entrega, cambiar un estilo sin romperlo | estructura |
 | `direccion-de-arte.md` | la dirección de arte: la idea del sujeto, las direcciones repartidas, el registro de tells | estructura |
 | `tonos.md` | la energía creativa de la pieza | estructura |
 | `estilos.md` | los lenguajes visuales aprendidos | estructura |
@@ -320,7 +321,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 69 referencias, no se estiman.
+    guard nuevo se cuentan contra las 70 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que

@@ -55,6 +55,9 @@
   "scripts/beat_sync.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
   ],
+  "scripts/captions_identidades.py": [
+   "scripts/_tests/test_captions_identidades.py"
+  ],
   "scripts/chapters.py": [
    "scripts/_tests/test_chapters.py",
    "scripts/_tests/test_cli_de_herramientas.py"
@@ -79,8 +82,8 @@
   "scripts/efectos_talking_head.py": [
    "scripts/_tests/test_efectos_talking_head.py"
   ],
-  "scripts/captions_identidades.py": [
-   "scripts/_tests/test_captions_identidades.py"
+  "scripts/ffmpeg_tools/acabado.py": [
+   "scripts/_tests/test_acabado.py"
   ],
   "scripts/ffmpeg_tools/aplicar_edl.py": [
    "scripts/_tests/test_cli_de_herramientas.py"
@@ -147,6 +150,9 @@
   ],
   "scripts/medir_mezcla.py": [
    "scripts/_tests/test_core_and_scenes.py"
+  ],
+  "scripts/medir_silencios.py": [
+   "scripts/_tests/test_medir_silencios.py"
   ],
   "scripts/mezclar_audio.py": [
    "scripts/_tests/test_comandos_copiables.py",
