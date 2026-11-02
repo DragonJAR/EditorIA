@@ -523,7 +523,7 @@ def acento_legible(fondo, tam, acento=None):
     a 4.5:1 (3:1 en display, >= DISPLAY_MIN) el acento pasa tal cual; si no,
     su paso más claro del mismo tono (`_legible`); si ese paso ya es casi
     blanco, el énfasis cae a la tinta de la pieza (blanco sobre oscuro).
-    Medido: el rojo de DragonJAR sobre la placa gris del callout 1.33:1 y en
+    Medido: el rojo del pack de ejemplo sobre la placa gris del callout 1.33:1 y en
     un kicker chico sobre casi negro 3.23:1."""
     import colorsys
     from _comun import contraste
@@ -2426,7 +2426,14 @@ def sc_medianoche(ctx,e,t):
         # la tarjeta de la notificación se mide con su letra
         f_tit=ctx.fX(ESCALA["nota"]*esc,800); fnt_n=ctx.fX(ESCALA["nota"]*esc,400)
         h_t,h_b=sum(f_tit.getmetrics()),sum(fnt_n.getmetrics())
-        hn=int(max(140,2*22+h_t+4+h_b)); paso_n=hn+30
+        # el cuerpo PARTE en hasta dos líneas antes de recortarse: en 16:9 la
+        # letra sube (`esc`) y «2 unidades · pagado» se recortaba en silencio
+        ancho_n=tw-44-110-14
+        cuerpos=[linewrap(n["texto"],fnt_n,ancho_n,ctx.tmp)[:2] or [""] for n in nots]
+        cuerpos=[c[:-1]+[recorta_para(" ".join(linewrap(n["texto"],fnt_n,ancho_n,ctx.tmp)[len(c)-1:]),fnt_n,ancho_n,ctx.tmp)]
+                 for c,n in zip(cuerpos,nots)]
+        n_l=max(len(c) for c in cuerpos) if cuerpos else 1
+        hn=int(max(140,2*22+h_t+4+h_b*n_l)); paso_n=hn+30
         for i,n in enumerate(nots):
             kn=entra(t, n["at"], "suave")
             if kn<=0: continue
@@ -2438,12 +2445,12 @@ def sc_medianoche(ctx,e,t):
             dn.rounded_rectangle([0,0,tw-44,hn],radius=28,fill=(255,255,255,36))
             dn.ellipse([22,hn/2-32,86,hn/2+32],fill=ACENTO+(255,))
             pinta_glifo_canal(ctx,dn,n["canal"],54,hn/2,32,BLANCO,icono=n.get("icono"),tam=34*esc)
-            y_t=(hn-h_t-4-h_b)/2
-            pon_texto(dn, (110,y_t),recorta_para(n["titulo"],f_tit,tw-44-110-14,ctx.tmp),font=f_tit,fill=BLANCO)
+            y_t=(hn-h_t-4-h_b*len(cuerpos[i]))/2
+            pon_texto(dn, (110,y_t),recorta_para(n["titulo"],f_tit,ancho_n,ctx.tmp),font=f_tit,fill=BLANCO)
             # el cuerpo es un "nota" de la escala (por `esc`, ya reducido
-            # sigue en el piso) y el copy se recorta al ancho real
-            pon_texto(dn, (110,y_t+h_t+4),recorta_para(n["texto"],fnt_n,tw-44-110-14,ctx.tmp),
-                    font=fnt_n,fill=(255,255,255,190))
+            # sigue en el piso): parte en dos líneas y solo lo que sobra se recorta
+            for j,ln in enumerate(cuerpos[i]):
+                pon_texto(dn, (110,y_t+h_t+4+j*h_b),ln,font=fnt_n,fill=(255,255,255,190))
             a=nw.split()[3].point(lambda v, _kn=kn:int(v*clamp01(_kn*1.5))); nw.putalpha(a)
             ph.alpha_composite(nw,(22,int(ny)))
         ph=ph.resize((max(1,int(tw*sc)),max(1,int(th*sc))),Image.LANCZOS)

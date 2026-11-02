@@ -1006,11 +1006,12 @@ try:
     _typo = _R5.avisos_de_campos({"tipo": "pasos", "from": 0, "to": 4, "pasos": [{"titulo": "x"}]})
     check(not _ruido and _typo and "`items`" in _typo[0],
           f"campos mal escritos: avisados con sugerencia, 0 avisos en las muestras ({len(_ruido)} ruido)")
-    _R5.aplicar_globales({"numeros": "es"})
+    # es es el default (1.240 · 4,8); "en" es opt-in (1,240 · 4.8)
+    _R5.aplicar_globales({"numeros": "en"})
     _n5 = (_R5.cuenta_up(0, 1240, 9, 0), _R5.cuenta_up(0, 4.8, 9, 0))
     _R5.aplicar_globales({})
-    check(_n5 == ("1.240", "4,8") and _R5.cuenta_up(0, 1240, 9, 0) == "1,240",
-          f"\"numeros\": \"es\" separa 1.240 y 4,8 (default 1,240) ({_n5})")
+    check(_n5 == ("1,240", "4.8") and _R5.cuenta_up(0, 1240, 9, 0) == "1.240",
+          f"\"numeros\": \"en\" separa 1,240 y 4.8 (default es: 1.240) ({_n5})")
     if not _HAY_PIL_NP:
         _R5.aplicar_globales({"subtitulos": True})
         try:

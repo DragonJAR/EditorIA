@@ -276,6 +276,22 @@ class TestSinHaloDeNeon(unittest.TestCase):
         self.assertLess(hold, 0.5 * pico, f"el brillo sigue encendido en el hold ({hold:.0f} vs {pico:.0f})")
 
 
+class TestMedianocheSinRecorte(unittest.TestCase):
+    """En 16:9 la letra de la notificación sube (`esc`): el cuerpo parte en
+    dos líneas antes de recortarse (validate_skill: «ninguna escena recorta
+    su copy en silencio», medianoche «2 unidades · pagado»)."""
+
+    def test_el_cuerpo_parte_en_vez_de_recortarse(self):
+        for ancho, alto in ((1920, 1080), (1080, 1920)):
+            with self.subTest(formato=f"{ancho}x{alto}"):
+                R = _motor(ancho, alto)
+                e = _muestra("medianoche")
+                R.RECORTES.clear()
+                for t in (0.5, e["to"] / 2, e["to"] - 0.3):
+                    R.pintar(R.Ctx(), e, t)
+                self.assertEqual([r["texto"] for r in R.RECORTES], [])
+
+
 class TestPackSinFuga(unittest.TestCase):
     """Un pack `corte_seco` no deja su solape instalado para lo que sigue."""
 

@@ -186,7 +186,7 @@ When the brief includes narration, synthesize voice-over (`references/sonido.md`
 ```bash
 python scripts/sfx.py -o assets/sfx/                          # pack de efectos (una vez)
 python scripts/voz_off.py plan.json -o voz.mp3 --guion guion.txt   # un segmento por escena + el guion hablado
-# sin API key: python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt  (maqueta; dilo al usuario)
+# sin API key (maqueta; dilo al usuario): python scripts/voz_local.py plan.json -o voz.wav --guion guion.txt
 python scripts/alinear.py voz.mp3 guion.txt -o voz.palabras.json
 python scripts/musica.py gen --prompt "modern upbeat electronic" --dur 30 -o mus.mp3
 # sin API key: python scripts/musica.py cama -o mus.wav --dur 30 --bpm 100
