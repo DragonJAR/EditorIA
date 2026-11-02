@@ -3,10 +3,9 @@
 Registro de lo que cambia en la skill, por versión. El detalle de *por qué*
 está en el mensaje de cada commit (`git log`); aquí está el *qué*.
 
-Este archivo viaja con la skill (va en la raíz del paquete, como el del fork
-1.11.2). La skill se publica en `https://github.com/DragonJAR/EditorIA`; la
-copia instalada (`~/.minimax/skills/editoria`) se sincroniza con lo
-publicado: el repo manda.
+La skill se publica en `https://github.com/DragonJAR/EditorIA`; la copia
+instalada (`~/.minimax/skills/editoria`) se sincroniza con lo publicado: el
+repo manda.
 
 ## 1.11.4 — la convergencia con el fork del 30-oct
 
@@ -58,3 +57,7 @@ Sin registro en este fichero: el historial está en los mensajes de commit
 ---
 
 Licencia MIT. Autor: Jaime Andrés Restrepo (DragonJAR).
+
+---
+
+→ Canónico: `references/mapa.md` · Dominio: operacion · Vecinos: `references/instalacion.md`, `references/capacidades.md`, `references/qa-entrega.md`

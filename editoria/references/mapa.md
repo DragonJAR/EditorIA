@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-69 referencias, 52 scripts, 20 herramientas de ffmpeg y 86 suites de tests. Este
+70 referencias, 52 scripts, 20 herramientas de ffmpeg y 86 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -171,6 +171,7 @@ escribir es un tapón).
 | `creditos.md` | el material de terceros estudiado o adaptado, con su licencia | operacion |
 | `paleta.md` | el color en modo libre: catálogo y regla de elección | color |
 | `capacidades.md` | con qué cuenta la skill y qué falta | herramienta |
+| `changelog.md` | qué cambió en cada versión de la skill | operacion |
 | `tiempo-html.md` | el tiempo en los motores HTML: el kit `assets/js/tiempo.mjs` (espejo del motor), motion blur, trampas y las tres puertas | herramienta |
 | `creditos.md` | el material de terceros estudiado o adaptado, con su licencia | operacion |
 | `remotion.md` | la integración con Remotion | herramienta |
@@ -322,7 +323,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 69 referencias, no se estiman.
+    guard nuevo se cuentan contra las 70 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que
@@ -393,4 +394,6 @@ cada suite nueva sumaba una palabra y la puerta caía por una palabra.
 
 ---
 
-→ Canónico: `references/mapa.md` · Dominio: indice · Vecinos: `references/plan-video.md`, `references/arquitectura.md`, `references/qa-entrega.md`
+---
+
+→ Canónico: `references/mapa.md` · Dominio: indice · Vecinos: `references/plan-video.md`, `references/arquitectura.md`, `references/qa-entrega.md`, `references/changelog.md`

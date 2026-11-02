@@ -243,7 +243,7 @@ REGLAS_UNICAS = [
     # en prosa (la del indice y la del SKILL.md) tienen que decir el mismo
     # numero, o quien las lee cuenta mal. Mismo motivo que las demas reglas:
     # si el numero cambia, la prosa se queda con el viejo y nadie lo dice.
-    {"nombre": "numero de referencias", "tipo": "exacto", "valor": 69,
+    {"nombre": "numero de referencias", "tipo": "exacto", "valor": 70,
      "patron": r"index of this skill: (\d+) references|contra las (\d+) referencias"},
 ]
 
@@ -1244,13 +1244,19 @@ def _rels_de_texto(txt, base_rel=""):
     prefijos = ("references/", "scripts/", "film/", "metricas/", "assets/", "brand/")
     for m in REF.finditer(txt):
         p = m.group(0).rstrip(".,;:)`")
+        # un fichero .md SIN prefijo puede ser de la RAIZ del paquete
+        # (CHANGELOG.md): se cita tal cual y vive en la raiz de la skill
+        es_raiz = p.endswith(".md") and "/" not in p
         if base_rel.startswith("brand/"):
             # dentro de un pack: primero relativa al pack (como ruta_de_pack del
             # motor) y, si no existe ahi, relativa a la raiz de la skill
             cand = os.path.normpath(os.path.join(os.path.dirname(base_rel), p))
             p = cand if os.path.exists(os.path.join(BASE, cand)) else p
         elif not p.startswith(prefijos):
-            p = os.path.normpath(os.path.join(os.path.dirname(base_rel), p))
+            if es_raiz and os.path.exists(os.path.join(BASE, p)):
+                pass   # un .md de la raiz del paquete: tal cual
+            else:
+                p = os.path.normpath(os.path.join(os.path.dirname(base_rel), p))
         out.add(p)
     return out
 
