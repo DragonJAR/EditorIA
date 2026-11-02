@@ -1,7 +1,7 @@
 # Efectos talking-head — detalle interno (face tracking)
 
 **No es un catálogo paralelo.** La elección del agente es
-`scripts/repertorio.py` (misma superficie que las 45 escenas y los gestos UI).
+`scripts/repertorio.py` (misma superficie que las 46 escenas y los gestos UI).
 Este documento y `scripts/data/efectos_talking_head.json` son el **detalle de
 producción** cuando la opción resuelta tiene `motor=efecto` o `nativo`.
 

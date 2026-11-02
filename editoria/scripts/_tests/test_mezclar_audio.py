@@ -214,7 +214,10 @@ class TestNivelMusica(unittest.TestCase):
             video, musica, _voz, plan = self._material(d)
             a = os.path.join(d, "a.mp4")
             b = os.path.join(d, "b.mp4")
-            r = self._correr([plan, "--video", video, "--musica", musica, "-o", a])
+            # el NIVEL de la cama es el mismo que el de musica.py: se compara
+            # la mezcla cruda (la normalización de plataforma va aparte)
+            r = self._correr([plan, "--video", video, "--musica", musica, "-o", a,
+                              "--sin-normalizar"])
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             r = subprocess.run([sys.executable, os.path.join(SCRIPTS, "musica.py"),
                                 "musiconly", "-v", video, "-m", musica, "-o", b],
@@ -222,15 +225,31 @@ class TestNivelMusica(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertAlmostEqual(self._pico(a), self._pico(b), delta=0.5)
 
+
+    def test_por_defecto_sale_al_objetivo_de_reels(self):
+        """La mezcla sale a -14 LUFS y TP <= -1,0 dBTP (Reels) sin pasos
+        extra: antes salía cruda (medido: -33 LUFS con cama + SFX)."""
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        import loudness as L
+        with tempfile.TemporaryDirectory() as d:
+            video, musica, _voz, plan = self._material(d)
+            a = os.path.join(d, "a.mp4")
+            r = self._correr([plan, "--video", video, "--musica", musica, "-o", a])
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            m = L.measure(a, -14.0, -1.0, 11.0)
+            self.assertAlmostEqual(float(m["input_i"]), -14.0, delta=1.0)
+            self.assertLessEqual(float(m["input_tp"]), -1.0 + 0.05)
+
     def test_bajo_la_voz_la_musica_baja_unos_16_db(self):
         with tempfile.TemporaryDirectory() as d:
             video, musica, voz, plan = self._material(d)
             solo = os.path.join(d, "solo.mp4")
             convoz = os.path.join(d, "convoz.mp4")
             self.assertEqual(self._correr([plan, "--video", video, "--musica", musica,
-                                           "-o", solo]).returncode, 0)
+                                           "-o", solo, "--sin-normalizar"]).returncode, 0)
             self.assertEqual(self._correr([plan, "--video", video, "--musica", musica,
-                                           "--voz", voz, "-o", convoz]).returncode, 0)
+                                           "--voz", voz, "-o", convoz,
+                                           "--sin-normalizar"]).returncode, 0)
             # ventana sin voz (2.0-3.5 s): solo la musica
             ventana = {"desde": 2.0, "dur": 1.5}
             alto = self._pico(solo, **ventana)

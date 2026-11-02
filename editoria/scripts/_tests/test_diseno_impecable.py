@@ -443,10 +443,25 @@ class TestMono(unittest.TestCase):
         self.assertIn("IBM Plex Mono", lic, "la licencia OFL debe nombrar la fuente empaquetada")
 
     def test_el_fallback_mono_del_pack_es_la_empaquetada(self):
+        # carbon trae su propia mono (Space Mono en brand/assets/fonts, desde
+        # 1.11.2): el pack manda. El FALLBACK se prueba con un pack cuya mono
+        # no existe: entonces cae en la mono empaquetada del motor.
+        import json, tempfile
         from _comun import fuente_marca
-        pack = os.path.join(os.path.dirname(SCRIPTS), "brand", "carbon.json")
         R = _motor()
-        hit = fuente_marca(pack, "etiquetas_mono", R.MONO_FAMILIA, "mono")
+        carbon = os.path.join(os.path.dirname(SCRIPTS), "brand", "carbon.json")
+        propia = fuente_marca(carbon, "etiquetas_mono", R.MONO_FAMILIA, "mono")
+        self.assertTrue(propia and os.path.basename(propia).startswith("SpaceMono"), propia)
+        with open(carbon, encoding="utf-8") as f:
+            cfg = json.load(f)
+        cfg["fonts_dir"] = "no-existe"
+        cfg["tipografias"]["etiquetas_mono"] = {"archivo": "no-existe/Nada.ttf",
+                                                 "familia": "Familia Inexistente Mono"}
+        with tempfile.TemporaryDirectory() as d:
+            pack = os.path.join(d, "sin_mono.json")
+            with open(pack, "w", encoding="utf-8") as f:
+                json.dump(cfg, f)
+            hit = fuente_marca(pack, "etiquetas_mono", R.MONO_FAMILIA, "mono")
         self.assertTrue(hit and os.path.exists(hit))
         if "DejaVu" not in os.path.basename(hit):   # sin DejaVu instalada
             self.assertEqual(os.path.dirname(os.path.abspath(hit)), os.path.abspath(FUENTES))

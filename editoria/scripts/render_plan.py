@@ -17,9 +17,14 @@ except ModuleNotFoundError as _e_dep:
 # Sin pack (modo libre) nada de marca: acento neutro y fuentes empaquetadas.
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _plataforma import resolver_fuente, variante_de_peso
-from _comun import NEUTRO, aplicar_grano, segmentos_enfasis, segmentos_resalte  # paleta, grano y markup * ~ ^
+from _comun import NEUTRO, aplicar_grano, segmentos_enfasis, segmentos_resalte, texto_plano  # paleta, grano y markup * ~ ^
+from _comun import LETRA_MIN  # el piso legible: UNA cifra para motor, medición y QA
 ACENTO=NEUTRO["acento"]; ACENTO_OSC=NEUTRO["acento_oscuro"]; NEGRO=NEUTRO["negro"]
+ACENTO_TEXTO=ACENTO
+ACENTO_GRANDE=ACENTO
 BLANCO=NEUTRO["blanco"]; GRIS=NEUTRO["gris"]; PANEL=(26,26,26); PANEL2=(38,38,38)
+REBOTE=True; PARTICULAS=True; VOLUMEN=True
+OUTRO_SOBRIO=False
 
 # ---------- tokens de categoría y de estado (references/paleta.md) ----------
 # Las escenas de datos necesitan MÁS de un color (porciones, temperaturas,
@@ -125,7 +130,7 @@ ESCALA={
     "secundario":  32,   # cuerpo: mensajes, titulos de item, pares clave-valor
     "nota":        28,   # apoyo: estado, detalle, fecha, caption
 }
-MIN_LETRA=26   # piso de LETRA LEGIBLE: lo mide el QA (LETRA_MIN, misma cifra)
+MIN_LETRA=LETRA_MIN   # piso de LETRA LEGIBLE: el mismo LETRA_MIN que mide el QA (_comun)
 TAM_CHECK=14   # glifo "✓" de verificado, dentro de un badge de 18 px. NO es
                 # texto (no tiene alfanumericos): no cuenta para el piso de
                 # letra legible, igual que lo excluye la medicion del QA.
@@ -137,11 +142,37 @@ STAGGER=0.06   # s entre items de una lista o grilla (animacion.md §4: 40-90 ms
                # Antes cada escena escribía su `i*0.xx` (0.08-0.40 s): una lista
                # de cuatro filas tardaba 1.2 s en armarse y se leía lenta.
 
-def escalonado(at, clave, i, base):
+def escalonado(at, clave, i, base, lista=None, desde=None):
     """Instante de entrada del item `i` de una cascada: el `at` explícito del
     plan manda (`item2`); si no, sigue a `<clave>0` (o `base`) a paso STAGGER.
-    Así un plan que solo fija cuándo empieza la lista hereda la cadencia."""
-    return at.get(f"{clave}{i}", at.get(f"{clave}0", base) + i * STAGGER)
+    Así un plan que solo fija cuándo empieza la lista hereda la cadencia.
+
+    Con `lista` (los items de la escena) manda el `at` PROPIO de cada item
+    (`items[{titulo, at}]`, como lo documenta escenas.md): antes se ignoraba
+    y solo contaba `at.item0..n`, que completar_escena rellena con la muestra.
+    Un `at` de item menor que `desde` (el `from` de la escena) se lee
+    relativo al inicio de la escena. Un item sin `at` propio que vaya tras
+    uno que sí lo tiene nunca entra antes que él (sigue a paso STAGGER)."""
+    if not lista:
+        return at.get(f"{clave}{i}", at.get(f"{clave}0", base) + i * STAGGER)
+    return tiempos_escalonados(at, clave, lista, base, desde)[i]
+
+def tiempos_escalonados(at, clave, lista, base, desde=None):
+    """Los instantes de entrada de TODOS los items (ver `escalonado`)."""
+    ts, propio = [], False
+    for i, it in enumerate(lista):
+        v = it.get("at") if isinstance(it, dict) else None
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            t_i = float(v)
+            if desde is not None and t_i < desde:
+                t_i += desde
+            propio = True
+        else:
+            t_i = escalonado(at, clave, i, base)
+            if propio and ts and t_i <= ts[-1]:
+                t_i = ts[-1] + STAGGER
+        ts.append(t_i)
+    return ts
 
 def zona_segura(plataforma):
     """Márgenes seguros en px desde la tabla canónica (_delivery.py).
@@ -326,7 +357,11 @@ segs=segmentos_enfasis   # '*palabra*' = énfasis en acento (una sola implementa
 #    ~10 px entre letras). Desde DISPLAY_MIN se acercan APRIETE_PUNTO del
 #    cuerpo. Solo detrás de una LETRA: el punto decimal de una cifra es parte
 #    del número y conserva su sitio.
-DISPLAY_MIN=72
+# DISPLAY_MIN: px desde los que una letra es "grande" (display). UNA cifra para
+# el apriete del punto y para el umbral de contraste (3:1 en display, 4.5:1
+# por debajo). Había dos definiciones (72 y 48); al importar ganaba la segunda,
+# así que todo el motor ya corría con 48.
+DISPLAY_MIN=48
 APRIETE_PUNTO=0.08
 _PUNTOS=".,"
 _TMP_TEXTO=None
@@ -385,8 +420,7 @@ def pon_texto(d,xy,txt,font=None,fill=None,anchor=None,**kw):
     if x1>x0 and y1>y0:
         dest.alpha_composite(sub,(x0,y0),(x0,y0,x1,y1))
 
-# ---------- texto con énfasis *...* ----------
-segs=segmentos_enfasis   # '*palabra*' = énfasis en acento (una sola implementación)
+# ---------- texto con énfasis *...* (segs, definido arriba) ----------
 def seg_width(sg,fnt):
     return largo_texto("".join(t for t,_ in sg),fnt)
 def draw_seg(d,xy,sg,fnt,fill,emph_fill,anchor="la",spacing=0):
@@ -504,7 +538,7 @@ def mancha_mask(ctx,t,t0,dur=0.7,fx=0.5,fy=0.45):
 
 
 # ---------- contraste: UNA regla para el acento y UNA para la decoración ----------
-DISPLAY_MIN=48   # px desde los que una letra es "grande" (umbral 3:1); por debajo, 4.5:1
+# (DISPLAY_MIN, el umbral de letra "grande", está definido con `pon_texto`)
 
 def fondo_bajo(img, caja):
     """El color que hay DEBAJO de `caja` en `img` (sobre el negro de la pieza):
@@ -784,10 +818,31 @@ def capa_fija(layer):
     abrió: una escena pintada suelta, p. ej. en un test, lo dibuja todo junto)."""
     return _FIJA[-1] if _FIJA else layer
 
+def orientacion():
+    """'vertical' | 'cuadrado' | 'horizontal': la decisión de composición, en
+    UN sitio. En 1:1 `H>W` y `W>H` son falsas las dos, y cada escena caía en
+    una rama distinta (timeline dibujaba el eje horizontal y las etiquetas
+    chocaban). Cuadrado = proporción entre 0,9 y 1,1."""
+    r = W / max(1, H)
+    return "cuadrado" if 0.9 <= r <= 1.1 else ("horizontal" if r > 1 else "vertical")
+
 def rotulo_y():
     """Altura canónica unificada para rótulos según formato (H*0.20 en 9:16, H*0.16 en 16:9).
     Garantiza coherencia espacial y retícula uniforme entre escenas (references/coherencia-espacial.md)."""
     return vy(0.20) if H > W else vy(0.16)
+
+def _rotulo_ajuste(ctx,texto,tam=None):
+    """(líneas de segmentos, fuente, tamaño, ancho) de un rótulo en la zona
+    segura: encoge hasta TAM_MIN_ROTULO y, si ni así cabe, parte en dos. UNA
+    medida: la usan `rotulo()` al dibujar y quien necesita su alto antes
+    (el lema del cierre)."""
+    tam=ESCALA["rotulo"] if tam is None else tam
+    sg=segs(texto); fnt=ctx.fX(tam,700)
+    zx0,_,zx1,_=caja_segura()   # el rótulo cabe en la zona segura: encoge, nunca se sale
+    ancho=(zx1-zx0)-20
+    while tam>TAM_MIN_ROTULO and seg_width(sg,fnt)>ancho:
+        tam-=2; fnt=ctx.fX(tam,700)
+    return partir_segs(sg,fnt,ancho),fnt,tam,ancho
 
 def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=None):
     """Rótulo con entrada real: cada línea sube desde detrás de su línea base
@@ -795,18 +850,13 @@ def rotulo(ctx,layer,t,texto,at,y=None,color=None,tam=None):
     El tamaño por defecto es el rol `rotulo` de la ESCALA (antes un 44 escrito
     aquí aparte: dos fuentes de verdad para la misma cifra)."""
     color=color or BLANCO
-    tam=ESCALA["rotulo"] if tam is None else tam
     if not texto or t<at: return 0   # sin rótulo en el plan: no se dibuja
     k=entra(t, at, "bloque")
-    sg=segs(texto); fnt=ctx.fX(tam,700)
-    zx0,_,zx1,_=caja_segura()   # el rótulo cabe en la zona segura: encoge, nunca se sale
-    ancho=(zx1-zx0)-20
-    while tam>TAM_MIN_ROTULO and seg_width(sg,fnt)>ancho:
-        tam-=2; fnt=ctx.fX(tam,700)
+    lineas,fnt,tam,_=_rotulo_ajuste(ctx,texto,tam)
     yy=rotulo_y() if y is None else y
     if abs(yy-rotulo_y())<0.5: layer=capa_fija(layer)   # el kicker canónico no viaja con el encuadre
     asc,desc=fnt.getmetrics(); aire=int(tam*0.12)   # aire arriba para el overshoot
-    for i,ln in enumerate(partir_segs(sg,fnt,ancho)):   # si ni a 30 px cabe: dos líneas
+    for i,ln in enumerate(lineas):   # si ni a 30 px cabe: dos líneas
         y_ln=yy+i*tam*1.2
         bx0=int(W/2-seg_width(ln,fnt)/2)-4; by0=int(y_ln)-aire
         tile=Image.new("RGBA",(int(seg_width(ln,fnt))+10,aire+asc+desc+2),(0,0,0,0))
@@ -954,8 +1004,9 @@ def radio_de(radio, w, h):
 
 
 def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
-               hecho=None, fnt_hecho=None):
+               hecho=None, fnt_hecho=None, halo=True):
     """Botón CTA de la casa: píldora con marco blanco fino que RESPIRA.
+    `halo=False` (el cierre `sobrio`) la deja quieta: sin latido.
 
     UN componente para toda la pieza (hero, final, pago, demo): el mismo
     aspecto en todas las escenas; solo cambian el texto y, en `pago`, el
@@ -967,7 +1018,7 @@ def boton_halo(d, cx, cy, w, h, texto, fnt, t, t0, color=None, alpha=255,
     # la vida en el hold es la píldora que respira (escala 1 -> 1,025), no un
     # aro de color que late alrededor: un halo de neón sin desplazamiento es
     # decoración (direccion-de-arte.md, «resplandor o halo de neón»)
-    pulso = 0.5 - 0.5 * math.cos(max(0.0, t - t0) * 3.6)
+    pulso = (0.5 - 0.5 * math.cos(max(0.0, t - t0) * 3.6)) if halo else 0.0
     w, h = w * (1 + 0.025 * pulso), h * (1 + 0.025 * pulso)
     r_ = h / 2
     pildora = [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2]
@@ -1767,6 +1818,16 @@ def circulo_numero(d, cx, cy, radio, texto, color, color_texto, ctx, alpha=255):
                           800, tabular=True)
     cifra(d, (cx, cy), texto, fnt, tinta, anchor="mm", final=texto)
 
+
+def linea_que_cabe(fabrica, texto, tam, ancho_max, peso=700, minimo=None):
+    """UNA línea de texto del plan en su caja: (fuente, texto). Encoge hasta el
+    piso legible (MIN_LETRA, no 18) y, si ni así cabe, recorta con «…» y lo
+    anota en RECORTES. Es el camino de toda etiqueta de una línea: con
+    `fuente_que_cabe` solo, el texto largo se salía del cuadro a 18 px."""
+    texto = texto_plano(str(texto or ""))
+    fnt = fuente_que_cabe(fabrica, texto, tam, ancho_max, peso,
+                          minimo=MIN_LETRA if minimo is None else minimo)
+    return fnt, recorta_para(texto, fnt, ancho_max)
 
 def texto_que_cabe(fabrica, texto, tam, ancho_max, peso=400, max_lineas=2, minimo=None):
     """Ajusta un texto a un ancho PARTIÉNDOLO antes de encogerlo.
@@ -2915,43 +2976,95 @@ def sc_remate(ctx,e,t):
                    fill=BLANCO + (int(255 * a_g),), anchor="ma")
     return capa_salida(layer,t,e["to"])
 
+
+def zona_contenido(ctx, titulo="", fuente=False):
+    """(y0, y1) del hueco común de contenido de una escena: bajo el rótulo
+    (`bajo_rotulo`, la misma medida que el resto del catálogo) y sobre la
+    línea de fuente. El centro óptico es CENTRO_OPTICO, el del encuadre."""
+    _, zy0, _, zy1 = caja_segura()
+    y0 = bajo_rotulo(rotulo_y(), aire=0.2) if titulo else zy0 + 0.04 * H
+    y1 = zy1 - (ESCALA["nota"] * 2.2 if fuente else 0.02 * H)
+    return y0, y1
+
+
+def y_bloque(ctx, alto, titulo="", fuente=False):
+    """y superior de un bloque de `alto` px en el centro común (óptico)."""
+    y0, y1 = zona_contenido(ctx, titulo, fuente)
+    if not titulo:
+        y0 = caja_segura()[1]
+        if not fuente:
+            y1 = caja_segura()[3]
+    libre = max(0.0, (y1 - y0) - alto)
+    return y0 + libre * CENTRO_OPTICO
+
+
 def sc_final(ctx,e,t):
     """Lockup de cierre: entra con resorte y luego RESPIRA (flotación, pulso del
-    botón, push-in lento) — un end card quieto es un frame congelado."""
+    botón, push-in lento) — un end card quieto es un frame congelado.
+
+    Params: `marca` o `titulo` (uno de los dos: el nombre grande), `lema?`, `boton?`, `at{lema, boton}` y, opcionales:
+    `latido` (true: el logo/la marca late ±4 %), `halo` (true: el botón lleva
+    el halo que late) y `sobrio` (true = latido y halo apagados: el outro que
+    pide un manual de marca; la flotación y el push-in lento siguen, para que
+    el cierre no sea un frame congelado)."""
     layer=Image.new("RGBA",(W,H),(0,0,0,0)); d=ImageDraw.Draw(layer)
     at=e["at"]
     k=entra(t, e["from"]+0.1, "lento")
     asienta=e["from"]+1.2
+    sobrio=bool(e.get("sobrio",OUTRO_SOBRIO))
+    con_latido=bool(e.get("latido",not sobrio)); con_halo=bool(e.get("halo",not sobrio))
     # flota + latido de escala: muerto residual 0.12 en lote 2
     fy=flota(t,asienta,7,0.30)
-    pulso=latido(t,asienta,1.6,0.04)
+    pulso=latido(t,asienta,1.6,0.04) if con_latido else 1.0
     push=1+0.035*prog(t,e["from"],e["to"],ease_in_out)   # push-in de cámara
+    # JERARQUÍA del cierre desde la escala común: la marca manda, el lema es
+    # ~0.45 de la marca (nunca menos que el rótulo) y los huecos salen de esos
+    # tamaños; el bloque entero va al centro común (antes 0.40/0.58/0.70 del
+    # alto fijos: con una marca larga quedaban tres tamaños parecidos y un
+    # hueco de 345 px, y el cierre caía bajo)
+    zx0,_,zx1,_=caja_segura()
+    # `titulo` sustituye a `marca` cuando el cierre no trae el nombre del pack
+    nombre=(e.get("marca") or e.get("titulo") or "").strip()
+    con_logo=bool(nombre and ctx.logo and es_marca_del_pack(nombre))
+    if con_logo:
+        h_m=760*ctx.logo.height/ctx.logo.width; tam_m=h_m
+    else:
+        tam_m=fuente_que_cabe(ctx.fT,nombre or " ",120,(zx1-zx0)*0.92/1.035,800).size   # con el push máximo: tamaño fijo
+        h_m=tam_m
+    tam_l=int(max(ESCALA["rotulo"],min(56,tam_m*0.45)))
+    h_l=0
+    if e.get("lema"):
+        lin_l,_,tam_l,_=_rotulo_ajuste(ctx,e["lema"],tam_l)
+        h_l=len(lin_l)*tam_l*1.2
+    h_b=110 if e.get("boton") else 0
+    g1=tam_m*0.42 if h_l else 0
+    g2=(tam_l*1.1+24) if h_b else 0
+    y_top=y_bloque(ctx,h_m+g1+h_l+g2+h_b)
+    y_marca=y_top+h_m/2; y_lema=y_top+h_m+g1; y_boton=y_top+h_m+g1+h_l+g2
     if k>0:
-        if ctx.logo and es_marca_del_pack(e["marca"]):
+        if con_logo:
             lw=int(760*min(1,k)*push*pulso)
             if lw > 0:
                 lh=max(1,int(lw*ctx.logo.height/ctx.logo.width))
                 lg=ctx.logo.resize((lw,lh),Image.LANCZOS)
-                layer.alpha_composite(lg,(int(W/2-lw/2),int(vy(0.40)-lg.height/2+fy)))
+                layer.alpha_composite(lg,(int(W/2-lw/2),int(y_marca-lg.height/2+fy)))
         else:
-            zx0,_,zx1,_=caja_segura()
-            tam_m=fuente_que_cabe(ctx.fT,e["marca"],120,(zx1-zx0)*0.92/1.035,800).size   # con el push máximo: tamaño fijo, sin saltos
             fnt_m=ctx.fT(int(tam_m*min(1,k)*push*pulso),800)
-            pon_texto(d, (W/2,vy(0.40)+fy),e["marca"],font=fnt_m,
-                   fill=BLANCO+(int(255*clamp01(k*1.4)),),anchor="mm")
+            if nombre:
+                pon_texto(d, (W/2,y_marca+fy),nombre,font=fnt_m,
+                       fill=BLANCO+(int(255*clamp01(k*1.4)),),anchor="mm")
     if e.get("lema") and t>=at["lema"]:
-        rotulo(ctx,layer,t,e["lema"],at["lema"],y=vy(0.58)+fy*0.6,tam=52)
+        rotulo(ctx,layer,t,e["lema"],at["lema"],y=y_lema+fy*0.6,tam=tam_l)
     if e.get("boton") and t>=at["boton"]:
         kb=entra(t, at["boton"], "bloque")
-        bw,bh=520*min(1.0,kb)*pulso,110*min(1.0,kb); yy=vy(0.70)+(110-bh)/2+fy*0.4
+        bw,bh=520*min(1.0,kb)*pulso,110*min(1.0,kb); yy=y_boton+(110-bh)/2+fy*0.4
         if bh>4:
             boton_halo(d, W/2, yy+bh/2, bw, bh, e["boton"],
                        ctx.fX(ESCALA["dato"]*min(1.0,kb),800), t, at["boton"],
-                       alpha=int(255*min(1,kb)))
+                       alpha=int(255*min(1,kb)), halo=con_halo)
     # sale como toda escena: puede no ser la última del plan (si le sigue otra,
     # sin salida desaparecía de golpe al terminar el solape)
     return capa_salida(layer,t,e["to"])
-
 
 # ───────────────────────── ESCENAS DATA/UI (Catálogo unificado) ─────────────────────────
 # Cada escena está compuesta por las primitivas DRY (barra_h, cuenta_up, arco,
@@ -6415,6 +6528,83 @@ def sc_orbOpen(ctx, e, t):
     return capa_salida(layer, t, e["to"])
 
 
+def disposicion_de(e):
+    """"fila" o "columna" de una escena de N items en panel (cadena,
+    constancia). Default: columna si el cuadro no es apaisado (9:16 y 1:1:
+    en fila, 3 nodos en 1080 px dejan ~300 px por texto y la letra caía a
+    27 px con el copy cortado) y fila en 16:9. `disposicion` manda."""
+    d_ = str(e.get("disposicion") or "").lower()
+    if d_ in ("fila", "columna"):
+        return d_
+    return "columna" if orientacion() != "horizontal" else "fila"
+
+def sc_lista(ctx, e, t):
+    """Lista SIN orden, sobria: una viñeta de acento + el texto de cada punto,
+    alineados a la izquierda y centrados como bloque en el centro común. Para
+    beneficios, acciones o claves donde el orden no importa (pasos numera; esta
+    no). En 16:9 con más de 4 puntos, dos columnas. Params: `titulo?`,
+    `items[{titulo, texto?, at?}]` (o textos sueltos), `fuente?`,
+    `at{rotulo, item0..n}`."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    at = e["at"]
+    titulo = e.get("titulo", "")
+    rotulo(ctx, layer, t, titulo, at.get("rotulo", e["from"]), y=rotulo_y())
+    items = [x if isinstance(x, dict) else {"titulo": str(x)} for x in e.get("items", [])]
+    n = len(items)
+    if not n:
+        return capa_salida(layer, t, e["to"])
+    zx0, _, zx1, _ = caja_segura()
+    cols = 2 if (orientacion() == "horizontal" and n > 4) else 1
+    ancho_total = min(zx1 - zx0, unidad() * 1.45 if (cols == 2 or orientacion() == "horizontal") else unidad() * 0.86)
+    gap_c = unidad() * 0.06
+    col_w = (ancho_total - gap_c * (cols - 1)) / cols
+    x_ini = (W - ancho_total) / 2
+    vin = max(14, int(unidad() * 0.016))          # viñeta: cuadrado de acento
+    sang = vin + int(unidad() * 0.03)              # sangría del texto
+    filas = math.ceil(n / cols)
+    # tamaño ÚNICO para toda la lista (la escala `cuerpo`→`subtitulo`): el que
+    # deja caber a TODOS en 2 líneas
+    y0z, y1z = zona_contenido(ctx, titulo, bool(e.get("fuente")))
+    tam0 = int(min(unidad() * 0.064, (y1z - y0z) / max(1, filas) * 0.36))
+    tam = tam0
+    for it in items:
+        f_, _ = texto_que_cabe(ctx.fX, it.get("titulo", ""), tam0, col_w - sang, 700, max_lineas=2)
+        tam = min(tam, f_.size)
+    fnt = ctx.fX(tam, 700)
+    fnt_t = ctx.fX(max(MIN_LETRA, int(tam * 0.7)), 400)
+    bloques = []
+    for it in items:
+        _, ls = texto_que_cabe(ctx.fX, it.get("titulo", ""), tam, col_w - sang, 700, max_lineas=2)
+        lt = []
+        if it.get("texto"):
+            _, lt = texto_que_cabe(ctx.fX, it["texto"], fnt_t.size, col_w - sang, 400, max_lineas=2)
+        alto = len(ls) * fnt.size * 1.15 + (len(lt) * fnt_t.size * 1.2 + 6 if lt else 0)
+        bloques.append((ls, lt, alto))
+    gap = max(tam * 0.9, unidad() * 0.03)
+    alto_col = max(sum(b[2] for b in bloques[c * filas:(c + 1) * filas]) + gap * (len(bloques[c * filas:(c + 1) * filas]) - 1)
+                   for c in range(cols))
+    y_top = y_bloque(ctx, alto_col, titulo, bool(e.get("fuente")))
+    t_ins = tiempos_escalonados(at, "item", items, e["from"] + 0.3, e["from"])
+    for i, (ls, lt, alto) in enumerate(bloques):
+        k = entra(t, t_ins[i], "elemento")
+        if k <= 0:
+            continue
+        c, r = divmod(i, filas)
+        y = y_top + sum(b[2] + gap for b in bloques[c * filas:c * filas + r])
+        x = x_ini + c * (col_w + gap_c)
+        sub, ds = grupo()
+        yc = y + fnt.size * 0.62
+        ds.rectangle([x, yc - vin / 2, x + vin, yc + vin / 2], fill=ACENTO + (255,))
+        for j, ln in enumerate(ls):
+            pon_texto(ds, (x + sang, y + j * fnt.size * 1.15), ln, font=fnt, fill=BLANCO + (255,), anchor="la")
+        yt = y + len(ls) * fnt.size * 1.15 + 6
+        for j, ln in enumerate(lt):
+            pon_texto(ds, (x + sang, yt + j * fnt_t.size * 1.2), ln, font=fnt_t, fill=GRIS + (255,), anchor="la")
+        fundir(layer, sub, k)   # sube ELEV, la entrada común
+    if e.get("fuente"):
+        pie_fuente(ctx, ImageDraw.Draw(layer), e, t, at.get("fuente", e["from"] + 1.5))
+    return capa_salida(layer, t, e["to"])
+
 SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "chat":sc_chat,"leads":sc_leads,"handoff":sc_handoff,"pago":sc_pago,
         "listo":sc_listo,"pildoras":sc_pildoras,"hoy":sc_hoy,"recupera":sc_recupera,
@@ -6440,7 +6630,7 @@ SCENES={"apertura":sc_apertura,"canales":sc_canales,"medianoche":sc_medianoche,
         "countdown":sc_countdown,"oferta":sc_oferta,"demo":sc_demo,
         "rotulo_inferior":sc_rotulo_inferior,
         # Ronda 6: indice, resalte y apertura de particulas (futuras del catalogo)
-        "index":sc_index,"callout":sc_callout,"orbOpen":sc_orbOpen,
+        "lista":sc_lista,"index":sc_index,"callout":sc_callout,"orbOpen":sc_orbOpen,
         # Ronda 4: UI/Hero/Bento/Glass/3D-Icons (supahero, scrolltide, glass.samasante, 3dicons, cta.gallery, footer.design)
         "hero":sc_hero,"bento":sc_bento,
         # Ronda 5: Interactivos / Métricas / Audio / Social
@@ -6460,12 +6650,15 @@ def _instalar_tokens(c):
     para que los dos caminos instalen exactamente los mismos globals.
     """
     global ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS, SERIE, EXITO, AVISO
+    global ACENTO_TEXTO, ACENTO_GRANDE
     ACENTO, ACENTO_OSC, NEGRO, BLANCO, GRIS = (c["acento"], c["acento_oscuro"],
                                                c["negro"], c["blanco"], c["gris"])
     # categoría y estado: los declarados (pack) mandan; si no, del acento
     est=tokens_de_estado(ACENTO,NEGRO)
     SERIE=[tuple(x) for x in (c.get("serie") or est["serie"])]
     EXITO=tuple(c.get("exito") or est["exito"]); AVISO=tuple(c.get("aviso") or est["aviso"])
+    ACENTO_TEXTO = tuple(c.get("acento_texto") or ACENTO)
+    ACENTO_GRANDE = tuple(c.get("acento_grande") or ACENTO)
 
 
 def aplicar_paleta(nombre):
@@ -6489,6 +6682,7 @@ def aplicar_brand(brand_path):
     la misma para todas las herramientas del kit."""
     global LOGO, ISOTIPO, MARCA_NOMBRE, TRANSICIONES   # fuentes: vía globals()
     global SOLAPE, SOLAPE_PRE
+    global OUTRO_SOBRIO, REBOTE, PARTICULAS, VOLUMEN
     from _comun import colores_marca, fuente_marca, leer_pack, ruta_de_pack
     d = leer_pack(brand_path)
     c = colores_marca(brand_path)
@@ -6496,6 +6690,8 @@ def aplicar_brand(brand_path):
     if col.get("serie"): c["serie"] = [hex_a_rgb(x) for x in col["serie"]]
     for k in ("exito", "aviso"):
         if col.get(k): c[k] = hex_a_rgb(col[k])
+    if col.get("acento_texto"):
+        c["acento_texto"] = hex_a_rgb(col["acento_texto"])
     _instalar_tokens(c)
     global FJI
     for rol, glob, defecto, gen in (("titulares", "FJ", "Plus Jakarta Sans", "sans-bold"),
@@ -6508,7 +6704,12 @@ def aplicar_brand(brand_path):
     LOGO = ruta_de_pack(brand_path, logos.get("logotipo") or logos.get("fondo_oscuro"))
     ISOTIPO = ruta_de_pack(brand_path, logos.get("isotipo"))
     MARCA_NOMBRE = d.get("nombre")
-    TRANSICIONES = (d.get("reglas") or {}).get("transiciones", "libre")
+    reglas = d.get("reglas") or {}
+    TRANSICIONES = reglas.get("transiciones", "libre")
+    OUTRO_SOBRIO = bool(reglas.get("outro_sobrio", False))
+    if "rebote" in reglas: REBOTE = bool(reglas.get("rebote"))
+    if "particulas" in reglas: PARTICULAS = bool(reglas.get("particulas"))
+    if "volumen" in reglas: VOLUMEN = bool(reglas.get("volumen"))
     # "corte_seco" es una REGLA del pack: el solape entre escenas se reduce a un
     # micro-fade (sin disolvencia de 0.45 s entre dos pantallas de texto).
     SOLAPE, SOLAPE_PRE = ((SOLAPE_SECO, SOLAPE_PRE_SECO) if TRANSICIONES == "corte_seco"
@@ -7016,12 +7217,27 @@ def render(plan_path,plan,out,a):
               f"{round((base+H*0.025)/H*288)} (unidades libass, 288 = alto)",flush=True)
     ctx=Ctx(); fps=a.fps
     dur=plan["duracion"]; n=int(dur*fps)
+    # la firma es del plan de entrada: preparar_escenas completa tiempos y
+    # el video tiene que coincidir con el json que qa vuelve a leer
+    from _comun import firma_plan, estampar_firma
+    firma=firma_plan(plan, brand_path)
     escenas=preparar_escenas(ctx,plan)
     maximo=plan.get("mancha_max", 1 if TRANSICIONES=="corte_seco" else 2)
     manchas_ok=presupuesto_manchas(escenas,maximo)
     if a.preview:
         return _preview(ctx,escenas,dur,fps,a,manchas_ok)
     tmpd=f"{out}.frames"; os.makedirs(tmpd,exist_ok=True)
+    # la caché de frames vale solo si el plan, motor, pack, fps, blur y tamaño coinciden
+    clave="|".join([firma, str(fps), str(a.blur), f"{W}x{H}", "1" if ALFA else "0"])
+    marca_cache=os.path.join(tmpd,".firma")
+    if os.path.isfile(marca_cache):
+        previa=open(marca_cache,encoding="utf-8").read().strip()
+        if previa != clave and not a.force:
+            # plan/pack distinto: no reutilizar frames ajenos
+            import shutil
+            shutil.rmtree(tmpd)
+            os.makedirs(tmpd, exist_ok=True)
+    open(marca_cache,"w",encoding="utf-8").write(clave)
     print(f"{n} frames, {len(escenas)} escenas, blur x{a.blur}"+(" · overlay con alfa" if ALFA else ""),flush=True)
     if a.blur and a.blur>1:
         print(f"  blur x{a.blur}: cada frame se compone {a.blur} veces; en una VM modesta "
@@ -7071,6 +7287,10 @@ def render(plan_path,plan,out,a):
         os.replace(final,out)
         os.remove(mezcla)
         print(f"  música mezclada y normalizada: {float(nivel['input_i']):.1f} LUFS",flush=True)
+    try:
+        estampar_firma(out, firma)
+    except Exception as ex:
+        print(f"AVISO: no pude estampar la firma del plan ({ex})", flush=True)
     # el render dice QUE produjo: el SKILL.md promete "1080x1920 @30fps" y el
     # agente no deberia tener que abrir ffprobe para comprobarlo
     print(f"OK {out} · {W}x{H} @{fps}fps · h264 yuv420p · {dur:.1f}s")
@@ -7121,6 +7341,12 @@ def completar_escena(e,i=0):
         sys.exit(f"ERROR: escena {i+1}: tipo «{tipo}» no existe. Tipos: {', '.join(SCENES)}")
     if not all(isinstance(e.get(c),(int,float)) for c in ("from","to")) or e["to"]<=e["from"]:
         sys.exit(f"ERROR: escena {i+1} ({tipo}): necesita `from` y `to` en segundos, con to > from")
+    # un OBLIGATORIO que falta es un error claro antes del render (la misma
+    # regla que audita auditar_plan): un cierre sin `marca` ni `titulo` ya no
+    # revienta, pero saldría vacío sin aviso y la puerta lo daría por medido
+    faltan=[x for x in errores_de_esquema(e,i) if "falta" in x]
+    if faltan:
+        sys.exit("ERROR: "+"; ".join(faltan))
     e=dict(e); m=muestra(tipo)
     # `at` SIEMPRE existe: una escena nueva (sin muestra) que no traiga tiempos
     # se rompe al leer `e["at"]` dentro de la escena (KeyError, no un aviso)
@@ -7396,6 +7622,368 @@ def _preview(ctx, escenas, dur, fps, a, manchas_ok):
     return salida
 
 
+BLUR_TOLERANCIA = 3.0   # niveles de 255 (peor bloque de 8x8 px)
+BLUR_AUTO_TOPE = 9      # tope por defecto de `--blur auto`
+
+def _blur_offsets(n):
+    """Desplazamientos (fraccion de la ventana) de n sub-frames centrados."""
+    return [(k + 0.5) / n - 0.5 for k in range(n)]
+
+def _blur_cambio(a, b, bloque=8):
+    """Peor bloque (media del |a-b| en bloques de `bloque` px, canal maximo)."""
+    import numpy as np
+    d = np.abs(a - b).max(axis=2)
+    h, w = d.shape
+    h2, w2 = h - h % bloque, w - w % bloque
+    if h2 == 0 or w2 == 0:
+        return float(d.max()) if d.size else 0.0
+    return float(d[:h2, :w2].reshape(h2 // bloque, bloque, w2 // bloque, bloque).mean(axis=(1, 3)).max())
+
+def _blur_adaptativo(ctx,escenas,dur,t,fps,tope,obturador,manchas_ok,tol=None,info=None):
+    """Motion blur con el numero de sub-frames que pide ESTE frame.
+
+    Compara el promedio de n sub-frames con el de 3n; si el peor bloque cambia
+    menos de `tol` niveles, el frame ya convergio. `info` (dict opcional)
+    recibe {"muestras": n} para medirlo. Es funcion pura de t, como el resto."""
+    import numpy as np
+    tol = BLUR_TOLERANCIA if tol is None else tol
+    ventana = obturador / fps
+    cache = {}
+
+    def sub(off):
+        k = round(off, 9)
+        if k not in cache:
+            a = np.asarray(componer(ctx,escenas,dur,t+ventana*off,manchas_ok),dtype=np.float32)
+            if ALFA:   # promediar premultiplicado (igual que _blur_de_submuestreo)
+                a = np.concatenate([a[...,:3]*a[...,3:4]/255,a[...,3:4]],axis=2)
+            cache[k] = a
+        return cache[k]
+
+    def media(n):
+        acc = None
+        for off in _blur_offsets(n):
+            acc = sub(off) if acc is None else acc + sub(off)
+        return acc / n
+
+    n = 1
+    prom = media(1)
+    while n * 3 <= max(1, int(tope)):
+        nuevo = media(n * 3)
+        cambio = _blur_cambio(prom, nuevo)
+        n, prom = n * 3, nuevo
+        if cambio < tol:
+            break
+    if info is not None:
+        info["muestras"] = n
+    acc = prom
+    if ALFA:
+        al = acc[...,3:4]
+        acc[...,:3] = np.where(al>0,acc[...,:3]*255/np.maximum(al,1e-6),0)
+    return Image.fromarray(np.clip(acc+0.5,0,255).astype("uint8"))
+
+def _tipo_blur(v):
+    """`--blur`: un entero (sub-frames fijos) o `auto[:tope]` (adaptativo).
+    El adaptativo viaja como entero NEGATIVO (-tope) por el mismo camino que
+    el fijo, asi los workers y el cache no cambian."""
+    s = str(v).strip().lower()
+    if s.startswith("auto"):
+        tope = BLUR_AUTO_TOPE
+        if ":" in s:
+            try:
+                tope = int(s.split(":", 1)[1])
+            except ValueError:
+                raise argparse.ArgumentTypeError(f"--blur auto:N necesita un entero, no '{v}'")
+        if tope < 3:
+            raise argparse.ArgumentTypeError("--blur auto:N necesita N >= 3")
+        return -tope
+    try:
+        n = int(s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"--blur espera un entero o 'auto[:N]', no '{v}'")
+    if n < 0:
+        raise argparse.ArgumentTypeError("--blur espera 0/1 (sin blur), 2 o más, o 'auto'")
+    return n
+
+CAMPOS_CON_RANGO = {
+    "y": {"tipo": "número (fracción del alto)", "rango": [0.08, 0.92],
+          "significado": "centro vertical del bloque; si falta, el centro común del layout"},
+    "max_lineas": {"tipo": "entero", "rango": [1, 4],
+                   "significado": "tope de líneas del texto antes de achicar la letra"},
+    "zona": {"tipo": "lista [x0, y0, x1, y1] (fracciones 0–1)", "rango": [0, 1],
+             "significado": "zona libre declarada donde va el contenido (p. ej. al lado de la cara)"},
+}
+
+SIGNIFICADOS = {
+    "apagar": "segundo en que la escena se apaga (absoluto)",
+    "archivo": "nombre de archivo mostrado (dato, sin markup)",
+    "aspecto": "relación de aspecto del recuadro de imagen",
+    "autor": "quién lo dice (firma de la cita/comentario)",
+    "barras": "lista de barras {etiqueta, valor}",
+    "canales": "lista de canales de entrada {nombre, ...}",
+    "centro": "texto o cifra en el centro del gráfico",
+    "clave": "palabra clave a resaltar",
+    "cliente": "nombre del cliente mostrado",
+    "color": "color #RRGGBB (si falta, el de la marca)",
+    "colores": "lista de colores #RRGGBB (si falta, la serie de la marca)",
+    "contexto": "lista de líneas de contexto del traspaso",
+    "cps": "caracteres por segundo del tecleo",
+    "cuenta": "cifra/cuenta grande del bloque",
+    "cy": "centro vertical (fracción del alto); si falta, el centro común",
+    "decimal": "separador decimal (coma o punto)",
+    "decimales": "número de decimales de la cifra",
+    "derecha": "texto/columna derecha",
+    "detalle": "línea de detalle bajo el dato",
+    "disposicion": "distribución de las tarjetas (auto si falta)",
+    "dur_kb": "duración del movimiento Ken Burns (s)",
+    "estaciones": "lista de estaciones del camino {titulo, texto}",
+    "estado": "etiqueta de estado (dato, sin markup)",
+    "estrellas": "valoración 0–5 (número)",
+    "estrellas_max": "máximo de estrellas (default 5)",
+    "fecha": "fecha mostrada (dato, sin markup)",
+    "figura": "figura 3D (esfera, toro…)",
+    "filas": "lista de filas {nombre, dato}",
+    "final": "cifra final de la cuenta",
+    "frase": "la frase principal; admite *énfasis*",
+    "grosor": "grosor del trazo en px",
+    "hablante": "quién habla (dato, sin markup)",
+    "hace": "tiempo relativo («hace 2 min»)",
+    "hecho": "texto del estado hecho",
+    "hora": "hora mostrada (dato)",
+    "icono": "emoji o 1–2 caracteres; si falta, sin icono",
+    "iniciales": "iniciales del avatar",
+    "italica": "booleano: frase en itálica",
+    "itálica": "booleano: frase en itálica (alias)",
+    "izquierda": "texto/columna izquierda",
+    "lado": "izquierda | derecha",
+    "likes": "cantidad de likes; si falta, no hay línea de likes",
+    "link": "enlace mostrado",
+    "mensajes": "lista de mensajes {de, texto, at}",
+    "miles": "separador de miles",
+    "moneda_despues": "booleano: símbolo después de la cifra",
+    "monto": "importe mostrado (dato)",
+    "mostrar": "monto | porcentaje: qué ahorro se muestra",
+    "nota": "nota al pie",
+    "notificaciones": "lista de notificaciones {app, texto, at}",
+    "objeto": "objeto 3D {figura, color}",
+    "pan_x": "desplazamiento horizontal Ken Burns (fracción)",
+    "pan_y": "desplazamiento vertical Ken Burns (fracción)",
+    "porciones": "lista de porciones {etiqueta, valor}",
+    "query": "texto de búsqueda (dato)",
+    "radio": "radio en px",
+    "resultados": "lista de resultados {titulo, texto}",
+    "resumen": "resumen en una línea",
+    "ruta": "ruta del archivo de medio",
+    "seleccion": "índice del elemento seleccionado",
+    "sufijo": "sufijo de la cifra (%, x, k)",
+    "tam": "tamaño de letra en px (si falta, el rol)",
+    "tam_frase": "tamaño de la frase en px (si falta, el rol)",
+    "tarjetas": "lista de tarjetas {titulo, texto}",
+    "temp": "temperatura del color de la luz",
+    "ticks": "marcas de la escala",
+    "total": "valor total / segundos totales",
+    "transcripcion": "texto transcrito; admite *énfasis*",
+    "url": "URL mostrada (dato)",
+    "usuario": "@usuario (dato); si falta, no se dibuja",
+    "valor_desde": "cifra desde la que cuenta",
+    "ventana": "título de la ventana",
+    "verificado": "booleano: insignia de verificado",
+    "x0": "inicio horizontal (fracción)",
+    "x1": "fin horizontal (fracción)",
+    "y_frase": "posición vertical de la frase (fracción del alto)",
+    "zoom_from": "zoom inicial (1.0–3.0)",
+    "zoom_to": "zoom final (1.0–3.0)",
+    "titulo": "titular/kicker de la escena (arriba, en la escala `rotulo`)",
+    "rotulo": "kicker de la escena (arriba); si falta, no se dibuja",
+    "subtitulo": "línea de apoyo bajo el titular",
+    "fuente": "fuente del dato; el motor antepone «Fuente:» si no lo trae",
+    "items": "elementos de la escena, en orden de entrada",
+    "cards": "tarjetas de cifra: {valor, etiqueta, acento?}",
+    "texto": "copy principal de la escena",
+    "texto1": "primera frase del titular (1–2 líneas)", "texto2": "segunda frase, entra en `at.cambio`",
+    "lineas": "líneas de copy sobre la cifra gigante", "gigante": "la cifra o palabra gigante",
+    "subtexto_gigante": "línea bajo la cifra gigante (texto)", "etiqueta": "qué mide la cifra",
+    "marca": "nombre grande del cierre (escala titular)", "lema": "frase bajo la marca (escala dato)",
+    "boton": "texto del botón (escala dato, sin markup)", "cta": "texto del botón de acción; si falta, no hay botón",
+    "badge": "píldora de anuncio arriba; si falta, no se dibuja", "metrica": "cifra de la tarjeta central",
+    "etiqueta_metrica": "qué mide la métrica", "captura": "imagen de la interfaz (ruta relativa al plan)",
+    "foto": "imagen (ruta relativa al plan)", "pie": "línea de cierre bajo la grilla",
+    "antes": "precio anterior (número)", "ahora": "precio actual (número)", "codigo": "código de descuento",
+    "vence": "fecha o plazo de la oferta", "moneda": "símbolo de moneda", "valor": "número",
+    "nombre": "nombre de la persona", "rol": "cargo o rol", "kicker": "etiqueta corta sobre el titular",
+    "pasos": "pasos de la demo: {texto, at, x?, y?}", "sobrio": "true: sin latido ni halo",
+    "orden": "false: lista sin orden (viñetas en vez de números)",
+}
+
+ROL_TAMANO = {"marca": "titular", "gigante": "titular", "texto1": "titular", "texto2": "titular",
+              "titulo": "rotulo", "rotulo": "rotulo", "lema": "dato", "boton": "dato", "cta": "dato",
+              "valor": "dato", "metrica": "dato", "subtitulo": "secundario", "texto": "secundario",
+              "etiqueta": "nota", "fuente": "nota", "pie": "nota", "subtexto_gigante": "secundario"}
+
+MAX_LINEAS = {"texto1": 2, "texto2": 2, "titulo": 2, "rotulo": 2, "marca": 2, "lema": 2, "boton": 1,
+              "cta": 1, "etiqueta": 2, "fuente": 1, "subtitulo": 2, "subtexto_gigante": 2}
+
+SIN_MARKUP = {"boton", "cta", "usuario", "fecha", "likes", "archivo", "estado", "hablante",
+              "query", "url", "monto", "hora", "icono", "badge", "metrica", "precio", "moneda",
+              "antes", "ahora", "descuento", "valor", "marca", "logo", "foto", "imagen", "video",
+              "clip", "captura", "color", "figura", "formato", "mostrar", "fuente", "ruta"}
+
+BOOLEANOS = {"halo", "latido", "sobrio", "acento", "orden", "activo", "loop", "mayusculas"}
+
+NUMERICOS = {"antes", "ahora", "descuento", "valor", "decimales", "y", "max_lineas"}
+
+_MARKUP = re.compile(r"\b(segs|draw_seg|dibuja_markup|dibuja_frase|marcas_de_frase|partir_markup|markup_palabras|rotulo|titular)\s*\(|markup=True")
+
+_ESQ = {}
+
+def _tipo_de(v):
+    if isinstance(v, bool): return "booleano"
+    if isinstance(v, (int, float)): return "número"
+    if isinstance(v, str): return "texto"
+    if isinstance(v, list):
+        if v and all(isinstance(x, dict) for x in v):
+            return "lista de objetos {" + ", ".join(sorted({k for x in v for k in x})) + "}"
+        return "lista"
+    if isinstance(v, dict): return "objeto"
+    return "cualquiera"
+
+def _significado_doc(fn, c):
+    """Lo que el docstring de la escena dice del campo (la frase que lo nombra).
+
+    Un paréntesis o un backtick se consume entero: cortar en `;` o a 160
+    caracteres partía `formato` y `sobrio` a mitad de la explicación."""
+    doc = " ".join((fn.__doc__ or "").split())
+    m = re.search(r"`%s\??`" % re.escape(c), doc)
+    if not m:
+        return ""
+    i, j = m.start(), m.end()
+    prof = bt = 0
+    while j < len(doc):
+        ch = doc[j]
+        if ch == "`":
+            bt ^= 1
+        elif bt == 0 and ch == "(":
+            prof += 1
+        elif bt == 0 and ch == ")" and prof:
+            prof -= 1
+        elif bt == 0 and prof == 0 and ch in ".;":
+            j += 1
+            break
+        j += 1
+    return doc[i:j].strip()
+
+
+# campos de COLOR: admiten "#RRGGBB" (o un nombre: "serie") o la lista RGB(A)
+
+SIGNIFICADOS.setdefault("mayusculas", "true = el texto en versalitas (como el reel); por defecto se respeta la caja del texto")
+
+
+CAMPOS_COLOR = {"color": "color (\"#RRGGBB\" o [r, g, b(, a)])",
+                "colores": "colores (\"serie\" o lista de \"#RRGGBB\" / [r, g, b(, a)])"}
+
+DEFECTOS_ESCENA = {("oferta", "moneda"): '"$"'}
+
+SIGNIFICADOS_ESCENA = {
+    ("camino", "ruta"): "forma del trazo entre los dos puntos (no un archivo): \"s\" (default) o \"recta\"",
+    ("oferta", "moneda"): "símbolo de moneda delante del precio (default \"$\")",
+}
+
+def esquema_de(tipo):
+    """[{nombre, tipo, obligatorio, significado, markup, rol_tamano, max_lineas, default}]
+    de una escena, más la entrada `at` con sus claves. Fuente única: la usan
+    el catálogo (params) y auditar_plan (obligatorios y tipos)."""
+    if tipo in _ESQ:
+        return _ESQ[tipo]
+    import inspect
+    fn = SCENES[tipo]
+    src = inspect.getsource(fn)
+    doc = fn.__doc__ or ""
+    opc_doc = set(re.findall(r"`(\w+)\?", doc))
+    corchete = set(re.findall(r'\be\["(\w+)"\]', src))
+    ej = muestra(tipo) or {}
+    lineas = src.split("\n")
+    con_markup = set()
+    for i, ln in enumerate(lineas):
+        if _MARKUP.search(ln):
+            for ln2 in lineas[max(0, i - 15):i + 1]:
+                con_markup |= set(re.findall(r'\be(?:\.get\(|\[)"(\w+)"', ln2))
+    out = []
+    for c in sorted(campos_de(tipo) - COMUNES):
+        defecto = None
+        m = re.search(r'\be\.get\("%s",\s*([^)]+?)\)' % c, src)
+        if m and m.group(1).strip() not in ('""', "''", "None", "[]", "{}"):
+            defecto = m.group(1).strip()[:30]
+        m2 = re.search(r'\be\.get\("%s"\)\s+or\s+("[^"]*"|\d+(?:\.\d+)?)' % c, src)
+        if defecto is None and m2:   # `e.get("x") or "y"`: "" y ausente valen lo mismo
+            defecto = m2.group(1)[:30]
+        defecto = DEFECTOS_ESCENA.get((tipo, c), defecto)
+        guardado = re.search(r'"%s" in e\b|\be\.get\("%s"' % (c, c), src) is not None
+        obligatorio = c in corchete and not guardado and c not in opc_doc and defecto is None
+        v = ej.get(c)
+        tipo_c = (_tipo_de(v) if c in ej else
+                  "booleano" if c in BOOLEANOS or (defecto or "").startswith(("not ", "True", "False", "OUTRO")) else
+                  "número" if c in NUMERICOS else "texto")
+        if c in CAMPOS_CON_RANGO:
+            tipo_c = CAMPOS_CON_RANGO[c]["tipo"]
+        if c in CAMPOS_COLOR:   # un color se escribe en hex o como [r, g, b(, a)]
+            tipo_c = CAMPOS_COLOR[c]
+        out.append({"nombre": c, "tipo": tipo_c,
+                    "obligatorio": bool(obligatorio),
+                    "significado": SIGNIFICADOS_ESCENA.get((tipo, c)) or SIGNIFICADOS.get(c) or CAMPOS_CON_RANGO.get(c, {}).get("significado") or _significado_doc(fn, c),
+                    "markup": c not in SIN_MARKUP
+                              and not re.search(r'texto_plano\(\s*e(?:\.get\(|\[)"%s"' % c, src)
+                              and (tipo_c == "texto" or (tipo_c == "lista" and c in con_markup)),
+                    "rol_tamano": ROL_TAMANO.get(c), "max_lineas": MAX_LINEAS.get(c),
+                    **({"rango": CAMPOS_CON_RANGO[c]["rango"]} if c in CAMPOS_CON_RANGO else {}),
+                    "default": defecto, "defecto": defecto})
+    # sin otro obligatorio, la LISTA de contenido de la muestra (cards, items…)
+    # es lo que la escena muestra: sin ella saldría vacía
+    if not any(p["obligatorio"] for p in out):
+        for p in out:
+            if p["tipo"].startswith("lista") and isinstance(ej.get(p["nombre"]), list) and p["nombre"] not in opc_doc:
+                p["obligatorio"] = True
+    ats = sorted((ej.get("at") or {}).keys())
+    out.append({"nombre": "at", "tipo": "objeto {clave: segundos}", "obligatorio": False,
+                "significado": ("cuándo entra cada parte, en segundos ABSOLUTOS del plan (no relativos a "
+                                "`from`); una lista = un instante por elemento/palabra. Claves: "
+                                + (", ".join(ats) or "—")),
+                "markup": False, "rol_tamano": None, "max_lineas": None, "default": None,
+                "claves": ats})
+    _ESQ[tipo] = out
+    return out
+
+def errores_de_esquema(e, i=0):
+    """Obligatorios que faltan y tipos que no casan, con escena y campo
+    (nunca un TypeError crudo en el render)."""
+    tipo = e.get("tipo")
+    if tipo not in SCENES:
+        return []
+    out = []
+    for p in esquema_de(tipo):
+        c = p["nombre"]
+        if c == "at":
+            continue
+        if p["obligatorio"] and (c not in e or e[c] in ("", None, [])):
+            out.append(f"escena {i+1} ({tipo}): falta el campo obligatorio `{c}` ({p['significado'] or p['tipo']})")
+            continue
+        if c in e and e[c] is not None:
+            v, t = e[c], p["tipo"]
+            ok = ((t == "texto" and isinstance(v, (str, int, float)) and not isinstance(v, bool))
+                  or ((t.startswith("número") or t == "entero") and isinstance(v, (int, float, str))
+                      and not isinstance(v, bool))
+                  or (t.startswith("lista") and isinstance(v, list))
+                  or (t == "booleano" and isinstance(v, bool))
+                  or (t.startswith("objeto") and isinstance(v, dict))
+                  or (t.startswith("color") and isinstance(v, (str, list)))
+                  or t == "cualquiera")
+            if not ok:
+                out.append(f"escena {i+1} ({tipo}): `{c}` debe ser {t}, no {type(v).__name__} "
+                           f"({json.dumps(v, ensure_ascii=False)[:40]})")
+    # el cierre pide UN nombre grande: `marca` (pack) o `titulo` (texto). Ninguno
+    # es obligatorio por sí solo; faltan los dos sí.
+    if tipo == "final" and not str(e.get("marca") or "").strip() and not str(e.get("titulo") or "").strip():
+        out.append(f"escena {i+1} (final): falta el campo obligatorio `marca` o `titulo` (nombre grande del cierre)")
+    return out
+
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("plan"); ap.add_argument("-o","--out",required=False,
@@ -7411,7 +7999,7 @@ def main():
                     help="paleta del modo libre (references/paleta.md): electrico, menta, grafito, "
                          "ambar, coral, violeta, magenta, oro. El plan también acepta campo "
                          "\"paleta\". Si hay --brand, la marca manda")
-    ap.add_argument("--blur",type=int,default=1,
+    ap.add_argument("--blur",type=_tipo_blur,default=1,
                     help="sub-frames de motion blur (1=off, 4-6 para entrega final)")
     ap.add_argument("--obturador",type=float,default=0.5,
                     help="ángulo de obturador como fracción del frame (0.5 = 180°)")

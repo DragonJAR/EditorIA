@@ -1,4 +1,4 @@
-# Catálogo de escenas (45 tipos del plan)
+# Catálogo de escenas (46 tipos del plan)
 
 Cada escena es una función `(ctx, e, t)` donde `e` es su bloque del plan y `t`
 el tiempo absoluto del video (ver `scripts/render_plan.py`, `SCENES`).
@@ -99,9 +99,9 @@ alfa creciente (`smoothstep`). Es el corte más neutro del catálogo: no pide
 atención como la `mancha` ni deja formas orgánicas en el encuadre. Se declara
 en la escena entrante: `"transicion": "dissolve"`.
 
-## Catálogo unificado de escenas (45 tipos del plan)
+## Catálogo unificado de escenas (46 tipos del plan)
 
-El catálogo integra las 13 escenas originales más 32 escenas de
+El catálogo integra las 13 escenas originales más 33 escenas de
 datos/UI/tipo/cinemática/oferta/social/interactivas validadas externamente (ver
 `references/scene-patterns-from-internet.md`). Cada escena nueva se compone
 con las primitivas DRY de `render_plan.py` (lista al final de este archivo).
@@ -510,3 +510,12 @@ Ver `references/scene-patterns-from-internet.md` para portar escenas validadas.
 ---
 
 → Canónico: `references/escenas.md` · Dominio: escenas · Vecinos: `references/plan-video.md`, `references/intencion-escena.md`, `references/escenas-extendidas.md`
+
+### 42. Lista sin orden (1.11.2)
+
+**`lista`** — Lista **sin orden**, sobria: una viñeta cuadrada de acento y el
+texto de cada punto, alineados a la izquierda y centrados como bloque en el
+centro común. Para beneficios, acciones o claves de una noticia donde el orden
+no importa (`pasos` numera; esta no). En 16:9 con más de 4 puntos, dos
+columnas. `titulo?`, `items[{titulo, texto?, at?}]` (o textos sueltos),
+`fuente?`, `at{rotulo,

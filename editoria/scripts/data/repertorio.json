@@ -1,6 +1,6 @@
 {
  "_que_es": "ÚNICA superficie de elección del agente: intención → opción → motor interno. Las `escenas` de cada intención cubren el dict SCENES de render_plan.py (huérfanas prohibidas). Efectos talking-head, gestos de interfaz y captions (rail/HF) se agregan en repertorio.py desde scripts/data/efectos_talking_head.json, motion_ui.json y captions_identidades.json — mismo catálogo, no menús A/B. El motor (plan / efecto CVE / gesto / caption / HyperFrames / …) es metadato de producción. auditar_plan.py y clonar_video.py consumen solo las familias de escenas; actualizar_conteos.py reescribe la tabla §2b de intencion-escena.md.",
- "_reglas": "Una opción puede servir a varias intenciones. La elección la manda el argumento (repertorio.py sugerir); este archivo garantiza que la familia de escenas es alcanzable y que rotar es posible. Efectos/gestos declaran sus intenciones en SU JSON de detalle. Lo que una pieza no usa se declara no_aplica. No se hincha SCENES con overlays ni gestos: se eligen aquí y se producen por su motor. detalle_escenas[id].ocasion/firma dice CUÁNDO usar cada escena del plan (misma superficie que efectos/gestos; no es un menú paralelo).",
+ "_reglas": "Una opción puede servir a varias intenciones. La elección la manda el argumento (repertorio.py sugerir); este archivo garantiza que la familia de escenas es alcanzable y que rotar es posible. Efectos/gestos/captions declaran sus intenciones en SU JSON de detalle. Las técnicas que no son escena (canvas, hand-draw, remotion, hyperframes, 3d, diagrama) viven en `tecnicas` de ESTE archivo: misma superficie, motor tecnica. Lo que una pieza no usa se declara no_aplica. No se hincha SCENES con overlays, gestos ni esas técnicas. detalle_escenas[id].ocasion/firma dice CUÁNDO usar cada escena del plan.",
  "intenciones": [
   {
    "id": "gancho",
@@ -126,6 +126,7 @@
    "id": "estructura",
    "pregunta": "¿qué índice, mapa de canales o agenda ordena la pieza?",
    "escenas": [
+    "lista",
     "index",
     "canales",
     "medianoche"
@@ -320,6 +321,182 @@
   "versus": {
    "ocasion": "Dos columnas cara a cara; acento en la que defiendes",
    "firma": "comparación A vs B"
+  },
+  "lista": {
+   "ocasion": "Lista sin orden de 2–6 puntos (beneficios, acciones, claves), sobria",
+   "firma": "viñeta de acento + texto alineado a la izquierda"
   }
- }
+ },
+ "tecnicas": [
+  {
+   "id": "canvas",
+   "firma": "Cada frame es función pura de t: acuarela, pincel, doodle o lyric",
+   "ocasion": "Cuando el movimiento es pictórico y no cabe en una escena de texto o cifras",
+   "no_usar": "Para texto, cifras o tarjetas del plan usa una escena. Para un trazo horneado a PNG usa hand-draw. Para un diagrama SVG usa diagrama.",
+   "pedido": "Pide un sketch con renderAt(t) determinista; el trazo se autora como dato, no como grabación",
+   "perillas": [
+    "paleta",
+    "duración",
+    "grosor del trazo",
+    "semilla del ruido"
+   ],
+   "producir": "references/canvas.md",
+   "intenciones": [
+    "copy",
+    "gancho"
+   ],
+   "keywords": [
+    "acuarela",
+    "pincel",
+    "p5",
+    "lyric",
+    "canvas",
+    "doodle pictorico"
+   ],
+   "aliases": [
+    "p5",
+    "acuarela",
+    "p5.js"
+   ]
+  },
+  {
+   "id": "hand-draw",
+   "firma": "Trazo a mano suavizado y horneado a overlay con alfa",
+   "ocasion": "Cuando la pieza pide pizarra, anotación dibujada o doodle cinético",
+   "no_usar": "Si el trazo tiene que vivir frame a frame, usa canvas. Si es un diagrama que se dibuja solo, usa diagrama. No lo estires desde una escena plana.",
+   "pedido": "Pide un JSON de puntos o trazos; el suavizado va antes de pintar y el PNG entra por montaje",
+   "perillas": [
+    "puntos del trazo",
+    "suavizado",
+    "grosor",
+    "color",
+    "duración del reveal"
+   ],
+   "producir": "references/hand-draw.md",
+   "intenciones": [
+    "proceso",
+    "copy"
+   ],
+   "keywords": [
+    "pizarra",
+    "anotacion dibujada",
+    "trazo a mano",
+    "hand draw",
+    "doodle cinetico"
+   ],
+   "aliases": [
+    "trazo",
+    "hand_draw",
+    "trazo-a-mano"
+   ]
+  },
+  {
+   "id": "remotion",
+   "firma": "Animación en React con estado, datos que cambian y componentes reutilizables",
+   "ocasion": "Cuando la pieza necesita estado de programa y componentes, no una escena del plan",
+   "no_usar": "Para texto y cifras del plan usa una escena. Para el mismo HTML con datos nuevos usa hyperframes. Si Node o React no está, decláralo; no lo sustituyas en silencio.",
+   "pedido": "Pide componentes React con los resortes de references/animacion.md y props del brief",
+   "perillas": [
+    "props",
+    "duración en frames",
+    "spring",
+    "componentes"
+   ],
+   "producir": "references/remotion.md",
+   "intenciones": [
+    "demostracion",
+    "proceso"
+   ],
+   "keywords": [
+    "remotion",
+    "react",
+    "componentes reutilizables"
+   ],
+   "aliases": [
+    "react-video"
+   ]
+  },
+  {
+   "id": "hyperframes",
+   "firma": "HTML determinista que se vuelve a renderizar cuando cambian los datos",
+   "ocasion": "Cuando la pieza es HTML con seek determinista y los datos cambian sin reescribir la composición",
+   "no_usar": "Si hace falta estado de React, usa remotion. Si cabe en una escena del plan, no abras HTML. Si Node no está, decláralo.",
+   "pedido": "Pide el mismo HTML+CSS con seek determinista y un objeto de datos nuevo",
+   "perillas": [
+    "html",
+    "css",
+    "datos del render",
+    "seek"
+   ],
+   "producir": "references/hyperframes.md",
+   "intenciones": [
+    "demostracion",
+    "estructura"
+   ],
+   "keywords": [
+    "hyperframes",
+    "html determinista",
+    "seek determinista"
+   ],
+   "aliases": [
+    "html-determinista"
+   ]
+  },
+  {
+   "id": "3d",
+   "firma": "Objeto, producto o escena 3D como capa con alfa",
+   "ocasion": "Cuando un objeto 3D entra ya renderizado con alfa y el motor de la pieza no cambia",
+   "no_usar": "Para volumen sugerido en 2D usa el gesto dimension. No conviertas la pieza entera a 3D: es una capa.",
+   "pedido": "Pide el objeto renderizado con alfa y el motor que ya compone la pieza lo monta",
+   "perillas": [
+    "objeto",
+    "alfa",
+    "cámara",
+    "duración"
+   ],
+   "producir": "references/3d.md",
+   "intenciones": [
+    "demostracion",
+    "imagen-texto"
+   ],
+   "keywords": [
+    "objeto 3d",
+    "producto 3d",
+    "escena 3d",
+    "capa con alfa"
+   ],
+   "aliases": [
+    "tres-d",
+    "three"
+   ]
+  },
+  {
+   "id": "diagrama",
+   "firma": "Un diagrama que se dibuja a sí mismo con la marca de la pieza",
+   "ocasion": "Cuando un solo SVG autocontenido revela su trazo por longitud de path",
+   "no_usar": "Para un recorrido de una idea con estaciones usa la escena camino. Para un trazo suelto de pizarra usa hand-draw.",
+   "pedido": "Pide un solo fichero HTML+SVG con la marca; el trazo se anima por longitud de path",
+   "perillas": [
+    "svg",
+    "longitud de path",
+    "estaciones",
+    "marca"
+   ],
+   "producir": "references/diagramas.md",
+   "intenciones": [
+    "proceso",
+    "estructura"
+   ],
+   "keywords": [
+    "diagrama",
+    "diagramas",
+    "svg que se dibuja",
+    "path length"
+   ],
+   "aliases": [
+    "diagramas",
+    "svg-autodibujado"
+   ]
+  }
+ ]
 }

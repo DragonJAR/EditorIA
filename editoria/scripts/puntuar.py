@@ -29,7 +29,7 @@ BASE = os.path.dirname(SCRIPTS)
 sys.path.insert(0, SCRIPTS)
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
-from _comun import asegurar_padre  # noqa: E402
+from _comun import asegurar_padre, LETRA_MIN  # noqa: E402
 import auto_qa            # noqa: E402
 import delivery_check     # noqa: E402
 import medir_animacion    # noqa: E402
@@ -54,7 +54,7 @@ JUICIO = [1, 2, 5, 7]
 UMBRAL_EJE = 4
 UMBRAL_MEDIA = 4.3
 DENSIDAD_OK = (0.8, 1.5)
-LETRA_OK = 26            # el mismo LETRA_MIN del motor
+LETRA_OK = LETRA_MIN     # el mismo LETRA_MIN del motor (_comun)
 
 
 def _puntuar_animacion(m):
@@ -95,7 +95,7 @@ def _puntuar_composicion(plan_m):
         s = min(s, 3.5)
     return max(1.0, round(s, 1)), (
         f"{solapes} solapes · zona segura x{zona} · letra minima {letra or '?'} px"
-        + (" (bajo el piso de 26)" if letra and letra < LETRA_OK else "")
+        + (f" (bajo el piso de {LETRA_OK})" if letra and letra < LETRA_OK else "")
         + (": " + "; ".join(str(x) for x in (plan_m.get("solapes") or [])[:3])
            if solapes else ""))
 

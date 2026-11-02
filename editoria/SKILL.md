@@ -5,7 +5,7 @@ license: MIT
 compatibility: 'Python 3.9+, FFmpeg, Pillow, NumPy; optional ElevenLabs API and Node 18+ for Remotion or HyperFrames'
 metadata:
   author: Jaime Andrés Restrepo
-  version: 1.10.2
+  version: 1.11.3
   category: video-editing
   tags: [video-editing, motion-graphics, ffmpeg, animation]
 ---
@@ -51,10 +51,10 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | "Which scene / effect / gesture / caption fits this idea?" / "don't repeat the last piece's route" | **Repertoire**: `scripts/repertorio.py listar/sugerir/resolver/cobertura/validar` (one catalog: intent → option → motor; the index is `references/intencion-escena.md`) |
 | Write or check the on-screen copy | **Copy**: `references/copy.md` + `scripts/lint_copy.py` (authored before the plan, checked against the engine's auto-fit) |
 | Check the piece before delivering | **Gate**: `scripts/qa_entrega.py` (plan, copy, render, spec and motion in one verdict) |
-| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (45 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
+| Ad with scenes and narration | **Plan**: `plan.json` + `scripts/render_plan.py` (46 scene types in `references/escenas.md`; portable concepts in `references/escenas-extendidas.md`) |
 | Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles (`references/estilos.md`), then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline is legacy |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
-| See what the engine can draw (the 45 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog) |
+| See what the engine can draw (the 46 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog) |
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the prose publishes; `--check` only reports) |
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable) |
@@ -97,7 +97,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 67 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 69 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
@@ -130,7 +130,7 @@ Run it before writing the plan and again whenever the brief changes. It never ov
 
 Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "video de ciberseguridad" --sector ciberseguridad --tono demo --modo explicar --tiene capturas` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (a style pack usable with `--brand`). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
 
-Then author the plan: write `plan.json` following `references/plan-video.md` (45 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
+Then author the plan: write `plan.json` following `references/plan-video.md` (46 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
 
 Before writing the scenes, write the argument: one claim per scene with the proof that carries it, in plain text (`references/copy.md` §1). The order of that list is the order of the video, and it is what keeps a piece from falling into the stock sequence.
 
@@ -284,7 +284,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (45/45 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (75 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (80 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

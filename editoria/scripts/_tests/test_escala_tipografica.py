@@ -36,6 +36,27 @@ def _motor():
         return f.read()
 
 
+def _piso_unico(tc):
+    """El piso legible es UNA cifra (_comun.LETRA_MIN = 26): el motor la
+    declara como `MIN_LETRA = LETRA_MIN` y la medición, la puerta y la rúbrica
+    la importan; ninguno vuelve a escribir su propio 26. Devuelve la cifra."""
+    import sys
+    sys.path.insert(0, SCRIPTS)
+    sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+    import _comun, medir_animacion, qa_entrega, puntuar, render_plan
+    tc.assertEqual(_comun.LETRA_MIN, 26)
+    for mod, nombre in ((render_plan, "MIN_LETRA"), (medir_animacion, "LETRA_MIN"),
+                        (qa_entrega, "LETRA_MIN"), (puntuar, "LETRA_OK")):
+        tc.assertEqual(getattr(mod, nombre), _comun.LETRA_MIN, f"{mod.__name__}.{nombre}")
+    tc.assertRegex(tc.src, r"(?m)^MIN_LETRA\s*=\s*LETRA_MIN\b",
+                   "el motor toma su piso de _comun.LETRA_MIN")
+    for f in ("medir_animacion.py", "qa_entrega.py", "puntuar.py", "render_plan.py"):
+        with open(os.path.join(SCRIPTS, f), encoding="utf-8") as fh:
+            tc.assertNotRegex(fh.read(), r"(?m)^(LETRA_MIN|MIN_LETRA|LETRA_OK|OCUPACION_MIN)\s*=\s*\d",
+                              f"{f}: el piso legible no se redefine con un literal")
+    return _comun.LETRA_MIN
+
+
 class TestEscalaTipografica(unittest.TestCase):
     def setUp(self):
         self.src = _motor()
@@ -66,18 +87,10 @@ class TestEscalaTipografica(unittest.TestCase):
         self.assertGreater(e["secundario"], e["nota"])
 
     def test_el_piso_de_la_escala_no_toca_el_minimo_legible(self):
-        # LETRA_MIN del QA = 26 (scripts/medir_animacion.py)
-        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
-            qa = f.read()
-        m = re.search(r"LETRA_MIN\s*=\s*(\d+)", qa)
-        self.assertIsNotNone(m, "medir_animacion.py debe definir LETRA_MIN")
-        letra_min = int(m.group(1))
+        # LETRA_MIN = 26: UNA cifra en _comun que importan motor, medicion y QA
+        letra_min = _piso_unico(self)
         self.assertGreaterEqual(self._esc("nota"), letra_min,
                                 "el rol mas pequeno no puede bajar del piso legible")
-        m2 = re.search(r"^MIN_LETRA\s*=\s*(\d+)", self.src, re.M)
-        self.assertIsNotNone(m2, "el motor debe declarar MIN_LETRA")
-        self.assertEqual(int(m2.group(1)), letra_min,
-                         "el piso del motor y el del QA deben ser el mismo numero")
 
     def test_el_autofit_no_puede_bajar_del_piso(self):
         """El auto-fit no deja letra por debajo del piso legible.
@@ -98,13 +111,7 @@ class TestEscalaTipografica(unittest.TestCase):
                           f"{f}: el piso por defecto debe ser MIN_LETRA")
         bajos = [int(v) for v in re.findall(r"minimo=(\d+)(?![.\d])", self.src) if int(v) < 26]
         self.assertEqual(bajos, [], f"ninguna llamada puede pedir un piso bajo el legible: {bajos}")
-        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
-            qa = f.read()
-        letra_min = int(re.search(r"LETRA_MIN\s*=\s*(\d+)", qa).group(1))
-        m2 = re.search(r"^MIN_LETRA\s*=\s*(\d+)", self.src, re.M)
-        self.assertIsNotNone(m2, "el motor debe declarar MIN_LETRA")
-        self.assertEqual(int(m2.group(1)), letra_min,
-                         "el piso de legibilidad del motor y el del QA deben ser el mismo número")
+        _piso_unico(self)
 
     def test_ningun_texto_de_overlay_usa_un_tamano_fuera_de_la_escala(self):
         escala = {self._esc(k) for k in ("titular", "rotulo", "dato", "secundario", "nota")}
