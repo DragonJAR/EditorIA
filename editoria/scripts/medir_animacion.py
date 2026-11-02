@@ -47,6 +47,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 SKILL = os.path.dirname(AQUI)
 sys.path.insert(0, AQUI)
 sys.path.insert(0, os.path.join(AQUI, "ffmpeg_tools"))
+from _comun import tiempo_de_lectura  # noqa: E402  (el canonico del piso de lectura)
 
 from _plataforma import dir_temp  # noqa: E402
 
@@ -163,6 +164,85 @@ def _letra_en_reposo(tamanos, ultimos=None):
     return min(fuera) if fuera else 0
 
 
+def _defectos_lectura(lecturas, fps):
+    """Los textos que no aguantaron lo que se leen. Puro: sin video.
+
+    `lecturas` es { (nº escena, tipo, texto): {"frames": {i…}} } y sale de la
+    MISMA instrumentación que mide la letra, pero a nivel de LÍNEA (no de
+    palabra): una llamada a `titular` es una lectura, una a `pon_texto` es una
+    lectura.
+
+    TRES reglas, y las tres hacen falta:
+
+    1. Una familia de textos que se CONTIENEN es UNA lectura. El typewriter
+       escribe "Es", "Esc", "Esqu"…; el buscador teclea la consulta letra a
+       letra; la frase desliza una ventana de palabras. Cada trozo es un
+       texto distinto, pero lo que se lee es el texto COMPLETO, y su sostén
+       es el de la familia entera (de la primera letra a la última): el
+       espectador lee MIENTRAS el texto se escribe.
+    2. De los textos que sólo tienen un frame (un glifo suelto, el valor de un
+       contador) no se dice nada: no son una lectura, son un instante.
+    3. El sostén se mide sobre la copia que MÁS aguanta. En un solape (0.32 s)
+       o en una mancha (0.9 s) el motor vuelve a componer la escena ANTERIOR
+       encima de la nueva: esa copia es un fantasma y no cuenta (si contara,
+       cada corte de la pieza seria un falso positivo).
+
+    El defecto sale con la ESCENA y el TEXTO: «no se lee» sin saber dónde no
+    es accionable.
+    """
+    fps = max(1.0, fps)
+    por_escena = {}
+    for (num, tipo, texto), datos in (lecturas or {}).items():
+        frames = sorted(datos.get("frames") or [])
+        if len(frames) < 2:
+            continue                      # un instante, no una lectura
+        if len(str(texto).strip()) < 3:
+            continue                      # un glifo, no una lectura
+        por_escena.setdefault((num, tipo), {})[texto] = frames
+    if not por_escena:
+        return []
+    # 1) las familias: el texto que contiene a los demas es su raiz, y el
+    #    sostén de la lectura es el de la familia (de la primera letra a la
+    #    ultima).
+    familias = {}                         # raiz -> {(nº escena, tipo): frames}
+    for (num, tipo), items in por_escena.items():
+        for texto in items:
+            cadena = [texto]
+            t = texto
+            while True:
+                mayores = [u for u in items if u != t and t in u and len(u) > len(t)]
+                if not mayores:
+                    break
+                t = max(mayores, key=len)
+                cadena.append(t)
+            raiz = cadena[-1]
+            for miembro in cadena:
+                familias.setdefault(raiz, {}).setdefault((num, tipo), []).extend(items[miembro])
+    # 2) cada familia se juzga por su MEJOR sostén (regla 3 de arriba)
+    fuera = []
+    for raiz, por_cena in familias.items():
+        mejor = None
+        for (num, tipo), frames in por_cena.items():
+            primero, ultimo = min(frames), max(frames)
+            sosten = (ultimo - primero + 1) / fps
+            if mejor is None or sosten > mejor[0]:
+                mejor = (sosten, num, tipo)
+        if mejor is None:
+            continue
+        sosten, num, tipo = mejor
+        pide = tiempo_de_lectura(raiz)
+        # el piso es aproximado ("~0.8 s") y la medida viene en frames: un
+        # margen de un frame o del 10 % del piso no es un defecto, es la
+        # regla redondeada. Lo que se busca es el titular que sale a los
+        # 0.4 s, no el que se queda 0.07 s por debajo.
+        margen = max(1.0 / fps, 0.1 * pide)
+        if pide and sosten + margen < pide:
+            fuera.append({"escena": f"{num}:{tipo}", "texto": raiz[:60],
+                          "sosten": round(sosten, 2), "minimo": round(pide, 2)})
+    return sorted(fuera, key=lambda d: (d["sosten"] - d["minimo"]))
+
+
+
 def medir(job):
     """Mide una escena (o un plan entero: escenas en secuencia, cortes y
     transiciones) en un formato. Devuelve el dict de métricas."""
@@ -214,8 +294,99 @@ def medir(job):
             zonas_cifra[-1].append(d.textbbox(xy, final or texto, font=font, anchor=anchor))
         except Exception:
             pass
-        return cifra_orig(d, xy, texto, font, fill, anchor, final)
+        # una cifra que CUENTA cambia de valor cada frame: no es una lectura
+        # (su texto cambia, no aguanta), es un dato que se anima
+        en_cifra[0] = True
+        try:
+            return cifra_orig(d, xy, texto, font, fill, anchor, final)
+        finally:
+            en_cifra[0] = False
     R.cifra = cifra_espia
+    # ── las lecturas: la UNIDAD que se lee, no la llamada de dibujo ──────
+    # El motor dibuja por dentro: `titular` pinta PALABRA a palabra (cada
+    # palabra, en su propia tesela) y `pon_texto` pinta la línea entera.
+    # Medir la llamada mediría palabras sueltas (la última palabra de un
+    # titular "aguanta" 0.7 s aunque el titular lleve 4 s en pantalla).
+    # La lectura es la LÍNEA: se espía `titular` (recibe la lista de líneas y
+    # las entradas palabra a palabra) y `pon_texto`/`draw_seg` (reciben el
+    # texto entero). El sostén es de la primera palabra a la última.
+    lecturas = {}       # (nº escena, tipo, texto) -> {"frames": {i}, "palabras": {str: i}}
+    frame_actual = [0]
+    escena_actual = [(0, "?")]
+    en_cifra = [False]
+    en_titular = [None]     # el acumulador de la línea que se está pintando
+    pon_orig = R.pon_texto
+    seg_orig = R.draw_seg
+    tit_orig = R.titular
+    enc_orig = R.encuadre
+    fuente_orig = getattr(R, "pie_fuente", None)
+
+    def encuadre_espia(ctx, e, idx, t, ts=None):
+        # La escena que DIBUJA, no la que está en el reloj: en un solape (0.32 s)
+        # o en una mancha (0.9 s) el motor vuelve a componer la escena ANTERIOR
+        # encima de la nueva. Con el reloj, el texto de la escena anterior
+        # salía atribuido a la nueva y duraba lo que dura el solape: un
+        # falso positivo por cada corte de la pieza.
+        antes = escena_actual[0]
+        escena_actual[0] = (idx + 1, e.get("tipo", "?"))
+        try:
+            return enc_orig(ctx, e, idx, t, ts)
+        finally:
+            escena_actual[0] = antes
+
+    def _anota(texto, font=None):
+        t = str(texto)
+        for m in ("*", "~", "^"):
+            t = t.replace(m, "")
+        if not t.strip() or not any(ch.isalnum() for ch in t):
+            return
+        clave = (escena_actual[0][0], escena_actual[0][1], t)
+        lecturas.setdefault(clave, {"frames": set()})["frames"].add(frame_actual[0])
+
+    def pon_espia(d, xy, txt, font=None, fill=None, anchor=None, **kw):
+        if en_cifra[0]:
+            return pon_orig(d, xy, txt, font=font, fill=fill, anchor=anchor, **kw)
+        if en_titular[0] is None:
+            # dentro de un titular NO se anota: las palabras sueltas no son
+            # lecturas, la LINEA que se arma lo es (la anota titular_espia)
+            _anota(txt, font)
+        return pon_orig(d, xy, txt, font=font, fill=fill, anchor=anchor, **kw)
+
+    def seg_espia(d, xy, sg, fnt, fill, emph_fill, anchor="la", spacing=0):
+        if not en_cifra[0] and en_titular[0] is None:
+            _anota("".join(t for t, _ in sg), fnt)
+        return seg_orig(d, xy, sg, fnt, fill, emph_fill, anchor=anchor, spacing=spacing)
+
+    def titular_espia(ctx, layer, t, lineas, ats, *a, **kw):
+        if isinstance(lineas, str):
+            lineas = [lineas]
+        _txt = " ".join(str(x) for x in lineas)
+        for _m in ("*", "~", "^"):
+            _txt = _txt.replace(_m, "")
+        clave = (escena_actual[0][0], escena_actual[0][1], _txt)
+        acc = lecturas.setdefault(clave, {"frames": set()})
+        acc["frames"].add(frame_actual[0])
+        en_titular[0] = acc
+        try:
+            return tit_orig(ctx, layer, t, lineas, ats, *a, **kw)
+        finally:
+            en_titular[0] = None
+
+    def fuente_espia(ctx, d, e, t, t_def):
+        # la banda de la fuente es una atribución, no una lectura: se ve,
+        # no se lee palabra a palabra (y la pieza la lleva en todas partes)
+        en_cifra[0] = True
+        try:
+            return fuente_orig(ctx, d, e, t, t_def)
+        finally:
+            en_cifra[0] = False
+
+    R.pon_texto = pon_espia
+    R.draw_seg = seg_espia
+    R.titular = titular_espia
+    R.encuadre = encuadre_espia
+    if fuente_orig is not None:
+        R.pie_fuente = fuente_espia
     w, h = FORMATOS[f]
     k_ = LADO / min(w, h)
     ancho_a, alto_a = int(w * k_), int(h * k_)
@@ -233,12 +404,23 @@ def medir(job):
                 ((j + 1, s_.get("tipo", "?")) for j, s_ in enumerate(escenas)
                  if s_["from"] + (s_["to"] - s_["from"]) * 0.5 <= ti <= s_["to"] - 0.6),
                 None)
+            frame_actual[0] = i
+            escena_actual[0] = next(
+                ((j + 1, s_.get("tipo", "?")) for j, s_ in enumerate(escenas)
+                 if s_["from"] <= ti < s_["to"]),
+                (escena_hold[0] or (0, "?")))
             zonas_cifra.append([])
             im = R.componer(ctx, escenas, dur, ti, manchas).convert("L").resize((ancho_a, alto_a))
             frames.append(np.asarray(im, dtype=np.float32))
     finally:
         ImageDraw.ImageDraw.text = original
         R.cifra = cifra_orig
+        R.pon_texto = pon_orig
+        R.draw_seg = seg_orig
+        R.titular = tit_orig
+        R.encuadre = enc_orig
+        if fuente_orig is not None:
+            R.pie_fuente = fuente_orig
     costo = (time.time() - t0) / max(1, n)
     F = np.stack(frames)
     m = metricas(F, fps, (n / fps + 0.6) if ventana else dur, zonas_cifra, k_, caja=R.caja_segura())
@@ -257,13 +439,16 @@ def medir(job):
          for (num, tipo, texto), tam in ultimos_escena.items()),
         key=lambda d: d["letra_px"])
     pisan = [] if ventana else solapes(R, ctx, escenas, dur)
+    # las lecturas que no aguantaron: el texto que sale antes de que se
+    # pueda leer (la puerta de entrega y la rubrica beben de esta lista)
+    cortas = [] if ventana else _defectos_lectura(lecturas, fps)
     if len(escenas) == 1 and escenas[0]["tipo"] in R.QUIETAS:   # se LEE quieta (render_plan.QUIETAS)
         # su flotación (render_plan.vida) no llega al umbral de `muerto` (diff de
         # cuadro entero); `quieto` (por bloque) sí la ve y se mide como en todas
         m["muerto"] = 0.0
         m["quieta"] = True   # ni la densidad la juzga: entra una vez y se queda para leerse
     return dict({"escena": nombre, "formato": f}, **m, letra_min=letra, zona=round(zona, 3), solapes=pisan,
-                letra_por_escena=letra_por_escena, costo=round(costo, 3))
+                letra_por_escena=letra_por_escena, lectura=cortas, costo=round(costo, 3))
 
 
 def _rejilla(A):
@@ -661,6 +846,8 @@ def nota(m):
         p += min(10, 8 * (dens - 2.0))
     if m["letra_min"] and m["letra_min"] < LETRA_MIN:      # letra que no se lee en un teléfono
         p += min(15, (LETRA_MIN - m["letra_min"]) * 1.5)
+    if m.get("lectura"):                                  # un texto que no aguanta lo que se lee
+        p += min(15, 5 * len(m["lectura"]))
     if m["zona"] < 0.999:                                  # la red de seguridad tuvo que encoger
         p += 30 * (1 - m["zona"])
     return round(max(0.0, 100 - p), 1)
@@ -824,6 +1011,10 @@ def main():
                 if d["letra_px"] < LETRA_MIN:
                     print(f"  LETRA {r['formato']} escena {d['escena']}: «{d['texto']}» "
                           f"{d['letra_px']} px (< {LETRA_MIN}) — acorta ese texto o alarga su escena")
+            for d in (r.get("lectura") or []):
+                print(f"  LECTURA {r['formato']} escena {d['escena']}: «{d['texto']}» "
+                      f"aguanta {d['sosten']} s y necesita {d['minimo']} s "
+                      f"— alarga su escena o acorta el texto (ritmo.md)")
         global_ = round(float(np.mean([r["nota"] for r in res])), 2)
         minima = min(res, key=lambda r: r["nota"])
         if a.plan and plan.get("musica"):   # edición al ritmo: tiempos reales del plan vs la rejilla

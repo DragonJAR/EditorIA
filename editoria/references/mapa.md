@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-67 referencias, 51 scripts, 20 herramientas de ffmpeg y 73 suites de tests. Este
+68 referencias, 52 scripts, 20 herramientas de ffmpeg y 76 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -27,7 +27,7 @@ contradigan.
 | **escenas** | `escenas.md` | el catálogo de 45 tipos de escena y sus parámetros | al elegir escena |
 | **sonido** | `sonido.md` | voz, música y SFX; el ritmo musical vive en `audio.md`, la capa de efectos en `sfx.md` | al mezclar |
 | **copy** | `copy.md` | el texto en pantalla, la aritmética del rótulo, la prueba sin inventarla | al escribir el copy |
-| **qa** | `qa-entrega.md` | la puerta de entrega; el loop y sus causas en `auto-qa.md`, la lista humana en `checklist-qa.md`, el gate de premios en `rubrica-premios.md` | antes de entregar |
+| **qa** | `qa-entrega.md` | la puerta de entrega; el loop y sus causas en `auto-qa.md`, la lista humana en `checklist-qa.md`, el gate de premios en `rubrica-premios.md`, la segunda opinión en `references/jurado.md` | antes de entregar |
 | **marca** | `brand-packs.md` | cómo se declara una identidad y cómo se aplica a una pieza | cuando hay marca |
 | **color** | `paleta.md` | el catálogo de paletas del modo libre y cómo elegir una según el brief | antes de renderizar, si no hay marca |
 | **produccion** | `formatos.md` | qué sostiene cada tipo de pieza y los workflows para hacerlas | al elegir el formato |
@@ -147,6 +147,7 @@ escribir es un tapón).
 | `checklist-qa.md` | la lista de verificación humana | qa |
 | `pasadas.md` | las pasadas de refinamiento: corregir lo nombrado, sin tocar el resto | qa |
 | `rubrica-premios.md` | el gate de premios: los 8 ejes | qa |
+| `jurado.md` | la segunda opinión: qué se le entrega, qué devuelve y cómo se actúa | qa |
 | `brand-packs.md` | cómo se declara y se aplica una identidad | marca |
 | `formatos.md` | qué sostiene cada tipo de pieza | produccion |
 | `modos-produccion.md` | real, animado e híbrido | produccion |
@@ -318,7 +319,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 67 referencias, no se estiman.
+    guard nuevo se cuentan contra las 68 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que

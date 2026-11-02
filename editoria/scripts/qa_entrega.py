@@ -144,7 +144,8 @@ def _fps(video):
         return 30
 
 
-def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None):
+def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_zona=None,
+                          lectura=None):
     """Los fallos de composicion, con su motivo Y su dueno. Puro: sin video ni plan.
 
     Un «2 textos se pisan» sin escena ni instante no es accionable: obligaba
@@ -171,6 +172,12 @@ def _defectos_composicion(letra, zona, solapes, culpables_letra=None, culpables_
         fallos.append(f"{len(solapes)} textos se pisan: " +
                         "; ".join(str(s) for s in solapes[:4]) +
                         ("; …" if len(solapes) > 4 else ""))
+    if lectura:
+        fallos.append(f"{len(lectura)} textos no aguantan lo que se leen: " +
+                      "; ".join(f"escena {d['escena']} «{d['texto']}» "
+                                f"{d['sosten']} s (necesita {d['minimo']} s)"
+                                for d in lectura[:4]) +
+                      ("; …" if len(lectura) > 4 else ""))
     return fallos
 
 
@@ -276,9 +283,14 @@ def _paso_composicion(plan, video):
                            if d.get("letra_px", 999) < LETRA_MIN]
         culpables_zona = [{"escena": r.get("escena", "?"), "zona": float(r.get("zona", 1.0))}
                           for r in res if float(r.get("zona", 1.0)) <= ZONA_MIN]
+        # los textos que no aguantan lo que se leen: la MISMA medicion que
+        # usa la rubrica para el eje 4 (ritmo.md, el piso de lectura)
+        lectura = [d for r in res for d in (r.get("lectura") or [])]
         fallos = _defectos_composicion(letra, zona, solapes,
-                                       culpables_letra, culpables_zona)
+                                       culpables_letra, culpables_zona, lectura)
         detalle = f"letra {letra or '?'} px (min {LETRA_MIN}) · zona x{zona:.3f} · {len(solapes)} solapes"
+        if lectura:
+            detalle += f" · {len(lectura)} textos sin sostén para leer"
         if fallos:
             detalle = "; ".join(fallos)
         return {"nombre": "composicion", "ok": not fallos, "detalle": detalle}

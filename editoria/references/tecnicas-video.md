@@ -459,9 +459,12 @@ cada estado lea. Callouts de diferencia que pop al pasar el wipe.
 que se dibujan solos; marcadores pulsantes; arcos de círculo máximo para rutas;
 labels más tiempo del que parece necesario; sostener 3–4s la región destacada.
 Reglas extra de mapa editorial: (a) **stutter 12fps** como firma — cuantizar el
-frame `STEP=round(fps/12)`, `f=floor(frame/STEP)*STEP`, y animar SOLO el overlay
-gráfico con `f`, dejando la cámara base suave (stutterear todo parece frames
-dropeados, no estilo); (b) **beats array como single source of truth** — un array
+frame con la fórmula INDEPENDIENTE del fps, `f=floor(frame*12/fps)`, y animar
+SOLO el overlay gráfico con `f`, dejando la cámara base suave (stutterear todo
+parece frames dropeados, no estilo). La cuenta es sobre el SEGUNDO, no sobre
+el frame: `round(fps/12)` daba 15 fps a 30 fps de salida (el doble del efecto
+buscado) y 24 a 60; `floor(t*12)/12` da los mismos 12 fps a 24, a 30 y a 60;
+(b) **beats array como single source of truth** — un array
 ordenado `{lng,lat,label,hold,zoom,route}` que deriva cámara, pins, labels, rutas
 y duración total; (c) **focus+context**: región objetivo lit, el resto a
 opacidad 0.35; (d) **labels con counter-scale** `1/scale` para que el tipo no

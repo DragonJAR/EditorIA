@@ -415,6 +415,40 @@ def _fraction(v: Optional[str]) -> Optional[Fraction]:
         return None
 
 
+# ── EL PISO DE LECTURA (la regla, con su canónico) ───────────────────────
+# Cuántos segundos necesita un texto para que se pueda leer. Es UNA regla y
+# vive AQUÍ: la usan la puerta de entrega (que mide si el texto aguanta) y el
+# motor (que postpone el cambio de beat si la primera frase no cabe).
+#
+# Los NUMEROS son los que declara `references/ritmo.md` ("Piso de lectura"):
+# una etiqueta corta o una línea de 1-3 palabras necesita ~0.8 s; un titular
+# o una frase completa ~0.3 s por palabra, con un piso de ~1.2 s. La 1.11.3
+# del Downloads traia 2 s de piso y 3 palabras/s en el codigo sin actualizar
+# la prosa: dos verdades para la misma regla. Gana la prosa (es la que el
+# agente lee) y el codigo la cumple.
+LECTURA_ETIQUETA_S = 0.8    # s: etiqueta corta o línea de 1-3 palabras
+LECTURA_PALABRA_S = 0.3     # s por palabra: titular o frase completa
+LECTURA_MIN_S = 1.2         # s: el piso de un titular, por corto que sea
+LECTURA_PALABRAS_ETIQUETA = 3   # hasta 3 palabras = etiqueta corta
+
+
+def tiempo_de_lectura(texto) -> float:
+    """Los segundos que un texto necesita para poder leerse. Puro: sin video.
+
+    Acepta un texto o una lista de lineas. Un simbolo suelto ("✓") no es una
+    lectura y devuelve 0.
+    """
+    import re as _re
+    if isinstance(texto, (list, tuple)):
+        texto = " ".join(str(x) for x in texto)
+    palabras = [w for w in _re.findall(r"\w+", str(texto or ""))]
+    if not palabras:
+        return 0.0
+    if len(palabras) <= LECTURA_PALABRAS_ETIQUETA:
+        return LECTURA_ETIQUETA_S
+    return round(max(LECTURA_MIN_S, len(palabras) * LECTURA_PALABRA_S), 2)
+
+
 def probe(path: str, role: str = "input") -> Dict[str, Any]:
     """Descripcion compacta del archivo: formato, duracion, video y audio."""
     if not os.path.exists(path):
