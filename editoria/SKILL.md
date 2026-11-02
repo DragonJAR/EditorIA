@@ -59,9 +59,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable) |
 | Keep the installed copy in sync | **Install**: `scripts/install_skill.py` (creates a portable link or copy without overwriting user files); `scripts/sincronizar_instalada.py --replace` explicitly authorizes syncing an independent copy and cleaning its cache |
-| Quick kinetic card (one phrase) | **Quick**: recipe `quick-kinetic` in `references/modos-rapidos.md` |
-| Clip assembly with music | **Quick**: recipe `quick-montage` in `references/modos-rapidos.md` |
-| Trim or adapt an existing video | **Quick**: recipe `quick-cut` in `references/modos-rapidos.md` |
+| Quick kinetic card (one phrase) / clip assembly with music / trim or adapt a video | **Quick**: recipes `quick-kinetic` / `quick-montage` / `quick-cut` in `references/modos-rapidos.md` |
 | Vertical short from a long video | **Shorts**: `shorts-plan.json` (schema in `references/shorts-plan-schema.md`) + `scripts/ffmpeg_tools/shorts_plan.py` |
 | Real video + animation complementing it | **Hybrid**: `references/modos-produccion.md` (bridges, layers, continuity) |
 | Existing video + background music | `scripts/musica.py musiconly` then `scripts/ffmpeg_tools/loudness.py` (Step 4 closes the mix; without loudness the gate fails ~−18 LUFS) |
@@ -84,7 +82,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles: signature, techniques, the engine that serves each; plus the cinema catalogue) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` (Familia 7) + `references/recetas-ai-video.md` (§7) |
 | Animate a scene, a logo, a title, or one element | **Animation selector**: `references/animacion.md` §0 (what fits when, and how each one is requested), then the technique's reference |
-| Soft UI / face-track overlays / animated captions (stagger, orbit, karaoke, matte-behind-face…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (produce via the option's motor — CVE `/tmp`, `caption.py`, or `captions_identidades.py receta` for HyperFrames; never vendor repos, never add caption types to `SCENES`. Talking-head chain: `references/flujo-talking-head.md`. Detail: `motion-ui.md`, `efectos-talking-head.md`, `captions-identidades.md`) |
+| Soft UI / face-track overlays / animated captions (stagger, orbit, karaoke, matte-behind-face…) | **Same repertoire**: `scripts/repertorio.py sugerir --pedido "…"` then `resolver --id …` (produce via the option's motor; never vendor repos nor add captions to `SCENES`. Chain and rules: `references/flujo-talking-head.md`; detail in `motion-ui.md`, `efectos-talking-head.md`, `captions-identidades.md`) |
 | Apply a brand correctly (assets, logo, colors, type, placement, never deform) | **Brand checklist**: `references/brand-packs.md` (assets exist, no redraw, no stretch, contrast verified, incomplete pack declared — never invented) |
 | Viralizar: prepare a piece to be discovered and shared | **Publish flow**: `references/share-copy.md` (moment, triple hook, burned captions, platform spec, hook×body variantes, poster, share copy), ending at the same gate |
 
@@ -128,7 +126,7 @@ python scripts/proyecto.py {carpeta}
 
 Run it before writing the plan and again whenever the brief changes. It never overwrites (`references/auto-mejora.md`).
 
-Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "video de ciberseguridad" --sector ciberseguridad --tono demo --modo explicar --tiene capturas` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (a style pack usable with `--brand`). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
+Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "…"` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (usable with `--brand`; full command in `references/direccion-de-arte.md`, «El orden de trabajo»). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
 
 Then author the plan: write `plan.json` following `references/plan-video.md` (46 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
 
@@ -252,7 +250,7 @@ When summarizing meetings or editing camera-first footage (`references/video-rea
 
 1. Extract 6 to 10 verified moments from the transcript using `references/scoring-shorts.md`.
 2. Choose the visual language in `references/estilos.md` and camera direction in `references/direccion.md`.
-3. Apply post-production tools as needed: transcribe (`scripts/ffmpeg_tools/transcribir.py`), remove retakes and silence (`scripts/retakes.py`, `scripts/ffmpeg_tools/silence.py`), apply EDL (`scripts/ffmpeg_tools/aplicar_edl.py`), pick caption identity via `scripts/repertorio.py sugerir --pedido "…"` then burn (`scripts/ffmpeg_tools/caption.py` or `scripts/captions_identidades.py receta` for HyperFrames matte/registry), optional face-tracked motion (`repertorio` → `efectos_talking_head.py receta`), sync cuts to beats (`scripts/beat_grid.py`, `scripts/beat_sync.py`), generate chapters (`scripts/chapters.py`), and bake poster/thumbnails (`scripts/poster_frame.py`, `scripts/ffmpeg_tools/thumbnail.py`, `references/thumbnails.md`). Burn captions **before** loudness.
+3. Apply post-production as needed, in the chain's order (what each tool does: `references/flujo-talking-head.md`): `scripts/ffmpeg_tools/transcribir.py` → `scripts/retakes.py` / `scripts/ffmpeg_tools/silence.py` → `scripts/ffmpeg_tools/aplicar_edl.py` → captions (`scripts/repertorio.py sugerir --pedido "…"`, then `scripts/ffmpeg_tools/caption.py` or `scripts/captions_identidades.py receta`) → optional face-tracked motion (`efectos_talking_head.py receta`) → `scripts/beat_grid.py`, `scripts/beat_sync.py`, `scripts/chapters.py`, `scripts/poster_frame.py`, `scripts/ffmpeg_tools/thumbnail.py` (`references/thumbnails.md`). Burn captions **before** loudness.
 4. Prepare companion caption in `share-copy.txt` per `references/share-copy.md` and log new production findings via `python scripts/registrar_aprendizaje.py --titulo "Que aprendimos" --detalle "Lo que se vio y por que"` (`references/auto-mejora.md`, `references/lecciones-produccion.md`).
 5. **Close at the gate**, like the create path. An edited piece ships on the same terms as an animated one:
 
@@ -384,14 +382,6 @@ Solution:
 1. Keep auto-fit width `<= 1000px` on 1080px canvases and center with `cx = W / 2`.
 2. Verify safe-zone margins with `python scripts/medir_animacion.py` and `references/coherencia-espacial.md`.
 
-### Error: Empty scenes after intro in FFmpeg overlays
-
-Cause: FFmpeg `overlay` filter synchronizes streams by presentation timestamp (`PTS`).
-
-Solution:
-
-1. Reset clip timestamps with `setpts=PTS-STARTPTS` before chaining `overlay` filters (`references/reglas-tecnicas.md` and `references/media-hard-rules.md`).
-
 ### Error: Text renders smaller than the scene next to it
 
 Cause: The scene's content is taller or wider than the safe zone, so the engine
@@ -403,13 +393,7 @@ Solution:
    does not get shrunk with it.
 2. Re-measure with `python scripts/medir_animacion.py`.
 
-### Error: Large `.frames` cache directories
-
-Cause: Uncompressed intermediate PNG frames remain on disk after interrupted renders.
-
-Solution:
-
-1. Delete temporary `.frames` directories after final delivery; never store them inside the skill folder.
+More cases (empty scenes after an FFmpeg overlay, large `.frames` caches): `references/reglas-tecnicas.md`, «Problemas frecuentes».
 
 ## Performance Notes
 

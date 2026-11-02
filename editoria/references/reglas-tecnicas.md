@@ -318,6 +318,21 @@
   entera: `python3 scripts/validate_skill.py --cabecera`. Lo vigila
   `scripts/_tests/test_cabecera_commit.py`.
 
+
+## Problemas frecuentes
+
+### Escenas vacías tras la intro en overlays de FFmpeg
+
+Causa: el filtro `overlay` de FFmpeg sincroniza los flujos por marca de tiempo de presentación (`PTS`).
+
+Solución: reiniciar las marcas del clip con `setpts=PTS-STARTPTS` antes de encadenar filtros `overlay` (ver también `references/media-hard-rules.md`).
+
+### Directorios `.frames` de caché enormes
+
+Causa: los PNG intermedios sin comprimir quedan en disco tras un render interrumpido.
+
+Solución: borrar los directorios temporales `.frames` tras la entrega final; nunca guardarlos dentro de la carpeta de la skill.
+
 ---
 
 → Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/animacion.md`, `references/fluidez.md`, `references/coherencia-espacial.md`
