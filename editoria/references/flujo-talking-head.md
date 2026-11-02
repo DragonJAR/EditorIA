@@ -25,17 +25,6 @@ footage → probe → corte/pause → captions (rail/embed) → motion → maste
 | 6. Puerta | defectos + ejes | `qa_entrega.py` + `puntuar.py` | — |
 | 7. Publicar | copy, poster, variantes | `share-copy.md` + `poster_frame.py` / `thumbnail.py` | — |
 
-Herramientas de postproducción (el paso 3 de SKILL.md, en orden):
-transcribir (`ffmpeg_tools/transcribir.py`), quitar retakes y silencios
-(`retakes.py`, `ffmpeg_tools/silence.py`), aplicar el EDL
-(`ffmpeg_tools/aplicar_edl.py`), elegir la identidad de captions con
-`repertorio.py sugerir` y quemarla (`ffmpeg_tools/caption.py`, o
-`captions_identidades.py receta` para el matte/registry de HyperFrames),
-motion opcional con seguimiento de cara (`efectos_talking_head.py receta`),
-cortes al beat (`beat_grid.py`, `beat_sync.py`), capítulos (`chapters.py`) y
-poster/miniaturas (`poster_frame.py`, `ffmpeg_tools/thumbnail.py`,
-`thumbnails.md`). Los captions se queman ANTES del loudness.
-
 Comandos típicos (pieza narrada vertical):
 
 ```bash

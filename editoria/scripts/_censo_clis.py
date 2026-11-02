@@ -129,7 +129,9 @@ def medir_suite(test_dir=None, verbosity=0):
     try:
         loader = unittest.TestLoader()
         suite = loader.discover(test_dir)
-        runner = unittest.TextTestRunner(resultclass=_Espia, verbosity=verbosity)
+        import tempfile as _tf
+        _fh = open(os.path.join(_tf.gettempdir(), "censo_salida.txt"), "w", encoding="utf-8")
+        runner = unittest.TextTestRunner(resultclass=_Espia, verbosity=2, stream=_fh)
         res = runner.run(suite)
         codigo = 0 if res.wasSuccessful() else 1
     finally:

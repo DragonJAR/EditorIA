@@ -1006,12 +1006,17 @@ try:
     _typo = _R5.avisos_de_campos({"tipo": "pasos", "from": 0, "to": 4, "pasos": [{"titulo": "x"}]})
     check(not _ruido and _typo and "`items`" in _typo[0],
           f"campos mal escritos: avisados con sugerencia, 0 avisos en las muestras ({len(_ruido)} ruido)")
-    # es es el default (1.240 · 4,8); "en" es opt-in (1,240 · 4.8)
+    # El default del motor es es (1.240 · 4,8). "en" se pide. Vaciar el plan
+    # vuelve a ese default: antes este chequeo exigía 1,240, el default viejo.
+    _R5.aplicar_globales({"numeros": "es"})
+    _es5 = (_R5.cuenta_up(0, 1240, 9, 0), _R5.cuenta_up(0, 4.8, 9, 0))
     _R5.aplicar_globales({"numeros": "en"})
-    _n5 = (_R5.cuenta_up(0, 1240, 9, 0), _R5.cuenta_up(0, 4.8, 9, 0))
+    _en5 = _R5.cuenta_up(0, 1240, 9, 0)
     _R5.aplicar_globales({})
-    check(_n5 == ("1,240", "4.8") and _R5.cuenta_up(0, 1240, 9, 0) == "1.240",
-          f"\"numeros\": \"en\" separa 1,240 y 4.8 (default es: 1.240) ({_n5})")
+    _def5 = _R5.cuenta_up(0, 1240, 9, 0)
+    check(_es5 == ("1.240", "4,8") and _en5 == "1,240" and _def5 == "1.240",
+          f"\"numeros\": \"es\" separa 1.240 y 4,8; \"en\" 1,240; vacío vuelve al default "
+          f"({_es5}, {_en5}, {_def5})")
     if not _HAY_PIL_NP:
         _R5.aplicar_globales({"subtitulos": True})
         try:

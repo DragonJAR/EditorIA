@@ -59,6 +59,7 @@ EJECUTABLES = {
     "scripts/clonar_video.py",
     "scripts/contact_sheet.py",
     "scripts/direccion_arte.py",
+    "scripts/ffmpeg_tools/aplicar_edl.py",
     "scripts/ffmpeg_tools/caption.py",
     "scripts/ffmpeg_tools/componer.py",
     "scripts/ffmpeg_tools/delivery_check.py",
@@ -105,20 +106,12 @@ FUERA = {
     "scripts/_censo_clis.py": ("corre la suite entera: este guard esta dentro de ella", []),
     "scripts/_comandos_copiables.py": ("es este guard: un guard no se copia a si mismo", []),
     "scripts/alinear.py": ("necesita un modelo de voz (Whisper) instalado", []),
-    # La prosa (flujo-talking-head.md) da `aplicar_edl.py` como FORMA, con
-    # "…" en vez de argumentos: el `--edl` obligatorio sale de
-    # `retakes.py`/`silence.py --edl` sobre el video del usuario. Copiado tal
-    # cual es argparse pidiendo `--edl`. Solo esa forma queda fuera (prefijo
-    # con el "…"): un `aplicar_edl.py video.mp4 --edl ...` documentado
-    # caeria fuera de este prefijo y tendria que copiarse o tener su motivo.
-    "scripts/ffmpeg_tools/aplicar_edl.py ...": ("forma sin argumentos ('...'): el EDL lo "
+    # Solo la forma con "…" (sin --edl) queda fuera: copiada tal cual,
+    # argparse pide --edl. El comando real del flujo (entrada, --edl, -o)
+    # esta en EJECUTABLES y se corre con el video de 1 s de este guard.
+    "scripts/ffmpeg_tools/aplicar_edl.py …": ("forma sin argumentos ('…'): el EDL lo "
                                               "produce retakes.py/silence.py --edl sobre "
                                               "el video del usuario", []),
-    # la prosa da la forma CONCRETA (con el archivo del usuario): sin el video
-    # no hay nada que cortar, asi que tampoco se puede copiar y ejecutar
-    "scripts/ffmpeg_tools/aplicar_edl.py sin_sil.mp4 --edl cortes.edl -o corte.mp4":
-        ("necesita el video del usuario y el EDL que produce retakes.py/silence.py",
-         []),
     "scripts/clonar_video.py analizar": ("descarga de la red: baja el video de referencia",
                                          ["--video"]),
     "scripts/contact_sheet.py": ("necesita palabras alineadas (Whisper)",
@@ -283,6 +276,12 @@ def _assets(tmp, skill_dir):
     with open(srt, "w", encoding="utf-8") as fh:
         fh.write("1\n00:00:00,000 --> 00:00:01,000\nHola\n\n")
     a["srt"] = srt
+    # Un rango dentro del video de 1 s de este guard. El lector es
+    # aplicar_edl.leer_edl; aqui no se reescribe su formato.
+    edl = os.path.join(tmp, "cortes.edl")
+    with open(edl, "w", encoding="utf-8") as fh:
+        fh.write("0.10-0.70\n")
+    a["edl"] = edl
     a["plantilla"] = _plantilla(os.path.join(tmp, "plantilla.json"))
     # trazos a mano: JSON mínimo para hand_draw.py suavizar/pintar
     trazos = os.path.join(tmp, "trazos.json")
@@ -343,7 +342,7 @@ _SUFIJOS = {
     ".mp4": "video", ".mov": "video", ".webm": "video", ".mkv": "video",
     ".mp3": "mp3", ".wav": "audio", ".m4a": "audio", ".aac": "audio",
     ".png": "imagen", ".jpg": "imagen", ".jpeg": "imagen",
-    ".txt": "texto", ".csv": "csv", ".srt": "srt",
+    ".txt": "texto", ".csv": "csv", ".srt": "srt", ".edl": "edl",
 }
 
 # Un marcador que nadie sustituye: "..." o algo entre < > o { }. Los que si

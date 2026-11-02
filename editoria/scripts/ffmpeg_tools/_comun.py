@@ -1014,10 +1014,16 @@ OCUPACION_MIN = 0.20
 QUIETO_MAX = 1.0
 
 #: s: lo que tarda en leerse una frase corta (y el minimo, siempre).
-LECTURA_MIN_S = 2.0
+#: s: lo que tarda en leerse una ETIQUETA corta (1-3 palabras) asentada.
+#: Es la "ley dura" de references/ritmo.md: el canonico esta aqui y la prosa
+#: lo cita, no al reves (antes eran dos verdades para la misma regla).
+LECTURA_ETIQUETA_S = 0.8
 
-#: palabras por segundo que se leen en un movil (letra grande, sin pausa).
-PALABRAS_POR_S = 3.0
+#: s: por palabra de un titular o una frase completa.
+LECTURA_POR_PALABRA_S = 0.3
+
+#: s: el piso de cualquier lectura (una frase, aunque sea de una palabra).
+LECTURA_MIN_S = 1.2
 TOKENS_COLOR = ("acento", "acento_oscuro", "negro", "blanco", "gris", "gris_superficie")
 #: paleta neutra de respaldo (modo libre sin decisión de paleta)
 NEUTRO: Dict[str, Tuple[int, int, int]] = {
@@ -1204,14 +1210,20 @@ _MARKUP_BIEN_FORMADO = re.compile(r"(?<!\w)([*~^])(?=\S)(.+?)(?<=\S)\1(?!\w)")
 def tiempo_de_lectura(texto) -> float:
     """Segundos para leer `texto` (str o lista de lineas) una vez asentado.
 
-    El piso es LECTURA_MIN_S: una frase corta tambien necesita un par de
-    segundos en pantalla, o se lee a medias.
+    LA REGLA (references/ritmo.md, "piso de lectura"): una etiqueta corta o
+    una linea de 1-3 palabras se asienta ~0,8 s; un titular o una frase
+    completa, ~0,3 s por palabra con un piso de ~1,2 s. El canonico esta
+    aqui: la prosa cita estos numeros, no al reves.
     """
     import re as _re
     if isinstance(texto, (list, tuple)):
         texto = " ".join(str(x) for x in texto)
     n = len(_re.findall(r"\w+", str(texto or "")))
-    return round(max(LECTURA_MIN_S, n / PALABRAS_POR_S), 2)
+    if not n:
+        return 0.0
+    if n <= 3:
+        return round(LECTURA_ETIQUETA_S, 2)
+    return round(max(LECTURA_MIN_S, n * LECTURA_POR_PALABRA_S), 2)
 
 
 def texto_plano(texto: str) -> str:

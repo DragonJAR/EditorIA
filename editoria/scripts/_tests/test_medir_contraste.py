@@ -57,6 +57,19 @@ class Contraste(unittest.TestCase):
             "no sirve como garantia")
         self.assertLess(cita[0]["ratio"], 3.0)
 
+    def test_la_entrada_no_condena_tinta_que_en_reposo_se_lee(self):
+        """oferta y notificacion bajan de 3:1 a mitad del fundido y en reposo
+        quedan por encima. Si medir() vuelve a quedarse con el peor frame, las
+        dos aparecen aquí. El defecto inyectado en la cita sigue en el otro
+        test: esta guarda no puede tapar una tinta que en reposo no se lee."""
+        hallazgos = MC.medir(umbral=3.0, escenas={"oferta", "notificacion"})
+        self.assertEqual(
+            hallazgos, [],
+            "la entrada se juzgó como tinta: "
+            + "; ".join(
+                f"{h['escena']} {h['formato']} {h['ratio']} {h['texto']!r}"
+                for h in hallazgos))
+
     def test_la_herramienta_se_restaura_si_algo_falla(self):
         """La medición no puede dejar el motor con el blanco cambiado."""
         blanco = R.BLANCO

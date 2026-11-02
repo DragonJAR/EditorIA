@@ -207,6 +207,32 @@ class TestComandosDoc(unittest.TestCase):
                          "el test toco el README REAL del repo: si el proceso muere "
                          "a mitad, el arbol queda con un comando que no existe")
 
+    def test_aplicar_edl_del_flujo_lleva_su_edl(self):
+        """La cadena talking-head se copia tal cual. Sin --edl, argparse
+        no arranca: es el mismo argv que el corte de modos-rapidos
+        (entrada, --edl, -o), con los archivos de esta cadena.
+        """
+        cmds = [c for c in CD.comandos_de_referencias(self.dir)
+                if "ffmpeg_tools/aplicar_edl.py" in c]
+        self.assertTrue(cmds, "el flujo tiene que documentar aplicar_edl.py")
+        for cmd in cmds:
+            self.assertIn("--edl", cmd)
+            problemas = CD.verificar_comando(self.dir, cmd)
+            self.assertEqual(problemas, [], "\n".join(problemas))
+        ruta = os.path.join(self.dir, "references", "flujo-talking-head.md")
+        with open(ruta, encoding="utf-8") as f:
+            original = f.read()
+        sin_edl = "scripts/ffmpeg_tools/aplicar_edl.py sin_sil.mp4 -o corte.mp4"
+        roto = original.replace(cmds[0], sin_edl, 1)
+        self.assertNotEqual(roto, original)
+        with open(ruta, "w", encoding="utf-8") as f:
+            f.write(roto)
+        malos = [c for c in CD.comandos_de_referencias(self.dir) if sin_edl in c]
+        self.assertEqual(malos, [sin_edl])
+        problemas = CD.verificar_comando(self.dir, malos[0])
+        self.assertTrue(problemas)
+        self.assertIn("--edl", problemas[0])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -173,6 +173,25 @@ class TestComandosCopiables(unittest.TestCase):
                              f"{cli} sigue con su motivo de exclusion: el "
                              f"motivo gana sobre la lista de ejecutables")
 
+    def test_el_corte_por_edl_del_flujo_se_copia_y_se_ejecuta(self):
+        """El aplicar_edl del flujo se copia tal cual esta escrito: entrada,
+        --edl y -o. El guard lo corre con su video de 1 s y un EDL cuyo
+        rango cabe en ese video. La forma con '…' sigue fuera."""
+        cc = self._guard()
+        sys.path.insert(0, SCRIPTS)
+        try:
+            import _comandos_doc as cd
+        finally:
+            sys.path.pop(0)
+        cmds = [c for c in cd.comandos_de_referencias(BASE)
+                if "ffmpeg_tools/aplicar_edl.py" in c and "…" not in c]
+        self.assertTrue(cmds, "el flujo tiene que documentar aplicar_edl.py")
+        problemas, informe = cc.verificar(BASE, comandos=cmds)
+        self.assertEqual(problemas, [], "\n".join(problemas))
+        self.assertEqual(informe["copiados"], len(cmds))
+        self.assertIsNotNone(cc._motivo_de(
+            "scripts/ffmpeg_tools/aplicar_edl.py …"))
+
     def test_el_comando_de_mezclar_se_copia_y_se_ejecuta_de_verdad(self):
         """El comando de la mezcla de sonido, tal cual lo escribe la prosa, se
         COPIA y se EJECUTA: la voz, la musica y el pack de SFX se sintetizan en
