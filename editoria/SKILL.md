@@ -95,7 +95,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 69 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 70 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
@@ -195,6 +195,7 @@ python scripts/mezclar_audio.py plan.json --video out.mp4 \
     --voz voz.mp3 --voz-palabras voz.palabras.json \
     --grid grid.json --pack assets/sfx --musica mus.mp3 -o mezclado.mp4
 python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3          # jerarquía de pistas, no el master
+python scripts/medir_silencios.py mezcla.wav --exigir             # silencios antes del giro (2 desde 20 s)
 # subtítulos (reels/tiktok/shorts): quemar ANTES del loudness; un solo archivo final
 python scripts/ffmpeg_tools/caption.py mezclado.mp4 --palabras voz.palabras.json --karaoke --animate pop --plan plan.json -o con_sub.mp4
 python scripts/ffmpeg_tools/loudness.py con_sub.mp4 -o final.mp4 -I -14 --tp -1.5
@@ -282,7 +283,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (82 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (84 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

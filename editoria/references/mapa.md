@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-69 referencias, 52 scripts, 20 herramientas de ffmpeg y 82 suites de tests. Este
+70 referencias, 53 scripts, 21 herramientas de ffmpeg y 84 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -117,6 +117,7 @@ escribir es un tapón).
 | `principios.md` | los principios permanentes (3 pilares, el gusto, la marca) | estructura |
 | `dramaturgia.md` | el arco: marco, tensión, giro, resonancia | estructura |
 | `direccion.md` | el listón medido, los 10 patrones, la dirección de energía | estructura |
+| `metodo-direccion.md` | del brief a la entrega: referente, tres estructuras, tratamiento, sonido, cierre y entrega, cambiar un estilo sin romperlo | estructura |
 | `direccion-de-arte.md` | la dirección de arte: la idea del sujeto, las direcciones repartidas, el registro de tells | estructura |
 | `tonos.md` | la energía creativa de la pieza | estructura |
 | `estilos.md` | los lenguajes visuales aprendidos | estructura |
@@ -320,7 +321,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 69 referencias, no se estiman.
+    guard nuevo se cuentan contra las 70 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que
@@ -379,6 +380,7 @@ escribir es un tapón).
 | `scripts/_guard_entorno.py` | que la suite dé el MISMO veredicto con repo y sin repo: la copia instalada no tiene repo, y si los tests cambian de veredicto ahí, una sola puerta no basta (lo mide, no lo supone) |
 | `scripts/compilar_reel.py` | compilar varios videos en un reel: mide cada clip, elige su mejor momento, los corta con disolvencia y escribe el plan con los tiempos ya calculados (el fondo y el plan salen de la MISMA cuenta: si hicieran cuentas distintas, la voz se desfasaria del footage) |
 | `scripts/ffmpeg_tools/componer.py` | meter la tipografía ENCIMA del footage con profundidad: la máscara del desenfoque sale del ALFA de la capa (el fondo se desenfoca SOLO detrás de la letra y el resto queda nítido), genera el velo y avisa de las tres cosas que rompen la pieza (tasas que no casan, capa sin alfa, tamaños distintos) |
+| `scripts/ffmpeg_tools/acabado.py` | los acabados de estilo sobre un video ya renderizado (poses sostenidas, pixel art, VHS, CRT, resplandor, aberración cromática); ver `references/estilos.md` |
 | `scripts/_cerrar_tip.py` | cerrar un tip: mide en un worktree aislado (puerta, entorno y copia instalada) y lo dice en una línea; no mide en el árbol compartido y no publica |
 
 **Y el canónico de las suites**: `scripts/data/suites.json` declara la lista

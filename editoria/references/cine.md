@@ -94,7 +94,7 @@ pico — nunca en la resolución.
 
 ## Estilos de cine hechos en código (catálogo externo)
 
-`lemomo-ai/lemo-opuscar` (MIT) es una biblioteca de **59 estilos de cine
+`lemomo-ai/lemo-opuscar` (MIT) es una biblioteca de **66 estilos de cine
 renderizados en código** (óleo al thick, acuarela, ukiyo-e, briefing de
 satélite, desmontaje de producto, documental de archivo…), con Node y
 Three.js, y su propio flujo de dirección.
