@@ -436,7 +436,12 @@ class TestMono(unittest.TestCase):
 
     def test_la_mono_del_motor_es_la_empaquetada(self):
         R = _motor()
-        self.assertEqual(os.path.dirname(os.path.abspath(R.MONO)), os.path.abspath(FUENTES),
+        # realpath en ambos lados: bajo $TMPDIR la puerta factura el arbol en
+        # /var/folders (alias de /private/var/folders) y el importador de
+        # python resuelve UNA de las dos rutas por su realpath: comparar el
+        # TEXTO de rutas que son la MISMA carpera da un falso fallo que solo
+        # se ve dentro de la puerta (medido: /var vs /private/var, 2 fallos).
+        self.assertEqual(os.path.dirname(os.path.realpath(R.MONO)), os.path.realpath(FUENTES),
                          f"MONO debe ser la mono empaquetada, no {R.MONO}")
         self.assertIn("IBMPlexMono", os.path.basename(R.MONO))
         lic = open(os.path.join(FUENTES, "OFL.txt"), encoding="utf-8").read()
@@ -464,7 +469,7 @@ class TestMono(unittest.TestCase):
             hit = fuente_marca(pack, "etiquetas_mono", R.MONO_FAMILIA, "mono")
         self.assertTrue(hit and os.path.exists(hit))
         if "DejaVu" not in os.path.basename(hit):   # sin DejaVu instalada
-            self.assertEqual(os.path.dirname(os.path.abspath(hit)), os.path.abspath(FUENTES))
+            self.assertEqual(os.path.dirname(os.path.realpath(hit)), os.path.realpath(FUENTES))
 
     def test_el_peso_pedido_se_respeta(self):
         R = _motor()
