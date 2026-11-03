@@ -118,6 +118,7 @@ escribir es un tapón).
 | `dramaturgia.md` | el arco: marco, tensión, giro, resonancia | estructura |
 | `direccion.md` | el listón medido, los 10 patrones, la dirección de energía | estructura |
 | `direccion-de-arte.md` | la dirección de arte: la idea del sujeto, las direcciones repartidas, el registro de tells | estructura |
+| `metodo-direccion.md` | del brief a la entrega: referente, tres estructuras, tratamiento, sonido, cierre y entrega, cambiar un estilo sin romperlo | estructura |
 | `tonos.md` | la energía creativa de la pieza | estructura |
 | `estilos.md` | los lenguajes visuales aprendidos | estructura |
 | `estilos-codigo.md` | los catálogos de estilos hechos en código: firmas, técnicas con números y motor | estructura |

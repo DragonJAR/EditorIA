@@ -122,7 +122,7 @@ python scripts/proyecto.py {carpeta}
 
 Run it before writing the plan and again whenever the brief changes. It never overwrites (`references/auto-mejora.md`).
 
-Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "…"` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (usable with `--brand`; full command in `references/direccion-de-arte.md`, «El orden de trabajo»). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
+Before the plan, decide the look instead of defaulting to it (`references/direccion-de-arte.md`): inventory what only this subject has, write the argument as claims with proof (a scene with no claim is deleted), pick the mode (persuade, explain, demonstrate, experience), then deal directions and choose one. `python scripts/direccion_arte.py repartir --brief "video de ciberseguridad" --sector ciberseguridad --tono demo --modo explicar --tiene capturas` deals three; `elegir ID --out FOLDER` writes `SISTEMA.md` (the durable visual decisions) and, when the motor composes it, `estilo.json` (a style pack usable with `--brand`). Fill in the idea sentence and pass the competitor test before building. The user's brief and any brand pack always win over the dealt direction.
 
 Then author the plan: write `plan.json` following `references/plan-video.md` (46 scene types, absolute times, optional `at` per element, `voz` field per scene when narrated). Pick the tone first (`references/tonos.md`) and structure the dramatic arc (`references/dramaturgia.md`). See `scripts/demo_plan.json` and `scripts/escenas_muestra.json` for complete examples.
 
@@ -191,6 +191,7 @@ python scripts/mezclar_audio.py plan.json --video out.mp4 \
     --voz voz.mp3 --voz-palabras voz.palabras.json \
     --grid grid.json --pack assets/sfx --musica mus.mp3 -o mezclado.mp4
 python scripts/medir_mezcla.py -v voz.mp3 -m mus.mp3          # jerarquía de pistas, no el master
+python scripts/medir_silencios.py mezcla.wav --exigir             # silencios antes del giro (2 desde 20 s)
 # subtítulos (reels/tiktok/shorts): quemar ANTES del loudness; un solo archivo final
 python scripts/ffmpeg_tools/caption.py mezclado.mp4 --palabras voz.palabras.json --karaoke --animate pop --plan plan.json -o con_sub.mp4
 python scripts/ffmpeg_tools/loudness.py con_sub.mp4 -o final.mp4 -I -14 --tp -1.5
@@ -212,6 +213,8 @@ python scripts/qa_entrega.py final.mp4 --plan plan.json
 ```
 
 Expected output: `ENTREGA: aprobada` with zero defects, zero pops, a motion note of 90 or more, the platform spec met, and the composition measured on the plan (letter at rest ≥ 26 px, safe zone not at its floor, no overlapping text). The fade-to-black margin lives in `references/qa-entrega.md`.
+
+The gate ignores the last 0.5 s when checking for black frames: the engine always closes with a fade to black (the last frame is black by design), so without that margin every piece would reject its own ending. Pass `--ignorar-fin 0` to demand that even the last half second has no black.
 
 The awards gate scores the piece on the rubric's eight axes. Four are measured from the render and the plan; four are judgment and the agent answers them by looking at the piece:
 

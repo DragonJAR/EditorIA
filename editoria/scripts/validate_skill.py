@@ -1448,10 +1448,22 @@ except (Exception, SystemExit) as ex:
 # motivo de que esta corrida tenga el suyo). Y el nombre es del proceso,
 # no fijo: el guard de temporales unicos lo vigila.
 _mapa_medido = os.path.join(_TMP_RUN, "censo_clis.json")
+# El presupuesto de tiempo: la suite instrumentada tarda ~870 s en vacio, y el
+# margen NO puede ser del 3 % (cualquier carga externa honrada lo come y la
+# puerta muere por TIMEOUT, que es un fallo de la MEDICION, no del codigo).
 _ut = subprocess.run([sys.executable, os.path.join(BASE, "scripts", "_censo_clis.py"),
                       "--salida", _mapa_medido],
-                     capture_output=True, text=True, timeout=900)
-_ut_res = (_ut.stderr.strip().splitlines() or ["?"])[-1]
+                     capture_output=True, text=True, timeout=1800)
+if _ut.returncode == 0:
+    _ut_res = (_ut.stderr.strip().splitlines() or ["?"])[-1]
+else:
+    # En fallo, la ULTIMA linea no dice nada: dice "FAILED (failures=2)" sin
+    # nombrar NADIE. Los nombres estan en las lineas "FAIL: test_x (modulo)"
+    # que unittest escribe ANTES del resumen. Se imprimen las ultimas 40
+    # lineas del stderr para que el log de la puerta tenga el diagnostico.
+    _lineas = [l for l in _ut.stderr.strip().splitlines() if l.strip()]
+    _resumen = "\n".join(_lineas[-60:])
+    _ut_res = _resumen if _resumen else "?"
 check(_ut.returncode == 0, f"tests unitarios de scripts/_tests ({_ut_res})")
 # 8b. el mapa de CLIs verificadas tiene que COINCIDIR con lo que la suite
 # ejecuta de verdad. El mapa es una declaracion (la hizo alguien); si un

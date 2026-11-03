@@ -46,6 +46,23 @@ crudo).
 - Los umbrales de la casa (`LETRA_MIN`, `OCUPACION_MIN`, `QUIETO_MAX`) tienen
   una sola fuente.
 
+**Integración con main (metodo de dirección Lemo-Opuscar)**
+- `references/metodo-direccion.md` entra al mapa (dominio `estructura`) y
+  `scripts/medir_silencios.py` entra al SKILL.md con su comando de ejemplo.
+- La regla «numero de referencias» del guard ya no se mantiene a mano:
+  `actualizar_conteos.py` reescribe su `valor` con el conteo real del árbol
+  (la prosa y la regla ya no pueden divergir).
+- `creditos.md` por unión: la atribución de pdoom-video ampliada, y las
+  filas de lemo-opuscar y mg-styles-15.
+
+**Puerta**
+- El censo de la suite pasa de `timeout=900` a `timeout=1800`: medido en
+  vacío toma ~870 s, y un 3 % de margen muere por TIMEOUT bajo cualquier
+  carga honesta (un fallo de la medición, no del código).
+- Cuando la suite falla dentro de la puerta, el log ya no imprime solo la
+  última línea (`FAILED (failures=N)` sin nombres): imprime el bloque de
+  fallos de unittest con los nombres de los tests.
+
 **Documentación**
 - `references/tiempo-html.md`: el tiempo en los motores HTML.
 

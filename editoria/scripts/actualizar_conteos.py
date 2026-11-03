@@ -406,6 +406,24 @@ def _transforma_skill(texto, refs, nombres, cambios, escenas=0):
     return texto
 
 
+def _transforma_regla_refs(texto, refs, cambios):
+    """El 'valor' exacto de la regla 'numero de referencias' del guard.
+
+    La regla vive en scripts/auditar_mapa.py y compara la prosa con el
+    numero REAL de referencias del arbol. Si esta herramienta reescribe la
+    prosa pero no la regla, a la primera referencia nueva el arbol y la
+    regla divergen y el guard senala 'valor divergente' contra un numero
+    que NADIE puede arreglar corriendo la herramienta: el mismo contrato
+    que la prosa (lo que la herramienta escribe es lo que el guard
+    comprueba), aplicado a la regla misma.
+    """
+    return _sustituye(
+        texto,
+        r'"nombre": "numero de referencias", "tipo": "exacto", "valor": \d+',
+        f'"nombre": "numero de referencias", "tipo": "exacto", "valor": {refs}',
+        "auditar_mapa.py", cambios)
+
+
 def _raiz_del_repo():
     """La raiz del repo, o None si la skill corre instalada (sin repo)."""
     return AM._raiz_git()
@@ -561,6 +579,16 @@ def _aplica(dest_skill, dest_repo, refs, root, fft, suites, archivos, escenas, c
         texto = open(ruta, encoding="utf-8").read()
         cumplen, total = _contrato_cli(dest_skill)
         nuevo = _transforma_cli_contract(texto, cumplen, total, cambios)
+        if nuevo != texto:
+            open(ruta, "w", encoding="utf-8").write(nuevo)
+    # la REGLA del guard que enuncia el numero de referencias: su 'valor'
+    # exacto tambien lo escribe esta herramienta, con el mismo conteo que
+    # la prosa (si no, la regla y el arbol divergen a la primera referencia
+    # nueva y el 'valor divergente' no tiene arreglo por la herramienta)
+    ruta = os.path.join(dest_skill, "scripts", "auditar_mapa.py")
+    if os.path.exists(ruta):
+        texto = open(ruta, encoding="utf-8").read()
+        nuevo = _transforma_regla_refs(texto, refs, cambios)
         if nuevo != texto:
             open(ruta, "w", encoding="utf-8").write(nuevo)
     # TODA la prosa que el guard vigila: hasta ahora la herramienta solo

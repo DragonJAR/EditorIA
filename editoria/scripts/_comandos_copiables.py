@@ -119,6 +119,11 @@ FUERA = {
                                   ["--dir", "-n"]),
     "scripts/film_marca_v2.py": ("renderiza la pieza entera: la galeria ya lo hace", []),
     "scripts/medir_animacion.py": ("renderiza la pieza entera para medirla: mas lento que el guard completo", []),
+    # el comando del SKILL.md (flujo de sonido) documenta la forma con
+    # `mezcla.wav`: el audio de la mezcla solo existe despues de mezclar, y
+    # sin el no hay silencios que medir (la CLI se ejecuta de verdad en su
+    # suite: test_medir_silencios.py)
+    "scripts/medir_silencios.py": ("necesita la mezcla ya renderizada (mezcla.wav): sin un audio real no hay silencios que medir", []),
     # `mezclar_audio.py` ya NO se excluye: la voz, la musica y el pack de SFX
     # se sintetizan en local (un wav, un wav y sfx.py), asi que el comando se
     # copia y se ejecuta de verdad. Antes era el unico comando de la vertical de
