@@ -5968,7 +5968,7 @@ def sc_hero(ctx, e, t):
     u = unidad()
     # 1. Píldora de anuncio / navbar superior (navbar.gallery Announcement/Tabs)
     t_b = at.get("badge", e["from"] + 0.15)
-    badge_txt = e.get("badge", "NUEVO LANZAMIENTO")
+    badge_txt = e.get("badge", "")
     kb = entra(t, t_b, "elemento")
     yb = y0 + int((y1 - y0) * 0.08)
     if kb > 0 and badge_txt:
@@ -5990,7 +5990,9 @@ def sc_hero(ctx, e, t):
     # el kicker cae en la MISMA altura que en las demas escenas (rotulo_y): un
     # rotulo que salta de altura entre escenas rompe el ritmo
     yt = rotulo_y()
-    rotulo(ctx, layer, t, e.get("titulo", "Tu producto en *movimiento*"), t_t, y=yt, tam=ESCALA["rotulo"])
+    _tit = e.get("titulo", "")
+    if _tit:
+        rotulo(ctx, layer, t, _tit, t_t, y=yt, tam=ESCALA["rotulo"])
     sub_txt = e.get("subtitulo", "")
     if sub_txt and t >= t_t + 0.2:
         ks = entra(t, t_t + 0.2, "suave")
@@ -6010,18 +6012,19 @@ def sc_hero(ctx, e, t):
     hc = int((y1 - y0) * 0.23)
     wc = min(int(ancho_u * 0.92), 860)
     if kc > 0:
-        sub, ds = grupo()
-        tarjeta_cristal(ctx, sub, W / 2 - wc / 2, yc - hc / 2, wc, hc, radio=32, alpha=255)
-        met = e.get("metrica", "3.4x")
-        etq = e.get("etiqueta_metrica", "más conversión en 30 días")
-        fm = fuente_que_cabe(ctx.fT, str(met), int(u * 0.080), int(wc * 0.84), 800, minimo=28)
-        fe = fuente_que_cabe(ctx.fX, str(etq), ESCALA["secundario"], int(wc * 0.86), 600)
-        pon_texto(ds, (W / 2, yc - hc * 0.14), str(met), font=fm, fill=ACENTO + (255,), anchor="mm")
-        pon_texto(ds, (W / 2, yc + hc * 0.24), str(etq), font=fe, fill=BLANCO + (255,), anchor="mm")
-        fundir(layer, sub, kc)
+        met = e.get("metrica", "")
+        etq = e.get("etiqueta_metrica", "")
+        if met:
+            sub, ds = grupo()
+            tarjeta_cristal(ctx, sub, W / 2 - wc / 2, yc - hc / 2, wc, hc, radio=32, alpha=255)
+            fm = fuente_que_cabe(ctx.fT, str(met), int(u * 0.080), int(wc * 0.84), 800, minimo=28)
+            fe = fuente_que_cabe(ctx.fX, str(etq), ESCALA["secundario"], int(wc * 0.86), 600)
+            pon_texto(ds, (W / 2, yc - hc * 0.14), str(met), font=fm, fill=ACENTO + (255,), anchor="mm")
+            pon_texto(ds, (W / 2, yc + hc * 0.24), str(etq), font=fe, fill=BLANCO + (255,), anchor="mm")
+            fundir(layer, sub, kc)
     # 4. CTA con anillo de halo pulsante (cta.gallery + scrolltide.co)
     t_cta = at.get("cta", e["from"] + 1.75)
-    cta_txt = e.get("cta", "Empieza hoy")
+    cta_txt = e.get("cta", "")
     k_cta = entra(t, t_cta, "elemento")
     if k_cta > 0 and cta_txt:
         sub, ds = grupo()
@@ -6043,7 +6046,9 @@ def sc_bento(ctx, e, t):
     at = e.get("at", {})
     x0, y0, x1, y1 = caja_segura()
     yr = rotulo_y()
-    rotulo(ctx, layer, t, e.get("rotulo", "Todo en *una grilla*"), at.get("rotulo", e["from"] + 0.15), y=yr)
+    _rot = e.get("rotulo", "")
+    if _rot:
+        rotulo(ctx, layer, t, _rot, at.get("rotulo", e["from"] + 0.15), y=yr)
     items = (e.get("items") or [
         {"icono": "01", "titulo": "Rápido", "texto": "Render en minutos", "acento": True},
         {"icono": "02", "titulo": "Fiel", "texto": "Tu marca exacta"},
@@ -6323,7 +6328,7 @@ def sc_comentario(ctx, e, t):
     av_x = xc + 36 + r_av
     av_y = yc + 36 + r_av
     circulo(d, av_x, av_y, r_av, fill=ACENTO + (al,))
-    ini = e.get("iniciales") or "".join(w[:1].upper() for w in e.get("autor", "User").split()[:2])
+    ini = e.get("iniciales") or "".join(w[:1].upper() for w in e.get("autor", "").split()[:2])
     pon_texto(d, (av_x, av_y), ini, font=ctx.fT(34, 800), fill=BLANCO + (al,), anchor="mm")
     
     nom_x = av_x + r_av + 20
@@ -6338,8 +6343,9 @@ def sc_comentario(ctx, e, t):
         circulo(d, bv_x + 9, av_y - 11, 9, fill=ACENTO + (al,))
         pon_texto(d, (bv_x + 9, av_y - 11), "✓", font=ctx.fX(TAM_CHECK, 800), fill=BLANCO + (al,), anchor="mm")
     
-    usr = e.get("usuario", "@cliente")
-    pon_texto(d, (nom_x, av_y + 8), usr, font=ctx.fX(ESCALA["nota"], 400), fill=GRIS + (int(200 * clamp01(kc)),), anchor="la")
+    usr = e.get("usuario", "")
+    if usr:
+        pon_texto(d, (nom_x, av_y + 8), usr, font=ctx.fX(ESCALA["nota"], 400), fill=GRIS + (int(200 * clamp01(kc)),), anchor="la")
     
     if e.get("estrellas"):
         estrellas(layer, xc + wc - 110, av_y, float(e["estrellas"]), 5, tam=26, k=kc)
@@ -6360,7 +6366,7 @@ def sc_comentario(ctx, e, t):
         draw_seg(d, (xc + 36, y_linea + li * lh), segs(ln), fnt_txt,
                  BLANCO + (int(255 * kt),), ACENTO + (int(255 * kt),))
                  
-    likes = str(e.get("likes", "840"))
+    likes = str(e.get("likes", ""))
     t_likes = at.get("likes", t_card + 1.2)
     kl = clamp01((t - t_likes) / 0.5)
     y_fot = yc + hc - 36
@@ -6377,8 +6383,9 @@ def sc_comentario(ctx, e, t):
         fundir(layer, sub_lk, kl / 1.4, dy=0)   # mismo alfa que su texto (fundir: k·1.4)
         pon_texto(d, (xc + 36 + s_ic * 2 + 12, y_fot), f"{likes} Me gusta", font=f_lk,
                   fill=ACENTO + (int(255 * kl),), anchor="ls")
-    fecha = e.get("fecha", "Reciente")
-    pon_texto(d, (xc + wc - 36, y_fot), fecha, font=ctx.fX(ESCALA["nota"], 400),
+    fecha = e.get("fecha", "")
+    if fecha:
+        pon_texto(d, (xc + wc - 36, y_fot), fecha, font=ctx.fX(ESCALA["nota"], 400),
            fill=GRIS + (int(180 * kl),), anchor="rs")
            
     pie_fuente(ctx, d, e, t, at.get("rotulo", e["from"]) + 2.5)
@@ -6650,9 +6657,9 @@ def sc_audiowave(ctx, e, t):
               fill=ACENTO + (min(255, int(al * pulso_p)),))
     d.polygon([(px - 6, py - 10), (px - 6, py + 10), (px + 10, py)], fill=BLANCO + (al,))
     
-    hab = e.get("hablante", "Audio seguro")
-    arch = e.get("archivo", "grabacion.wav")
-    est = e.get("estado", "REC ● 00:14")
+    hab = e.get("hablante", "")
+    arch = e.get("archivo", "")
+    est = e.get("estado", "")
     fnt_est = ctx.fM(ESCALA["nota"], 700)
     w_est = ctx.tmp.textlength(est, font=fnt_est)
     

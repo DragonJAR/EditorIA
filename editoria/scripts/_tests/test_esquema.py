@@ -101,9 +101,17 @@ class Esquema(unittest.TestCase):
         h = _audita([{"tipo": "final", "from": 0, "to": 4, "titulo": "Hoy", "lema": "x"}])
         self.assertFalse(any(x["nivel"] == "ERROR" for x in h), h)
 
-    def test_remate_sin_lineas_se_completa(self):
+    def test_remate_sin_lineas_es_error_y_con_lineas_se_completa(self):
+        # `lineas` es obligatorio en remate (esquema fail-loud): sin copy no
+        # hay remate. Sin lineas el motor se niega y nombra el campo; con
+        # lineas la escena se completa y no da errores.
         e = {"tipo": "remate", "from": 0, "to": 4, "gigante": "3 min", "etiqueta": "tiempo",
              "fuente": "Registro interno", "at": {"gigante": 0.5}}
+        with self.assertRaises(SystemExit):
+            R.completar_escena(dict(e), 0)
+        self.assertTrue(any("lineas" in str(x) for x in R.errores_de_esquema(e, 0)),
+                        R.errores_de_esquema(e, 0))
+        e["lineas"] = ["Hecho en *minutos.*"]
         out = R.completar_escena(dict(e), 0)
         self.assertEqual(out["gigante"], "3 min")
         self.assertFalse(R.errores_de_esquema(e, 0))
@@ -140,10 +148,17 @@ class Esquema(unittest.TestCase):
         texto = r.stdout + r.stderr
         self.assertTrue("marca" in texto or "titulo" in texto, texto)
 
-    def test_remate_sin_lineas_audita_y_previsualiza(self):
+    def test_remate_requiere_lineas_y_previsualiza(self):
+        # sin `lineas` el auditor RECHAZA el plan (obligatorio); con lineas
+        # audita limpio y la hoja de preview sale (el preview es del plan YA
+        # valido: no hay preview de una escena que no puede existir)
         plan = {"duracion": 4, "tamano": "270x480", "escenas": [{
             "tipo": "remate", "from": 0, "to": 4, "gigante": "3 min",
             "etiqueta": "tiempo", "fuente": "Registro interno", "at": {"gigante": 0.5}}]}
+        r = _auditar_cli(plan)
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("lineas", r.stdout + r.stderr)
+        plan["escenas"][0]["lineas"] = ["Hecho en *minutos.*"]
         r = _auditar_cli(plan)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         with tempfile.TemporaryDirectory() as d:
