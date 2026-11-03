@@ -41,6 +41,7 @@
    "scripts/_tests/test_comandos_copiables.py",
    "scripts/_tests/test_core_and_scenes.py",
    "scripts/_tests/test_direccion_arte.py",
+   "scripts/_tests/test_esquema.py",
    "scripts/_tests/test_speech_estimate_cifras.py"
   ],
   "scripts/auto_qa.py": [
@@ -177,7 +178,8 @@
    "scripts/_tests/test_puntuar.py"
   ],
   "scripts/qa_entrega.py": [
-   "scripts/_tests/test_cli_de_las_cuatro.py"
+   "scripts/_tests/test_cli_de_las_cuatro.py",
+   "scripts/_tests/test_esquema.py"
   ],
   "scripts/referencia.py": [
    "scripts/_tests/test_referencia.py"
@@ -187,9 +189,12 @@
   ],
   "scripts/render_plan.py": [
    "scripts/_tests/test_core_and_scenes.py",
-   "scripts/_tests/test_firma_plan.py"
+   "scripts/_tests/test_esquema.py",
+   "scripts/_tests/test_firma_plan.py",
+   "scripts/_tests/test_paleta_color.py"
   ],
   "scripts/repertorio.py": [
+   "scripts/_tests/test_paleta_color.py",
    "scripts/_tests/test_repertorio.py"
   ],
   "scripts/retakes.py": [
