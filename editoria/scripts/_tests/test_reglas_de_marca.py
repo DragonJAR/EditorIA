@@ -41,6 +41,10 @@ class TestReglasDeMarca(unittest.TestCase):
         self._antes = (R.REBOTE, R.PARTICULAS, R.VOLUMEN, R.OUTRO_SOBRIO)
 
     def tearDown(self):
+        # aplicar_brand instala TODA la identidad (colores, fuentes, reglas):
+        # sin volver al modo libre, el acento del pack de prueba se fugaba a
+        # las suites siguientes (medido: medir_contraste fallaba tras esta)
+        R.aplicar_brand(None)
         (R.REBOTE, R.PARTICULAS, R.VOLUMEN, R.OUTRO_SOBRIO) = self._antes
 
     def test_el_pack_declara_las_reglas(self):

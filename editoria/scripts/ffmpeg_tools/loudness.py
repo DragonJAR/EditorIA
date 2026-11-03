@@ -48,7 +48,7 @@ def measure(path, I, tp, lra):
 
 
 def _normalizar_una(entrada, salida, lufs, tp, lra, bitrate, sample_rate, stats, duracion):
-    """Una pasada de normalizacion (la medicion de la entrada se reutiliza)."""
+    """Una pasada de normalización (la medición de la entrada se reutiliza)."""
     meta = probe(entrada)
     stats = stats or measure(entrada, lufs, tp, lra)
     af = (f"loudnorm=I={lufs}:TP={tp}:LRA={lra}"
@@ -79,10 +79,10 @@ def normalizar(entrada, salida, lufs=-14.0, tp=-1.5, lra=11.0, bitrate="192k", s
     Devuelve la medición del resultado. Una sola implementación para la CLI,
     render_plan (música del entregable) y mezclar_audio (la mezcla final).
 
-    TECHO VERIFICADO: el AAC suma sobrepico DESPUES de loudnorm (medido: con
-    -14 LUFS y techo -1.5, el entregable salia a -0.8 dBTP y la entrega de
+    TECHO VERIFICADO: el AAC suma sobrepico DESPUÉS de loudnorm (medido: con
+    -14 LUFS y techo -1.5, el entregable salía a -0.8 dBTP y la entrega de
     Reels, techo -1.0, lo rechazaba). Si el resultado pasa `tp_max` (por
-    defecto `tp` + 0.5), se repite con el techo bajado lo que se paso, hasta
+    defecto `tp` + 0.5), se repite con el techo bajado lo que se pasó, hasta
     `reintentos` veces."""
     tp_max = (tp + 0.5) if tp_max is None else tp_max
     stats = stats or measure(entrada, lufs, tp, lra)
@@ -108,7 +108,7 @@ def normalizar(entrada, salida, lufs=-14.0, tp=-1.5, lra=11.0, bitrate="192k", s
 
 
 def normalizar_para(entrada, salida, plataforma="reels", duracion=None, bitrate="192k"):
-    """Normaliza al objetivo de la PLATAFORMA (tabla canonica _delivery:
+    """Normaliza al objetivo de la PLATAFORMA (tabla canónica _delivery:
     LUFS integrado y techo de true peak). Apunta 0.5 dB por debajo del techo
     y lo verifica (`normalizar`)."""
     from _delivery import spec_of

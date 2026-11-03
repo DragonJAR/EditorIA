@@ -169,7 +169,12 @@ Números, no sensaciones:
   elementos a medio entrar. Sin colisiones de texto.
 - **Sujeto**: 60–85% del cuadro en piezas con persona.
 - **En mute se entiende**: qué hace/habla el video + CTA legible a tamaño
-  teléfono ≥1.5s.
+  teléfono ≥1.5s. Se comprueba, no se supone: el **gancho** (el texto más
+  grande del primer plano) tiene que llegar a **84 px** (`GANCHO_MIN`, lo
+  mide `medir_animacion --plan` y lo falla `qa_entrega`), y la **hoja de
+  gancho** —los primeros 3 s a 360 px de ancho, el ancho de un teléfono— tiene
+  que entenderse sin sonido:
+  `python3 scripts/contact_sheet.py --video final.mp4 --inicio 0 --fin 3 --cada 0.5 --ancho 360 -o hook.png`
 - **Saturación** (ver "Saturación: dinámico ≠ lleno" en `principios.md`):
   titular + protagonista + máximo 2 apoyos por escena; si el plano tiene un
   protagonista grande, el isotipo no compite con él; si el isotipo aparece,

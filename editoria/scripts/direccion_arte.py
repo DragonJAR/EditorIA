@@ -35,7 +35,7 @@ import sys
 
 KIT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(KIT, "ffmpeg_tools"))
-from _comun import contraste, die, leer_json, leer_pack  # noqa: E402
+from _comun import NEUTRO, TIPOS_MOTOR, contraste, die, leer_json, leer_pack, rgb_a_hex  # noqa: E402
 from _plataforma import FUENTES_SKILL  # noqa: E402
 
 DATOS = os.path.join(KIT, "data", "direcciones.json")
@@ -44,7 +44,7 @@ MODOS = ("persuadir", "explicar", "demostrar", "experiencia")                   
 ENERGIAS = ("baja", "media", "alta")
 ASSETS = ("fotos", "footage", "capturas")
 PERSONALIDADES = ("baja+serio", "baja+lúdico", "alta+serio", "alta+lúdico")         # columnas de references/fluidez.md
-FAMILIAS_EMPAQUETADAS = ("Plus Jakarta Sans", "Montserrat")
+FAMILIAS_EMPAQUETADAS = (TIPOS_MOTOR["titulares"], TIPOS_MOTOR["texto"])
 # Pisos de contraste (references/checklist-qa.md: WCAG AA): tinta sobre lienzo,
 # texto de apoyo y acento (que también tiñe palabras, no solo formas).
 PISO_TINTA, PISO_APOYO, PISO_ACENTO = 7.0, 4.5, 4.5
@@ -250,8 +250,8 @@ def pack_json(d, nombre=None):
 
     def familia(texto, defecto):
         return next((f for f in FAMILIAS_EMPAQUETADAS if f in texto), defecto)
-    fam_t = familia(d["tipos"]["titulares"], "Plus Jakarta Sans")
-    fam_x = familia(d["tipos"]["texto"], "Montserrat")
+    fam_t = familia(d["tipos"]["titulares"], TIPOS_MOTOR["titulares"])
+    fam_x = familia(d["tipos"]["texto"], TIPOS_MOTOR["texto"])
     return {
         "_nota": (f"Style pack generado por scripts/direccion_arte.py (dirección «{d['nombre']}»). Es un estilo, "
                   "no una marca: con un brand pack del usuario, manda el pack. Se usa con --brand."),
@@ -309,7 +309,7 @@ def cmd_verificar(args, datos):
     acento = col.get("acento") or col.get("primary") or col.get("accent")
     if not acento:
         die(f"{args.pack}: el pack no declara color de acento", kind="input")
-    negro = col.get("negro") or "#0A0A0A"
+    negro = col.get("negro") or rgb_a_hex(NEUTRO["negro"])
     filas = [("acento", acento, PISO_ACENTO)]
     tinta, apoyo = col.get("blanco") or col.get("text"), col.get("gris")
     filas += [(rol, c, piso) for rol, c, piso in (("blanco", tinta, PISO_TINTA), ("gris", apoyo, PISO_APOYO)) if c]

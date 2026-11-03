@@ -41,10 +41,15 @@ class TestCaptionsIdentidades(unittest.TestCase):
         self.assertEqual(r["motor"], REP.MOTOR_CAPTION)
         counts = REP._resumen_conteos()
         self.assertEqual(counts["n_captions"], len(CAP.identidades()))
+        # las técnicas (canvas, hand-draw, remotion…) también son opciones del
+        # catálogo único: el total sale del catálogo real, no de una suma
+        # que olvida una familia (119 contra 125: faltaban las 6 técnicas)
+        self.assertEqual(counts["n_opciones"], len(REP.catalogo_opciones()))
         self.assertEqual(
             counts["n_opciones"],
             counts["n_escenas"] + counts["n_efectos"]
-            + counts["n_gestos"] + counts["n_captions"] + counts["n_tecnicas"],
+            + counts["n_gestos"] + counts["n_captions"]
+            + counts["n_tecnicas"],
         )
 
     def test_cli(self):

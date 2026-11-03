@@ -254,14 +254,22 @@ class TestConstancia(unittest.TestCase):
         e = self.R.completar_escena(e, 0)
         return self.R.pintar(self.ctx, e, t)
 
-    def _escena(self, hecho=True, segundo=None):
+    def _escena(self, hecho=True, segundo=None, disposicion="fila"):
+        # Las mitades izq/der de estos tests son las DOS casillas de la fila
+        # del reel. En 9:16 la escena va en COLUMNA por defecto (b883340: las
+        # dos casillas a lo ancho, una sobre otra), y ahi la mitad izquierda
+        # lleva las dos marcas: por eso la fila se pide explicita y la
+        # columna tiene su propio test (`test_en_columna_la_marca_distingue`).
         it = {"texto": "Comparten investigaciones", "hecho": hecho}
         if segundo is not None:
             it["hecho"] = segundo
-        return {"tipo": "constancia", "from": 0.0, "to": 6.0,
-                "kicker": "A + B",
-                "items": [it, {"texto": "Pendiente de firma", "hecho": False}],
-                "at": {"item0": 0.2, "item1": 0.6}}
+        e = {"tipo": "constancia", "from": 0.0, "to": 6.0,
+             "kicker": "A + B",
+             "items": [it, {"texto": "Pendiente de firma", "hecho": False}],
+             "at": {"item0": 0.2, "item1": 0.6}}
+        if disposicion:
+            e["disposicion"] = disposicion
+        return e
 
     def _blancos(self, capa, mitad):
         from PIL import Image
@@ -281,6 +289,20 @@ class TestConstancia(unittest.TestCase):
         self.assertGreater(izq, der * 2 + 300,
                            f"la casilla confirmada deberia ser mas clara: "
                            f"{izq} contra {der}")
+
+    def test_en_columna_la_marca_distingue(self):
+        """El default de 9:16 (columna): las marcas van en la franja de la
+        izquierda; la confirmada llena su circulo y la pendiente es un aro."""
+        def franja(e):
+            img = self._pintar(e, 3.0).convert("RGB")
+            w, h = img.size
+            caja = img.crop((0, 0, int(w * 0.3), h))
+            return sum(1 for p in caja.getdata() if min(p) > 232)
+        confirmada = franja(self._escena(hecho=True, disposicion=None))
+        pendiente = franja(self._escena(hecho=False, disposicion=None))
+        self.assertGreater(confirmada, pendiente + 1500,
+                           f"en columna el circulo lleno tiene que verse: "
+                           f"{confirmada} contra {pendiente}")
 
     def test_el_check_aparece_en_el_instante_declarado(self):
         """`hecho` puede ser el SEGUNDO en que se confirma: antes, esta

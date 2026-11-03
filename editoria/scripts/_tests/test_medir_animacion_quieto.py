@@ -150,5 +150,51 @@ class Nota(unittest.TestCase):
         self.assertEqual(M.nota(viejo), 100.0)
 
 
+
+class ComposicionVentanas(unittest.TestCase):
+    """--composicion parte el plan en ventanas de 2 s a 10 fps.
+
+    Esa pasada mide letra, zona y solapes. Un pop o una ocupación de la
+    ventana de entrada no es la nota de la pieza: a 10 fps un paso parece
+    un pop, y el tiempo queda local a la ventana. El movimiento lo mide
+    --video.
+    """
+
+    ESCENAS = [
+        {"from": 0.0, "to": 4.5, "tipo": "apertura"},
+        {"from": 4.5, "to": 9.5, "tipo": "stats"},
+    ]
+    VENTANAS = [
+        {"ventana": [0.0, 1.5], "ocupacion": 0.147, "pops": [0.4, 0.8, 1.2, 1.3]},
+        {"ventana": [1.5, 3.0], "ocupacion": 0.161, "pops": []},
+        {"ventana": [3.0, 4.5], "ocupacion": 0.227, "pops": [0.2]},
+        {"ventana": [4.5, 6.17], "ocupacion": 0.477, "pops": []},
+        {"ventana": [6.17, 7.83], "ocupacion": 0.751, "pops": []},
+        {"ventana": [7.83, 9.5], "ocupacion": 0.808, "pops": []},
+    ]
+
+    def test_la_entrada_no_baja_la_ocupacion_ni_inventa_pops(self):
+        m = M._asentar_composicion(self.VENTANAS, self.ESCENAS)
+        self.assertEqual(m["pops"], [])
+        self.assertGreaterEqual(m["ocupacion"], M.OCUPACION_MIN)
+        self.assertGreater(m["ocupacion"], 0.147)
+        pieza = dict(m, letra_min=28, zona=1.0, solapes=[])
+        self.assertGreaterEqual(M.nota(pieza), 90)
+
+    def test_tramos_cubren_la_escena_en_trozos_cortos(self):
+        tr = M.tramos(4.5, 18.5)
+        self.assertEqual(tr[0][0], 4.5)
+        self.assertEqual(tr[-1][1], 18.5)
+        self.assertTrue(all(b - a <= M.TRAMO_COMPOSICION + 1e-9 for a, b in tr))
+        self.assertTrue(all(tr[k][1] == tr[k + 1][0] for k in range(len(tr) - 1)))
+
+    def test_formato_cuadrado(self):
+        self.assertEqual(M.FORMATOS["c"], (1080, 1080))
+        self.assertEqual(M.formato_de_tamano("1080x1080"), "c")
+        self.assertEqual(M.formato_de_tamano("1920x1080"), "h")
+        self.assertEqual(M.formato_de_tamano(None), "v")
+        self.assertEqual(M.formato_de_tamano("720x1280"), "720x1280")
+        self.assertEqual(M.FORMATOS.pop("720x1280"), (720, 1280))
+
 if __name__ == "__main__":
     unittest.main()

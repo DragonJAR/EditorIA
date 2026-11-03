@@ -110,8 +110,13 @@ class TestComandosDoc(unittest.TestCase):
     def test_un_script_sin_argparse_no_se_intenta_ejecutar(self):
         """El interceptor corta en el primer parse_args: si el script no de
         eso, el hijo se lanza ENTERO (el validador se lanza la puerta, que
-        dura media hora) y lo matan a los 120 s. Verificarlo no dice nada y
-        cuesta 2 minutos por mencion: se salta, y se dice que se salta.
+        dura media hora) y lo matan a los 120 s.
+
+        La EJECUCION se salta (por lo que no se pagan los 2 minutos) pero el
+        comando sale como PROBLEMA: un comando documentado que nadie puede
+        verificar es un puntero a nada, y una guarda que no mira algo lo
+        dice. Antes esto era un salto silencioso: el guard perdia cobertura
+        sin que nadie se enterara.
         """
         # el nombre se arma en runtime: escrito literal, el auditor de
         # enlaces del mapa lo tomaria por un enlace roto a un archivo real
@@ -125,10 +130,96 @@ class TestComandosDoc(unittest.TestCase):
         del CD.SIN_VERIFICAR[:]
         cmd = "scripts/" + nombre + " -o x"
         problemas = CD.verificar_comando(self.dir, cmd)
-        self.assertEqual(problemas, [], "un script sin argparse no se puede juzgar")
+        self.assertTrue(problemas,
+                        "un comando que nadie puede verificar tiene que salir "
+                        "como problema, no como un salto silencioso")
         self.assertIn(cmd, CD.SIN_VERIFICAR,
                       "el comando saltado tiene que quedar dicho: un guard "
                       "que no mira algo, lo dice")
+        del CD.SIN_VERIFICAR[:]
+
+    def test_toda_cli_del_arbol_usa_argparse(self):
+        """La regla que sostiene al guard: TODA CLI usa argparse.
+
+        Sin argparse el interceptor no puede cortar el script: el hijo se
+        lanza entero (el validador se lanza la puerta) y lo matan a los
+        120 s. Ademas, un script que importa a un hermano
+        (`from speech_estimate import ...`) no arranca si la carpeta del
+        script no esta en sys.path, como cuando lo corre Python de verdad.
+        """
+        sin = []
+        for carpeta in (os.path.join(self.dir, "scripts"),
+                        os.path.join(self.dir, "scripts", "ffmpeg_tools")):
+            for f in sorted(os.listdir(carpeta)):
+                if not f.endswith(".py") or f.startswith("_"):
+                    continue
+                ruta = os.path.join(carpeta, f)
+                with open(ruta, encoding="utf-8") as fh:
+                    if not CD._usa_argparse(ruta):
+                        sin.append(os.path.relpath(ruta, self.dir))
+        self.assertEqual(sin, [],
+                         "estas CLIs no usan argparse: el guard no puede "
+                         "verificar sus argumentos: " + ", ".join(sin))
+
+    def test_la_prosa_no_se_traga_como_argumentos(self):
+        """En prosa, lo que sigue a la ruta puede ser una FRASE.
+
+        "Correr python scripts/validate_skill.py antes de cada commit" no
+        es un comando con los argumentos "antes de cada commit": si la prosa
+        se tragara, el guard juzgaria un comando que nadie escribio.
+        """
+        self._escribir(self.skill + "\nCorrer python scripts/validate_skill.py "
+                                   "antes de cada commit; un SKILL VALIDO es la "
+                                   "condicion minima para publicar.\n")
+        comandos = CD.comandos_documentados(self.dir)
+        rotas = [c for c in comandos if "antes de cada commit" in c]
+        self.assertEqual(rotas, [], "la prosa no puede acabar en los argumentos")
+
+    def test_un_comando_en_acentos_grave_si_se_verifica(self):
+        """Un comando citado entre acentos graves es un comando: se verifica."""
+        self._escribir(self.skill + "\nCorrer `python scripts/contact_sheet.py "
+                                   "--video fuente.mp4 -o hoja.png` antes de publicar.\n")
+        comandos = CD.comandos_documentados(self.dir)
+        self.assertIn("scripts/contact_sheet.py --video fuente.mp4 -o hoja.png",
+                      comandos,
+                      "el comando entre acentos graves tiene que estar en la lista")
+
+    def test_las_vallas_se_emparejan_por_orden(self):
+        """Un bloque "text" no puede comerse el bloque "bash" siguiente.
+
+        Con una regex que exige "bash", el cierre del bloque "text" se
+        empareja con la apertura del "bash" y el bloque de comandos se
+        pierde entero: los comandos de ese bloque dejan de verificarse.
+        """
+        txt = ("```text\nuna tabla\n```\n\n```bash\n"
+               "python scripts/contact_sheet.py --video fuente.mp4 -o hoja.png\n```\n")
+        comandos = CD._comandos_de_texto(txt)
+        self.assertIn("scripts/contact_sheet.py --video fuente.mp4 -o hoja.png",
+                      comandos,
+                      "el bloque de comandos despues de un bloque de texto tiene que verse")
+
+    def test_el_interceptor_pone_la_carpeta_del_script_en_sys_path(self):
+        """Como cuando lo corre Python: un script que importa a un hermano
+        tiene que arrancar, o el guard no puede ni cortarlo ni juzgarlo."""
+        hermano = os.path.join(self.dir, "scripts", "herma" + "no.py")
+        with open(hermano, "w", encoding="utf-8") as f:
+            f.write("VALOR = 1\n")
+        self.addCleanup(lambda: os.path.exists(hermano) and os.remove(hermano))
+        usa = os.path.join(self.dir, "scripts", "usa_herma" + "no.py")
+        with open(usa, "w", encoding="utf-8") as f:
+            f.write("import argparse\n"
+                    "from hermano import VALOR\n"
+                    "ap = argparse.ArgumentParser()\n"
+                    "ap.add_argument('--obligatorio')\n"
+                    "ap.parse_args()\n")
+        self.addCleanup(lambda: os.path.exists(usa) and os.remove(usa))
+        del CD.SIN_VERIFICAR[:]
+        # el comando se arma en runtime: escrito literal, el auditor de
+        # enlaces del mapa lo tomaria por un enlace roto a un archivo real
+        problemas = CD.verificar_comando(self.dir,
+                                         "scripts/" + "usa_herma" + "no.py --obligatorio x")
+        self.assertEqual(problemas, [], "\n".join(problemas))
+        self.assertEqual(CD.SIN_VERIFICAR, [], "un script con argparse SI se verifica")
         del CD.SIN_VERIFICAR[:]
 
     def test_un_script_con_argparse_sigue_verificandose(self):

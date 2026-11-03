@@ -20,7 +20,7 @@ import sys
 # La linea que se mete en el script para interceptar el parser. Va antes del
 # runpy: el script ve un argparse normal y no se entera de nada.
 _INTERCEPTAR = r'''
-import argparse, sys, runpy
+import argparse, os, sys, runpy
 _Real = argparse.ArgumentParser.parse_args
 _RealK = argparse.ArgumentParser.parse_known_args
 _dentro = [False]
@@ -31,6 +31,10 @@ def _parse(self, args=None, namespace=None):
     except SystemExit as e:
         if e.code == 2:
             sys.stderr.write("\n__ARGPARSE_ERROR__\n")
+        elif e.code == 0:
+            # argparse ACCEPTO los argumentos y salio limpio: es lo que pasa
+            # con `--help`. Es un veredicto, no un silencio.
+            sys.stderr.write("\n__ARGPARSE_OK__\n")
         raise
     finally:
         _dentro[0] = False
@@ -49,6 +53,12 @@ def _parsek(self, args=None, namespace=None):
 argparse.ArgumentParser.parse_args = _parse
 argparse.ArgumentParser.parse_known_args = _parsek
 sys.argv = [SCRIPT] + ARGV
+# Python mete la CARPETA del script en sys.path al correrlo (un script
+# importa a sus hermanos). El interceptor tiene que hacer lo MISMO: sin
+# esto, un script que importa a un modulo hermano (como `auditar_plan.py`
+# con `speech_estimate`) no arranca, el guard no puede cortarlo y el
+# comando se juzga "no verificable" cuando en realidad SI se puede.
+sys.path.insert(0, os.path.dirname(os.path.abspath(SCRIPT)))
 runpy.run_path(SCRIPT, run_name="__main__")
 '''
 
@@ -82,7 +92,25 @@ def _unir_continuaciones(txt):
 
 
 def _bloques_bash(txt):
-    return re.findall(r"```bash\n(.*?)```", txt, re.S)
+    """Los bloques de codigo que son comandos: con etiqueta "bash" y sin etiqueta.
+
+    Dos cosas aprendidas mirando el repo:
+
+    · Una valla SIN etiqueta (` ``` ` ) tambien es una lista de comandos: la
+      mitad de los bloques del repo la usan. Si solo se miran las que dicen
+      "bash", esos comandos se capturaban de rebote por la prosa (y a medias:
+      con la prosa pegada detras), no por lo que son.
+
+    · Las vallas se emparejan UNA con una, en orden. Una regex que exige
+      "bash" descuadra los pares: si un bloque dice "text", su cierre se
+      empareja con el "bash" siguiente y el bloque de comandos se pierde
+      entero. Aqui cada coincidencia se come su apertura Y su cierre.
+    """
+    salida = []
+    for m in re.finditer(r"```([^\n]*)\n(.*?)```", txt, re.S):
+        if m.group(1).strip().lower() in ("", "bash", "sh", "shell", "console"):
+            salida.append(m.group(2))
+    return salida
 
 
 def comandos_documentados(skill_dir):
@@ -150,12 +178,18 @@ def _comandos_de_texto(txt):
             if completo not in vistos:
                 vistos.add(completo)
                 salida.append(completo)
-    # ademas, los comandos citados en prosa (con acentos graves)
-    for m in _CMD.finditer(txt):
-        completo = m.group(1).strip()
-        if completo not in vistos:
-            vistos.add(completo)
-            salida.append(completo)
+    # ademas, los comandos citados en prosa: SOLO los que van entre acentos
+    # graves. Fuera de un acento grave, lo que sigue a la ruta es PROSA
+    # ("Correr python scripts/validate_skill.py antes de cada commit"), y
+    # tragarse esa prosa como si fueran argumentos del comando produce fallos
+    # falsos que no son del comando. Los bloques de codigo ya se cubrieron
+    # arriba (y sus comentarios se saltan ahi), asi que aqui no se miran.
+    for tramo in re.findall(r"`([^`\n]+)`", txt):
+        for m in _CMD.finditer(tramo):
+            completo = m.group(1).strip()
+            if completo not in vistos:
+                vistos.add(completo)
+                salida.append(completo)
     return salida
 
 
@@ -178,8 +212,13 @@ def _usa_argparse(ruta):
     esos, el hijo se lanza ENTERO (el validador se lanza la puerta, que dura
     media hora) y lo matan a los 120 s. Verificarlo no dice nada -ya se sabe
     que no se puede juzgar- y cuesta 2 minutos por cada mencion documentada.
-    Se salta, y el motivo esta aqui, no en una lista blanca: una lista
-    blanca se pudre sin que nadie lo note.
+    Se salta la EJECUCION, y el motivo esta aqui, no en una lista blanca: una
+    lista blanca se pudre sin que nadie lo note.
+
+    Y no se salta el VERDICTO: un comando documentado que nadie puede
+    verificar se DECLARA como problema (ver `_probar`). La regla es una sola
+    y la cumple toda la skill: TODA CLI usa argparse y parsea antes del
+    trabajo caro (`references/reglas-tecnicas.md`).
     """
     try:
         with open(ruta, encoding="utf-8", errors="replace") as fh:
@@ -208,8 +247,14 @@ def _probar(skill_dir, cmd, timeout=120):
     if not os.path.exists(ruta):
         return False, f"no existe {script}"
     if not _usa_argparse(ruta):
+        # La EJECUCION se salta (por lo que no se pagan los 2 minutos), pero
+        # el COMANDO se DECLARA como problema: un comando documentado que
+        # nadie puede verificar es un puntero a nada, y una guarda que no
+        # mira algo tiene que decirlo. Toda CLI usa argparse: la regla es
+        # una sola, y por eso este hueco no se puede abrir en silencio.
         SIN_VERIFICAR.append(cmd)
-        return True, ""     # no se puede juzgar: ver _usa_argparse
+        return False, ("el script no usa argparse: sus argumentos no se pueden "
+                       "verificar (el interceptor no lo puede cortar)")
     runner = (
         "SCRIPT = %r\nARGV = %r\n" % (ruta, args) + _INTERCEPTAR
     )
@@ -217,7 +262,12 @@ def _probar(skill_dir, cmd, timeout=120):
         p = subprocess.run([sys.executable, "-c", runner], capture_output=True,
                            text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return True, ""     # no se puede juzgar: no es un fallo de argumentos
+        # Tiene argparse, pero no llego a parse_args en 120 s: hace el trabajo
+        # caro ANTES de parsear. Es la regla de "parsea antes del trabajo caro"
+        # rota, y no se puede dejar pasar en silencio: ademas de ser un
+        # defecto, es justo lo que hace que la puerta tarde.
+        return False, (f"el script no llega a parse_args en {timeout} s: "
+                       "parsea despues del trabajo caro")
     err = p.stderr or ""
     if "__ARGPARSE_OK__" in err:
         return True, ""
@@ -225,21 +275,25 @@ def _probar(skill_dir, cmd, timeout=120):
         faltan = [ln for ln in err.splitlines()
                   if "required" in ln or "unrecognized" in ln]
         return False, (faltan[-1].strip() if faltan else "argumentos invalidos")
-    # el script no usa argparse: no se puede juzgar con este metodo
-    return True, ""
+    # El script se lanzo y termino sin pasar por parse_args: tiene argparse en
+    # el texto pero NO parsea los argumentos. Sus argumentos no se pueden
+    # verificar, y eso se DECLARA (un guard que no mira algo lo dice).
+    return False, ("el script no parsea los argumentos (no llego a "
+                   "parse_args): no se pueden verificar")
 
 
 # Los comandos que este guard no puede juzgar (el script no usa argparse).
 # Se dicen al final del informe: un guard que no mira algo tiene que decirlo.
+# Y no son un salto silencioso: cada uno sale como PROBLEMA de la puerta.
 SIN_VERIFICAR = []
 
 
 def _dice_los_no_verificables():
     if not SIN_VERIFICAR:
         return
-    print(f"   {len(SIN_VERIFICAR)} comando(s) no verificables con este metodo "
-          f"(el script no usa argparse): el interceptor no los puede cortar, "
-          f"asi que el guard no los intenta (2 min cada uno): "
+    print(f"   {len(SIN_VERIFICAR)} comando(s) NO verificables con este metodo "
+          f"(el script no usa argparse): el guard no los puede juzgar, y eso "
+          f"sale como FALLO, no como un salto: "
           f"{', '.join(SIN_VERIFICAR[:3])}"
           f"{'...' if len(SIN_VERIFICAR) > 3 else ''}")
 

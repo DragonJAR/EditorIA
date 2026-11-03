@@ -51,7 +51,7 @@ Tambien acepta `--ignorar-inicio` para un fade-in intencional.
 | `auto_qa` | frames negros, congelados, flashes, fotosensibilidad, audio | el copy, el movimiento fino |
 | `delivery_check` | el spec de la plataforma: resolucion, fps, duracion, bitrate, sonoridad, true peak | la composicion |
 | `medir_animacion` | coherencia de movimiento: pops, tirones, arranques, densidad, cuadro congelado sin grano (`quieto`), ocupacion de la zona segura | el copy, la narrativa |
-| `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan (cada solape con su escena, su instante y los dos textos) | el copy, el movimiento fino |
+| `medir_animacion --plan` | composicion: letra real en reposo, zona segura, textos que se pisan (cada solape con su escena, su instante y los dos textos) y el **gancho** (el texto mas grande del primer plano, con su piso) | el copy, el movimiento fino |
 | `plan-vs-video` | que el plan no sea posterior al MP4: un plan editado despues del render (una fuente retirada, un copy acortado) deja a la puerta aprobando un plan que no es el video entregado | el contenido, si el render es posterior |
 | `subtitulos` | en una pieza **narrada** para reels/tiktok/shorts, que los subtitulos esten declarados (`"subtitulos": true` o la ruta en el plan, o `--subtitulos archivo`) | si el quemado se ve bien (eso se mira en los frames) |
 
@@ -106,12 +106,22 @@ por eso comparten la medicion y no dos implementaciones.
 - **copy**: los fallos son texto que el motor no puede colocar; los avisos
   son copy que se lee como generado o que se encoge de mas. Un plan con
   avisos es entregable; un plan con fallos, no.
-- **plataforma**: se comprueba la que dice `--plataforma` (por defecto
-  `reels`). Para una pieza que sale en varios sitios, correr la puerta una
-  vez por destino.
+- **plataforma**: se comprueba la que dice `--plataforma`; sin ella, la del
+  plan (`"plataforma"`) y, si tampoco, la del tamaño del video (9:16 reels,
+  16:9 youtube, 1:1 linkedin: `_comun.inferir_plataforma`, la misma cuenta de
+  formato que usa la medición). El veredicto dice de dónde salió. Una pieza
+  sin voz ni música (`plan_muda`) no tiene que llevar audio, y sus
+  subtítulos salen como «no aplica: la pieza no tiene voz». Para una pieza
+  que sale en varios sitios, correr la puerta una vez por destino.
 - **composicion**: la letra real, en reposo, tiene que llegar a **26 px**; la
   escena no puede tocar el piso de la zona segura (0,70) y los textos no se
-  pueden pisar. La letra se mide con el tamano con el que el texto **se
+  pueden pisar. Tampoco puede haber copy **recortado** por el motor (lo que
+  no cabe ni partido al piso: `render_plan.RECORTES`), un bloque
+  **descentrado** en vertical (más del 18 % del alto útil fuera del centro
+  común, `DESBALANCE_MAX`) ni un zoom de `demo` que **corte su objetivo**.
+  La pasada es `medir_animacion --plan --composicion`: tramos de ≤ 2 s en
+  paralelo a 10 fps (la letra y la zona no necesitan 30 fps; el movimiento
+  lo mide `--video`). La letra se mide con el tamano con el que el texto **se
   queda**: si un boton entra con resorte y pasa por 21 px a mitad de camino,
   eso no cuenta (ver `references/coherencia-espacial.md`). Y el texto tiene
   que **contrastar** con lo que tapa: un color de acento sobre una banda del
@@ -120,6 +130,26 @@ por eso comparten la medicion y no dos implementaciones.
   motor, no esta pieza: el contraste de un texto que pinta una herramienta
   con ffmpeg se garantiza al construirlo (el texto sigue al fondo), no en la
   puerta.
+- **gancho**: el primer plano tiene que decir **que es**, con el texto mas
+  grande de la pieza en **84 px** o mas (lado corto 1080). El piso de letra
+  (26 px) juzga el texto mas PEQUENO —que no haya texto ilegible— y no dice
+  nada del mas grande: una pieza puede respetar el piso de letra y no decir
+  nada en el primer plano. El 84 sale del motor, no de un capricho: el
+  titular se declara a 120 px y la zona segura lo encoga como mucho a 0.70,
+  o sea 84 px es el titular mas pequeno que una pieza puede tener
+  (`GANCHO_MIN` en `scripts/medir_animacion.py`, la unica cifra). Con plan,
+  el fallo dice el numero: "el gancho se queda en 60 px".
+  Y el gancho se mira con la **hoja de gancho**: los primeros 3 s en una hoja
+  a 360 px de ancho (el ancho de un telefono), que es la prueba de
+  autoplay mudo:
+
+  ```bash
+  python3 scripts/contact_sheet.py --video final.mp4 --inicio 0 --fin 3 \
+      --cada 0.5 --ancho 360 -o hook.png
+  ```
+
+  Si en esa hoja no se entiende de que va la pieza, el problema no es el
+  tamano de la letra: es que el gancho no dice nada.
 
 ## Orden recomendado de trabajo
 

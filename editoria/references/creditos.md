@@ -1,16 +1,13 @@
 # Créditos de terceros
 
-EditorIA es de Jaime Andrés Restrepo (DragonJAR), con licencia MIT. Este
-archivo lista el material de terceros que la skill **estudió, adaptó o
-cita**, con su licencia y lo que se tomó.
+EditorIA es de Jaime Andrés Restrepo (DragonJAR), con licencia MIT. Esta
+referencia lista el material de terceros que la skill **estudió, adaptó o
+cita**, con su licencia y lo que se tomó. Regla de la casa: de las fuentes se
+toman **técnicas, reglas y números**, no se copian sus demos, sus medios ni
+sus prompts enteros; cuando una línea de código se adapta, conserva el aviso
+de su licencia.
 
-Regla de la casa: de las fuentes se toman **técnicas, reglas y números**, no
-se copian sus demos, sus medios ni sus prompts enteros; cuando una línea de
-código se adapta, conserva el aviso de su licencia.
-
-Solo se listan aquí las fuentes de material que **vive hoy en esta skill**.
-
-## Fuentes del material adaptado
+## Repositorios estudiados en la ronda 1.11
 
 | fuente | licencia | qué se adaptó | dónde vive en la skill |
 |---|---|---|---|
@@ -24,11 +21,22 @@ Solo se listan aquí las fuentes de material que **vive hoy en esta skill**.
 
 ## Otras fuentes citadas por la skill
 
-Este archivo es el **único** sitio donde se nombran estos repositorios; el
-resto de la skill habla de técnicas, no de quién las publicó. Los patrones de
-`references/prompt-motion-graphics.md` y `references/estilos-codigo.md`
-mantienen la atribución de su fuente original (la regla 13 de
-`references/mapa.md`).
+Este archivo es el ÚNICO sitio donde se nombran estos repositorios; el resto
+de la skill los cita como "ver `references/creditos.md`".
+
+| fuente | licencia | qué se tomó | dónde vive en la skill |
+|---|---|---|---|
+| [claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects) (Vibha Ramprakash) | MIT | inventario de 45 overlays talking-head con face-track; se clona en `/tmp` cuando se usa, no se vendoriza | `scripts/data/efectos_talking_head.json`, `references/efectos-talking-head.md` |
+| [synced-captions](https://github.com/vishalmotionwork-lang/claude-code-windows-setup) | según el repo | solo el heurístico de cortes de caption frase-conscientes | `scripts/ffmpeg_tools/caption.py` |
+| [PDoomVideo](https://github.com/JohnHeibel/PDoomVideo) (John Heibel) | declara ISC en `package.json`, sin LICENSE | ideas de pincel y glow para el motor canvas (sin código copiado) | `references/canvas.md` |
+
+Atribución CC BY 4.0 (awesome-claude-5-5-videos): material adaptado y resumido
+en español; se indicó qué se cambió; licencia en
+https://creativecommons.org/licenses/by/4.0/.
+
+Los avisos MIT completos están en los `LICENSE` de cada repositorio enlazado.
+Las fuentes tipográficas, músicas y vídeos de esos repositorios no se
+incluyen en la skill.
 
 ---
 

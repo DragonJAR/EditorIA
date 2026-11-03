@@ -5,8 +5,8 @@
 Este documento y `scripts/data/efectos_talking_head.json` son el **detalle de
 producción** cuando la opción resuelta tiene `motor=efecto` o `nativo`.
 
-Fuente: [claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects)
-(MIT). Overlays que siguen la cara (YuNet + MediaPipe Selfie Segmenter) sobre
+Fuente: un repo público de efectos talking-head (MIT; URL en
+`scripts/data/efectos_talking_head.json`, créditos en `references/creditos.md`). Overlays que siguen la cara (YuNet + MediaPipe Selfie Segmenter) sobre
 talking-head vertical. **No se añaden a `SCENES`.**
 
 ```bash
@@ -47,7 +47,7 @@ repertorio. Escena de plan → `motor=escena`.
    (`capacidades.md`). Nunca degradar a un fade en silencio.
 3. `efectos_talking_head.py receta --fx` imprime clone→setup→render→rm.
 4. Ventanas **1.5–4 s**. Zoom ≤ 2×. Copy/cifras/color: brief / pack.
-5. Limpiar `/tmp/claude-video-effects`. No submodule. No vendorizar.
+5. Limpiar `/tmp/efectos-talking-head`. No submodule. No vendorizar.
 6. Puerta: `qa_entrega.py` (`video-real.md`).
 
 ## 2. Relación con el resto del mapa

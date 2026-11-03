@@ -267,5 +267,93 @@ class TestCLI(unittest.TestCase):
         self.assertIn("paletas", r.stdout)
 
 
+class TestEleccionDeAnimaciones(unittest.TestCase):
+    """El chooser nombra cada animación que el agente puede ofrecer (1.11.3,
+    adaptado: la lista sale del repertorio, no de catalogo.py).
+
+    Escenas del plan, gesto, overlay, caption y las técnicas del selector
+    (canvas, trazo, Remotion, HyperFrames, 3D, diagrama). La lista sale de
+    repertorio y del catálogo generado, no de una copia en el test.
+    """
+
+    SELECTOR = ("canvas", "hand-draw", "remotion", "hyperframes", "3d", "diagrama")
+    ALIAS = {
+        "p5": "canvas",
+        "acuarela": "canvas",
+        "trazo": "hand-draw",
+        "diagramas": "diagrama",
+    }
+
+    def test_cada_opcion_dice_cuando_cuando_no_y_como_pedirla(self):
+        self.assertEqual(REP.validar(), [])
+        # sin catalogo.py (una superficie: el repertorio): cada escena del
+        # motor dice cuándo y cuándo no (detalle_escenas) y tiene esquema
+        import contextlib
+        import io
+        with contextlib.redirect_stdout(io.StringIO()):
+            import render_plan as R
+        self.assertEqual(set(R.SCENES), REP.catalogo())
+        for sid in REP.catalogo():
+            r = REP.resolver(sid)
+            self.assertTrue(r["ocasion"], sid)
+            self.assertTrue(r["no_usar"], sid)
+            self.assertTrue(R.esquema_de(sid), sid)
+        ops = REP.catalogo_opciones()
+        self.assertTrue(set(REP.catalogo()) <= set(ops))
+        for oid, o in ops.items():
+            self.assertTrue(str(o.get("ocasion") or "").strip(), oid)
+            self.assertTrue(str(o.get("no_usar") or "").strip(), oid)
+            self.assertTrue(str(o.get("producir") or "").strip(), oid)
+            self.assertTrue(str(o.get("pedido") or "").strip(), oid)
+            self.assertTrue(o.get("perillas"), oid)
+        for nombre in self.SELECTOR:
+            r = REP.resolver(nombre)
+            self.assertIsNotNone(r, nombre)
+            self.assertEqual(r["motor"], REP.MOTOR_TECNICA, nombre)
+            ruta = r["producir"].split("·", 1)[0].strip()
+            self.assertTrue(
+                os.path.isfile(os.path.join(os.path.dirname(SCRIPTS), ruta)),
+                ruta,
+            )
+        for alias, canon in self.ALIAS.items():
+            self.assertEqual(REP.resolver(alias)["id"], canon)
+        self.assertEqual(REP.resolver("camino")["motor"], REP.MOTOR_ESCENA)
+        self.assertEqual(REP.resolver("offset-delay")["motor"], REP.MOTOR_GESTO)
+        self.assertIn(REP.resolver("orbit")["motor"], (REP.MOTOR_EFECTO, REP.MOTOR_NATIVO))
+        self.assertEqual(REP.resolver("cap-rail-karaoke")["motor"], REP.MOTOR_CAPTION)
+
+    def test_la_muestra_pasa_el_esquema_al_borrar_la_copia(self):
+        import contextlib
+        import io
+        with contextlib.redirect_stdout(io.StringIO()):
+            import render_plan as R
+        for sid in sorted(REP.catalogo()):
+            self.assertTrue(R.esquema_de(sid), sid)
+            ej = dict(R.muestra(sid) or {})
+            self.assertTrue(ej, sid)
+            ej.pop("_muestra", None)
+            ej["tipo"] = sid
+            self.assertEqual(R.errores_de_esquema(ej, 0), [], sid)
+
+    def test_tres_pedidos_resuelven_a_una_opcion_real(self):
+        pedidos = (
+            ("explica estas cifras de ventas con barras", REP.MOTOR_ESCENA, "dato"),
+            ("ui del producto con stagger, no todo a la vez", REP.MOTOR_GESTO, None),
+            ("spotlight siguiendo mi cara", REP.MOTOR_EFECTO, None),
+        )
+        for texto, motor, familia in pedidos:
+            a = REP.sugerir_pedido(texto, limite=1)
+            b = REP.sugerir_pedido(texto, limite=1)
+            self.assertEqual([h["id"] for h in a], [h["id"] for h in b])
+            self.assertEqual(a[0]["motor"], motor, texto)
+            if familia:
+                self.assertIn(a[0]["id"], REP.familias()[familia], texto)
+            res = REP.resolver(a[0]["id"])
+            self.assertEqual(res["id"], a[0]["id"])
+            self.assertTrue(res["producir"], texto)
+            self.assertTrue(res["no_usar"], texto)
+            self.assertTrue(res["perillas"], texto)
+
+
 if __name__ == "__main__":
     unittest.main()

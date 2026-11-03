@@ -292,7 +292,8 @@ class TestAuditarMapa(unittest.TestCase):
             txt = f.read()
         m = re.search(r'"nombre":\s*"piso de letra".*?"valor":\s*(\d+)', txt, re.S)
         self.assertIsNotNone(m, "la regla del piso de letra debe estar en auditar_mapa.py")
-        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
+        # LETRA_MIN vive UNA vez en _comun (motor, medicion y puerta lo importan)
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
             motor = f.read()
         if f"LETRA_MIN = {m.group(1)}" not in motor:
             # la forma nueva: el medidor importa el valor de la fuente unica
@@ -1171,7 +1172,7 @@ class TestCifrasDelCodigo(unittest.TestCase):
         q = os.path.join(raiz, "scripts", "qa_entrega.py")
         with open(q, encoding="utf-8") as f:
             txt = f.read()
-        marca = '    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma)))'
+        marca = '    pasos.append(_ejecutar("delivery", lambda: _paso_delivery(args.video, args.plataforma, plan_muda(plan_dict), por)))'
         self.assertIn(marca, txt, "el fixture tiene que traer la puerta")
         with open(q, "w", encoding="utf-8") as f:
             f.write(txt.replace(marca, marca + "\n" + marca, 1))
@@ -1195,6 +1196,11 @@ class TestCifrasDelCodigo(unittest.TestCase):
             txt = f.read()
         m = re.search(r'"nombre":\s*"piso de letra".*?"valor":\s*(\d+)', txt, re.S)
         self.assertIsNotNone(m, "la regla del piso de letra debe estar en auditar_mapa.py")
+        # LETRA_MIN vive UNA vez en _comun (motor, medicion y puerta lo importan)
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
+            motor = f.read()
+        self.assertIn(f"LETRA_MIN = {m.group(1)}", motor,
+                      "el valor esperado tiene que ser el LETRA_MIN real del motor")
         sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
         from _comun import LETRA_MIN as _canonico
         self.assertEqual(int(m.group(1)), int(_canonico),

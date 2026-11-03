@@ -18,6 +18,7 @@ QUE PROTEGE
 Run with: python3 -m unittest discover -s scripts/_tests
 """
 
+import inspect
 import os
 import sys
 import unittest
@@ -141,7 +142,9 @@ class TestCadenaDeEstados(unittest.TestCase):
 
     def _escena(self, n=3, activo=True):
         icons = ["codigo", "globo", "alerta"][:n]
-        return {"tipo": "cadena", "from": 0.0, "to": 6.0,
+        # la geometria que se mide aqui es la de la FILA (nodos lado a lado);
+        # la columna de 9:16 la cubre test_regresiones_escenas
+        return {"tipo": "cadena", "from": 0.0, "to": 6.0, "disposicion": "fila",
                 "kicker": "LO QUE VIO KEVIN",
                 "items": [{"icono": i, "titulo": "Nodo %d" % (k + 1),
                            "sub": "SUB", "activo": activo}
@@ -282,8 +285,10 @@ class TestCadenaDeEstados(unittest.TestCase):
         R.RECORTES.clear()
         f, texto = R._encaja_una_linea(self.ctx.fT,
                                         "Un titulo que no cabe ni de coipa",
-                                        R.ESCALA["secundario"], 120, 800, 26)
-        self.assertGreaterEqual(f.size, 26, "la letra no baja del piso legible")
+                                        R.ESCALA["secundario"], 120)
+        self.assertGreaterEqual(f.size, R.MIN_LETRA, "la letra no baja del piso legible")
+        self.assertEqual(R._encaja_una_linea.__defaults__[-1], R.MIN_LETRA)
+        self.assertIn("minimo=MIN_LETRA", inspect.getsource(R._encaja_una_linea))
         self.assertLessEqual(R.largo(texto, f), 120, "el texto tiene que caber")
         self.assertTrue(R.RECORTES, "el copy recortado queda anotado")
 

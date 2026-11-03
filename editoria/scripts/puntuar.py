@@ -29,7 +29,7 @@ BASE = os.path.dirname(SCRIPTS)
 sys.path.insert(0, SCRIPTS)
 sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
 
-from _comun import LETRA_MIN as LETRA_OK, asegurar_padre  # noqa: E402
+from _comun import asegurar_padre, LETRA_MIN, GANCHO_MIN  # noqa: E402
 import auto_qa            # noqa: E402
 import delivery_check     # noqa: E402
 import medir_animacion    # noqa: E402
@@ -54,7 +54,6 @@ JUICIO = [1, 2, 5, 7]
 UMBRAL_EJE = 4
 UMBRAL_MEDIA = 4.3
 DENSIDAD_OK = (0.8, 1.5)
-from _comun import LETRA_MIN as LETRA_OK   # el mismo LETRA_MIN del motor (una sola fuente)
 
 
 def _puntuar_animacion(m):
@@ -83,16 +82,22 @@ def _puntuar_composicion(plan_m):
     solapes = len(plan_m.get("solapes") or [])
     zona = float(plan_m.get("zona", 1.0))
     letra = int(plan_m.get("letra_min", 0) or 0)
+    gancho = plan_m.get("gancho_px")
     lectura = list(plan_m.get("lectura") or [])
     s = 5.0
     s -= min(2.5, solapes * 1.5)
     if zona < 1.0:
         s -= round((1.0 - zona) * 5, 1)
-    if letra and letra < LETRA_OK:
-        s -= round((LETRA_OK - letra) * 0.2, 1)
+    if letra and letra < LETRA_MIN:
+        s -= round((LETRA_MIN - letra) * 0.2, 1)
         # el piso de letra es una REGLA DURA: si el texto no se lee en un
         # telefono, la tipografia no puede recibir un 4. La puerta de entrega
         # falla esta misma pieza; las dos no pueden decir cosas distintas.
+        s = min(s, 3.5)
+    if gancho is not None and gancho < GANCHO_MIN:
+        s -= round((GANCHO_MIN - gancho) * 0.1, 1)
+        # el gancho tambien es una REGLA DURA (la puerta de entrega falla la
+        # misma pieza): si el primer plano no dice que es, no hay pieza.
         s = min(s, 3.5)
     if lectura:
         # el texto que no aguanta lo que se lee es el mismo defecto que la
@@ -101,7 +106,9 @@ def _puntuar_composicion(plan_m):
         s = min(s, 3.5)
     return max(1.0, round(s, 1)), (
         f"{solapes} solapes · zona segura x{zona} · letra minima {letra or '?'} px"
-        + (f" (bajo el piso de {LETRA_OK})" if letra and letra < LETRA_OK else "")
+        + (f" (bajo el piso de {LETRA_MIN})" if letra and letra < LETRA_MIN else "")
+        + (f" · gancho {gancho} px (bajo el piso de {GANCHO_MIN})"
+           if gancho is not None and gancho < GANCHO_MIN else "")
         + (f" · {len(lectura)} textos sin sostén para leer" if lectura else "")
         + (": " + "; ".join(str(x) for x in (plan_m.get("solapes") or [])[:3])
            if solapes else ""))

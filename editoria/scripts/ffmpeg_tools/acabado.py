@@ -22,7 +22,7 @@ artesanal.py.
 
 Ejemplos:
   python3 acabado.py escalonado video.mp4 --cada 2 -o hecho_a_mano.mp4
-  python3 acabado.py pixelar video.mp4 --ancho 160 --colores 32 -o pixel.mp4
+  python3 acabado.py pixelar video.mp4 --ancho 320 --colores 32 -o pixel.mp4
   python3 acabado.py vhs video.mp4 --intensidad 1.2 -o cinta.mp4
   python3 acabado.py resplandor video.mp4 --fuerza 0.7 -o neon.mp4
   python3 acabado.py crt --dry-run video.mp4

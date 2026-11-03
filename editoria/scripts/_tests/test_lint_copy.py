@@ -202,3 +202,42 @@ class TestCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPisoUnico(unittest.TestCase):
+    """El piso legible del lint es `_comun.LETRA_MIN` (el del motor y la
+    puerta), no un 18 propio: un texto que solo entra bajo el piso falla."""
+
+    def test_lint_importa_el_piso_de_comun(self):
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        from _comun import LETRA_MIN
+        self.assertEqual(L.LETRA_MIN, LETRA_MIN)
+        with open(os.path.join(SCRIPTS, "lint_copy.py"), encoding="utf-8") as fh:
+            self.assertNotRegex(fh.read(), r"tam_final\s*<=\s*18")
+
+    def test_texto_bajo_el_piso_falla_con_la_cifra(self):
+        tam, _ = C.ajustar_texto("palabra " * 60, "texto")
+        self.assertLess(tam, L.LETRA_MIN)
+        fallos, _ = L.analizar(_plan([{"tipo": "cartel", "from": 0, "to": 4,
+                                       "texto": "palabra " * 60}]))
+        self.assertTrue(any(str(L.LETRA_MIN) in f["msg"] for f in fallos), fallos)
+
+    def test_ningun_rol_nace_bajo_el_piso(self):
+        for rol, r in C.ROLES.items():
+            self.assertGreaterEqual(r["tam"], L.LETRA_MIN, rol)
+
+    def test_el_pie_parte_en_dos_lineas_antes_de_encoger(self):
+        tam, escala = C.ajustar_texto("Fuente: informe anual del sector 2026, muestra de 1.200 empresas", "pie")
+        self.assertEqual(escala, 1.0)
+        self.assertEqual(C.ROLES["pie"]["lineas"], 2)
+
+
+class TestBentoDeTres(unittest.TestCase):
+    def test_el_aviso_dice_que_hacer(self):
+        plan = _plan([{"tipo": "bento", "from": 0, "to": 5, "rotulo": "X", "items": [
+            {"titulo": "a"}, {"titulo": "b"}, {"titulo": "c"}]}])
+        _, avisos = L.analizar(plan)
+        msg = [a["msg"] for a in avisos if "bento de tres" in a["msg"]]
+        self.assertTrue(msg, avisos)
+        self.assertIn("2 o 4", msg[0])
+        self.assertIn("pasos", msg[0])

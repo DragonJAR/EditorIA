@@ -342,5 +342,51 @@ class TestPasoComposicion(unittest.TestCase):
                           "el motivo del motor tiene que llegar al agente")
 
 
+class TestGancho(unittest.TestCase):
+    """El primer plano tiene que decir QUE ES, de un vistazo.
+
+    El piso de letra (LETRA_MIN) juzga el texto mas PEQUENO: que no haya
+    texto ilegible. No dice nada del texto MAS GRANDE. Una pieza puede
+    respetar el piso de letra y no decir nada en el primer plano: el
+    gancho es otra obligacion, con su propio numero.
+    """
+
+    def test_el_piso_del_gancho_lo_declara_quien_mide(self):
+        self.assertEqual(MA.GANCHO_MIN, 84)
+
+    def test_un_gancho_pequeno_es_un_fallo_de_la_puerta(self):
+        fallos = QA._defectos_composicion(40, 1.0, [], gancho=60)
+        self.assertTrue(fallos, "un gancho de 60 px tiene que fallar")
+        self.assertIn("gancho", fallos[0])
+
+    def test_un_gancho_sin_texto_es_un_fallo_de_la_puerta(self):
+        fallos = QA._defectos_composicion(40, 1.0, [], gancho=0)
+        self.assertTrue(fallos, "un primer plano sin texto tiene que fallar")
+
+    def test_un_gancho_grande_no_es_un_fallo(self):
+        self.assertEqual(QA._defectos_composicion(40, 1.0, [], gancho=120), [])
+
+    def test_la_puerta_y_el_puntaje_dicen_lo_mismo(self):
+        """La puerta falla la pieza y el puntaje la puntua: no pueden
+        decir cosas distintas (la misma regla que el piso de letra)."""
+        import puntuar as P
+        puntos, _detalle = P._puntuar_composicion(
+            {"solapes": [], "zona": 1.0, "letra_min": 40, "gancho_px": 60})
+        self.assertLessEqual(puntos, 3.5,
+                             "con el gancho por debajo del piso, la tipografia "
+                             "no puede recibir un 4")
+
+    def test_el_gancho_se_mide_en_el_primer_plano(self):
+        """El gancho es el primer plano: `medir_animacion` lo calcula y lo
+        publica junto al resto de la medicion."""
+        import inspect
+        fuente = inspect.getsource(MA)
+        self.assertIn("gancho_px", fuente,
+                      "la medicion tiene que publicar el gancho: sin el, la "
+                      "puerta no puede juzgarlo")
+        self.assertIn('startswith("1:")', fuente,
+                      "el gancho se mide en la ESCENA 1, no en cualquier una")
+
+
 if __name__ == "__main__":
     unittest.main()

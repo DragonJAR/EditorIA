@@ -113,6 +113,55 @@ class TestSubtitulosEnLaPuerta(unittest.TestCase):
     def test_fuera_de_redes_no_se_exigen(self):
         self.assertIsNone(self.mod._defecto_subtitulos(self._plan(), "youtube"))
 
+    def test_sin_voz_el_paso_dice_no_aplica(self):
+        import json as _json
+        with tempfile.TemporaryDirectory() as d:
+            ruta = os.path.join(d, "plan.json")
+            with open(ruta, "w", encoding="utf-8") as fh:
+                _json.dump({"duracion": 5, "escenas": [{"tipo": "apertura", "from": 0, "to": 5}]}, fh)
+            paso = self.mod._paso_subtitulos(ruta, "reels")
+        self.assertTrue(paso["ok"])
+        self.assertEqual(paso["detalle"], "no aplica: la pieza no tiene voz")
+
+
+class TestPlataformaDeducida(unittest.TestCase):
+    """Sin --plataforma, la puerta no da por hecho Reels: la del plan o, si
+    no, la del tamaño (UNA cuenta en _comun, la misma que usa la medición)."""
+
+    def setUp(self):
+        import sys as _sys
+        _sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        import _comun
+        self.c = _comun
+        self.mod = _cargar(QA_ENTREGA, "qa_entrega_plataforma")
+
+    def test_por_tamano(self):
+        self.assertEqual(self.c.inferir_plataforma({}, (1080, 1920))[0], "reels")
+        self.assertEqual(self.c.inferir_plataforma({}, (1920, 1080))[0], "youtube")
+        self.assertEqual(self.c.inferir_plataforma({}, (1080, 1080))[0], "linkedin")
+        self.assertIn("1920x1080", self.c.inferir_plataforma(None, (1920, 1080))[1])
+
+    def test_la_del_plan_manda(self):
+        self.assertEqual(self.c.inferir_plataforma({"plataforma": "tiktok"}, (1920, 1080)),
+                         ("tiktok", "declarada en el plan"))
+
+    def test_la_puerta_usa_la_de_comun(self):
+        self.assertIs(self.mod.inferir_plataforma, self.c.inferir_plataforma)
+        self.assertIs(self.mod.plan_muda, self.c.plan_muda)
+        with open(QA_ENTREGA, encoding="utf-8") as f:
+            self.assertRegex(f.read(), r'"--plataforma", default=None')   # nada de reels por defecto
+
+    def test_formato_del_tamano_es_uno(self):
+        self.assertEqual(self.c.formato_de(1080, 1920), "v")
+        self.assertEqual(self.c.formato_de(1920, 1080), "h")
+        self.assertEqual(self.c.formato_de(1080, 1080), "c")
+
+    def test_pieza_muda(self):
+        self.assertTrue(self.c.plan_muda({"escenas": [{"tipo": "apertura"}]}))
+        self.assertFalse(self.c.plan_muda({"musica": "m.mp3", "escenas": []}))
+        self.assertFalse(self.c.plan_muda({"escenas": [{"voz": "Hola."}]}))
+        self.assertFalse(self.c.plan_muda(None))
+
 
 class TestMedirConNombreRaro(unittest.TestCase):
     """El paso de movimiento lee el JSON de medir_animacion, no un regex
@@ -164,15 +213,31 @@ class TestQuietoYOcupacionEnLaPuerta(unittest.TestCase):
             with open(ruta, encoding="utf-8") as f:
                 return float(re.search(rf"^{nombre}\s*=\s*([\d.]+)", f.read(), re.M).group(1))
         sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
-        from _comun import LETRA_MIN as _canonico, OCUPACION_MIN as _oc_can, QUIETO_MAX as _q_can
+        from _comun import LETRA_MIN as _canonico, OCUPACION_MIN as _oc_can
         self.assertEqual(self.mod.QUIETO_MAX, const(os.path.join(SCRIPTS, "auto_qa.py"), "FROZEN_MAX"))
-        self.assertEqual(self.mod.QUIETO_MAX, _q_can)
+        # OCUPACION_MIN y LETRA_MIN viven UNA vez en _comun: la puerta y el
+        # medidor los importan (ningun literal aparte en medir_animacion)
+        comun = const(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), "OCUPACION_MIN")
+        self.assertEqual(self.mod.OCUPACION_MIN, comun)
         self.assertEqual(self.mod.OCUPACION_MIN, _oc_can)
         self.assertEqual(self.mod.LETRA_MIN, _canonico)
         sys.path.insert(0, SCRIPTS)
-        import medir_animacion as MA
-        self.assertEqual(MA.OCUPACION_MIN, self.mod.OCUPACION_MIN)
-        self.assertEqual(MA.LETRA_MIN, self.mod.LETRA_MIN)
+        import medir_animacion
+        self.assertEqual(medir_animacion.OCUPACION_MIN, comun)
+        self.assertEqual(medir_animacion.LETRA_MIN, self.mod.LETRA_MIN)
+        with open(os.path.join(SCRIPTS, "medir_animacion.py"), encoding="utf-8") as f:
+            self.assertNotRegex(f.read(), r"(?m)^OCUPACION_MIN\s*=")
+        # la racha congelada es la de auto_qa (UN literal: FROZEN_MAX), no un
+        # literal aparte en la puerta ni una copia en _comun
+        import auto_qa
+        self.assertEqual(self.mod.QUIETO_MAX, auto_qa.FROZEN_MAX)
+        self.assertNotRegex(self.src_qa(), r"(?m)^QUIETO_MAX\s*=")
+        with open(os.path.join(SCRIPTS, "ffmpeg_tools", "_comun.py"), encoding="utf-8") as f:
+            self.assertNotRegex(f.read(), r"(?m)^QUIETO_MAX\s*=")
+
+    def src_qa(self):
+        with open(QA_ENTREGA, encoding="utf-8") as f:
+            return f.read()
 
 
 class TestConteoDelEncabezado(unittest.TestCase):

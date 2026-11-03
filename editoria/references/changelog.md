@@ -43,8 +43,8 @@ crudo).
 - La apertura deja la primera frase el tiempo de poder leerse.
 - El cierre acepta `marca` o `titulo`.
 - El reel normaliza cada entrada antes del xfade (ffmpeg 7 lo rechazaba).
-- Los umbrales de la casa (`LETRA_MIN`, `OCUPACION_MIN`, `QUIETO_MAX`) tienen
-  una sola fuente.
+- Los umbrales de la casa tienen una sola fuente: `LETRA_MIN` y
+  `OCUPACION_MIN` en `_comun`; `QUIETO_MAX` es `auto_qa.FROZEN_MAX`.
 
 **Integración con main (metodo de dirección Lemo-Opuscar)**
 - `references/metodo-direccion.md` entra al mapa (dominio `estructura`) y

@@ -158,7 +158,10 @@ elemento de texto que el espectador deba leer necesita su tiempo:
 **Estos números tienen un canónico: el código.** La regla vive en
 `scripts/ffmpeg_tools/_comun.py` (`tiempo_de_lectura()` y sus constantes
 `LECTURA_ETIQUETA_S`, `LECTURA_PALABRA_S`, `LECTURA_MIN_S`): esta prosa la
-cita, no la vuelve a escribir. La miden dos: el motor (que postpone el
+cita, no la vuelve a escribir. `auditar_plan.py` la comprueba ANTES del
+render con la misma función: el aviso lleva los dos números —lo que el
+texto necesita y lo que tiene en pantalla— para que corregir sea corregir,
+no adivinar. La miden dos: el motor (que postpone el
 cambio de beat si la primera frase no cabe) y `scripts/medir_animacion.py`,
 que espía la puerta del motor (`titular`, `pon_texto`, `draw_seg`) y anota,
 por LÍNEA, los frames en que el texto estuvo en pantalla. La medida sale

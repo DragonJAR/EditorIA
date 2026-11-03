@@ -421,8 +421,10 @@ def _fraction(v: Optional[str]) -> Optional[Fraction]:
 
 # ── EL PISO DE LECTURA (la regla, con su canónico) ───────────────────────
 # Cuántos segundos necesita un texto para que se pueda leer. Es UNA regla y
-# vive AQUÍ: la usan la puerta de entrega (que mide si el texto aguanta) y el
-# motor (que postpone el cambio de beat si la primera frase no cabe).
+# vive AQUÍ: la usan la medición y la puerta de entrega (que miden si el texto
+# aguanta), `auditar_plan` (cada texto y la 1.ª frase de la apertura, antes
+# del render) y, con el lote I-B, el motor (que postpone el cambio de beat
+# si la primera frase no cabe).
 #
 # Los NUMEROS son los que declara `references/ritmo.md` ("Piso de lectura"):
 # una etiqueta corta o una línea de 1-3 palabras necesita ~0.8 s; un titular
@@ -434,6 +436,11 @@ LECTURA_ETIQUETA_S = 0.8    # s: etiqueta corta o línea de 1-3 palabras
 LECTURA_PALABRA_S = 0.3     # s por palabra: titular o frase completa
 LECTURA_MIN_S = 1.2         # s: el piso de un titular, por corto que sea
 LECTURA_PALABRAS_ETIQUETA = 3   # hasta 3 palabras = etiqueta corta
+#: la misma velocidad dicha al revés (palabras por segundo): NO es otra cifra.
+#: La usan `auditar_plan` (la 1.ª frase de la apertura antes de su cambio) y
+#: `_copy`/`auditar_plan` (cada texto en pantalla): todos llaman a
+#: `tiempo_de_lectura`, ninguno cuenta por su cuenta.
+PALABRAS_POR_S = 1 / LECTURA_PALABRA_S
 
 
 def tiempo_de_lectura(texto) -> float:
@@ -970,62 +977,76 @@ def texto_sobre(fondo, claro=TEXTO_CLARO, oscuro=TEXTO_OSCURO, tokens=None) -> s
 # brief, y la declara en el plan ("paleta": "menta"). Reglas y tabla de
 # decisión: references/paleta.md.
 #
-# Todos los acentos pasan WCAG AA (>= 4.5:1) sobre el fondo #0A0A0A: el
-# acento se usa para texto de énfasis, no para pintar.
+# Todos los acentos pasan WCAG AA (>= 4.5:1) sobre el fondo Y sobre la
+# tarjeta (`gris_superficie`) del tema oscuro: el acento se usa para texto de
+# énfasis, no para pintar. En el tema claro (`nombre:claro`) se oscurecen
+# hasta pasarlo (test_paleta_color).
+#
+# Los NEUTROS del motor (fondo, tinta, gris de apoyo, superficie): del motor,
+# no de una marca; un pack declara los suyos. UNA vez: todas las paletas los
+# comparten y `tema_claro` cambia a los claros.
+NEUTROS_OSCURO: Dict[str, Tuple[int, int, int]] = {
+    "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
+    "gris_superficie": (26, 26, 26),
+}
+NEUTROS_CLARO: Dict[str, Tuple[int, int, int]] = {
+    "negro": (246, 245, 241), "blanco": (21, 22, 26), "gris": (84, 88, 98),
+    "gris_superficie": (232, 231, 226),
+}
+MODOS = ("oscuro", "claro")
+# Familias por defecto del motor: las OFL que viajan en assets/fonts (render
+# idéntico en cualquier máquina). Son del MOTOR —un pack declara las suyas en
+# `tipografías` y estas no se usan—; ningún script escribe otro nombre de
+# familia por defecto: todos leen de aquí.
+TIPOS_MOTOR: Dict[str, str] = {
+    "titulares": "Plus Jakarta Sans", "texto": "Montserrat", "mono": "IBM Plex Mono",
+}
 PALETAS: Dict[str, Dict[str, Any]] = {
     "electrico": {
         "acento": (61, 123, 255), "acento_oscuro": (32, 68, 148),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        **NEUTROS_OSCURO,
         "esquema": "análogo azul→cian (hue 214°)",
         "tono": "frío", "para": "IA, software, datos, B2B, SaaS, ciberseguridad",
     },
     "menta": {
         "acento": (20, 199, 160), "acento_oscuro": (13, 129, 104),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        **NEUTROS_OSCURO,
         "esquema": "análogo verde→turquesa (hue 168°)",
         "tono": "frío", "para": "finanzas, salud, crecimiento, clima, logística verde",
     },
     "grafito": {
         "acento": (148, 163, 184), "acento_oscuro": (95, 107, 124),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        **NEUTROS_OSCURO,
         "esquema": "monocromático frío, sin chroma (hue 215°, sat 12 %)",
         "tono": "frío", "para": "documentación, legal, industria, auditoría, minimal",
     },
     "ambar": {
         "acento": (240, 163, 43), "acento_oscuro": (156, 106, 28),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        **NEUTROS_OSCURO,
         "esquema": "análogo ámbar→dorado (hue 38°)",
         "tono": "cálido", "para": "energía, industria, deporte, formación, startups",
     },
     "coral": {
         "acento": (255, 107, 91), "acento_oscuro": (166, 70, 59),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        **NEUTROS_OSCURO,
         "esquema": "análogo coral→rojo cálido (hue 6°)",
         "tono": "cálido", "para": "salud, RRHH, cuidado, comunidad, alertas",
     },
     "violeta": {
-        "acento": (139, 92, 246), "acento_oscuro": (91, 60, 161),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        "acento": (147, 102, 248), "acento_oscuro": (96, 66, 161),
+        **NEUTROS_OSCURO,
         "esquema": "análogo violeta→lila (hue 265°)",
         "tono": "frío", "para": "creatividad, educación, premium, wellness, música",
     },
     "magenta": {
         "acento": (229, 71, 155), "acento_oscuro": (149, 46, 101),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        **NEUTROS_OSCURO,
         "esquema": "análogo magenta→fucsia (hue 330°)",
         "tono": "cálido", "para": "cultura, moda, entertainment, social, youthful",
     },
     "oro": {
         "acento": (201, 162, 39), "acento_oscuro": (131, 105, 25),
-        "negro": (10, 10, 10), "blanco": (250, 248, 246), "gris": (170, 170, 170),
-        "gris_superficie": (26, 26, 26),
+        **NEUTROS_OSCURO,
         "esquema": "dividido complementario: dorado 45° + apoyo azul profundo",
         "tono": "cálido", "para": "lujo, premium, invitaciones, joyeria, inmobiliaria",
     },
@@ -1037,6 +1058,22 @@ PALETAS: Dict[str, Dict[str, Any]] = {
 # duplicada aquí: si cambia, NEUTRO cambia con ella.
 PALETA_POR_DEFECTO = "electrico"
 
+# SINTAXIS de la paleta: UNA fuente para la ayuda de `render_plan.py --paleta`,
+# la de `repertorio.py`, el campo `paleta` del plan (PLAN_CAMPOS) y SKILL.md
+# (test_composicion_1112 comprueba que SKILL.md la cita literal). Un nombre
+# del catálogo o un color del usuario; `:claro` = tema claro. El marcador va
+# entre llaves, la convención de placeholders de la skill (validate_skill no
+# admite < > en el markdown que la cita).
+SINTAXIS_PALETA = '"paleta": "{nombre}|#RRGGBB[:claro]"'
+
+
+def ayuda_paleta() -> str:
+    """Texto de ayuda de --paleta (CLI), construido de SINTAXIS_PALETA y del catálogo."""
+    return (f"paleta del modo libre, {SINTAXIS_PALETA.split(': ', 1)[1]}: un nombre del catálogo "
+            f"({', '.join(PALETAS)}) o el color del usuario en hex; «:claro» = tema claro "
+            "(ej. menta:claro, #00A86B:claro). El plan acepta el mismo valor en "
+            f"{SINTAXIS_PALETA.split(':', 1)[0]}. Si hay --brand, la marca manda")
+
 #: piso de LETRA LEGIBLE (px sobre el lado corto 1080): bajo él, un texto no se
 #: lee en un teléfono. UNA cifra: el motor (`render_plan.MIN_LETRA`), la
 #: medición (`medir_animacion`), la puerta (`qa_entrega`) y la rúbrica
@@ -1046,21 +1083,48 @@ LETRA_MIN = 26
 #: medido, las escenas más angostas POR DISEÑO (apertura, cartel: solo tipo)
 #: ocupan 0.17–0.23; las de datos 0.50–0.86. La comparten medición y puerta.
 OCUPACION_MIN = 0.20
+#: piso del GANCHO (px sobre el lado corto 1080): el texto MÁS GRANDE del
+#: primer plano tiene que decir qué es la pieza de un vistazo. El titular se
+#: declara a 120 px y la zona segura lo encoge como mucho a 0.70: 84 px es el
+#: titular más pequeño que una pieza puede tener. UNA cifra: la medición
+#: (`medir_animacion`), la puerta (`qa_entrega`) y la rúbrica (`puntuar`).
+GANCHO_MIN = 84
 
-#: s: racha congelada maxima (= auto_qa.FROZEN_MAX).
-QUIETO_MAX = 1.0
+# FORMATO y PLATAFORMA de una pieza por su tamaño: UNA cuenta para la
+# medición (medir_animacion: qué FORMATO medir) y la puerta (qa_entrega: qué
+# spec exigir). 9:16 → v, 16:9 → h, ~1:1 → c.
+PLATAFORMA_POR_FORMATO = {"v": "reels", "h": "youtube", "c": "linkedin"}
 
-#: s: lo que tarda en leerse una frase corta (y el minimo, siempre).
-#: s: lo que tarda en leerse una ETIQUETA corta (1-3 palabras) asentada.
-#: Es la "ley dura" de references/ritmo.md: el canonico esta aqui y la prosa
-#: lo cita, no al reves (antes eran dos verdades para la misma regla).
-LECTURA_ETIQUETA_S = 0.8
 
-#: s: por palabra de un titular o una frase completa.
-LECTURA_POR_PALABRA_S = 0.3
+def formato_de(ancho: int, alto: int) -> str:
+    """'v' (vertical), 'h' (horizontal) o 'c' (cuadrado, ±10 %) de un tamaño."""
+    r = ancho / max(1, alto)
+    return "c" if 0.9 <= r <= 1.1 else ("h" if r > 1 else "v")
 
-#: s: el piso de cualquier lectura (una frase, aunque sea de una palabra).
-LECTURA_MIN_S = 1.2
+
+def inferir_plataforma(plan, tamano) -> Tuple[str, str]:
+    """(plataforma, por qué). La del plan si la declara; si no, por el tamaño
+    (`formato_de`: 9:16 reels, 16:9 youtube, 1:1 linkedin). El spec de Reels
+    solo se aplica a lo vertical o si se pide (antes era el default de todo)."""
+    p = plan.get("plataforma") if isinstance(plan, dict) else None
+    if p and p != "ninguna":
+        return p, "declarada en el plan"
+    if tamano:
+        w, h = tamano
+        return (PLATAFORMA_POR_FORMATO[formato_de(w, h)],
+                f"inferida del tamaño {w}x{h} (fija otra con --plataforma)")
+    return "reels", "por defecto"
+
+
+def plan_muda(plan) -> bool:
+    """El plan no tiene voz ni música: la pieza es muda a propósito (la puerta
+    no le exige audio ni subtítulos)."""
+    if not isinstance(plan, dict):
+        return False
+    return not plan.get("musica") and not any(
+        isinstance(e, dict) and str(e.get("voz") or "").strip() for e in plan.get("escenas") or [])
+
+
 TOKENS_COLOR = ("acento", "acento_oscuro", "negro", "blanco", "gris", "gris_superficie")
 #: paleta neutra de respaldo (modo libre sin decisión de paleta)
 NEUTRO: Dict[str, Tuple[int, int, int]] = {
@@ -1068,23 +1132,114 @@ NEUTRO: Dict[str, Tuple[int, int, int]] = {
 }
 
 
-def paleta_libre(nombre: Optional[str] = None) -> Dict[str, Any]:
-    """Tokens de color de una paleta del catálogo. Sin nombre: la por defecto.
+def _hasta_contraste(color, fondo, minimo=4.5) -> Tuple[int, int, int]:
+    """El MISMO tono con la luz movida (HLS, pasos de 0.01) hasta leerse a
+    `minimo`:1 sobre `fondo`: sube sobre un fondo oscuro, baja sobre uno
+    claro. UNA cuenta para el motor (`render_plan._legible` y por él
+    `acento_legible`) y para la paleta (`asegurar_contraste`)."""
+    import colorsys
+    h, l, s = colorsys.rgb_to_hls(*[v / 255 for v in _como_rgb(color)])
+    rgb = tuple(_como_rgb(color))
+    paso = -0.01 if luminancia(fondo) > 0.4 else 0.01
+    while contraste(rgb, fondo) < minimo and (l < 0.97 if paso > 0 else l > 0.03):
+        l += paso
+        rgb = tuple(int(round(v * 255)) for v in colorsys.hls_to_rgb(h, l, s))
+    return rgb
 
-    Lanza error claro si el nombre no existe (no degrada en silencio)."""
+
+# Mínimos WCAG que el motor EXIGE a un juego de color que no es un pack de
+# marca (al pack, que manda, solo se le avisa): tinta 7:1 (AAA del cuerpo),
+# gris de apoyo 4.5:1 (es texto) y acento 4.5:1 (letra de énfasis; 3:1 es el
+# suelo AA de gráficos que reporta `verificar_paleta`).
+MINIMOS = {"blanco": 7.0, "gris": 4.5, "acento": 4.5}
+
+
+def asegurar_contraste(tokens: Dict[str, Any], quien: str = "paleta") -> Tuple[Dict[str, Any], list]:
+    """(tokens corregidos, avisos). Lo que no llega al mínimo sobre el PEOR
+    de fondo y tarjeta (`gris_superficie`) se corrige con `_hasta_contraste`
+    y SE DICE: un color del usuario nunca pasa en silencio a un texto
+    ilegible (`"acento": "#151515"` borraba el arco)."""
+    t = dict(tokens)
+    avisos = []
+    fondos = [tuple(t["negro"])] + ([tuple(t["gris_superficie"])] if t.get("gris_superficie") else [])
+    for k, minimo in MINIMOS.items():
+        antes = tuple(t[k])
+        peor = min(fondos, key=lambda f: contraste(antes, f))
+        if contraste(antes, peor) < minimo:
+            t[k] = _hasta_contraste(antes, peor, minimo)
+            avisos.append(f"{quien}: '{k}' {rgb_a_hex(antes)} tenía {contraste(antes, peor):.1f}:1 "
+                          f"sobre {rgb_a_hex(peor)}; corregido a {rgb_a_hex(t[k])} "
+                          f"({contraste(t[k], peor):.1f}:1, mínimo {minimo}:1)")
+    if tuple(t["acento"]) != tuple(tokens["acento"]) or "acento_oscuro" not in t:
+        t["acento_oscuro"] = tuple(max(0, int(v * 0.65)) for v in t["acento"])
+    return t, avisos
+
+
+def tema_claro(tokens: Dict[str, Any]) -> Dict[str, Any]:
+    """El mismo acento sobre los neutros CLAROS (fondo crema, tinta casi
+    negra), corregido hasta leerse sobre ellos."""
+    t = dict(tokens)
+    t.update(NEUTROS_CLARO)
+    t = asegurar_contraste(t, "tema claro")[0]
+    # `acento_oscuro` es el RELLENO bajo la tinta (burbuja, chip): en claro la
+    # tinta es oscura, así que el relleno es el acento aclarado hacia el fondo
+    # (el 65 % del oscuro dejaba tinta casi negra sobre un relleno casi negro)
+    t["acento_oscuro"] = tuple(int(round(v + (f - v) * 0.6)) for v, f in zip(t["acento"], t["negro"]))
+    return t
+
+
+def paleta_desde_color(color: str, modo: str = "oscuro") -> Dict[str, Tuple[int, int, int]]:
+    """Paleta completa a partir de UN color del usuario («en azul #1E88E5»):
+    el color es el acento, el resto son los neutros del motor. Si no se lee
+    sobre el fondo se corrige en luminancia (el tono se respeta)."""
+    if modo == "claro":
+        return tema_claro({"acento": _como_rgb(color)})
+    base = dict(NEUTROS_OSCURO, acento=_como_rgb(color))
+    return asegurar_contraste(base, f"color {rgb_a_hex(_como_rgb(color))}")[0]
+
+
+def verificar_paleta(tokens: Dict[str, Any]) -> Dict[str, Any]:
+    """Contraste WCAG de una paleta sobre su fondo (`negro`): tinta ≥ 4.5
+    (AA texto), gris de apoyo ≥ 4.5 (es texto), acento ≥ 3 (AA gráficos y
+    texto grande). Devuelve las cifras y `ok`."""
+    fondo = tokens["negro"]
+    r = {"tinta": contraste(tokens["blanco"], fondo), "gris": contraste(tokens["gris"], fondo),
+         "acento": contraste(tokens["acento"], fondo)}
+    r["ok"] = r["tinta"] >= 4.5 and r["gris"] >= 4.5 and r["acento"] >= 3.0
+    return r
+
+
+def paleta_libre(nombre: Optional[str] = None) -> Dict[str, Any]:
+    """Tokens de color para `SINTAXIS_PALETA`: un nombre del catálogo o un
+    hex del usuario («#1E88E5», vía `paleta_desde_color`), con `:claro` para
+    el tema claro. Sin nombre: la por defecto.
+
+    Lanza error claro si el nombre, el color o el modo no existen (no degrada
+    en silencio)."""
     if not nombre:
         return dict(NEUTRO)
-    clave = str(nombre).strip().lower()
-    if clave not in PALETAS:
-        die(f"paleta desconocida: {nombre}. Disponibles: {', '.join(sorted(PALETAS))}",
+    clave, _, modo = str(nombre).strip().partition(":")
+    modo = (modo or "oscuro").strip().lower()
+    if modo not in MODOS:
+        die(f"modo de paleta desconocido: {modo}. Válidos: {', '.join(MODOS)} (ej. menta:claro)",
             kind="input")
-    return {k: v for k, v in PALETAS[clave].items() if k in TOKENS_COLOR}
+    if clave.startswith("#"):
+        try:
+            return paleta_desde_color(clave, modo)
+        except (ValueError, TypeError):
+            die(f"color inválido: {clave} (debe ser #RRGGBB)", kind="input")
+    clave = clave.lower()
+    if clave not in PALETAS:
+        die(f"paleta desconocida: {nombre}. Disponibles: {', '.join(sorted(PALETAS))}"
+            " (o un color #RRGGBB; sufijo :claro para tema claro)", kind="input")
+    t = {k: v for k, v in PALETAS[clave].items() if k in TOKENS_COLOR}
+    return tema_claro(t) if modo == "claro" else t
 
 
 def info_paleta(nombre: str) -> Dict[str, Any]:
     """Metadatos de una paleta del catálogo: armonía, temperatura y para qué
     brief sirve (references/paleta.md). Vacío si el nombre no existe."""
-    return {k: v for k, v in PALETAS.get(str(nombre).strip().lower(), {}).items()
+    return {k: v for k, v in PALETAS.get(str(nombre).strip().lower().partition(":")[0], {}).items()
             if k not in TOKENS_COLOR}
 
 
@@ -1124,7 +1279,8 @@ def packs_disponibles() -> List[str]:
 def buscar_pack(path: Optional[str], base: Optional[str] = None) -> Optional[str]:
     """Ruta de un pack o None. Acepta una ruta (absoluta, relativa al cwd, a
     `base` —la carpeta del plan— o a la skill) o el NOMBRE de un pack de la
-    skill: el NOMBRE de un pack → brand/<nombre>.json (el catálogo lo enseña así)."""
+    skill: "<nombre>" → brand/<nombre>.json (el catálogo lo enseña así;
+    sin nombres de pack en el código: validate_skill los busca)."""
     if not path:
         return None
     p = os.path.expanduser(str(path))
@@ -1192,14 +1348,14 @@ def ruta_de_pack(path_pack: Optional[str], valor: Optional[str]) -> Optional[str
 
 
 def fuente_marca(path_pack: Optional[str], rol: str = "titulares",
-                 defecto: str = "Plus Jakarta Sans", generica: str = "sans-bold") -> Optional[str]:
+                 defecto: Optional[str] = None, generica: str = "sans-bold") -> Optional[str]:
     """Archivo de fuente para un rol del pack (titulares | texto | etiquetas_mono);
     sin pack o sin coincidencia, la empaquetada por defecto."""
     from _plataforma import resolver_fuente
     t = (leer_pack(path_pack).get("tipografias") or {}).get(rol) or {}
     return (ruta_de_pack(path_pack, t.get("archivo")) or
             (resolver_fuente(t["familia"]) if t.get("familia") else None) or
-            resolver_fuente(defecto, generica=generica))
+            resolver_fuente(defecto or TIPOS_MOTOR["titulares"], generica=generica))
 
 
 def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:
@@ -1242,25 +1398,6 @@ def segmentos_resalte(texto: str) -> List[Tuple[str, str]]:
 
 
 _MARKUP_BIEN_FORMADO = re.compile(r"(?<!\w)([*~^])(?=\S)(.+?)(?<=\S)\1(?!\w)")
-
-
-def tiempo_de_lectura(texto) -> float:
-    """Segundos para leer `texto` (str o lista de lineas) una vez asentado.
-
-    LA REGLA (references/ritmo.md, "piso de lectura"): una etiqueta corta o
-    una linea de 1-3 palabras se asienta ~0,8 s; un titular o una frase
-    completa, ~0,3 s por palabra con un piso de ~1,2 s. El canonico esta
-    aqui: la prosa cita estos numeros, no al reves.
-    """
-    import re as _re
-    if isinstance(texto, (list, tuple)):
-        texto = " ".join(str(x) for x in texto)
-    n = len(_re.findall(r"\w+", str(texto or "")))
-    if not n:
-        return 0.0
-    if n <= 3:
-        return round(LECTURA_ETIQUETA_S, 2)
-    return round(max(LECTURA_MIN_S, n * LECTURA_POR_PALABRA_S), 2)
 
 
 def texto_plano(texto: str) -> str:

@@ -26,7 +26,8 @@ from speech_estimate import estimar_duracion  # noqa: E402
 
 def _plan(**extra):
     plan = {"duracion": 3.0,
-            "escenas": [{"tipo": "apertura", "from": 0, "to": 3, "texto1": ["Hola"]}]}
+            "escenas": [{"tipo": "apertura", "from": 0, "to": 3, "texto1": ["Hola"],
+                                 "texto2": ["mundo"]}]}
     plan.update(extra)
     return plan
 
@@ -197,9 +198,11 @@ class TestRelojDeLaNarracion(unittest.TestCase):
         # mide la BANDA DE LA VOZ, asi que su plan tiene que ser valido.
         return {"duracion": hueco * 3,
                 "escenas": [
-                    {"tipo": "apertura", "from": 0.0, "to": hueco, "voz": self.TEXTO},
-                    {"tipo": "bento", "from": hueco, "to": hueco * 2, "voz": "Segunda frase."},
-                    {"tipo": "final", "from": hueco * 2, "to": hueco * 3, "marca": "X"},
+                    {"tipo": "apertura", "from": 0.0, "to": hueco, "voz": self.TEXTO,
+                     "texto1": ["Hola"], "texto2": ["mundo"]},
+                    {"tipo": "bento", "from": hueco, "to": hueco * 2, "voz": "Segunda frase.",
+                     "items": [{"titulo": "Uno", "texto": "uno"}, {"titulo": "Dos", "texto": "dos"}]},
+                    {"tipo": "final", "from": hueco * 2, "to": hueco * 3, "marca": "Marca"},
                 ]}
 
     def _niveles(self, plan):
@@ -306,6 +309,72 @@ class TestUnaSolaRegla(unittest.TestCase):
                 f"'{nombre}': auditar_plan_voces dice {se['valido']} y "
                 f"auditar_plan dice {not errores_voz}. Son la misma regla.")
 
+
+class TestPisoDeLectura(unittest.TestCase):
+    """El copy tiene que tener tiempo de leerse.
+
+    El piso estaba en DOS referencias con DOS constantes distintas
+    (`references/ritmo.md` y `references/animacion.md`) y no lo comprobaba
+    nadie: era prosa, no un contrato. Ahora hay UNA formula (`_comun.
+    tiempo_de_lectura`) y la cuenta el auditor.
+    """
+
+    def _avisos_de_lectura(self, plan):
+        return [h["msg"] for h in AP.auditar_estructura(plan)
+                if "en pantalla" in h["msg"]]
+
+    def test_un_texto_corto_en_una_escena_normal_no_avisa(self):
+        plan = {"duracion": 4.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 4.0,
+                             "texto1": ["Hola"]}]}
+        self.assertEqual(self._avisos_de_lectura(plan), [])
+
+    def test_un_texto_largo_en_una_escena_corta_avisa(self):
+        plan = {"duracion": 1.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 1.0,
+                             "texto1": ["Una frase de gancho bastante larga "
+                                        "para que de verdad no quepa"]}]}
+        avisos = self._avisos_de_lectura(plan)
+        self.assertTrue(avisos, "un texto que no cabe en el tiempo tiene que avisar")
+        self.assertIn("acorta el texto", avisos[0])
+
+    def test_el_aviso_dice_los_dos_numeros(self):
+        """El numero va con el aviso: sin el, corregir es adivinar."""
+        plan = {"duracion": 1.0,
+                "escenas": [{"tipo": "apertura", "from": 0.0, "to": 1.0,
+                             "texto1": ["Una frase de gancho bastante larga "
+                                        "para que de verdad no quepa"]}]}
+        aviso = self._avisos_de_lectura(plan)[0]
+        self.assertIn("necesita", aviso)
+        self.assertIn("tiene", aviso)
+
+    def test_la_formula_es_una_sola_y_las_referencias_apuntan_a_ella(self):
+        """Dos referencias, una idea: el piso de lectura vive en
+        `_comun.tiempo_de_lectura` (el MISMO que mide medir_animacion y que
+        cita ritmo.md); `_copy` no lleva una cuenta propia. Hubo tres: la
+        sesion 6405 en `_copy` (0.3 s/palabra + 0.5 s), la 7c3f en `_comun`
+        (piso 2 s, 3 palabras/s) y la a153 en `_comun` con las cifras de
+        ritmo.md. Al unir se queda la de ritmo.md (5 palabras = 1.5 s)."""
+        import _copy as C
+        sys.path.insert(0, os.path.join(SCRIPTS, "ffmpeg_tools"))
+        from _comun import tiempo_de_lectura
+        self.assertFalse(hasattr(C, "tiempo_lectura"),
+                         "_copy no puede llevar un segundo piso de lectura")
+        self.assertIs(AP.tiempo_de_lectura, tiempo_de_lectura)
+        self.assertEqual(tiempo_de_lectura("Hola"), 0.8)
+        self.assertEqual(tiempo_de_lectura("Una frase con cuatro palabras"), 1.5)
+        refs = os.path.join(os.path.dirname(SCRIPTS), "references")
+        for nombre in ("ritmo.md", "animacion.md"):
+            ruta = os.path.join(refs, nombre)
+            if not os.path.isfile(ruta):
+                continue
+            with open(ruta, encoding="utf-8") as f:
+                txt = f.read()
+            self.assertIn("tiempo_de_lectura", txt,
+                          f"{nombre} describe el piso de lectura con sus propias "
+                          f"cifras: la formula vive en _comun.tiempo_de_lectura")
+            self.assertNotIn("_copy.tiempo_lectura", txt,
+                             f"{nombre} cita un piso de lectura que ya no existe")
 
 if __name__ == "__main__":
     unittest.main()

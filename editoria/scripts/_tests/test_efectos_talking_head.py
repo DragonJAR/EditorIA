@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests del repertorio talking-head (claude-video-effects destilado).
+"""Tests del repertorio talking-head (repo MIT de efectos talking-head, destilado).
 
 QUE PROTEGE
 
@@ -126,7 +126,7 @@ class TestEfectosTalkingHead(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("git clone", r.stdout)
         self.assertIn("spotlight", r.stdout)
-        self.assertIn("rm -rf /tmp/claude-video-effects", r.stdout)
+        self.assertIn("rm -rf /tmp/efectos-talking-head", r.stdout)
 
 
 if __name__ == "__main__":

@@ -63,8 +63,8 @@ TIME_RE = re.compile(r"^\s*(?P<a>[\d:.,]+)\s*(?:-->|-|–|to)\s*(?P<b>[\d:.,]+)\
 # "Leader words": articulos, preposiciones, conjunciones, posesivos,
 # demostrativos... un chunk frase-consciente nunca termina en una de estas:
 # si el candidato terminaria ahi, se encoge para que la palabra abra el
-# siguiente caption. Tecnica portada de synced-captions
-# (vishalmotionwork-lang/claude-code-windows-setup): solo el heuristico.
+# siguiente caption. Tecnica portada de synced-captions (un repo publico de
+# setup de Windows; ver references/creditos.md): solo el heuristico.
 LEADERS_ES = frozenset(
     "el la los las lo un una unos unas de del en y o que se su sus mi tu "
     "mis tus este esta estos estas ese esa esos esas aquel aquella al para "

@@ -335,7 +335,10 @@ El movimiento de cámara convierte un layout plano en un espacio.
   `assets/fonts/` lo son) el peso puede animar 400→800 en la palabra clave.
 - **Kerning y ortografía**: revisar pares problemáticos en tamaños
   gigantes (AV, To, Te, "10") y tildes/¿¡ siempre presentes.
-- **Lectura**: cada línea en pantalla ≥ (palabras × 0.3 s) + 0.5 s.
+- **Lectura**: cada línea en pantalla aguanta su piso de lectura
+  (`references/ritmo.md`). La fórmula vive en `_comun.tiempo_de_lectura`
+  (una sola) y la comprueban `auditar_plan.py` y `medir_animacion.py`: el aviso lleva los dos números (lo que necesita y lo
+  que tiene) para poder corregir sin adivinar.
 
 ## 7. Transiciones con intención
 

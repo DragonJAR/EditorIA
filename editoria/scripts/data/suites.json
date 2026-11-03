@@ -68,6 +68,7 @@
   "test_motion_ui.py",
   "test_movimiento.py",
   "test_paleta.py",
+  "test_paleta_color.py",
   "test_piso_de_lectura.py",
   "test_piso_legible.py",
   "test_puerta_entrega.py",

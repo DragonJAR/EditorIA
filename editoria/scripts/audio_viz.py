@@ -32,7 +32,7 @@ import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ffmpeg_tools"))
 from _comun import (VF_RGB_A_BT709, acento_efectivo, codificar_frames,  # noqa: E402
-                    die, info, probe, tokens_efectivos)
+                    die, info, probe, tokens_efectivos, TIPOS_MOTOR)
 
 
 def acento(brand_path, paleta, color):
@@ -89,20 +89,21 @@ def audiograma(a):
         info(f"aviso: {dur:.0f}s — un audiograma rinde mejor recortado al fragmento (≤90 s)")
     fps = a.fps
     ac = tuple(int(acento(a.brand, a.paleta, a.color)[i:i + 2], 16) for i in (0, 2, 4))
+    tok = tokens_efectivos(a.brand, a.paleta)   # fondo/tinta/gris del tema o del pack, no literales
     plataforma = "reels" if H > W else "youtube"
     sm = safe_margins_px(plataforma, W, H)
     mx = max(sm["left"], sm["right"], int(W * 0.06))
     nb = max(4, a.barras // 2)                                 # mitad: se espeja
     energia = bandas_por_frame(a.audio, a.inicio, dur, fps, nb)
     # capa fija: fondo + portada + títulos (se compone una sola vez)
-    fondo = Image.new("RGB", (W, H), (10, 10, 10))
+    fondo = Image.new("RGB", (W, H), tuple(tok["negro"]))
     glow = Image.new("L", (W, H), 0)
     ImageDraw.Draw(glow).ellipse([W * 0.1, H * 0.35, W * 0.9, H * 0.65], fill=70)
     fondo = Image.composite(Image.new("RGB", (W, H), ac), fondo,
                             glow.filter(ImageFilter.GaussianBlur(min(W, H) * 0.12)))
     d = ImageDraw.Draw(fondo)
-    ft = ImageFont.truetype(resolver_fuente("Plus Jakarta Sans", generica="sans-bold"), int(W * 0.06))
-    fs = ImageFont.truetype(resolver_fuente("Montserrat", generica="sans"), int(W * 0.035))
+    ft = ImageFont.truetype(resolver_fuente(TIPOS_MOTOR["titulares"], generica="sans-bold"), int(W * 0.06))
+    fs = ImageFont.truetype(resolver_fuente(TIPOS_MOTOR["texto"], generica="sans"), int(W * 0.035))
     for f_, peso in ((ft, 800), (fs, 600)):   # fuentes variables: fijar el peso
         try:
             f_.set_variation_by_axes([peso])
@@ -119,7 +120,7 @@ def audiograma(a):
         ImageDraw.Draw(m).rounded_rectangle([0, 0, lado, lado], radius=int(lado * 0.08), fill=255)
         fondo.paste(cov, ((W - lado) // 2, y), m)
         y += lado + int(H * 0.025)
-    for txt, fnt, col in ((a.titulo, ft, (250, 248, 246)), (a.subtitulo, fs, (170, 170, 170))):
+    for txt, fnt, col in ((a.titulo, ft, tuple(tok["blanco"])), (a.subtitulo, fs, tuple(tok["gris"]))):
         if txt:
             while fnt.size > 18 and d.textlength(txt, font=fnt) > W - 2 * mx:
                 fnt = fnt.font_variant(size=fnt.size - 2)
@@ -149,7 +150,7 @@ def audiograma(a):
                                          radius=grosor // 2, fill=ac)
             dr.rounded_rectangle([mx, yp, W - mx, yp + 6], radius=3, fill=(60, 60, 60))
             dr.rounded_rectangle([mx, yp, mx + (W - 2 * mx) * (f + 1) / len(energia), yp + 6],
-                                 radius=3, fill=(250, 248, 246))
+                                 radius=3, fill=tuple(tok["blanco"]))
             im.save(f"{tmpd}/f_{f:05d}.png")
         muda = os.path.join(tmpd, "muda.mp4")
         codificar_frames(f"{tmpd}/f_%05d.png", fps, muda, crf=18)

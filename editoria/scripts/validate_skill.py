@@ -12,7 +12,7 @@ La PRIMERA linea del log es la cabecera: dice de que commit es este veredicto
 ejecucion es, y leer el verde del fichero equivocado es atribuir a hoy el
 veredicto de ayer. `--cabecera` imprime solo esa linea y sale.
 """
-import atexit, os, shutil, sys, re, ast, glob, json, subprocess, tempfile, datetime
+import argparse, atexit, os, shutil, sys, re, ast, glob, json, subprocess, tempfile, datetime
 
 _TMP_DIRS = []
 def _mkdtemp(prefix="editoria_"):
@@ -92,7 +92,19 @@ def linea_commit(base):
     return f"commit medido: {sha} ({rama}){sucio} · {stamp}"
 
 
-if "--cabecera" in sys.argv:
+# Los argumentos se parsean ANTES de la parte cara. La puerta entera tarda
+# media hora: un `--help` que la lanzase seria una trampa, y el verificador de
+# comandos documentados (que corta en el primer parse_args) no podria cortarlo
+# ni verificar sus argumentos.
+_ap = argparse.ArgumentParser(
+    prog="validate_skill.py",
+    description="Verifica que la skill (SKILL.md, referencias y scripts) siga "
+                "siendo coherente y ejecutable. Sale 0 si todo pasa, 1 si algo falla.")
+_ap.add_argument("--cabecera", action="store_true",
+                 help="imprime solo la linea del commit medido y sale (modo rapido)")
+_args = _ap.parse_args()
+
+if _args.cabecera:
     # modo rapido: solo la cabecera. Para poder leer QUE se esta midiendo sin
     # pagar la puerta entera (y para que el test no tarde media hora).
     print(linea_commit(BASE))
@@ -334,10 +346,13 @@ except ImportError:
 
 # toda CLI arranca: --help sin traceback (una dependencia opcional ausente se
 # avisa con un mensaje claro, nunca un ModuleNotFoundError crudo)
+# Aqui ya NO hay excepciones por script: toda CLI usa argparse y parsea antes
+# del trabajo caro, asi que todas se cortan en su --help. La unica excepcion
+# que queda es la de las que NO son CLI (las que empiezan por "_").
 crudas, mudas = [], []
 for _dir in (os.path.join(BASE, "scripts"), os.path.join(BASE, "scripts", "ffmpeg_tools")):
     for _f in sorted(os.listdir(_dir)):
-        if not _f.endswith(".py") or _f.startswith("_") or _f == "validate_skill.py":
+        if not _f.endswith(".py") or _f.startswith("_"):
             continue
         _ruta = os.path.join(_dir, _f)
         if "argparse" not in open(_ruta, encoding="utf-8").read():
@@ -374,7 +389,8 @@ check(not mudas, f"toda opción y subcomando de toda CLI se explica en --help ({
 # una entrada que no existe (el error más común de un agente) se responde con un
 # mensaje claro, nunca con un traceback (render_plan, retakes y voz_off lo
 # hacían). Se excluyen las CLIs donde la sonda tendría efectos o costo: el banco
-# completo, el registro de aprendizajes, la galería y check_env (sin entrada)
+# completo, el registro de aprendizajes, la galería, el propio validador (la
+# sonda lanzaría la puerta entera) y check_env (sin entrada)
 _sin_sonda = {"validate_skill.py", "medir_animacion.py", "registrar_aprendizaje.py", "galeria.py", "check_env.py"}
 _tmp10 = _mkdtemp(prefix="editoria_sonda_")
 _crudas10 = []

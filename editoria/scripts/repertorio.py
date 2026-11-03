@@ -92,6 +92,40 @@ def _perillas(*trozos):
     return out
 
 
+def _no_usar_escena(sid, detalle):
+    """Cuándo NO usar una escena: `detalle_escenas[sid].no_usar` de
+    repertorio.json (una superficie: el repertorio)."""
+    return str((detalle or {}).get("no_usar") or "").strip()
+
+
+_PERILLAS_ESCENA = (
+    "copy del brief (borra _muestra)",
+    "at, from y to",
+    "paleta o brand pack",
+)
+
+
+def _fila_escena(sid, meta, intenciones, aliases=()):
+    """La fila de una escena del plan: cuándo, cuándo no, cómo pedirla, qué
+    perillas la adaptan y cómo producirla. UNA forma para el catálogo
+    (`catalogo_opciones`) y para `resolver`."""
+    return {
+        "id": sid,
+        "motor": MOTOR_ESCENA,
+        "intenciones": intenciones,
+        "firma": meta.get("firma") or f"escena del plan `{sid}`",
+        "ocasion": meta.get("ocasion", ""),
+        "no_usar": _no_usar_escena(sid, meta),
+        "pedido": f"plan.json tipo={sid}; copy del brief, tiempos at/from/to, look con paleta o brand",
+        "perillas": list(_PERILLAS_ESCENA),
+        "producir": (f"plan.json tipo={sid} · references/escenas.md · esquema render_plan.esquema_de · "
+                     f"muestra scripts/escenas_muestra.json#{sid}"),
+        # los nombres que un agente o un brief dirían («barras», «dona»):
+        # puntúan en `sugerir --pedido` como los alias de efectos y captions
+        "aliases": sorted(a.replace("_", "-") for a in aliases),
+    }
+
+
 def _fila_tecnica(fila, intencion=None):
     out = {
         "id": fila["id"],
@@ -157,7 +191,8 @@ def _producir_caption(fila):
 def opciones(intencion, datos=None, efectos=None, gestos=None, captions=None):
     """Lista unificada (orden: escena→efecto→gesto→caption).
 
-    Cada fila: {id, motor, firma?, producir?} — motor es metadato interno.
+    Cada fila dice cuándo, cuándo no, cómo pedirla y qué perillas la adaptan.
+    El motor es metadato interno, no un menú.
     """
     datos = datos or cargar()
     fams = familias(datos)
@@ -167,15 +202,11 @@ def opciones(intencion, datos=None, efectos=None, gestos=None, captions=None):
     out = []
     detalle = (datos or {}).get("detalle_escenas") or {}
     for e in fams[intencion]:
-        meta = detalle.get(e) or {}
-        out.append({
-            "id": e,
-            "motor": MOTOR_ESCENA,
-            "intencion": intencion,
-            "firma": meta.get("firma") or f"escena del plan `{e}`",
-            "ocasion": meta.get("ocasion", ""),
-            "producir": f"plan.json tipo={e} · references/escenas.md",
-        })
+        fila = _fila_escena(e, detalle.get(e) or {}, None,
+                            [a for a, d in alias_escenas(datos).items() if d == e])
+        fila.pop("intenciones")
+        fila["intencion"] = intencion
+        out.append(fila)
     for eid, fila in _opciones_efecto(efectos).items():
         if intencion not in (fila.get("intenciones") or []):
             continue
@@ -195,6 +226,9 @@ def opciones(intencion, datos=None, efectos=None, gestos=None, captions=None):
             "aliases": fila.get("aliases", []),
             "keywords": fila.get("keywords", []),
             "ocasion": fila.get("ocasion", ""),
+            "no_usar": str(fila.get("no_usar") or "").strip(),
+            "pedido": f"repertorio.py resolver --id {eid}",
+            "perillas": _perillas(fila.get("adaptar")),
         })
     for gid, fila in _opciones_gesto(gestos).items():
         if intencion not in (fila.get("intenciones") or []):
@@ -211,6 +245,10 @@ def opciones(intencion, datos=None, efectos=None, gestos=None, captions=None):
             "aliases": fila.get("aliases", []),
             "keywords": fila.get("keywords", []),
             "empleo": fila.get("empleo", []),
+            "ocasion": fila.get("ocasion", ""),
+            "no_usar": str(fila.get("no_usar") or "").strip(),
+            "pedido": f"repertorio.py resolver --id {gid}",
+            "perillas": _perillas(fila.get("numeros"), fila.get("adaptar")),
         })
     for cid, fila in _opciones_caption(captions).items():
         if intencion not in (fila.get("intenciones") or []):
@@ -225,6 +263,9 @@ def opciones(intencion, datos=None, efectos=None, gestos=None, captions=None):
             "aliases": fila.get("aliases", []),
             "keywords": fila.get("keywords", []),
             "ocasion": fila.get("ocasion", ""),
+            "no_usar": str(fila.get("no_usar") or "").strip(),
+            "pedido": f"repertorio.py resolver --id {cid}",
+            "perillas": _perillas(fila.get("adaptar")),
         })
     for fila in _tecnicas(datos):
         if intencion not in (fila.get("intenciones") or []):
@@ -244,6 +285,13 @@ def familias_opciones(datos=None, efectos=None, gestos=None, captions=None):
             i["id"], datos, efectos, gestos, captions)]
         for i in datos["intenciones"]
     }
+
+
+def alias_escenas(datos=None):
+    """{nombre que un agente probaría: tipo del motor} («barras» → bars,
+    «cita» → quote). Fuente única: `alias_escenas` de repertorio.json; la usan
+    `resolver` y `auditar_plan.sugerir_tipo`."""
+    return dict((datos or cargar()).get("alias_escenas") or {})
 
 
 def catalogo_opciones(datos=None, efectos=None, gestos=None, captions=None):
@@ -275,19 +323,15 @@ def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
     clave = (nombre or "").strip().lower().replace("_", "-")
     if not clave:
         return None
-    # escenas: ids del motor (pueden ser camelCase: orbOpen)
+    # escenas: ids del motor (pueden ser camelCase: orbOpen) o su alias
+    # (`alias_escenas`: «barras» → bars, «dona» → pie)
     tipos = catalogo()
+    nombre = alias_escenas(datos).get(clave.replace("-", "_"), nombre)
     if nombre in tipos:
         ints = intencion_de(nombre, datos)
         meta = (datos.get("detalle_escenas") or {}).get(nombre) or {}
-        return {
-            "id": nombre,
-            "motor": MOTOR_ESCENA,
-            "intenciones": ints,
-            "firma": meta.get("firma") or f"escena del plan `{nombre}`",
-            "ocasion": meta.get("ocasion", ""),
-            "producir": f"plan.json tipo={nombre} · references/escenas.md",
-        }
+        return _fila_escena(nombre, meta, ints,
+                            [a for a, d in alias_escenas(datos).items() if d == nombre])
     # efectos + looks + aliases
     for e in efectos.get("efectos", []):
         ids = {e["id"]} | {a.lower() for a in e.get("aliases", [])}
@@ -305,6 +349,9 @@ def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
                     else f"python scripts/efectos_talking_head.py receta --fx {e['id']}"
                 ),
                 "ocasion": e.get("ocasion", ""),
+                "no_usar": str(e.get("no_usar") or "").strip(),
+                "pedido": f"repertorio.py resolver --id {e['id']}",
+                "perillas": _perillas(e.get("adaptar")),
             }
     for look in efectos.get("looks_nombrados", []):
         if clave == look["id"]:
@@ -326,6 +373,10 @@ def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
                 "motores_alt": t.get("motores_alt", []),
                 "producir": t.get("adaptar", ""),
                 "empleo": t.get("empleo", []),
+                "ocasion": t.get("ocasion", ""),
+                "no_usar": str(t.get("no_usar") or "").strip(),
+                "pedido": f"repertorio.py resolver --id {t['id']}",
+                "perillas": _perillas(t.get("numeros"), t.get("adaptar")),
             }
     for c in captions.get("identidades", []):
         ids = {c["id"]} | {a.lower().replace("_", "-") for a in c.get("aliases", [])}
@@ -338,6 +389,9 @@ def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
                 "preferir": c.get("preferir"),
                 "producir": _producir_caption(c),
                 "ocasion": c.get("ocasion", ""),
+                "no_usar": str(c.get("no_usar") or "").strip(),
+                "pedido": f"repertorio.py resolver --id {c['id']}",
+                "perillas": _perillas(c.get("adaptar")),
             }
     for t in _tecnicas(datos):
         ids = {t["id"]} | {a.lower().replace("_", "-") for a in t.get("aliases", [])}
@@ -354,8 +408,15 @@ def _score_opcion(texto, tokens, op):
     if oid in texto or oid_sp in texto:
         score += 50
     for a in op.get("aliases") or []:
-        if a in texto or a.replace("-", " ") in texto:
-            score += 40
+        for forma in {a, a.replace("-", " ")}:
+            # el alias dicho tal cual («con barras») pesa más que uno que solo
+            # aparece dentro de otra palabra («cifra» en «cifras de ventas»)
+            if re.search(r"(?<![\w])" + re.escape(forma) + r"(?![\w])", texto):
+                score += 40
+                break
+            if forma in texto:
+                score += 25
+                break
     blob = " ".join([
         op.get("firma", ""),
         op.get("ocasion", ""),
@@ -429,6 +490,9 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
     for h in sorted(tipos - cubiertas):
         malos.append(f"'{h}' está en el motor pero en ninguna intención: "
                      "es inalcanzable desde el flujo normal; añádela a una familia")
+    for alias, destino in alias_escenas(datos).items():
+        if destino not in tipos:
+            malos.append(f"alias_escenas.{alias}: '{destino}' no es una escena del motor")
     for rol, inten in datos.get("roles_clonar", {}).items():
         if inten not in ids:
             malos.append(f"roles_clonar.{rol}: intención desconocida '{inten}'")
@@ -450,6 +514,12 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
         for inten in ints:
             if inten not in ids:
                 malos.append(f"efecto '{eid}': intención desconocida '{inten}'")
+        if not str(e.get("ocasion") or "").strip():
+            malos.append(f"efecto '{eid}': sin ocasion")
+        if not str(e.get("no_usar") or "").strip():
+            malos.append(f"efecto '{eid}': sin no_usar")
+        if not str(e.get("adaptar") or "").strip():
+            malos.append(f"efecto '{eid}': sin perillas (adaptar)")
     if efectos.get("conteo") and len(fx_ids) != int(efectos["conteo"]):
         malos.append(f"efectos: conteo={efectos.get('conteo')} pero hay {len(fx_ids)}")
 
@@ -469,6 +539,12 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
         for inten in ints:
             if inten not in ids:
                 malos.append(f"gesto '{gid}': intención desconocida '{inten}'")
+        if not str(t.get("ocasion") or "").strip():
+            malos.append(f"gesto '{gid}': sin ocasion")
+        if not str(t.get("no_usar") or "").strip():
+            malos.append(f"gesto '{gid}': sin no_usar")
+        if not _perillas(t.get("numeros"), t.get("adaptar")):
+            malos.append(f"gesto '{gid}': sin perillas")
     if gestos.get("conteo") and len(g_ids) != int(gestos["conteo"]):
         malos.append(f"gestos: conteo={gestos.get('conteo')} pero hay {len(g_ids)}")
 
@@ -488,10 +564,23 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
         for inten in ints:
             if inten not in ids:
                 malos.append(f"caption '{cid}': intención desconocida '{inten}'")
+        if not str(c.get("ocasion") or "").strip():
+            malos.append(f"caption '{cid}': sin ocasion")
+        if not str(c.get("no_usar") or "").strip():
+            malos.append(f"caption '{cid}': sin no_usar")
+        if not str(c.get("adaptar") or "").strip():
+            malos.append(f"caption '{cid}': sin perillas (adaptar)")
     if captions.get("conteo") and len(cap_ids) != int(captions["conteo"]):
         malos.append(
             f"captions: conteo={captions.get('conteo')} pero hay {len(cap_ids)}"
         )
+
+    for sid in sorted(tipos):
+        det = (datos.get("detalle_escenas") or {}).get(sid) or {}
+        if not str(det.get("ocasion") or "").strip():
+            malos.append(f"escena '{sid}': sin ocasion")
+        if not _no_usar_escena(sid, det):
+            malos.append(f"escena '{sid}': sin no_usar")
 
     tec_ids = set()
     skill = os.path.dirname(BASE)
@@ -777,7 +866,10 @@ def _resumen_conteos(datos=None, efectos=None, gestos=None, captions=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sys.path.insert(0, os.path.join(BASE, "ffmpeg_tools"))
+    from _comun import ayuda_paleta   # el color: el MISMO texto que render_plan --paleta
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0],
+                                 epilog="Color de la pieza — " + ayuda_paleta().replace("%", "%%"))
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     # El texto de las opciones se dice UNA vez: --json aparece en cinco
@@ -945,6 +1037,15 @@ def main():
                 print(f"  intenciones: {', '.join(r['intenciones'])}")
             if r.get("producir"):
                 print(f"  producir: {r['producir']}")
+            if r.get("ocasion"):
+                print(f"  cuando: {r['ocasion']}")
+            if r.get("no_usar"):
+                print(f"  no_usar: {r['no_usar']}")
+            if r.get("pedido"):
+                print(f"  pedido: {r['pedido']}")
+            perillas = r.get("perillas") or []
+            if perillas:
+                print("  perillas: " + ", ".join(str(p) for p in perillas))
             if r.get("preferir"):
                 print(f"  preferir: {r['preferir']}"
                       + (f" · nativo: {r['nativo']}" if r.get("nativo") else ""))

@@ -8,7 +8,7 @@ existía en `references/ritmo.md` (0.8 s para una etiqueta de 1–3 palabras,
 0.3 s por palabra con un piso de 1.2 s para un titular) pero era PROSA: nada
 la verificaba.
 
-Estos tests fijan la regla en su canónico (`min_lectura`), la medida
+Estos tests fijan la regla en su canónico (`_comun.tiempo_de_lectura`), la medida
 (`_defectos_lectura`) y su comportamiento en el render real. Si se borra la
 regla o se suaviza el margen, el test end-to-end falla: es la mutación.
 

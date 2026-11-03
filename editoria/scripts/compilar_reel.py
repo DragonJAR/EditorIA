@@ -234,10 +234,10 @@ def _fondo(segmentos, salida, fps=24):
     durs = [s["dur"] for s in segmentos]
     cadena = []
     prev = None
+    # cada entrada se normaliza ANTES del xfade (fps constante, mismo time
+    # base y formato): ffmpeg 7 rechaza el xfade si una entrada no declara
+    # frame rate constante («current rate of 1/0 is invalid»)
     for n in range(len(segmentos)):
-        # cada entrada se normaliza ANTES del xfade (fps constante, mismo time
-        # base y formato): ffmpeg 7 rechaza el xfade si una entrada no declara
-        # frame rate constante («current rate of 1/0 is invalid»)
         cadena.append(f"[{n}:v]settb=AVTB,setpts=PTS-STARTPTS,fps={fps},format=yuv420p[s{n}]")
     for n in range(len(segmentos)):
         if prev is None:

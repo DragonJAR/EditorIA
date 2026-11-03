@@ -110,6 +110,24 @@ Claves `reglas` reconocidas:
   claro y recurrente). El fondo de la `apertura` ES un rol claro y recurrente:
   la silueta de la marca crece y se encoge detrás del titular, siempre en el
   color de la marca y siempre de fondo, nunca como firma.
+- `conservar_caso`: nombres que el motor NO pasa a mayúsculas cuando un
+  kicker o un rótulo va en versalitas (`versalitas()` en `render_plan.py`).
+  El `nombre` del pack entra solo, y toda palabra con mayúscula interna
+  (MiMarca, iPhone, YouTube) también: un nombre de marca nunca sale en
+  mayúsculas forzadas.
+- `outro_sobrio`: `true` = la escena `final` sale sin latido del logo ni
+  halo del botón salvo que la escena diga otra cosa (`sobrio`, `latido`,
+  `halo`).
+- `rebote`: `false` = movimiento de precisión. Todos los resortes del motor
+  (`spring`, y con él los roles de `entra`) pasan a amortiguamiento
+  crítico: la misma frecuencia, sin pasarse del destino.
+- `particulas`: `false` = sin confeti (`particulas()` y `confetti`), sin los
+  anillos de `orbita` ni la nube de `orbOpen` (queda el texto).
+- `volumen`: `false` = insignias planas (`insignia_3d` sin sombra, extrusión
+  ni brillo).
+
+Un pack que no declara una regla vuelve al default del motor (rebote,
+partículas y volumen activos): un pack no hereda las reglas del anterior.
 
 ## Crear un pack nuevo
 

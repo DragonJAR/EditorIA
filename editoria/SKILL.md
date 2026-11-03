@@ -19,7 +19,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 - **Language rule**: Respond to the user in the exact language the user writes in. `SKILL.md` is written in English for global routing; `plan.json` keys, `references/*.md` and the CLIs keep their canonical Spanish identifiers. Content (transcripts, captions, voice-overs) works in any language, and the default TTS voice matches the user's. Full policy in `references/i18n.md`.
 - **White-label brand rule**: Identity is never hardcoded in code; it lives in a brand pack (`brand/*.json`, spec in `references/brand-packs.md`).
   - When the user names a brand, load its pack (`brand/dragonjar.json` is the included example). The pack fixes colors, fonts, logos, voices, and rules; the brief provides the content.
-  - When the user does not name a brand, use free mode: **choose the palette, don't inherit one**. Pick one from the catalog in `references/paleta.md` according to the brief (topic, sector, emotion) and color theory, and declare it in the plan (`"paleta": "menta"`) or with `--paleta`. The free-mode fallback is a cold, identity-free blue — a piece without a brand must not look like one (notably: not like the example pack's red).
+  - When the user does not name a brand, use free mode: **choose the palette, don't inherit one**. Pick one from the catalog in `references/paleta.md` according to the brief (topic, sector, emotion) and color theory, declared as `"paleta": "{nombre}|#RRGGBB[:claro]"` or `--paleta` (a user hex is the accent; contrast is checked and corrected). Without a palette the engine uses `electrico`; never the example pack's red.
   - Brand pack always wins over a palette. Never invent brand identity.
 - **Pre-render validation**: CRITICAL: Before calling `scripts/render_plan.py`, verify:
   - Environment capabilities pass via `python scripts/check_env.py` (`references/capacidades.md`).
@@ -279,7 +279,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (90 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (91 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

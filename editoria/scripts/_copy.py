@@ -61,7 +61,7 @@ ROLES = {
               "tam": 26, "ancho": ANCHO_SEGURO, "lineas": 2, "palabras": 11,
               "fam": FM, "peso": 500},
     "pie": {"claves": ("pie", "fuente", "fuente2"), "modo": "texto",
-            "tam": 24, "ancho": ANCHO_SEGURO, "lineas": 1, "palabras": 8,
+            "tam": 28, "ancho": ANCHO_SEGURO, "lineas": 2, "palabras": 8,
             "fam": FM, "peso": 500},
     "boton": {"claves": ("boton", "cta"), "modo": "texto",
               "tam": 34, "ancho": 420, "lineas": 1, "palabras": 3,
@@ -197,6 +197,9 @@ def ajustar_texto(texto, rol, tam_efectivo=None):
             return None, None
         a = _ancho(_sin_marca(texto), f)
         if a is None or a <= r["ancho"]:
+            break
+        # como `texto_que_cabe` del motor: PARTIR en las líneas del rol antes de encoger
+        if r.get("lineas", 1) > 1 and len(_envolver(texto, f, r["ancho"])) <= r["lineas"]:
             break
         t = max(18, int(t * 0.92))
     return t, t / nom
