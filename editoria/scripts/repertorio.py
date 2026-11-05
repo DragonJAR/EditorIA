@@ -328,7 +328,7 @@ _DEMO_EFECTO = {
     "headline-box": "frase", "headline-wall": "stats", "lean-in": "kenburns",
     "led-sign": "typewriter", "lineup": "pasos", "liquid-glass-graph": "gauge",
     "locked-on": "callout", "match-cut": "versus", "messages": "chat",
-    "noise": "pildoras", "orbit": "orbita", "over-the-shoulder-zoom": "stats",
+    "noise": "notificacion", "orbit": "orbita", "over-the-shoulder-zoom": "stats",
     "pastel-word": "frase", "pause-point": "constancia", "phone-fan": "canales",
     "place-in-grid": "bento", "profile-wall": "ranking", "rabbit-hole": "orbOpen",
     "red-collage": "frase", "reel-frame": "hero", "reject-stamp": "remate",

@@ -178,11 +178,40 @@ CAP_ARGS = {
 
 
 def ensure_base_caption(assets: Path, brand: str | None, jobs: int, dur: float) -> Path:
+    """Base con imagen (kenburns) PERO sin titular quemado.
+
+    Si la base trae titulo/subtitulo, el catálogo muestra dos textos a la
+    vez (escena + caption) y se lee como desarmonía / «no se ve el caption».
+    """
     base = assets / "base_caption.mp4"
     if base.exists() and base.stat().st_size > 10000:
         return base
-    # kenburns con foto: contenido en el centro; el rail de caption va abajo
-    render_escena("kenburns", base, dur, brand, assets, jobs)
+    muestra = json.loads((AQUI / "escenas_muestra.json").read_text(encoding="utf-8"))["escenas"]
+    e = dict(muestra["kenburns"], tipo="kenburns", titulo="", subtitulo="",
+             **{"from": 0.0, "to": dur})
+    if e.get("imagen"):
+        e["imagen"] = "foto_muestra.png"
+    at = e.get("at") or {}
+    if isinstance(at, dict):
+        e["at"] = {k: min(float(v), dur - 0.05)
+                   for k, v in at.items() if isinstance(v, (int, float))}
+    plan = {"duracion": dur, "camara": {"z0": 1.0, "z1": 1.04, "flota": 2},
+            "escenas": [e]}
+    if brand:
+        plan["brand"] = brand
+    pdir = assets / "plans"
+    pdir.mkdir(exist_ok=True)
+    for name in ("foto_muestra.png",):
+        src = assets / name
+        if src.exists():
+            shutil.copy(src, pdir / name)
+    ruta = pdir / "base_caption.plan.json"
+    ruta.write_text(json.dumps(plan, ensure_ascii=False), encoding="utf-8")
+    cmd = [sys.executable, str(AQUI / "render_plan.py"), str(ruta), "-o", str(base),
+           "--blur", "1", "--jobs", str(jobs), "--force"]
+    if brand:
+        cmd += ["--brand", brand]
+    run(cmd)
     return base
 
 
