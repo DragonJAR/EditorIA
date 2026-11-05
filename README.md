@@ -1,7 +1,7 @@
 # EditorIA
 
 [![Licencia](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Versión](https://img.shields.io/badge/version-1.9.0-green.svg)](editoria/SKILL.md)
+[![Versión](https://img.shields.io/badge/version-1.11.4-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Plataformas](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#instalación)
 
@@ -14,9 +14,10 @@
 
 EditorIA convierte un agente en un editor de video completo. Puede:
 
-- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con 46 tipos — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen`, `frase`, `constancia`, `cadena`, `cartel`, `camino`, `subrayado` y `lista`.
-- **Componer visualmente**: escena con `--datos` (CSV), escena sobre plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto, alfa overlay y rotación.
-- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 20 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 46 escenas.
+- **Elegir de un catálogo único** (`scripts/repertorio.py`): **125 opciones** por intención — 46 escenas del plan + 44 efectos talking-head + 20 captions + 8 gestos UI + 6 técnicas + 1 look nativo. El motor es metadato, no un menú paralelo (`sugerir` / `resolver` / `cobertura` / `demo_de`).
+- **Renderizar por plan** declarativo (`plan.json` → `mp4`) con las **46 escenas** — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen`, `frase`, `constancia`, `cadena`, `cartel`, `camino`, `subrayado` y `lista`.
+- **Componer visualmente**: escena con `--datos` (CSV), escena sobre plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto, alfa overlay y rotación. Coherencia espacial DRY: centro óptico (`CENTRO_OPTICO`) y zona segura aunque haya cámara (`references/coherencia-espacial.md`).
+- **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 20 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 46 escenas. Galería de las 46 (`galeria.py`) y video de las 125 (`catalogo_repertorio.py`).
 - **Voz en off y música con IA**: ElevenLabs TTS con cache content-addressed, música con ducking sidechain, alineación palabra-a-palabra (`alinear.py`) sobre Whisper local (whisper.cpp / faster-whisper / openai-whisper en cascada).
 - **Brand packs marca-blanca**: la identidad vive en `brand/*.json` (DragonJAR incluido como ejemplo). Sin pack, modo libre con criterio cinematográfico puro. Nunca identidad hardcoded en el código.
 - **QA automatizado**: máquina (`auto_qa.py` detecta negros, congelados, flashes, audio) + revisor visual del agente sobre contact sheet. Rúbrica de premios de 8 ejes (ninguno bajo 4/5).
@@ -178,14 +179,16 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 | Capacidad | Descripción |
 |---|---|
 | Plan declarativo | `plan.json` con 46 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
-| Catálogo unificado | 46 escenas compuestas con 20 primitivas DRY (cero lógica duplicada) |
+| Repertorio único | 125 opciones (`repertorio.py`): escenas + efectos + captions + gestos + técnicas; `demo_de` para verlas |
+| Catálogo de escenas | 46 escenas compuestas con 20 primitivas DRY (cero lógica duplicada) |
+| Coherencia espacial | Centro óptico y zona segura; la cámara no apaga el recentrado (`_crecer` / `zona_caja`) |
 | `--blur 5` | Motion blur de obturador 180° en la entrega final |
 | `--force` | Re-renderiza todo (sin él retoma donde iba) |
 | `--datos` | CSV-driven (auto-fit de fuente, wrap, line break) |
 | `--jobs N` | Render multi-proceso con fallback automático en sandboxes |
 | `mancha`-friendly | Resume incremental de renders interrumpidos |
-| `-r` aicolor | Color BT.709 exacto, no BT.601 |
-| Safe zone | `vela:` recorte para Reels dimensiones / Safe zones por plataforma |
+| Color BT.709 | Color exacto BT.709, no BT.601 |
+| Safe zone | Recorte / márgenes por plataforma (`--plataforma` vertical, reels, tiktok, shorts) |
 | Multi-image | Soporta `image` (PIL) y `video` (ffmpeg overlay con PTS) |
 
 ### Voz en off y música (`scripts/voz_off.py`, `scripts/musica.py`, `scripts/alinear.py`)
@@ -206,7 +209,7 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 - DragonJAR es **un pack de ejemplo**, no la marca por defecto
 - Sin pack, modo libre con criterio cinematográfico puro
 - La identidad NUNCA está hardcoded en el código
-- `-r` `aplly_brand()` inyecta color, fuentes, isotipo, voces según pack
+- `aplicar_brand()` inyecta color, fuentes, isotipo, voces según pack
 
 ### QA y validación
 
@@ -249,8 +252,10 @@ EditorIA/
 ├── editoria.zip                       # Paquete listo para subir a Claude.ai
 ├── editoria/                          # Carpeta de la skill (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definición + frontmatter YAML + flujo principal
-│   ├── scripts/                       # 53 motores raíz + 21 en ffmpeg_tools/ + 91 en _tests/ = 165 scripts
-│   │   ├── render_plan.py             # Motor principal de render por plan \(46 escenas\)
+│   ├── scripts/                       # 54 motores raíz + 21 en ffmpeg_tools/ + 91 en _tests/ = 166 scripts
+│   │   ├── render_plan.py             # Motor principal de render por plan (46 escenas)
+│   │   ├── repertorio.py              # Catálogo único: 125 opciones (sugerir/resolver/demo_de)
+│   │   ├── catalogo_repertorio.py     # Video de las 125 opciones (sin fichas vacías)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
 │   │   ├── alinear.py                 # Word-level voice alignment (Whisper)
@@ -318,6 +323,7 @@ EditorIA/
 │   ├── references/                    # 72 referencias en kebab-case.md
 │   │   ├── instalacion.md             # Por SO (Win/macOS/Linux)
 │   │   ├── escenas.md                 # Catálogo de 46 escenas
+│   │   ├── intencion-escena.md        # Índice inverso: intención → opción del repertorio
 │   │   ├── escenas-extendidas.md      # Conceptos portables
 │   │   ├── plan-video.md              # Schema del plan.json
 │   │   ├── shorts-plan-schema.md      # Schema del shorts-plan.json
@@ -326,7 +332,7 @@ EditorIA/
 │   │   ├── scoring-shorts.md          # Rúbrica de selección de momentos
 │   │   ├── fluidez.md                 # Reglas de fluidez
 │   │   ├── animacion.md               # Oficio de animación (12 principios)
-│   │   ├── coherencia-espacial.md     # Alineación y safe zones
+│   │   ├── coherencia-espacial.md     # Centro óptico y zona segura (DRY)
 │   │   ├── montaje.md                 # 19 operaciones
 │   │   ├── referencia-video.md        # Clonar/adaptar una referencia
 │   │   ├── formatos.md                # Qué sostiene cada formato

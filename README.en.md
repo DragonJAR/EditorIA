@@ -1,7 +1,7 @@
 # EditorIA
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.9.0-green.svg)](editoria/SKILL.md)
+[![Version](https://img.shields.io/badge/version-1.11.4-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Platforms](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#installation)
 
@@ -14,9 +14,10 @@
 
 EditorIA turns an agent into a complete video editor. It can:
 
-- **Plan-driven render** (`plan.json` → `mp4`) with **46 scene types** — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen`, `frase`, `constancia`, `cadena`, `cartel`, `camino`, `subrayado` and `lista`.
-- **Visual composition**: scene with `--datos` (CSV), scene on template × table, audiograms, word-level karaoke, exact BT.709 color, alpha overlays and rotation.
-- **Animation craft**: fluidity motor (springs, live background, anticipated exits), 180° shutter motion blur on delivery (`--blur 5`), **20 DRY primitives** (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) that compose all 46 scenes.
+- **Choose from one unified catalog** (`scripts/repertorio.py`): **125 options** by intent — 46 plan scenes + 44 talking-head effects + 20 captions + 8 UI gestures + 6 techniques + 1 native look. The motor is metadata, not a parallel menu (`sugerir` / `resolver` / `cobertura` / `demo_de`).
+- **Plan-driven render** (`plan.json` → `mp4`) with the **46 scenes** — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen`, `frase`, `constancia`, `cadena`, `cartel`, `camino`, `subrayado` and `lista`.
+- **Visual composition**: scene with `--datos` (CSV), scene on template × table, audiograms, word-level karaoke, exact BT.709 color, alpha overlays and rotation. DRY spatial coherence: optical center (`CENTRO_OPTICO`) and safe zone even with camera (`references/coherencia-espacial.md`).
+- **Animation craft**: fluidity motor (springs, live background, anticipated exits), 180° shutter motion blur on delivery (`--blur 5`), **20 DRY primitives** (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) that compose all 46 scenes. Gallery of the 46 (`galeria.py`) and video of all 125 (`catalogo_repertorio.py`).
 - **Voice-over and music with AI**: ElevenLabs TTS with content-addressed cache, music with sidechain ducking, word-level alignment (`alinear.py`) on local Whisper (whisper.cpp / faster-whisper / openai-whisper cascade).
 - **White-label brand packs**: identity lives in `brand/*.json` (DragonJAR included as example). Without a pack, free mode with pure cinematic criteria. Identity NEVER hardcoded in the code.
 - **Automated QA**: machine (`auto_qa.py` detects black frames, frozen, flashes, audio) + agent visual review on contact sheet. 8-axis award rubric (none below 4/5).
@@ -177,14 +178,16 @@ Result: 3 shorts at 1080x1920 @30fps, with karaoke subtitles.
 | Capability | Description |
 |---|---|
 | Declarative plan | `plan.json` with 46 scene types, absolute times, `at` per element, `voz` per scene |
-| Unified catalog | 46 scenes composed with 20 DRY primitives (zero duplicated logic) |
+| Unified repertoire | 125 options (`repertorio.py`): scenes + effects + captions + gestures + techniques; `demo_de` to preview them |
+| Scene catalog | 46 scenes composed with 20 DRY primitives (zero duplicated logic) |
+| Spatial coherence | Optical center and safe zone; camera does not disable recentering (`_crecer` / `zona_caja`) |
 | `--blur 5` | 180° shutter motion blur on final delivery |
 | `--force` | Re-render everything (without it resumes where it left off) |
 | `--datos` | CSV-driven (auto-fit font, wrap, line break) |
 | `--jobs N` | Multi-process rendering with automatic sandbox fallback |
 | Resumes incremental | Continues interrupted renders |
-| `-r` recolor | Exact BT.709 color, not BT.601 |
-| Safe zone | Cropping for Reels dimensions / safe zones per platform |
+| BT.709 color | Exact BT.709 color, not BT.601 |
+| Safe zone | Crop / margins per platform (`--plataforma` vertical, reels, tiktok, shorts) |
 | Multi-image | Supports `image` (PIL) and `video` (ffmpeg overlay with PTS) |
 
 ### Voice-over and music (`scripts/voz_off.py`, `scripts/musica.py`, `scripts/alinear.py`)
@@ -248,8 +251,10 @@ EditorIA/
 ├── editoria.zip                       # Ready-to-upload package for Claude.ai
 ├── editoria/                          # Skill folder (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definition + YAML frontmatter + main workflow
-│   ├── scripts/                       # 53 root + 21 in ffmpeg_tools/ + 91 in _tests/ = 165 scripts
-│   │   ├── render_plan.py             # Main plan renderer \(46 scenes\)
+│   ├── scripts/                       # 54 root + 21 in ffmpeg_tools/ + 91 in _tests/ = 166 scripts
+│   │   ├── render_plan.py             # Main plan renderer (46 scenes)
+│   │   ├── repertorio.py              # Unified catalog: 125 options (sugerir/resolver/demo_de)
+│   │   ├── catalogo_repertorio.py     # Video of all 125 options (no empty cards)
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
 │   │   ├── alinear.py                 # Word-level voice alignment (Whisper)
@@ -317,6 +322,7 @@ EditorIA/
 │   ├── references/                    # 72 references in kebab-case.md
 │   │   ├── instalacion.md             # Per OS (Win/macOS/Linux)
 │   │   ├── escenas.md                 # Catalog of 46 scenes
+│   │   ├── intencion-escena.md        # Reverse index: intent → repertoire option
 │   │   ├── escenas-extendidas.md      # Portable concepts
 │   │   ├── plan-video.md              # plan.json schema
 │   │   ├── shorts-plan-schema.md      # shorts-plan.json schema
@@ -325,7 +331,7 @@ EditorIA/
 │   │   ├── scoring-shorts.md          # Moment selection rubric
 │   │   ├── fluidez.md                 # Fluidity rules
 │   │   ├── animacion.md               # Animation craft (12 principles)
-│   │   ├── coherencia-espacial.md     # Alignment and safe zones
+│   │   ├── coherencia-espacial.md     # Optical center and safe zone (DRY)
 │   │   ├── montaje.md                 # 19 operations
 │   │   ├── referencia-video.md        # Clone/adapt a reference
 │   │   ├── formatos.md                # What carries each format
