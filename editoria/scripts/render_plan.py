@@ -3471,6 +3471,31 @@ def sc_final(ctx,e,t):
 # ListAnimations (list/timeline), ThemeAnimations (versus, quote).
 # Referencia cruzada: references/scene-patterns-from-internet.md
 
+def rango_barras(barras):
+    """`(vmin, vmax)` del eje de `sc_bars`.
+
+    Si el spread entre valores es < 8 % del `max` declarado, el eje hace
+    ZOOM al tramo (el spread ocupa ≥ 35 % del alto visual) para que la
+    diferencia se VEA. Antes 41.416 vs 41.422 con max 42 salían barras
+    gemelas (~98,6 % las dos): el ojo leía "iguales" aunque el copy hablaba
+    de miles de diferencia. Una sola cuenta: la usan el fill y los tests.
+    """
+    if not barras:
+        return 0.0, 1.0
+    vals = [float(b.get("valor", 0) or 0) for b in barras]
+    vmax_decl = max(float(b.get("max", 0) or 0) for b in barras)
+    vmax_v = max(vals)
+    vmin_v = min(vals)
+    vmax = max(vmax_decl, vmax_v, 1e-9)
+    spread = vmax_v - vmin_v
+    if spread < 0.08 * vmax and vmax_v > 0:
+        # el spread ocupa al menos el 35 % del eje; el resto es aire simétrico
+        span = max(spread / 0.35, spread * 2.5, vmax * 1e-6)
+        mid = (vmin_v + vmax_v) / 2
+        return mid - span / 2, mid + span / 2
+    return 0.0, vmax
+
+
 def sc_bars(ctx, e, t):
     """Barras verticales de comparación. Params: `titulo`, `fuente`,
     `barras[{etiqueta, valor, max, color?, acento?}]`, `at{rotulo, bar0..n, fuente}`.
@@ -3497,12 +3522,14 @@ def sc_bars(ctx, e, t):
                                       max_lineas=2)[1]) for b in barras), default=1)
     base_y = zy1 - 130 - (alto_et - 1) * int(ESCALA["nota"] * 1.2)
     max_h = base_y - (rotulo_y() + 140)   # arriba: rótulo + cifra de la barra más alta
+    vmin_eje, vmax_eje = rango_barras(barras)
+    span_eje = max(1e-9, vmax_eje - vmin_eje)
     for i, b in enumerate(barras):
         t_in = escalonado(at, "bar", i, e["from"] + 0.2)
         k = entra(t, t_in, "elemento")
         if k <= 0:
             continue
-        fraccion = clamp01(b.get("valor", 0) / max(1e-9, b.get("max", 100)))
+        fraccion = clamp01((float(b.get("valor", 0) or 0) - vmin_eje) / span_eje)
         col = b.get("color")
         if col is None:
             col = ACENTO if b.get("acento") else BLANCO
@@ -4556,12 +4583,17 @@ def sc_frase(ctx, e, t):
 
     Params: `frase` (el texto; `*palabra*` marca la clave), `clave` (alternativa
     a los asteriscos), `seleccion` (la palabra con recuadro), `cps` (palabras
-    por segundo, 1.6), `tam`, `y` (donde queda la ultima palabra), `ventana`
-    (palabras visibles, 5), `at{rotulo}`.
+    por segundo, 1.6), `tam`, `y` (donde queda la ultima palabra; default =
+    centro óptico de la zona segura), `ventana` (palabras visibles, 5),
+    `at{rotulo}`.
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    dibuja_frase(ctx, d, e, t, vy(float(e.get("y", 0.7))))
+    # default: última palabra en el centro óptico (antes 0.7: bajo, pelea
+    # la banda de subtítulos y deja muerto arriba — references/coherencia-espacial.md)
+    _, zy0, _, zy1 = caja_segura()
+    y_def = (zy0 + CENTRO_OPTICO * (zy1 - zy0)) / H
+    dibuja_frase(ctx, d, e, t, vy(float(e.get("y", y_def))))
     pie_fuente(ctx, d, e, t, e["from"] + 2.5)
     return capa_salida(layer, t, e["to"])
 
@@ -4682,8 +4714,8 @@ def sc_constancia(ctx, e, t):
     el texto de las casillas en versalitas, como el reel; por defecto se
     respeta la caja del texto tal como viene), `at{item0..n}`.
     Una sola casilla: tarjeta proporcionada (ancho ≈ una unidad, letra de
-    `dato` grande) y centrada, no una franja fina de lado a lado; sin `y`
-    va en el centro común (con varias casillas, sin `y`, abajo como el reel).
+    `dato` grande). Sin `y`: centro óptico; con `sobre_cara`/`ALFA`: abajo
+    (bajo la cara), como el reel.
     """
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     items = e.get("items") or []
@@ -4737,10 +4769,11 @@ def sc_constancia(ctx, e, t):
     panel_h = PANEL_PAD * 2 + (KICKER_ALTO + 26 if e.get("kicker") else 0) \
         + filas * tile_h + (filas - 1) * GAP
 
-    # sin `y`: abajo de la zona segura, como en el reel (la cara va arriba);
-    # para centrarlo, `y: "centro"`. Una sola casilla (tarjeta) va en el
-    # centro común, como el resto de escenas de bloque.
-    y_def = y_bloque(ctx, panel_h) if n == 1 else y1 - panel_h
+    # sin `y`: centro óptico (y_bloque), como el resto de bloques. Solo con
+    # cara debajo (`sobre_cara` / ALFA) se ancla ABAJO — es el rol del reel
+    # de cara. Antes n>1 iba siempre a y1-panel_h y, sin cara, dejaba el
+    # 9:16 mitad vacío arriba (medido en el reel de verificación).
+    y_def = (y1 - panel_h) if sobre_cara(e) else y_bloque(ctx, panel_h)
     y_panel = y_de_param(e.get("y"), y_def, panel_h)
     y_panel = max(0, min(y_panel, H - panel_h))
 
@@ -7261,20 +7294,16 @@ def escala_segura(ctx,e,idx):
     if idx in _ESCALA: return _ESCALA[idx]
     if e["tipo"] in A_SANGRE: _ESCALA[idx]=1.0; return 1.0   # fondo a sangre; el texto ya va en la zona segura
     cx,cy=W/2,CENTRO_Y*H
-    zona=e.get("zona")
-    if isinstance(zona,(list,tuple)) and len(zona)==4:
-        try:
-            xs0,ys0,xs1,ys1=(float(v) for v in zona)
-        except (TypeError,ValueError):
-            zona=None
-        if zona is not None:
-            f=1.0
-            if xs1>xs0 and ys1>ys0:
-                f=min(f,(cx-SAFE["left"])/max(1,cx-xs0),(W-SAFE["right"]-cx)/max(1,xs1-cx),
-                      (cy-SAFE["top"])/max(1,cy-ys0),(H-SAFE["bottom"]-cy)/max(1,ys1-cy))
-            f=max(0.70,min(1.0,f))
-            _ESCALA[idx]=f if f<0.995 else 1.0
-            return _ESCALA[idx]
+    zona=zona_caja(e)   # solo [x0,y0,x1,y1]; "centro" u otros strings no fijan factor
+    if zona is not None:
+        xs0,ys0,xs1,ys1=zona
+        f=1.0
+        if xs1>xs0 and ys1>ys0:
+            f=min(f,(cx-SAFE["left"])/max(1,cx-xs0),(W-SAFE["right"]-cx)/max(1,xs1-cx),
+                  (cy-SAFE["top"])/max(1,cy-ys0),(H-SAFE["bottom"]-cy)/max(1,ys1-cy))
+        f=max(0.70,min(1.0,f))
+        _ESCALA[idx]=f if f<0.995 else 1.0
+        return _ESCALA[idx]
     fr,to=e["from"],e["to"]
     xs0,xs1,ys0,ys1=W,0,H,0
     marco=[SAFE["top"],H-SAFE["bottom"]]   # lo que el marco fijo deja libre al contenido
@@ -7359,25 +7388,53 @@ def _zona_contenido(marco=None):
         zy0,zy1=max(zy0,marco[0]),min(zy1,marco[1])
     return zx0,zy0,zx1,zy1
 
+def zona_caja(e):
+    """Caja `[x0,y0,x1,y1]` que FIJA el factor de `escala_segura` (misma zona
+    → mismo factor entre escenas). Strings como `"centro"` NO son caja: eran
+    un malentendido del plan (pedían centro óptico y, al ser truthy, APAGABAN
+    el recentrado de `_crecer`). Una sola predicado: lo usan `_crecer` y
+    `escala_segura`."""
+    z = e.get("zona")
+    if isinstance(z, (list, tuple)) and len(z) == 4:
+        try:
+            return tuple(float(v) for v in z)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 def _crecer(e,bb,marco=None):
     """(factor, dy) del encuadre del bbox `bb`: crece alrededor de (W/2,
     CENTRO_Y·H) hasta llenar la zona segura (con tope) y dy lleva su centro
     vertical al centro óptico (CENTRO_OPTICO), sin salirse de la zona. Función
-    pura del bbox medido: el mismo (g, dy) en toda la escena. Sin cambio:
-    (1.0, 0.0): a sangre, overlay, ancladas por su rol, `y` o `zona`
-    declaradas, o trayectoria global de cámara (fijan el sitio del contenido).
-    Las ANCLADAS solo con cara debajo (`sobre_cara`)."""
-    if (ALFA or sitio_propio(e) or e.get("zona") or e.get("y") is not None
-            or _CAMARA["activa"]): return (1.0,0.0)
+    pura del bbox medido: el mismo (g, dy) en toda la escena.
+
+    Sin cambio (1.0, 0.0) SOLO cuando el sitio es deliberado: a sangre,
+    overlay, ancladas con cara, `y` declarada o zona-caja `[x0,y0,x1,y1]`.
+
+    La trayectoria de cámara NO fija el sitio del contenido: mueve el cuadro
+    entero. Antes `_CAMARA["activa"]` devolvía (1,0) y cada escena quedaba
+    donde su layout hardcodeado la pintaba (pie arriba, bars abajo,
+    constancia al pie): medido en el reel de verificación, la pieza saltaba
+    de franja en cada corte. Con cámara activa se sigue recentrando (dy) y
+    NO se crece (g=1): el zoom lo pone la trayectoria. Las ANCLADAS solo
+    con cara debajo (`sobre_cara`)."""
+    if ALFA or sitio_propio(e) or zona_caja(e) is not None or e.get("y") is not None:
+        return (1.0, 0.0)
     x0,y0,x1,y1=bb; cx,cy=W/2,CENTRO_Y*H
     zx0,zy0,zx1,zy1=_zona_contenido(marco)
     if not (zy0<=cy<=zy1): return (1.0,0.0)   # el ancla quedó fuera del sitio libre: su diseño manda
-    g=min(LLENA_MAX,(cx-zx0)/max(1,cx-x0),(zx1-cx)/max(1,x1-cx),(zy1-zy0-2*FLOTA_CAM)/max(1,y1-y0))
-    g/=1+EMPUJE   # el push-in de la cámara cabe dentro
-    if g<LLENA_MIN: g=1.0
+    # con cámara global el zoom es de la trayectoria: aquí solo dy
+    if _CAMARA["activa"]:
+        g = 1.0
+    else:
+        g=min(LLENA_MAX,(cx-zx0)/max(1,cx-x0),(zx1-cx)/max(1,x1-cx),(zy1-zy0-2*FLOTA_CAM)/max(1,y1-y0))
+        g/=1+EMPUJE   # el push-in de la cámara cabe dentro
+        if g<LLENA_MIN: g=1.0
     alto=g*(y1-y0)
     # ya compone la zona (más de media zona LIBRE de contenido): es su diseño
-    if g==1.0 and alto>BANDA_MAX*(zy1-zy0): return (1.0,0.0)
+    # (solo aplica al camino CON crecimiento; con cámara siempre recentramos)
+    if not _CAMARA["activa"] and g==1.0 and alto>BANDA_MAX*(zy1-zy0): return (1.0,0.0)
     # el centro buscado, sujeto a que el bbox (crecido) quepa entero en la zona
     # CON el push-in y la flotación encima (si no, una escena crecida queda
     # pegada arriba y la cámara tiene que arrancar más abierta)

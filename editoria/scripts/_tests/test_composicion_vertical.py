@@ -136,6 +136,55 @@ class TestComposicionVertical(unittest.TestCase):
                 self.assertGreaterEqual(bb[1], zy0 - 3)
                 self.assertLessEqual(bb[3], zy1 + 3)
 
+    def test_camara_activa_sigue_recentrando_sin_crecer(self):
+        """LA CAUSA RAÍZ del reel desarmónico: con cámara, _crecer devolvía (1,0).
+
+        La trayectoria mueve el cuadro; el contenido sigue yendo al centro
+        óptico (dy). g queda en 1: el zoom lo pone la cámara.
+        """
+        R = self.R
+        R.aplicar_globales({
+            "duracion": 8,
+            "camara": {"z0": 1.0, "z1": 1.12, "flota": 0},
+            "escenas": [{"tipo": "_prueba_alta", "from": 0.0, "to": 4.0}],
+        })
+        self.assertTrue(R._CAMARA["activa"])
+        zx0, _, zx1, _ = R.caja_segura()
+        bb = (zx0 + 2, int(R.H * 0.2), zx1 - 2, int(R.H * 0.2) + 160)
+        g, dy = R._crecer({"tipo": "_prueba_alta", "from": 0.0, "to": 4.0}, bb)
+        self.assertEqual(g, 1.0, "con cámara no se crece: el zoom es de la trayectoria")
+        self.assertGreater(dy, 0.15 * R.H, "con cámara SÍ se recentra al centro óptico")
+
+    def test_zona_string_centro_no_apaga_el_recentrado(self):
+        """`"zona": "centro"` (string) pedía centro y apagaba el recentrado.
+
+        Solo una caja `[x0,y0,x1,y1]` fija el sitio (`zona_caja`).
+        """
+        R = self.R
+        zx0, _, zx1, _ = R.caja_segura()
+        bb = (zx0 + 2, int(R.H * 0.2), zx1 - 2, int(R.H * 0.2) + 160)
+        e = {"tipo": "_prueba_alta", "from": 0.0, "to": 4.0, "zona": "centro"}
+        self.assertIsNone(R.zona_caja(e))
+        g, dy = R._crecer(e, bb)
+        self.assertGreater(dy, 0.15 * R.H)
+        # la caja sí fija el sitio
+        e_caja = dict(e, zona=[151, 300, 929, 560])
+        self.assertIsNotNone(R.zona_caja(e_caja))
+        self.assertEqual(R._crecer(e_caja, bb), (1.0, 0.0))
+
+    def test_rango_barras_hace_visible_la_diferencia_pequena(self):
+        """41.416 vs 41.422 con max 42 no pueden salir como barras gemelas."""
+        R = self.R
+        barras = [
+            {"etiqueta": "Anuncio", "valor": 41.416, "max": 42},
+            {"etiqueta": "Censo", "valor": 41.422, "max": 42, "acento": True},
+        ]
+        vmin, vmax = R.rango_barras(barras)
+        self.assertGreater(vmin, 0.0, "el eje debe hacer zoom al tramo")
+        f0 = (41.416 - vmin) / (vmax - vmin)
+        f1 = (41.422 - vmin) / (vmax - vmin)
+        self.assertGreater(abs(f1 - f0), 0.05, "la diferencia tiene que verse en la altura")
+
 
 if __name__ == "__main__":
     unittest.main()

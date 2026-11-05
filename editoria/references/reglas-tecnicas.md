@@ -321,6 +321,18 @@
 
 ## Problemas frecuentes
 
+### Cámara activa (o `zona: "centro"`) apaga el centro óptico
+
+Causa: `_crecer` devolvía `(1,0)` si `_CAMARA["activa"]` o si `zona` era
+truthy. Un plan con trayectoria de cámara + `"zona": "centro"` (string, no
+caja) dejaba cada escena donde su layout hardcodeado la pintaba (pie arriba,
+bars abajo, constancia al pie): el corte saltaba de franja. Medido en el
+reel de verificación Registraduría.
+
+Solución: la cámara mueve el cuadro; el recentrado (dy) sigue. Solo una
+zona-caja `[x0,y0,x1,y1]` (vía `zona_caja`) o `y`/`sobre_cara` fijan el
+sitio. Con cámara, g=1 (el zoom es de la trayectoria).
+
 ### Escenas vacías tras la intro en overlays de FFmpeg
 
 Causa: el filtro `overlay` de FFmpeg sincroniza los flujos por marca de tiempo de presentación (`PTS`).

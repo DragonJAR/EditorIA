@@ -74,6 +74,13 @@ Aplicar a cada escena antes de entregar.
 
 ## Coherencia visual
 
+- **Centro óptico entre escenas**: el contenido de cada plano (salvo a
+  sangre, overlay, ancladas con cara, o `y`/`zona` caja `[x0,y0,x1,y1]`)
+  cae en el centro óptico de la zona segura (`CENTRO_OPTICO` via `_crecer`).
+  Una trayectoria `"camara"` mueve el cuadro entero pero **no apaga** ese
+  recentrado: si lo apagara, cada escena quedaría donde su layout la pinta
+  (pie arriba, bars abajo) y el corte saltaría de franja. `"zona": "centro"`
+  (string) no es una caja: no fija factor ni apaga el recentrado.
 - **Un componente = un estilo** en todo el video. Una tarjeta no cambia de
   blanco a oscuro a mitad de escena; un icono no cambia de radio.
 - **Un solo botón CTA en toda la pieza** (`boton_halo`): píldora con marco
