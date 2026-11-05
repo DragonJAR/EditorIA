@@ -314,6 +314,97 @@ def catalogo_opciones(datos=None, efectos=None, gestos=None, captions=None):
     return out
 
 
+# --- demo visual del catálogo (125 opciones, UNA receta por id) -------------
+# El video de catálogo no inventa fichas vacías ni overlays opacos: cada
+# opción se VE con el motor nativo del plan (centro óptico vía render_plan)
+# o caption/grade sobre una base con contenido. Fuente única: demo_de().
+
+_DEMO_EFECTO = {
+    # face-track / CVE → análogo visible en escena (misma idea, sin cara)
+    "apple-toggles": "pasos", "backdrop-word": "frase", "broll-split": "versus",
+    "carousel-spin": "orbita", "check-pills": "demo", "checklist": "constancia",
+    "comment-box": "chat", "countdown-flip": "countdown", "cover-star": "hero",
+    "dot-reveal": "pildoras", "edit-timeline": "timeline", "glass-widgets": "bento",
+    "headline-box": "frase", "headline-wall": "stats", "lean-in": "kenburns",
+    "led-sign": "typewriter", "lineup": "pasos", "liquid-glass-graph": "gauge",
+    "locked-on": "callout", "match-cut": "versus", "messages": "chat",
+    "noise": "pildoras", "orbit": "orbita", "over-the-shoulder-zoom": "stats",
+    "pastel-word": "frase", "pause-point": "constancia", "phone-fan": "canales",
+    "place-in-grid": "bento", "profile-wall": "ranking", "rabbit-hole": "orbOpen",
+    "red-collage": "frase", "reel-frame": "hero", "reject-stamp": "remate",
+    "scribble": "subrayado", "shortcut-rain": "notificacion", "slow-push": "kenburns",
+    "split-headline": "versus", "spotlight": "hero", "swipe": "versus",
+    "tap": "demo", "the-bill": "lista", "tier-list": "ranking", "todo": "constancia",
+    "uninstall": "remate",
+}
+_DEMO_GESTO = {
+    "easing": "apertura", "fade": "listo", "zoom": "kenburns", "parallax": "kenburns",
+    "offset-delay": "pasos", "morph": "orbOpen", "masking": "subrayado",
+    "dimension": "orbita",
+}
+_DEMO_TECNICA = {
+    "3d": "orbita", "canvas": "confetti", "diagrama": "camino",
+    "hand-draw": "subrayado", "hyperframes": "demo", "remotion": "pasos",
+}
+
+
+def _escena_desde_nativo(nativo):
+    """Primer tipo SCENES mencionado en el campo `nativo` de un efecto."""
+    if not nativo:
+        return None
+    tipos = catalogo()
+    for tok in re.split(r"[/,+]|\bsi\b|\bdel\b|\ben\b|\bcon\b|\bo\b|\by\b",
+                        str(nativo).lower()):
+        tok = tok.strip().strip(".")
+        if tok in tipos:
+            return tok
+        if tok.startswith("escena "):
+            t = tok.split(" ", 1)[-1].strip()
+            if t in tipos:
+                return t
+    return None
+
+
+def demo_de(opcion):
+    """Receta visual para VER una opción del catálogo único en 9:16.
+
+    Devuelve dict:
+      via='escena'  → render_plan tipo=…
+      via='caption' → caption.py sobre base con contenido
+      via='grade'   → grade.py (moody)
+
+    DRY: una sola tabla; el catálogo 125 y la galería no inventan demos.
+    Nunca devuelve ficha vacía — toda opción tiene cuerpo en el centro óptico.
+    """
+    if isinstance(opcion, str):
+        opcion = resolver(opcion) or {"id": opcion, "motor": "?"}
+    oid = opcion["id"]
+    motor = opcion.get("motor") or "?"
+    if motor == MOTOR_ESCENA or oid in catalogo():
+        return {"via": "escena", "tipo": oid if oid in catalogo() else opcion["id"],
+                "id": oid, "motor": MOTOR_ESCENA}
+    if motor == MOTOR_CAPTION:
+        return {"via": "caption", "id": oid, "motor": MOTOR_CAPTION,
+                "base": "kenburns"}  # base con imagen: el rail no flota en vacío
+    if motor == MOTOR_NATIVO or oid == "moody":
+        return {"via": "grade", "id": oid, "motor": MOTOR_NATIVO}
+    if motor == MOTOR_EFECTO:
+        tipo = (_DEMO_EFECTO.get(oid)
+                or _escena_desde_nativo(opcion.get("nativo"))
+                or "frase")
+        return {"via": "escena", "tipo": tipo, "id": oid, "motor": MOTOR_EFECTO,
+                "analogo": tipo}
+    if motor == MOTOR_GESTO:
+        tipo = _DEMO_GESTO.get(oid, "apertura")
+        return {"via": "escena", "tipo": tipo, "id": oid, "motor": MOTOR_GESTO,
+                "analogo": tipo}
+    if motor == MOTOR_TECNICA:
+        tipo = _DEMO_TECNICA.get(oid, "listo")
+        return {"via": "escena", "tipo": tipo, "id": oid, "motor": MOTOR_TECNICA,
+                "analogo": tipo}
+    return {"via": "escena", "tipo": "frase", "id": oid, "motor": motor}
+
+
 def resolver(nombre, datos=None, efectos=None, gestos=None, captions=None):
     """Normaliza nombre/alias → opción del catálogo único (o None)."""
     datos = datos or cargar()

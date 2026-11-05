@@ -374,6 +374,7 @@ escribir es un tapón).
 | `scripts/ffmpeg_tools/loudness.py` | la sonoridad de entrega |
 | `scripts/contact_sheet.py` | la hoja de contactos (el ojo) |
 | `scripts/galeria.py` | el render de todo el catalogo, con QA |
+| `scripts/catalogo_repertorio.py` | video de las 125 opciones del repertorio único (`demo_de`); rótulo inferior, sin fichas vacías |
 | `scripts/auditar_mapa.py` | que la skill siga siendo un sistema y no islas |
 | `scripts/validate_skill.py` | que la skill entera siga valida |
 | `scripts/_comandos_doc.py` | que los comandos que dice el SKILL.md se puedan correr |

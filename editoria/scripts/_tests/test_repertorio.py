@@ -355,5 +355,27 @@ class TestEleccionDeAnimaciones(unittest.TestCase):
             self.assertTrue(res["perillas"], texto)
 
 
+class TestDemoVisualCatalogo(unittest.TestCase):
+    """Cada una de las 125 opciones tiene demo visible (sin ficha vacía)."""
+
+    def test_demo_de_cubre_todo_el_catalogo(self):
+        ops = REP.catalogo_opciones()
+        self.assertEqual(len(ops), 125)
+        vias = set()
+        for oid, o in ops.items():
+            d = REP.demo_de(o)
+            vias.add(d["via"])
+            self.assertEqual(d["id"], oid)
+            self.assertIn(d["via"], ("escena", "caption", "grade"), oid)
+            if d["via"] == "escena":
+                self.assertIn(d["tipo"], REP.catalogo(), oid)
+        self.assertEqual(vias, {"escena", "caption", "grade"})
+
+    def test_demo_de_efecto_sin_nativo_igual_tiene_analogo(self):
+        d = REP.demo_de(REP.resolver("orbit"))
+        self.assertEqual(d["via"], "escena")
+        self.assertEqual(d["tipo"], "orbita")
+
+
 if __name__ == "__main__":
     unittest.main()
