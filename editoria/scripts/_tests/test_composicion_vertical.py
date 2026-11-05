@@ -183,7 +183,8 @@ class TestComposicionVertical(unittest.TestCase):
         self.assertGreater(vmin, 0.0, "el eje debe hacer zoom al tramo")
         f0 = (41.416 - vmin) / (vmax - vmin)
         f1 = (41.422 - vmin) / (vmax - vmin)
-        self.assertGreater(abs(f1 - f0), 0.05, "la diferencia tiene que verse en la altura")
+        self.assertGreater(abs(f1 - f0), 0.15, "la diferencia tiene que verse (≥20 % del eje)")
+        self.assertLess(abs(f1 - f0), 0.55, "sin caricaturizar la magnitud real")
 
 
 if __name__ == "__main__":

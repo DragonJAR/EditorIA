@@ -3489,8 +3489,9 @@ def rango_barras(barras):
     vmax = max(vmax_decl, vmax_v, 1e-9)
     spread = vmax_v - vmin_v
     if spread < 0.08 * vmax and vmax_v > 0:
-        # el spread ocupa al menos el 35 % del eje; el resto es aire simétrico
-        span = max(spread / 0.35, spread * 2.5, vmax * 1e-6)
+        # el spread ocupa ≥ 20 % del eje (visible sin caricaturizar: 6 unidades
+        # sobre 41 M no pueden verse como el doble de altura)
+        span = max(spread / 0.20, spread * 2.5, vmax * 1e-6)
         mid = (vmin_v + vmax_v) / 2
         return mid - span / 2, mid + span / 2
     return 0.0, vmax
