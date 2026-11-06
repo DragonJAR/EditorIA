@@ -175,8 +175,8 @@ Solution:
 
 ### Error: Large `.frames` cache directories
 
-Cause: Uncompressed intermediate PNG frames remain on disk after interrupted renders.
+Cause: Uncompressed intermediate PNG frames (~1.5 GB per minute at 1920x1080) remain on disk after interrupted renders, or after renders run with `--conservar-frames`.
 
 Solution:
 
-1. Delete temporary `.frames` directories after final delivery; never store them inside the skill folder.
+1. `render_plan.py` deletes them when the video is encoded; the ones left are from failed renders (kept to resume) or kept on purpose. Delete those after final delivery; never store them inside the skill folder.

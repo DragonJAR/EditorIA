@@ -7839,9 +7839,31 @@ def render(plan_path,plan,out,a):
         estampar_firma(out, firma)
     except Exception as ex:
         print(f"AVISO: no pude estampar la firma del plan ({ex})", flush=True)
+    # Los PNG sin comprimir pesan ~1,5 GB por minuto a 1920x1080: con el video
+    # ya codificado no sirven (la caché solo vale para ese mismo plan) y un
+    # lote de decenas de piezas llena el disco. Se borran solo si se llegó
+    # aquí: un render que falla los deja y el siguiente intento retoma.
+    if not getattr(a, "conservar_frames", False):
+        liberado = _borrar_frames(tmpd)
+        print(f"  frames temporales borrados: {liberado/1e9:.1f} GB liberados "
+              f"(--conservar-frames para dejarlos)", flush=True)
     # el render dice QUE produjo: el SKILL.md promete "1080x1920 @30fps" y el
     # agente no deberia tener que abrir ffprobe para comprobarlo
     print(f"OK {out} · {W}x{H} @{fps}fps · h264 yuv420p · {dur:.1f}s")
+
+def _borrar_frames(tmpd):
+    """Borra la carpeta de frames de un render terminado y devuelve los bytes
+    liberados. Sin fallar: si algo queda bloqueado (Windows), se queda."""
+    import shutil
+    total = 0
+    for raiz, _, archivos in os.walk(tmpd):
+        for f in archivos:
+            try:
+                total += os.path.getsize(os.path.join(raiz, f))
+            except OSError:
+                pass
+    shutil.rmtree(tmpd, ignore_errors=True)
+    return total
 
 MEDIOS=("imagen","captura","musica")   # campos del plan que apuntan a un archivo
 
@@ -8674,6 +8696,8 @@ def main():
                     help="fuerza la mezcla y normalización de música en el entregable aunque las escenas tengan texto de voz")
     ap.add_argument("--force",action="store_true",
                     help="re-renderiza todos los frames aunque ya existan")
+    ap.add_argument("--conservar-frames",action="store_true",
+                    help="no borra {salida}.frames/ al terminar (por defecto se borran: ~1,5 GB por minuto a 1080p)")
     ap.add_argument("--tamano",default=None,
                     help="ANCHOxALTO (default 1080x1920 o el campo \"tamano\" del plan; 1920x1080 para 16:9)")
     ap.add_argument("--datos",help="tabla CSV/TSV/JSON: un video por fila; el plan usa {columna}")

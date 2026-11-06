@@ -157,7 +157,7 @@ Expected output: `PLAN VALIDO` (the script prints `OK · PLAN VALIDO: N escenas 
 
 ### Step 3: Render Video with Fluidity Motor
 
-Render the plan with spring physics, live backgrounds, and 180-degree shutter motion blur (`references/animacion.md`, `references/fluidez.md`). Use `--blur 1` for fast drafts and `--blur 5` for final delivery. Re-running without `--force` resumes interrupted renders incrementally.
+Render the plan with spring physics, live backgrounds, and 180-degree shutter motion blur (`references/animacion.md`, `references/fluidez.md`). Use `--blur 1` for fast drafts and `--blur 5` for final delivery. Re-running without `--force` resumes interrupted renders incrementally. When the video is encoded, the render deletes its temporary `{out}.frames/` PNGs (~1.5 GB per minute at 1920x1080) so a batch does not fill the disk; pass `--conservar-frames` to keep them.
 
 Look before you pay: the final frame is a pure function of time, so `--preview 0,2.5,5` composes just those instants and writes a contact sheet of the PLAN (one frame per instant, not the 600 of the video). It is the cheap way to check the first frame, a key scene and the last one.
 

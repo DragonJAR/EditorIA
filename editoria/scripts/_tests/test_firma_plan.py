@@ -110,11 +110,13 @@ class TestCacheQueSeInvalida(unittest.TestCase):
         with open(self.plan, "w", encoding="utf-8") as fh:
             json.dump(PLAN_MIN, fh, ensure_ascii=False)
 
-    def _render(self, force=False):
+    def _render(self, force=False, conservar=True):
         cmd = [sys.executable, os.path.join(SCRIPTS, "render_plan.py"), self.plan,
                "-o", self.salida, "--fps", "10"]
         if force:
             cmd.append("--force")
+        if conservar:   # la caché solo sobrevive al render si se pide
+            cmd.append("--conservar-frames")
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
         if r.returncode != 0:
             self.fail(f"el render fallo:\n{r.stdout[-1500:]}\n{r.stderr[-1500:]}")
@@ -140,6 +142,24 @@ class TestCacheQueSeInvalida(unittest.TestCase):
         self.assertNotEqual(antes, despues,
                             "la marca de la cache no cambio con el plan")
         self.assertIn("frames", salida)
+
+    def test_sin_conservar_los_frames_se_borran(self):
+        """Por defecto el render borra `<salida>.frames/` al terminar bien.
+
+        MEDIDO: un lote de 25 piezas de ~2 min a 1920x1080 dejó ~3 GB de PNG
+        por pieza y llenó el disco a mitad del lote."""
+        salida = self._render(conservar=False)
+        self.assertTrue(os.path.isfile(self.salida), "no quedó el video")
+        self.assertFalse(os.path.exists(self.salida + ".frames"),
+                         "los frames temporales quedaron en disco")
+        self.assertIn("frames temporales borrados", salida)
+
+    def test_conservar_frames_los_deja(self):
+        """`--conservar-frames` deja la caché para re-renderizar o inspeccionar."""
+        self._render(conservar=True)
+        frames = self.salida + ".frames"
+        self.assertTrue(os.path.isdir(frames))
+        self.assertTrue(any(f.endswith(".png") for f in os.listdir(frames)))
 
     def test_el_video_lleva_la_firma(self):
         """El contenedor lleva la firma en su comentario (sin reencodear)."""
