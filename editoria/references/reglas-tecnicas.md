@@ -341,9 +341,9 @@ Solución: reiniciar las marcas del clip con `setpts=PTS-STARTPTS` antes de enca
 
 ### Directorios `.frames` de caché enormes
 
-Causa: los PNG intermedios sin comprimir quedan en disco tras un render interrumpido.
+Causa: los PNG intermedios sin comprimir (~1,5 GB por minuto a 1920x1080) quedan en disco tras un render interrumpido, o tras uno terminado con `--conservar-frames`.
 
-Solución: borrar los directorios temporales `.frames` tras la entrega final; nunca guardarlos dentro de la carpeta de la skill.
+Solución: `render_plan.py` ya los borra al terminar bien. Los que quedan son de renders que fallaron (sirven para retomar) o conservados a propósito: borrarlos tras la entrega final; nunca guardarlos dentro de la carpeta de la skill.
 
 ---
 

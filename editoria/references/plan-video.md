@@ -190,6 +190,11 @@ python scripts/render_plan.py plan.json --preview 0,2.5,5  # mirar sin renderiza
 `--jobs N`: procesos en paralelo (default núcleos−1). Sin `--force` retoma
 los frames que ya existen.
 
+Los frames viven en `{salida}.frames/` (PNG sin comprimir: ~1,5 GB por minuto
+a 1920x1080). Cuando el video queda codificado, el render los **borra** y dice
+cuánto liberó; si falla antes, se quedan para retomar. `--conservar-frames`
+los deja (para re-renderizar el mismo plan o mirar un frame suelto).
+
 `--preview 0,2.5,5`: compone SOLO esos instantes (el frame final es una
 funcion pura del tiempo, asi que un instante se compone solo) y escribe una
 hoja de contactos del plan en `--hoja RUTA` (default: junto al plan, con su

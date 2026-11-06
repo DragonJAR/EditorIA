@@ -7,6 +7,15 @@ La skill se publica en `https://github.com/DragonJAR/EditorIA`; la copia
 instalada (`~/.minimax/skills/editoria`) se sincroniza con lo publicado: el
 repo manda.
 
+## Sin publicar
+
+**Cambiado**
+- `render_plan.py` **borra `{salida}.frames/`** cuando el video queda
+  codificado y dice cuántos GB liberó. Los PNG sin comprimir pesan ~1,5 GB
+  por minuto a 1920x1080: en un lote de 25 piezas de ~2 min dejaron ~3 GB
+  cada una y llenaron el disco a mitad del lote. Un render que falla los
+  deja (el siguiente intento retoma); `--conservar-frames` los conserva.
+
 ## 1.11.4 — la convergencia con el fork del 30-oct
 
 Dos líneas de la misma skill se desarrollaron por separado durante un día:
