@@ -356,11 +356,11 @@ class TestEleccionDeAnimaciones(unittest.TestCase):
 
 
 class TestDemoVisualCatalogo(unittest.TestCase):
-    """Cada una de las 125 opciones tiene demo visible (sin ficha vacía)."""
+    """Cada opción del catálogo tiene demo visible (sin ficha vacía)."""
 
     def test_demo_de_cubre_todo_el_catalogo(self):
         ops = REP.catalogo_opciones()
-        self.assertEqual(len(ops), 125)
+        self.assertEqual(len(ops), 128)
         vias = set()
         for oid, o in ops.items():
             d = REP.demo_de(o)

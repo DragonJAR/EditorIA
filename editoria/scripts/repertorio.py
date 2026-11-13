@@ -55,7 +55,7 @@ MOTOR_EFECTO = "efecto"       # CVE en /tmp vía efectos_talking_head.receta
 MOTOR_GESTO = "gesto"         # motion UI sobre escena u otro motor
 MOTOR_CAPTION = "caption"     # caption.py nativo o HyperFrames on-demand
 MOTOR_NATIVO = "nativo"       # grade/hand_draw/… cuando el fx lo declara
-MOTOR_TECNICA = "tecnica"     # canvas, trazo, remotion, hyperframes, 3d, diagrama
+MOTOR_TECNICA = "tecnica"     # canvas, trazo, remotion, hyperframes, 3d, diagrama, manim, …
 
 
 def cargar(ruta=DATOS):
@@ -314,7 +314,7 @@ def catalogo_opciones(datos=None, efectos=None, gestos=None, captions=None):
     return out
 
 
-# --- demo visual del catálogo (125 opciones, UNA receta por id) -------------
+# --- demo visual del catálogo (UNA receta por id) ---------------------------
 # El video de catálogo no inventa fichas vacías ni overlays opacos: cada
 # opción se VE con el motor nativo del plan (centro óptico vía render_plan)
 # o caption/grade sobre una base con contenido. Fuente única: demo_de().
@@ -345,6 +345,7 @@ _DEMO_GESTO = {
 _DEMO_TECNICA = {
     "3d": "orbita", "canvas": "confetti", "diagrama": "camino",
     "hand-draw": "subrayado", "hyperframes": "demo", "remotion": "pasos",
+    "manim": "lista", "handraw-estilo": "frase", "pintura-cpu": "subrayado",
 }
 
 

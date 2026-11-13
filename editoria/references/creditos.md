@@ -30,6 +30,26 @@ de la skill los cita como "ver `references/creditos.md`".
 | [synced-captions](https://github.com/vishalmotionwork-lang/claude-code-windows-setup) | según el repo | solo el heurístico de cortes de caption frase-conscientes | `scripts/ffmpeg_tools/caption.py` |
 | [PDoomVideo](https://github.com/JohnHeibel/PDoomVideo) (John Heibel) | declara ISC en `package.json`, sin LICENSE | ideas de pincel y glow para el motor canvas (sin código copiado) | `references/canvas.md` |
 
+## Ronda motores externos de animación (2026-11)
+
+Nueve repos auditados; tres adoptados como opciones `motor=tecnica` con
+clone-on-demand (`scripts/motores_externos.py`). El resto ya estaba cubierto
+o se descartó a propósito (detalle en `scripts/data/motores_externos.json`).
+
+| fuente | licencia | qué se tomó | dónde vive |
+|---|---|---|---|
+| [handraw-style](https://github.com/yang0/handraw-style) (**yang0**) | MIT **con atribución obligatoria** | índice de estilos/layouts para stills; **no** se vendoriza la biblioteca | `references/handraw-estilo.md`, opción `handraw-estilo`, receta en `motores_externos.py` |
+| [manim-skill](https://github.com/Yusuke710/manim-skill) (Yusuke Miyashita) | MIT | flujo narración→Manim→mux; clone en `/tmp` | `references/manim.md`, opción `manim` |
+| [claude-drawing-skill](https://github.com/cloveric/claude-drawing-skill) (cloveric) | MIT | stills/draw-on CPU (numpy+Pillow); clone en `/tmp` | `references/pintura-cpu.md`, opción `pintura-cpu` |
+| [motion-design-skill](https://github.com/LottieFiles/motion-design-skill) (LottieFiles) | MIT | personalidad de movimiento + regla del tercio (números) | `references/animacion.md` §1b |
+| [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) | MIT | ya integrado (ronda 1.11) | `references/canvas.md`, `creditos` arriba |
+| anidoodle · javascript-animation-skills · huashu-art-motion | Apache-2.0 / MIT / MIT | **ya cubierto** por canvas/dibujado/estilos/sonido | JSON `ya_cubierto` |
+| [motion-skill](https://github.com/derek-zhuolin/motion-skill) | MIT parcial (studies sin re-licencia) | **descartado**: no re-licenciar studies ni vendor Remotion ajeno | JSON `descartado_a_proposito` |
+
+**Atribución handraw-style:** si el proyecto usa o se basa en esa
+biblioteca, conservar crédito a **yang0** y
+https://github.com/yang0/handraw-style (pedido del README/LICENSE del autor).
+
 Atribución CC BY 4.0 (awesome-claude-5-5-videos): material adaptado y resumido
 en español; se indicó qué se cambió; licencia en
 https://creativecommons.org/licenses/by/4.0/.
@@ -40,4 +60,4 @@ incluyen en la skill.
 
 ---
 
-→ Canónico: `references/instalacion.md` · Dominio: operacion · Vecinos: `references/auto-mejora.md`, `references/canvas.md`, `references/estilos-codigo.md`
+→ Canónico: `references/instalacion.md` · Dominio: operacion · Vecinos: `references/auto-mejora.md`, `references/canvas.md`, `references/estilos-codigo.md`, `references/motores-externos.md`, `references/handraw-estilo.md`

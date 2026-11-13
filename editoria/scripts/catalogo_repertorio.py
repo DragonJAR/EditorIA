@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Catálogo visual del repertorio único (125 opciones).
+"""Catálogo visual del repertorio único (128 opciones).
 
 Una lista plana — sin separar escenas del resto. Cada opción se VE con
 `repertorio.demo_de` (escena / caption / grade) y un rótulo fino en la
@@ -7,10 +7,10 @@ banda inferior de la zona segura. Nada de fichas vacías ni barras opacas
 que tapen el contenido (eso rompía armonía y hacía “invisible” el cuerpo).
 
 Uso:
-  python scripts/catalogo_repertorio.py -o /tmp/catalogo-125 \\
+  python scripts/catalogo_repertorio.py -o /tmp/catalogo-128 \\
       --brand brand/dragonjar.json [--dur 2.8] [--jobs 3]
 
-Salida: catalogo-125.mp4 + manifest.json + hoja.png
+Salida: catalogo-128.mp4 + manifest.json + hoja.png
 """
 from __future__ import annotations
 
@@ -360,7 +360,7 @@ def main():
     lst = out / "concat.txt"
     lst.write_text("\n".join(f"file '{Path(m['clip']).resolve()}'" for m in manifest) + "\n",
                    encoding="utf-8")
-    final = out / "catalogo-125.mp4"
+    final = out / "catalogo-128.mp4"
     run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0",
          "-i", str(lst), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(FPS),
          str(final)])

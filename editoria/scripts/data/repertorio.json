@@ -1,6 +1,6 @@
 {
  "_que_es": "ÚNICA superficie de elección del agente: intención → opción → motor interno. Las `escenas` de cada intención cubren el dict SCENES de render_plan.py (huérfanas prohibidas). Efectos talking-head, gestos de interfaz y captions (rail/HF) se agregan en repertorio.py desde scripts/data/efectos_talking_head.json, motion_ui.json y captions_identidades.json — mismo catálogo, no menús A/B. El motor (plan / efecto CVE / gesto / caption / HyperFrames / …) es metadato de producción. auditar_plan.py y clonar_video.py consumen solo las familias de escenas; actualizar_conteos.py reescribe la tabla §2b de intencion-escena.md.",
- "_reglas": "Una opción puede servir a varias intenciones. La elección la manda el argumento (repertorio.py sugerir); este archivo garantiza que la familia de escenas es alcanzable y que rotar es posible. Efectos/gestos/captions declaran sus intenciones en SU JSON de detalle. Las técnicas que no son escena (canvas, hand-draw, remotion, hyperframes, 3d, diagrama) viven en `tecnicas` de ESTE archivo: misma superficie, motor tecnica. Lo que una pieza no usa se declara no_aplica. No se hincha SCENES con overlays, gestos ni esas técnicas. detalle_escenas[id].ocasion/firma dice CUÁNDO usar cada escena del plan.",
+ "_reglas": "Una opción puede servir a varias intenciones. La elección la manda el argumento (repertorio.py sugerir); este archivo garantiza que la familia de escenas es alcanzable y que rotar es posible. Efectos/gestos/captions declaran sus intenciones en SU JSON de detalle. Las técnicas que no son escena (canvas, hand-draw, remotion, hyperframes, 3d, diagrama, manim, handraw-estilo, pintura-cpu) viven en `tecnicas` de ESTE archivo: misma superficie, motor tecnica. Lo que una pieza no usa se declara no_aplica. No se hincha SCENES con overlays, gestos ni esas técnicas. detalle_escenas[id].ocasion/firma dice CUÁNDO usar cada escena del plan. Clone-on-demand: scripts/motores_externos.py.",
  "intenciones": [
   {
    "id": "gancho",
@@ -591,6 +591,100 @@
    "aliases": [
     "diagramas",
     "svg-autodibujado"
+   ]
+  },
+  {
+   "id": "manim",
+   "firma": "Explicador matemático o de algoritmos con Manim Community Edition",
+   "ocasion": "Cuando la pieza pide ecuaciones, pruebas, algoritmos o visualización tipo 3Blue1Brown",
+   "no_usar": "Para cifras de marketing usa una escena del plan. Para doodle pictórico usa canvas. Si Manim no está, decláralo; no lo sustituyas en silencio.",
+   "pedido": "Pide un script Manim por escenas; clone-on-demand del skill manim",
+   "perillas": [
+    "narracion",
+    "aspecto",
+    "voz kokoro",
+    "fps preview"
+   ],
+   "producir": "references/manim.md",
+   "intenciones": [
+    "proceso",
+    "dato",
+    "demostracion"
+   ],
+   "keywords": [
+    "manim",
+    "ecuacion",
+    "matematica",
+    "algoritmo",
+    "3blue1brown",
+    "formula"
+   ],
+   "aliases": [
+    "manimce",
+    "manim-skill",
+    "math-explainer"
+   ]
+  },
+  {
+   "id": "handraw-estilo",
+   "firma": "Still o portada con estilo numerado handraw-style (prompts IA; atribución yang0)",
+   "ocasion": "Cuando hace falta un still/portada/ilustración con look de mano numerado, no un frame pintado en código",
+   "no_usar": "Si el trazo vive frame a frame usa canvas o pintura-cpu. Si es overlay de pizarra usa hand-draw. No es motor de video.",
+   "pedido": "Pide estilo+layout+tema del clone handraw-style; conservar crédito a yang0",
+   "perillas": [
+    "id de estilo",
+    "layout",
+    "color",
+    "modo imagen o texto"
+   ],
+   "producir": "references/handraw-estilo.md",
+   "intenciones": [
+    "imagen-texto",
+    "gancho",
+    "copy"
+   ],
+   "keywords": [
+    "handraw",
+    "estilo numerado",
+    "portada",
+    "ilustracion ia",
+    "yang0"
+   ],
+   "aliases": [
+    "handraw",
+    "handraw-style",
+    "estilo-handraw"
+   ]
+  },
+  {
+   "id": "pintura-cpu",
+   "firma": "Ilustración o draw-on por etapas en Python (numpy+Pillow), sin Node",
+   "ocasion": "Cuando la pieza pide un still o un GIF de «se va pintando» en CPU y no hace falta p5/Chrome",
+   "no_usar": "Si pide acuarela viva frame a frame usa canvas. Si pide personaje animado usa dibujado. Si Node+Chrome bastan para lyric/videoclip, canvas gana.",
+   "pedido": "Pide un ejemplo o estilo del clone claude-drawing-skill; montar PNG/GIF en el EDL",
+   "perillas": [
+    "estilo",
+    "seed",
+    "stages",
+    "resolucion"
+   ],
+   "producir": "references/pintura-cpu.md",
+   "intenciones": [
+    "imagen-texto",
+    "copy",
+    "proceso"
+   ],
+   "keywords": [
+    "pintura cpu",
+    "draw-on",
+    "numpy pillow",
+    "claude drawing",
+    "sin node"
+   ],
+   "aliases": [
+    "claude-drawing",
+    "inkpaint",
+    "drawing-skill"
    ]
   }
  ]

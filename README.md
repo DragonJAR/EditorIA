@@ -1,7 +1,7 @@
 # EditorIA
 
 [![Licencia](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Versión](https://img.shields.io/badge/version-1.11.4-green.svg)](editoria/SKILL.md)
+[![Versión](https://img.shields.io/badge/version-1.11.5-green.svg)](editoria/SKILL.md)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org)
 [![Plataformas](https://img.shields.io/badge/Win%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#instalación)
 
@@ -14,7 +14,7 @@
 
 EditorIA convierte un agente en un editor de video completo. Puede:
 
-- **Elegir de un catálogo único** (`scripts/repertorio.py`): **125 opciones** por intención — 46 escenas del plan + 44 efectos talking-head + 20 captions + 8 gestos UI + 6 técnicas + 1 look nativo. El motor es metadato, no un menú paralelo (`sugerir` / `resolver` / `cobertura` / `demo_de`).
+- **Elegir de un catálogo único** (`scripts/repertorio.py`): **128 opciones** por intención — 46 escenas del plan + 44 efectos talking-head + 20 captions + 8 gestos UI + 9 técnicas + 1 look nativo. El motor es metadato, no un menú paralelo (`sugerir` / `resolver` / `cobertura` / `demo_de`).
 - **Renderizar por plan** declarativo (`plan.json` → `mp4`) con las **46 escenas** — `apertura`, `canales`, `chat`, `leads`, `handoff`, `pago`, `listo`, `pildoras`, `hoy`, `recupera`, `remate`, `final`, `medianoche`, `oferta`, `countdown`, `demo`, `rotulo_inferior`, `bars`, `gauge`, `ranking`, `stats`, `timeline`, `quote`, `versus`, `confetti`, `typewriter`, `kenburns`, `pasos`, `hero`, `bento`, `buscador`, `notificacion`, `comentario`, `pie`, `orbita`, `audiowave`, `callout`, `index`, `orbOpen`, `frase`, `constancia`, `cadena`, `cartel`, `camino`, `subrayado` y `lista`.
 - **Componer visualmente**: escena con `--datos` (CSV), escena sobre plantilla × tabla, audiogramas, karaoke por palabra, color BT.709 exacto, alfa overlay y rotación. Coherencia espacial DRY: centro óptico (`CENTRO_OPTICO`) y zona segura aunque haya cámara (`references/coherencia-espacial.md`).
 - **Animar con oficio**: motor de fluidez (resortes, fondo vivo, salidas anticipadas), motion blur de obturador 180° en entregas (`--blur 5`), 20 primitivas DRY (`barra_h`, `cuenta_up`, `arco`, `particulas`, `cuadricula`, `linewrap`, `tarjeta_cristal`, `boton_halo`, `insignia_3d`, etc.) que componen las 46 escenas. Galería de las 46 (`galeria.py`) y video de las 125 (`catalogo_repertorio.py`).
@@ -179,7 +179,7 @@ Resultado: 3 shorts en 1080x1920 @30fps, con subtítulos karaoke.
 | Capacidad | Descripción |
 |---|---|
 | Plan declarativo | `plan.json` con 46 tipos de escena, tiempos absolutos, `at` por elemento, `voz` por escena |
-| Repertorio único | 125 opciones (`repertorio.py`): escenas + efectos + captions + gestos + técnicas; `demo_de` para verlas |
+| Repertorio único | 128 opciones (`repertorio.py`): escenas + efectos + captions + gestos + técnicas; `demo_de` para verlas |
 | Catálogo de escenas | 46 escenas compuestas con 20 primitivas DRY (cero lógica duplicada) |
 | Coherencia espacial | Centro óptico y zona segura; la cámara no apaga el recentrado (`_crecer` / `zona_caja`) |
 | `--blur 5` | Motion blur de obturador 180° en la entrega final |
@@ -252,10 +252,11 @@ EditorIA/
 ├── editoria.zip                       # Paquete listo para subir a Claude.ai
 ├── editoria/                          # Carpeta de la skill (kebab-case == name: editoria)
 │   ├── SKILL.md                       # Definición + frontmatter YAML + flujo principal
-│   ├── scripts/                       # 54 motores raíz + 21 en ffmpeg_tools/ + 91 en _tests/ = 166 scripts
+│   ├── scripts/                       # 55 motores raíz + 21 en ffmpeg_tools/ + 92 en _tests/ = 168 scripts
 │   │   ├── render_plan.py             # Motor principal de render por plan (46 escenas)
-│   │   ├── repertorio.py              # Catálogo único: 125 opciones (sugerir/resolver/demo_de)
-│   │   ├── catalogo_repertorio.py     # Video de las 125 opciones (sin fichas vacías)
+│   │   ├── repertorio.py              # Catálogo único: 128 opciones (sugerir/resolver/demo_de)
+│   │   ├── catalogo_repertorio.py     # Video de las 128 opciones (sin fichas vacías)
+│   │   ├── motores_externos.py        # Clone-on-demand: manim / handraw-estilo / pintura-cpu
 │   │   ├── voz_off.py                 # ElevenLabs TTS
 │   │   ├── musica.py                  # ElevenLabs Music + ducking
 │   │   ├── alinear.py                 # Word-level voice alignment (Whisper)
@@ -320,7 +321,7 @@ EditorIA/
 │   │       ├── transcribir.py         # ASR local → SRT + JSON
 │   │       ├── _comun.py              # Helpers DRY compartidos
 │   │       └── _plataforma.py         # Abstracciones de SO
-│   ├── references/                    # 72 referencias en kebab-case.md
+│   ├── references/                    # 76 referencias en kebab-case.md
 │   │   ├── instalacion.md             # Por SO (Win/macOS/Linux)
 │   │   ├── escenas.md                 # Catálogo de 46 escenas
 │   │   ├── intencion-escena.md        # Índice inverso: intención → opción del repertorio

@@ -7,6 +7,25 @@ La skill se publica en `https://github.com/DragonJAR/EditorIA`; la copia
 instalada (`~/.minimax/skills/editoria`) se sincroniza con lo publicado: el
 repo manda.
 
+## 1.11.5 — motores externos de animación (DRY)
+
+Nueve skills/repos de animación auditados contra el tip de `main`. Tres
+entran como opciones `motor=tecnica` del repertorio único (128 opciones);
+el resto ya estaba cubierto o se descartó. Clone-on-demand, sin menús
+paralelos.
+
+**Añadido**
+- `scripts/motores_externos.py` + `scripts/data/motores_externos.json`:
+  recetas clone→setup→usar→rm para `manim`, `handraw-estilo`, `pintura-cpu`.
+- Referencias: `motores-externos.md`, `manim.md`, `handraw-estilo.md`
+  (atribución **yang0**), `pintura-cpu.md`.
+- Números de personalidad de movimiento / regla del tercio en
+  `animacion.md` §1b (destilados de LottieFiles motion-design, MIT).
+
+**No se trajo**
+- Vendor de anidoodle, huashu, javascript-animation packs, motion-skill
+  studies; ClaudeAnimationBase ya estaba en canvas/créditos.
+
 ## 1.11.4 — la convergencia con el fork del 30-oct
 
 Dos líneas de la misma skill se desarrollaron por separado durante un día:

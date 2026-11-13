@@ -1,6 +1,6 @@
 # Mapa de EditorIA — el índice de la skill
 
-72 referencias, 53 scripts, 21 herramientas de ffmpeg y 91 suites de tests. Este
+76 referencias, 55 scripts, 21 herramientas de ffmpeg y 92 suites de tests. Este
 archivo dice **dónde está cada cosa**, **cuál es la fuente canónica** de cada
 idea y **por dónde se entra** según la tarea. Sin este mapa, la skill es un
 archivo con piezas sueltas; con el mapa, es un sistema.
@@ -182,6 +182,10 @@ escribir es un tapón).
 | `tiempo-html.md` | el tiempo en los motores HTML: el kit `assets/js/tiempo.mjs` (espejo del motor), motion blur, trampas y las tres puertas | herramienta |
 | `dibujado.md` | la vía dibujada a mano: el método de las poses redibujadas, los cinco looks y el kit | herramienta |
 | `hand-draw.md` | trazos a mano: suavizado, overlay con alfa y gestos (sin MediaPipe en la skill) | herramienta |
+| `motores-externos.md` | clone-on-demand de manim / handraw-estilo / pintura-cpu (misma superficie repertorio) | herramienta |
+| `manim.md` | explicadores Manim CE (capacidad) | herramienta |
+| `handraw-estilo.md` | stills con biblioteca yang0/handraw-style (atribución obligatoria) | herramienta |
+| `pintura-cpu.md` | stills/draw-on numpy+Pillow sin Node | herramienta |
 | `herramientas-agente.md` | las herramientas conectadas del agente y su handoff | herramienta |
 | `brief.md` | el contrato de trabajo cuando se delega una parte | plan |
 
@@ -323,7 +327,7 @@ escribir es un tapón).
     patron estrecho es llevar la UNIDAD y el CALIFICADOR: la unidad y la
     palabra que dice que variante es. Solo asi el patron distingue lo que
     tiene que distinguir. Y hay que MEDIRLO: los falsos positivos de un
-    guard nuevo se cuentan contra las 72 referencias, no se estiman.
+    guard nuevo se cuentan contra las 76 referencias, no se estiman.
     Y al escribir la prosa, OJO: un ejemplo literal que parezca una
     afirmacion es una afirmacion para el guard (esto looyo en la regla
     misma: un ejemplo con la cifra equivocada hacia saltar al guard que
@@ -374,7 +378,8 @@ escribir es un tapón).
 | `scripts/ffmpeg_tools/loudness.py` | la sonoridad de entrega |
 | `scripts/contact_sheet.py` | la hoja de contactos (el ojo) |
 | `scripts/galeria.py` | el render de todo el catalogo, con QA |
-| `scripts/catalogo_repertorio.py` | video de las 125 opciones del repertorio único (`demo_de`); rótulo inferior, sin fichas vacías |
+| `scripts/catalogo_repertorio.py` | video de las 128 opciones del repertorio único (`demo_de`); rótulo inferior, sin fichas vacías |
+| `scripts/motores_externos.py` | recetas clone-on-demand de manim / handraw-estilo / pintura-cpu |
 | `scripts/auditar_mapa.py` | que la skill siga siendo un sistema y no islas |
 | `scripts/validate_skill.py` | que la skill entera siga valida |
 | `scripts/_comandos_doc.py` | que los comandos que dice el SKILL.md se puedan correr |

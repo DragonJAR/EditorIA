@@ -66,6 +66,7 @@
   "test_medir_silencios.py",
   "test_mezclar_audio.py",
   "test_motion_ui.py",
+  "test_motores_externos.py",
   "test_movimiento.py",
   "test_paleta.py",
   "test_paleta_color.py",

@@ -296,7 +296,8 @@ el motor. Orden:
    plan (`plan-video.md`).
 9. **Si ninguna opción del catálogo sirve**: selector de oficio en
    `animacion.md` §0 (canvas, HandDraw, Remotion, HyperFrames, 3D, híbrido,
-   diagramas) y declara la capacidad si falta (`capacidades.md`). No abras
+   diagramas, Manim, handraw-estilo, pintura-cpu) y declara la capacidad si
+   falta (`capacidades.md`). Clone-on-demand: `motores_externos.py`. No abras
    un segundo catálogo.
 10. **Verifica barato**: preview del motor elegido + `auditar_plan.py` /
    `medir_animacion.py` + puerta.

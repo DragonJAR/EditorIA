@@ -1,0 +1,116 @@
+{
+  "_que_es": "Registro DRY de motores externos de animación/ilustración que se clonan bajo demanda. NO es un catálogo paralelo: la elección del agente es repertorio.py (opciones motor=tecnica). Aquí viven clone→setup→usar→rm, licencias y lo descartado a propósito tras auditar 9 repos (2026-11).",
+  "entrada": "references/motores-externos.md",
+  "reglas": [
+    "Elegir con repertorio.py sugerir/resolver; este módulo solo PRODUCE la receta de clonado",
+    "No vendorizar ni submodule; limpiar /tmp al terminar",
+    "Declarar requisitos (Node, Manim, pip) en la primera respuesta si faltan (capacidades.md)",
+    "No abrir menú A/B frente a canvas / remotion / hand-draw / dibujado: una sola superficie",
+    "handraw-estilo: conservar atribución a yang0 + URL del repo en docs y entrega"
+  ],
+  "conteo": 3,
+  "motores": [
+    {
+      "id": "manim",
+      "firma": "Explicador matemático / algoritmo con Manim Community Edition",
+      "ocasion": "Cuando la pieza pide ecuaciones, pruebas, algoritmos o visualización tipo 3Blue1Brown",
+      "no_usar": "Para cifras de marketing usa una escena del plan (stats/bars). Para doodle pictórico usa canvas. Si Manim no está, decláralo.",
+      "repo": "https://github.com/Yusuke710/manim-skill",
+      "licencia": "MIT",
+      "autor": "Yusuke Miyashita",
+      "stack": ["Python 3", "manimce", "ffmpeg", "kokoro TTS opcional"],
+      "clon_tmp": "git clone --depth 1 https://github.com/Yusuke710/manim-skill.git /tmp/manim-skill",
+      "setup": "cd /tmp/manim-skill && (command -v uv >/dev/null && uv sync || pip install manim)  # declarar Manim CE si falta",
+      "clone_root": "/tmp/manim-skill",
+      "usar": "SESSION_DIR=\"${MANIM_SKILL_HOME:-$HOME/.manim-skill}/<slug>\"; mkdir -p \"$SESSION_DIR\" && cd \"$SESSION_DIR\" && # narración→TTS→script.py→manim→mux según skills/manim-skill/SKILL.md del clone",
+      "limpiar": "rm -rf /tmp/manim-skill",
+      "doc": "references/manim.md",
+      "atribucion": null,
+      "intenciones": ["proceso", "dato", "demostracion"],
+      "keywords": ["manim", "ecuacion", "matematica", "algoritmo", "3blue1brown", "prueba", "formula"],
+      "aliases": ["manimce", "manim-skill", "math-explainer"],
+      "perillas": ["narracion", "aspecto 16:9|9:16|1:1", "voz kokoro", "fps preview"]
+    },
+    {
+      "id": "handraw-estilo",
+      "firma": "Still o portada con estilo numerado de la biblioteca handraw-style (prompt IA)",
+      "ocasion": "Cuando hace falta un still/portada/ilustración con look de mano reconocible y un índice de estilo (FA–FI / 001–370), no un frame pintado en código",
+      "no_usar": "Si el trazo tiene que vivir frame a frame usa canvas o pintura-cpu. Si es overlay de pizarra usa hand-draw. No es motor de video.",
+      "repo": "https://github.com/yang0/handraw-style",
+      "licencia": "MIT con requisito de atribución",
+      "autor": "yang0",
+      "stack": ["prompts de estilo", "layouts SC/IG/SB", "generador de imagen del agente"],
+      "clon_tmp": "git clone --depth 1 https://github.com/yang0/handraw-style.git /tmp/handraw-style",
+      "setup": "# leer STYLES.md / LAYOUTS.md del clone; no hay npm — es biblioteca de prompts",
+      "clone_root": "/tmp/handraw-style",
+      "usar": "# elegir estilo+layout+tema; generar still con la herramienta de imagen del agente; citar yang0",
+      "limpiar": "rm -rf /tmp/handraw-style",
+      "doc": "references/handraw-estilo.md",
+      "atribucion": "Conservar autor yang0 y https://github.com/yang0/handraw-style (pedido explícito del LICENSE/README)",
+      "intenciones": ["imagen-texto", "gancho", "copy"],
+      "keywords": ["handraw", "estilo numerado", "portada", "ilustracion ia", "layout SC", "yang0", "mano dibujada still"],
+      "aliases": ["handraw", "handraw-style", "estilo-handraw"],
+      "perillas": ["id de estilo", "layout", "color C-01..C-36", "modo imagen|texto"]
+    },
+    {
+      "id": "pintura-cpu",
+      "firma": "Ilustración o draw-on por etapas en Python (numpy+Pillow), sin Node",
+      "ocasion": "Cuando la pieza pide un still o un GIF de «se va pintando» en CPU y no hace falta p5/Chrome",
+      "no_usar": "Si pide acuarela viva frame a frame con pincel, usa canvas. Si pide personaje animado con poses, usa dibujado. Si Node+Chrome ya están y el brief es lyric/videoclip, canvas gana.",
+      "repo": "https://github.com/cloveric/claude-drawing-skill",
+      "licencia": "MIT",
+      "autor": "cloveric",
+      "stack": ["Python 3", "numpy", "Pillow"],
+      "clon_tmp": "git clone --depth 1 https://github.com/cloveric/claude-drawing-skill.git /tmp/claude-drawing-skill",
+      "setup": "pip install -r /tmp/claude-drawing-skill/requirements.txt",
+      "clone_root": "/tmp/claude-drawing-skill",
+      "usar": "cd /tmp/claude-drawing-skill && python3 examples/<estilo>.py out.png --stages stages/  # o API lib/; luego montar PNG/GIF en el EDL",
+      "limpiar": "rm -rf /tmp/claude-drawing-skill",
+      "doc": "references/pintura-cpu.md",
+      "atribucion": null,
+      "intenciones": ["imagen-texto", "copy", "proceso"],
+      "keywords": ["pintura cpu", "draw-on", "numpy pillow", "claude drawing", "still por etapas", "sin node"],
+      "aliases": ["claude-drawing", "inkpaint", "drawing-skill"],
+      "perillas": ["estilo", "seed", "stages/", "resolucion"]
+    }
+  ],
+  "ya_cubierto": [
+    {
+      "repo": "https://github.com/JohnHeibel/ClaudeAnimationBase",
+      "licencia": "MIT",
+      "donde": "references/canvas.md · references/creditos.md · assets/js/tiempo.mjs",
+      "motivo": "Disciplina p5/p5.brush, ring/keys y lecturas ya destiladas; no se reclona como menú"
+    },
+    {
+      "repo": "https://github.com/LottieFiles/motion-design-skill",
+      "licencia": "MIT",
+      "donde": "references/animacion.md (§ oficio + personalidad de movimiento) · references/motion-ui.md · references/fluidez.md",
+      "motivo": "Oficio UI/Disney y tablas de timing; se destilan números, no se vende skill Lottie paralela"
+    },
+    {
+      "repo": "https://github.com/alexgreensh/anidoodle",
+      "licencia": "Apache-2.0",
+      "donde": "references/canvas.md · references/dibujado.md · references/estilos-codigo.md",
+      "motivo": "Doodle en código + 32 estilos: mismo oficio que canvas/dibujado; motor enorme — no vendorizar"
+    },
+    {
+      "repo": "https://github.com/iart-ai/javascript-animation-skills",
+      "licencia": "MIT",
+      "donde": "references/canvas.md · references/sonido.md · references/scene-patterns-from-internet.md",
+      "motivo": "Films canvas + soundtrack en código; EditorIA ya tiene canvas, SFX y patrones iart; no segundo pack"
+    },
+    {
+      "repo": "https://github.com/alchaincyf/huashu-art-motion",
+      "licencia": "MIT",
+      "donde": "references/estilos-codigo.md · references/metodo-direccion.md · references/formatos.md · references/animacion.md",
+      "motivo": "Gramática de estilos/explicadores ya cubierta; kit ~144MB — no vendorizar"
+    }
+  ],
+  "descartado_a_proposito": [
+    {
+      "repo": "https://github.com/derek-zhuolin/motion-skill",
+      "licencia": "MIT parcial (studies/ sin re-licencia clara; Remotion con términos propios)",
+      "motivo": "Orquestación Remotion + archivo de estudios ajenos: solapa remotion.md/animacion.md; no re-licenciar studies ni vendor runtime"
+    }
+  ]
+}

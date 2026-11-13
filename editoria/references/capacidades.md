@@ -36,6 +36,9 @@ que levantan el listón del resultado. Por eso la regla de esta tabla no es
 | Overlays talking-head con face-track (opción `motor=efecto` del catálogo único) | Clone temporal de [claude-video-effects](https://github.com/Vibha-Ramprakash/claude-video-effects) (MIT) + su `.venv` (OpenCV, MediaPipe, Pillow) | **Elegir** con `repertorio.py sugerir/resolver`; **producir** con `efectos_talking_head.py receta --fx …` (clone→setup→render→rm). No vendorizar ni añadir a `SCENES`. Si `preferir=nativo`, motor EditorIA indicado. Detalle: `references/efectos-talking-head.md` |
 | Captions tipográficos HF / matte detrás del sujeto (`motor=caption`, `preferir=hyperframes`) | HyperFrames on-demand (`npx hyperframes skills update` / `catalog add`) + Node 22+ | **Elegir** con `repertorio.py`; **producir** con `captions_identidades.py receta --id …`. Rail nativo no exige HF (`caption.py`). Flujo: `references/flujo-talking-head.md`. No vendorizar el monorepo |
 | Skills oficiales Remotion (React→MP4) | `npx skills add remotion-dev/skills` cuando el proyecto **ya** es Remotion | Declarar; no instalarlas como menú paralelo a EditorIA. Ver `references/remotion.md` |
+| Explicador Manim (opción `motor=tecnica` `manim`) | Clone temporal de [manim-skill](https://github.com/Yusuke710/manim-skill) (MIT) + Manim CE | **Elegir** con `repertorio.py`; **producir** con `motores_externos.py receta --id manim`. Declarar Manim/`uv` si faltan. Ver `references/manim.md` |
+| Still handraw numerado (`handraw-estilo`) | Clone temporal de [handraw-style](https://github.com/yang0/handraw-style) (MIT + atribución yang0) + generador de imagen del agente | **Elegir** con `repertorio.py`; **producir** con `motores_externos.py receta --id handraw-estilo`. Conservar crédito a yang0. Ver `references/handraw-estilo.md` |
+| Pintura CPU / draw-on (`pintura-cpu`) | Clone temporal de [claude-drawing-skill](https://github.com/cloveric/claude-drawing-skill) (MIT) + numpy/Pillow | **Elegir** con `repertorio.py`; **producir** con `motores_externos.py receta --id pintura-cpu`. Ver `references/pintura-cpu.md` |
 
 **Que "declarar" quiere decir exactamente:** cuando una pieza necesita una
 capacidad que no esta, **se le dice al usuario en la primera respuesta** que
@@ -98,4 +101,4 @@ que era provisional.
 
 ---
 
-→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`, `references/hand-draw.md`, `references/efectos-talking-head.md`, `references/captions-identidades.md`, `references/flujo-talking-head.md`
+→ Canónico: `references/capacidades.md` · Dominio: herramienta · Vecinos: `references/instalacion.md`, `references/remotion.md`, `references/hyperframes.md`, `references/hand-draw.md`, `references/efectos-talking-head.md`, `references/captions-identidades.md`, `references/flujo-talking-head.md`, `references/motores-externos.md`

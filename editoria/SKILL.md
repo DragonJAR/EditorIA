@@ -5,7 +5,7 @@ license: MIT
 compatibility: 'Python 3.9+, FFmpeg, Pillow, NumPy; optional ElevenLabs API and Node 18+ for Remotion or HyperFrames'
 metadata:
   author: Jaime Andrés Restrepo
-  version: 1.11.4
+  version: 1.11.5
   category: video-editing
   tags: [video-editing, motion-graphics, ffmpeg, animation]
 ---
@@ -51,6 +51,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Meeting or transcript summary | **Composition**: pick the moments (`references/scoring-shorts.md`) + styles (`references/estilos.md`), then the create path (Step 1→5) or the edit path (Step 6); the v2 pipeline is legacy |
 | Cinematic film 16:9 | **Cine**: recipes in `references/cine.md` (with brand pack: `scripts/film_marca_v2.py` or `scripts/film_marca.py`) |
 | See what the engine can draw (the 46 scene types) | **Gallery**: `scripts/galeria.py` (renders every scene of the catalog) |
+| See all repertoire options as one video (scenes + effects + gestures + captions + techniques) | **Repertoire catalog**: `scripts/catalogo_repertorio.py -o /tmp/catalogo-128` (`demo_de`; no empty cards) |
 | Keep the counts of the skill true | **Counts**: `scripts/actualizar_conteos.py` (rewrites the numbers the prose publishes; `--check` only reports) |
 | Compile videos into a reel | **Reel**: `scripts/compilar_reel.py` (cuts the best moment of each) |
 | Check the skill is still a system | **Map**: `scripts/auditar_mapa.py` (every reference reaches its canonical, every script is findable) |
@@ -74,6 +75,7 @@ Swiss Army knife for creating dynamic, professional videos of any kind, for any 
 | Painted material: watercolor, brush strokes, generative doodle, lyric video | **Canvas**: `references/canvas.md` (p5.js + Chrome headless) |
 | Hand-drawn character animation, rotoscope, sand animation, pop-up paper | **Drawn**: `references/dibujado.md` (whole redrawn poses, exposure sheets, the five looks; the kit is cloned and declared, never vendored) |
 | Hand-drawn strokes / whiteboard overlay (smooth paths, PNG with alpha) | **Hand draw**: `references/hand-draw.md` + `scripts/hand_draw.py` (offline Pillow path; live camera capture needs MediaPipe — declare it) |
+| Math / algorithm explainer (Manim), numbered hand-drawn still (yang0/handraw-style), or CPU draw-on stills | **Same repertoire** (`manim` / `handraw-estilo` / `pintura-cpu`): `repertorio.py sugerir` → `motores_externos.py receta --id …` (clone-on-demand; never a parallel menu. Handraw keeps yang0 attribution. Detail: `references/motores-externos.md`) |
 | Diagram of a system (architecture, flow, data, sequence) | **Diagram**: `references/diagramas.md` (one self-contained HTML+SVG, branded from the pack) |
 | "Make it look like flat vector / Bauhaus / pixel art / cyberpunk HUD" | **Styles in code**: `references/estilos-codigo.md` (the 15 motion-design styles: signature, techniques, the engine that serves each; plus the cinema catalogue) |
 | One-shot motion graphics film | **Prompts**: `references/prompt-motion-graphics.md` (Familia 7) + `references/recetas-ai-video.md` (§7) |
@@ -91,7 +93,7 @@ Step 5 for an animated piece (with `--plan`), Step 6 for an edited one
 
 ## Instructions
 
-`references/mapa.md` is the index of this skill: 72 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
+`references/mapa.md` is the index of this skill: 76 references with one canonical source per idea, the reading path for each kind of task, and the rule that no file is an island. Read it before anything else, and when a rule seems to live in two places. The skill's own vocabulary (mancha, spot, remate, hold, pack, gate) is in `references/glosario.md`.
 
 **Two paths. Pick one before you touch a file:**
 
@@ -279,7 +281,7 @@ This is the other half of the editing path: the user brings a video (file or lin
 - **Metrics and validation**:
   - Triggering: >=90% on relevant video requests, 0% on unrelated tasks.
   - Execution: 0 failed tool calls per workflow.
-  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (91 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
+  - Consistency: `python scripts/validate_skill.py` exits 0 (46/46 scenes render, scripts compile, references exist) and unit tests in `scripts/_tests/` (92 suites) pass via `python3 -m unittest discover -s scripts/_tests`.
 
 ## Examples
 

@@ -193,6 +193,12 @@
    "scripts/_tests/test_firma_plan.py",
    "scripts/_tests/test_paleta_color.py"
   ],
+  "scripts/motores_externos.py": [
+   "scripts/_tests/test_motores_externos.py"
+  ],
+  "scripts/catalogo_repertorio.py": [
+   "scripts/_tests/test_motores_externos.py"
+  ],
   "scripts/repertorio.py": [
    "scripts/_tests/test_paleta_color.py",
    "scripts/_tests/test_repertorio.py"

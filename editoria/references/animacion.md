@@ -29,6 +29,9 @@ nunca se sustituye en silencio por otra que "se parece".
 | Sensación de producto / sitio / app (cascada, morph, máscara, parallax, zoom) | Misma elección: opción `motor=gesto` del catálogo único | `repertorio.py sugerir --pedido "…"`; una técnica dominante; el detalle de números vive aparte | Detalle interno: `references/motion-ui.md` · `scripts/data/motion_ui.json` |
 | Overlays que siguen la cara (orbit, spotlight, glass, LED, grid…) | Misma elección: opción `motor=efecto` (o `nativo`) | `repertorio.py sugerir --pedido "…"` → `resolver` → `efectos_talking_head.py receta` si hace falta CVE en `/tmp` | Detalle interno: `references/efectos-talking-head.md` · JSON de fx |
 | Captions / subtítulos tipográficos (karaoke, slam, matte detrás de cara…) | Misma elección: opción `motor=caption` | `repertorio.py sugerir --pedido "…"` → `resolver` → `caption.py` o `captions_identidades.py receta` | Flujo: `flujo-talking-head.md` · detalle: `captions-identidades.md` |
+| Explicador matemático / algoritmo | Manim (clone-on-demand) | Misma elección: opción `motor=tecnica` `manim` | `repertorio.py` → `motores_externos.py receta --id manim` · `references/manim.md` |
+| Still/portada con estilo de mano numerado (prompts IA) | Handraw estilo (atribución yang0) | Misma elección: `handraw-estilo` | `motores_externos.py receta --id handraw-estilo` · `references/handraw-estilo.md` |
+| Still o draw-on por etapas en CPU (sin Node) | Pintura CPU | Misma elección: `pintura-cpu` | `motores_externos.py receta --id pintura-cpu` · `references/pintura-cpu.md` |
 
 Regla de cierre de la elección: la técnica se verifica como el resto de la
 pieza — preview de instantes antes de pagar el render, y la puerta al final
@@ -79,6 +82,24 @@ viole uno sin motivo está sin terminar.
 | **Exageración** | Solo en el momento firma de la pieza (uno). En el resto, contención. | Overshoot ≤8%, 10% en el foco |
 | **Dibujo sólido** | Volumen y perspectiva consistentes: si algo rota en 3D, su sombra y su perspectiva acompañan. Nada de rotaciones planas que delatan el 2D. | — |
 | **Atractivo (appeal)** | Formas simples, siluetas claras, espaciado generoso. Si un frame congelado no se podría publicar como póster, falta appeal. | Check de frame 0 / medio / final |
+
+### 1b. Personalidad de movimiento y regla del tercio (números)
+
+Una pieza, **una** personalidad de movimiento (coherente con el brand pack /
+`direccion-de-arte.md`). Números destilados del oficio UI (LottieFiles
+motion-design, MIT — sin skill paralela):
+
+| Personalidad | Duración típica UI | Overshoot | Encaje EditorIA |
+|---|---|---|---|
+| Lúdica | 150–300 ms | 10–20 % | rol `pop` / squash alto de `fluidez.md` |
+| Premium | 350–600 ms | 0 % | ease suave, sin rebote |
+| Corporativa | 200–400 ms | 0–3 % | default UI / dashboard |
+| Enérgica | 100–250 ms | 15–30 % | acentos cortos; no metrónomo |
+
+**Regla del tercio:** un viaje no recorre más de ~⅓ del lienzo sin llave
+intermedia; con 3+ elementos, como máximo ~⅓ en movimiento activo a la vez.
+Stagger total de una cascada UI ≤ 500 ms (hermanos 40–90 ms:
+`motion-ui.md`). La identidad de marca manda si choca con la tabla.
 
 ## 2. Motion blur — obligatorio en la entrega final
 
@@ -404,4 +425,4 @@ frenada— y **el contacto se conserva hasta su liberación planesada**.
 
 ---
 
-→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/fluidez.md`, `references/reglas-tecnicas.md`, `references/intencion-escena.md`, `references/motion-ui.md`, `references/efectos-talking-head.md`
+→ Canónico: `references/animacion.md` · Dominio: movimiento · Vecinos: `references/fluidez.md`, `references/reglas-tecnicas.md`, `references/intencion-escena.md`, `references/motion-ui.md`, `references/efectos-talking-head.md`, `references/motores-externos.md`
