@@ -2650,27 +2650,29 @@ def sc_apertura(ctx,e,t):
     layer=Image.new("RGBA",(W,H),(0,0,0,0))
     deco,d=grupo()   # el fondo de marca va en su capa: se apaga bajo el titular
     cambio=e["at"]["cambio"]
-    # fondo de entrada tras el titular (centrado con el titular: H*0.44)
+    # Centro óptico: 0.49 (antes 0.44) baja ~96 px el bloque; medido −88 px
+    # en validacion-espacial/revalidacion-errores.md.
+    cy_base = 0.49
     r=W*0.42*entra(t, e["from"], "lento")*(1-prog(t,cambio-0.15,cambio+0.35)*0.75)
     if r>4:
         # con isotipo en el pack, el fondo es la MARCA (crece y se encoge igual);
         # sin isotipo, el blob organico de cuatro lobulos de siempre
-        if not marca_fondo(ctx, deco, W/2, H*0.44, r, t, e["from"], 0.7):
+        if not marca_fondo(ctx, deco, W/2, H*cy_base, r, t, e["from"], 0.7):
             pts=[]
             for i in range(72):
                 a=i/72*math.pi*2+t*0.8
                 rr=r*(1+0.28*math.sin(a*4+t*2))
-                pts.append((W/2+rr*math.cos(a),H*0.44+rr*math.sin(a)))
+                pts.append((W/2+rr*math.cos(a),H*cy_base+rr*math.sin(a)))
             d.polygon(pts,fill=ACENTO+(58,))
     # micro-idle: el titular asentado respira (±5 px), nunca queda congelado
     if t < cambio:   # el primer titular se va (fundido + sube) en vez de desaparecer de golpe
         ks=prog(t,cambio-0.35,cambio)   # cúbica: arranca suave
-        cy=vy(0.44)+flota(t,e["at"]["p1"][-1]+0.5,5,0.45)-ks*30
+        cy=vy(cy_base)+flota(t,e["at"]["p1"][-1]+0.5,5,0.45)-ks*30
         sub,_=grupo()
         titular(ctx,sub,t,e["texto1"],e["at"]["p1"],tam=150,cy=cy)
         if ks>0: sub.putalpha(sub.split()[3].point(lambda v:int(v*(1-ks))))
     else:
-        cy=vy(0.44)+flota(t,e["at"]["p2"][-1]+0.5,5,0.45)
+        cy=vy(cy_base)+flota(t,e["at"]["p2"][-1]+0.5,5,0.45)
         sub,_=grupo()
         # la 2.a frase es OPCIONAL: un plan con una sola frase es valido
         # (antes `e["texto2"]` reventaba al llegar el cambio, y el esquema la
@@ -2693,6 +2695,8 @@ def sc_canales(ctx,e,t):
     a_m,b_m=tinta(ctx.fT(110*0.55*min(1.0,(zx1_-zx0_)*0.94/ancho110),800),e["marca"],"lm")
     n_c=len(e["canales"]); H_TJ=124
     centros,_=pila([max(b_m-a_m,int(150*0.55) if iso_ok else 0)]+[H_TJ]*n_c,bajo_rotulo(rotulo_y(), texto=e.get("rotulo"), ctx=ctx),zy1_,gap=SEPARA-16)
+    # Centro óptico: pila quedaba ~+113 px baja (validacion-espacial); subir bloque.
+    centros=[c-90 for c in centros]
     fl=flota(t,at["junta"]+0.6,5,0.36)
     k=entra(t, at["marca"], "lento")
     if k>0:
@@ -4201,7 +4205,8 @@ def sc_typewriter(ctx, e, t):
     lh = tam * 1.32
     alto = lh * len(lineas)
     # flota más marcada: el hold tras escribir quedaba en muerto 0.12
-    y0 = H * 0.45 - alto / 2 + flota(t, t_in + 0.8, 7, 0.34)
+    # Centro óptico: +~45 px (0.45→0.475) — validacion-espacial typewriter −45.
+    y0 = H * 0.475 - alto / 2 + flota(t, t_in + 0.8, 7, 0.34)
     # panel de lectura: pad generoso + altura extra → ocup 0.17→≥0.20
     pad_panel = max(44, int(tam * 0.85))
     kp = smoothstep(clamp01((t - (t_in - 0.3)) / 0.4))
@@ -5194,9 +5199,16 @@ def sc_camino(ctx, e, t):
         idx = int(pos * (len(pts) - 1))
         cx, cy = pts[idx]
         t_in = at.get(f"estacion{i}", e["from"])
+        # 1.ª estación desde `from`: evita frame vacío (flash camino ~35.75 s).
+        if i == 0:
+            t_in = min(float(t_in), float(e["from"]))
         k = entra(t, t_in, "elemento")
         if k <= 0:
-            continue
+            # Fantasma de la primera estación: la pista sola se leía como flash.
+            if i == 0 and t >= e["from"]:
+                k = 0.35
+            else:
+                continue
         encendida = cabeza >= pos - 0.02
         # la estación bajo la cabeza late: es el "ahora" del camino
         en_cabeza = encendida and abs(cabeza - pos) < (0.55 / n)
@@ -6777,10 +6789,15 @@ def sc_callout(ctx, e, t):
     d = ImageDraw.Draw(layer)
     at = e.get("at", {})
     zx0, zy0, zx1, zy1 = caja_segura()
+    # Entrada suave: evita flash luminancia al corte (cadena→callout ~30.5 s).
+    k_in = smoothstep(clamp01((t - e["from"]) / 0.28))
     # 1. la captura va DEBAJO (es lo que se resalta)
     if e.get("captura"):
         cap = imagen_ajustada(e["captura"], int(zx1 - zx0), int(zy1 - zy0))
         if cap is not None:
+            if k_in < 1:
+                cap = cap.copy()
+                cap.putalpha(cap.split()[3].point(lambda v: int(v * k_in)))
             layer.alpha_composite(cap, (int(zx0), int(zy0)))
     obj = e.get("objeto") or {}
     # 2. el punto resaltado: relativo a la captura si la hay, al lienzo si no
@@ -6796,7 +6813,7 @@ def sc_callout(ctx, e, t):
     # 3. el rotulo, ENCIMA de todo y con placa (si hay captura debajo)
     if e.get("titulo"):
         t_r = at.get("rotulo", e["from"])
-        k_r = entra(t, t_r, "suave")
+        k_r = entra(t, t_r, "suave") * k_in
         if k_r > 0:
             # el enfasis (*...*) se dibuja con los segmentos del motor: el texto
             # literal con asteriscos seria un bug
@@ -6825,7 +6842,7 @@ def sc_callout(ctx, e, t):
                          BLANCO + (al_r,), acento_legible(fondo_r, fr.size) + (al_r,), anchor="ma")
     # 4. la elipse que se dibuja + el punto exacto
     t_c = at.get("circulo", e["from"] + 0.35)
-    k_c = entra(t, t_c, "elemento")
+    k_c = entra(t, t_c, "elemento") * k_in
     if k_c > 0:
         elipse_se_dibuja(d, cx, cy, rx, ry, t, t_c, 0.9, ACENTO, 4)
         d.ellipse([cx - 7, cy - 7, cx + 7, cy + 7], fill=ACENTO + (int(220 * k_c),))
@@ -6833,7 +6850,7 @@ def sc_callout(ctx, e, t):
     etiqueta = e.get("etiqueta", "")
     if etiqueta:
         t_e = at.get("etiqueta", t_c + 0.35)
-        k_e = entra(t, t_e, "suave")
+        k_e = entra(t, t_e, "suave") * k_in
         if k_e > 0:
             fnt = fuente_que_cabe(ctx.fT, etiqueta, ESCALA["dato"], zx1 - zx0 - 80, 800)
             sg_e = segs(etiqueta)
