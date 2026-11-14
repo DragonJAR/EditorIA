@@ -745,6 +745,13 @@ TRANSICIONES_TIPOS = {
     "iris":     "la escena nueva abre en círculo desde el centro (o transicionX/Y)",
     "mancha":   "una mancha de color barre el cuadro y descubre la escena nueva",
 }
+# Entrantes donde el corte seco suele saltar luminancia (captura/clara, vacío→
+# contenido, o dens→clara). Demos/muestras/catálogo prefieren dissolve aquí
+# (`transicion_demo` / `aplicar_transiciones_demo`; animacion.md §7).
+ENTRADA_ANTI_FLASH = frozenset({
+    "callout", "camino", "demo", "kenburns", "hero", "oferta",
+    "confetti", "final", "remate", "orbOpen", "apertura", "quote",
+})
 SOLAPE=0.32      # s que la salida se superpone con la entrada de la siguiente
 SOLAPE_DISSOLVE=0.40   # s del fundido cruzado (transicion "dissolve")
 SOLAPE_PRE=0.0   # s de fundido de salida ANTES del corte (0: sale desde el corte)
@@ -782,6 +789,38 @@ def sale_por_mascara(escenas,i,manchas_ok):
     # el iris entra siempre por su rama de `componer` (como allí)
     tr=escenas[i+1].get("transicion")
     return tr=="dissolve" or tr=="iris" or (i+1) in manchas_ok
+
+def _tipo_escena(e):
+    """Id de escena desde str o dict (no confundir con `_tipo_de` del esquema)."""
+    return e if isinstance(e, str) else (e or {}).get("tipo")
+
+def transicion_demo(entrante, saliente=None):
+    """Transición recomendada al encadenar demos / muestras / catálogo.
+
+    Prefer `dissolve` si la entrante está en ENTRADA_ANTI_FLASH (corte seco →
+    flash de luminancia medido). No pisa un `transicion` ya declarado.
+    `saliente` queda por si un día se filtra dens→clara; hoy basta la entrante.
+    """
+    et = _tipo_escena(entrante)
+    if et in ENTRADA_ANTI_FLASH:
+        return "dissolve"
+    return None
+
+def aplicar_transiciones_demo(escenas):
+    """Copia de la lista con `transicion: dissolve` donde conviene (DRY).
+
+    Solo rellena si la entrante no trae `transicion`. Para galería, planes de
+    evidencia y cualquier demo que concatene muestras del catálogo.
+    """
+    out = []
+    for i, e in enumerate(escenas or []):
+        e2 = dict(e)
+        if i > 0 and "transicion" not in e2:
+            tr = transicion_demo(e2, escenas[i - 1])
+            if tr:
+                e2["transicion"] = tr
+        out.append(e2)
+    return out
 
 def titular(ctx,layer,t,lineas,ats,tam=120,cy=None,word_gap=36,line_gap=1.18,maxw=None):
     """Titular cinético: cada palabra entra con resorte en su `at`, con escala
@@ -4012,6 +4051,8 @@ def sc_quote(ctx, e, t):
                                                   if lineas_rol else 0)
     ch = h_com + h_txt + h_est + h_aut + U * 0.10
     cy = max(zy0 + 70, (zy0 + zy1) / 2 - ch / 2 + 30)
+    # hold de cita: la tarjeta flota (sin ella se lee quieta / BALANCE muerto)
+    cy = cy + flota(t, t_card + 0.8, 4, 0.36)
     ac = int(255 * clamp01(k * 1.4))   # la tarjeta y su comilla entran fundidas, no de golpe
     tarjeta(ctx, layer, int(cx + (1 - s) * cw / 2), int(cy + (1 - s) * ch / 2),
             int(cw * s), int(ch * s), alpha=ac)
@@ -4085,8 +4126,9 @@ def sc_versus(ctx, e, t):
     lados = ((e.get("izquierda", {}), x0 + col_w / 2, at.get("izq", fr + 0.4), BLANCO, -1),
              (e.get("derecha", {}), x1 - col_w / 2, at.get("der", fr + 0.9), ACENTO, 1))
     n = max(1, *(len(l[0].get("items", [])) for l in lados))
-    y_label = H * 0.29
-    y_items = H * 0.38
+    fy = flota(t, fr + 1.2, 4, 0.34)   # hold vs: ambos lados respiran juntos
+    y_label = H * 0.29 + fy
+    y_items = H * 0.38 + fy
     fila_h = min(150, (min(y1 - 40, techo_fuente(ctx, e)) - y_items) / n)
     todos = [it for l in lados for it in l[0].get("items", [])] or [""]
     largo = max(todos, key=lambda x: ctx.tmp.textlength(x, font=ctx.fX(40, 600)))
@@ -4781,7 +4823,13 @@ def sc_constancia(ctx, e, t):
     # 9:16 mitad vacío arriba (medido en el reel de verificación).
     y_def = (y1 - panel_h) if sobre_cara(e) else y_bloque(ctx, panel_h)
     y_panel = y_de_param(e.get("y"), y_def, panel_h)
-    y_panel = max(0, min(y_panel, H - panel_h))
+    y_panel = max(0, min(y_panel, H - panel_h - 4))
+    # hold largo sin eventos: flota el panel (misma pauta que cadena/cartel;
+    # sin ella el medidor lee quietud / BALANCE muerto en reposo).
+    # Sin int(): amp~6 a 0.34 Hz cambia <1 px entre muestras 0.5 s y se
+    # perdía en el redondeo (test_vida_en_reposo).
+    fy = flota(t, e["from"] + 1.0, 6, 0.34)
+    y_panel = y_panel + fy
 
     # el panel entra con la primera casilla (nada aparece de golpe)
     t_ins = tiempos_escalonados(at, "item", items, e["from"] + 0.3, e["from"])
@@ -6054,7 +6102,8 @@ def sc_hero(ctx, e, t):
     # 3. Tarjeta Liquid Glass central con métrica (glass.samasante.com)
     t_c = at.get("card", e["from"] + 1.05)
     kc = entra(t, t_c, "elemento")
-    yc = y0 + int((y1 - y0) * 0.56)
+    # micro-vida del bloque central en el hold (hero asentado sin kenburns)
+    yc = y0 + int((y1 - y0) * 0.56) + flota(t, t_c + 0.6, 5, 0.36)
     hc = int((y1 - y0) * 0.23)
     wc = min(int(ancho_u * 0.92), 860)
     if kc > 0:
@@ -6981,7 +7030,8 @@ def sc_orbOpen(ctx, e, t):
     at = e.get("at", {})
     zx0, zy0, zx1, zy1 = caja_segura()
     cx = W / 2
-    cy = H * 0.38
+    # esfera + titular flotan juntos en el hold (orbOpen sin eventos largos)
+    cy = H * 0.38 + flota(t, e["from"] + 1.2, 5, 0.32)
     r = int(unidad() * 0.19)
     t_s = e["from"] + 0.1
     k_s = entra(t, t_s, "bloque")
@@ -7105,7 +7155,9 @@ def sc_lista(ctx, e, t):
     gap = max(tam * 0.9, unidad() * 0.03)
     alto_col = max(sum(b[2] for b in bloques[c * filas:(c + 1) * filas]) + gap * (len(bloques[c * filas:(c + 1) * filas]) - 1)
                    for c in range(cols))
-    y_top = y_bloque(ctx, alto_col, titulo, bool(e.get("fuente")))
+    # UNA flota de grupo (animacion.md §4): no cada viñeta con su fase
+    y_top = y_bloque(ctx, alto_col, titulo, bool(e.get("fuente"))) + flota(
+        t, e["from"] + 1.1, 5, 0.36)
     t_ins = tiempos_escalonados(at, "item", items, e["from"] + 0.3, e["from"])
     for i, (ls, lt, alto) in enumerate(bloques):
         k = entra(t, t_ins[i], "elemento")

@@ -111,6 +111,22 @@ class TestTransiciones(unittest.TestCase):
         self.assertGreater(float(self._alfa_de(sale).mean()), 0.8 * antes,
                            "la escena que sale ya venía fundida: la salida la hace la transición")
 
+    def test_demos_prefieren_dissolve_anti_flash(self):
+        """Al encadenar muestras/catálogo, ENTRADA_ANTI_FLASH pide dissolve
+        (animacion.md §7); no pisa un transicion ya declarado."""
+        R = self.R
+        self.assertEqual(R.transicion_demo("callout", "cadena"), "dissolve")
+        self.assertEqual(R.transicion_demo("camino"), "dissolve")
+        self.assertIsNone(R.transicion_demo("bars", "stats"))
+        plan = R.aplicar_transiciones_demo([
+            {"tipo": "cadena", "from": 0, "to": 4},
+            {"tipo": "callout", "from": 4, "to": 8},
+            {"tipo": "bars", "from": 8, "to": 12, "transicion": "iris"},
+        ])
+        self.assertEqual(plan[1]["transicion"], "dissolve")
+        self.assertEqual(plan[2]["transicion"], "iris")
+        self.assertNotIn("transicion", plan[0])
+
     def test_el_corte_no_deja_fantasma(self):
         """0.3 s después de un corte por defecto, la escena que sale ya no se
         ve (< 2 % de su alfa): no hay fantasma bajo el texto de la siguiente."""

@@ -40,7 +40,7 @@ SKILL = os.path.dirname(AQUI)
 sys.path.insert(0, os.path.join(AQUI, "ffmpeg_tools"))
 from _comun import NEUTRO, colores_marca, probe  # noqa: E402
 sys.path.insert(0, AQUI)
-from render_plan import QUIETAS  # noqa: E402
+from render_plan import QUIETAS, aplicar_transiciones_demo, transicion_demo  # noqa: E402
 
 PY = sys.executable
 # una escena aislada entra desde negro y sale fundida a negro (en un plan real
@@ -240,6 +240,16 @@ def herramientas(a, out, log, filas, muestras):
         v, rc, txt, seg = render(plan_de([e1, e2], 11), f"transicion_mancha_{f}", out, log, a.brand,
                                  extra=tam, paleta=a.paleta)
         con_qa(f"transición mancha {f}", v, rc, txt, seg)
+        # dissolve anti-flash (dens→clara / ENTRADA_ANTI_FLASH): DRY del catálogo
+        d1, d2 = m("cadena"), m("callout")
+        tr = transicion_demo(d2, d1) or "dissolve"
+        d2 = dict(d2, transicion=tr, **{"from": 5, "to": 11},
+                  at={k: (v + 5 if isinstance(v, (int, float)) else v)
+                      for k, v in d2.get("at", {}).items()})
+        plan_d = plan_de(aplicar_transiciones_demo([d1, d2]), 11)
+        v, rc, txt, seg = render(plan_d, f"transicion_dissolve_{f}", out, log, a.brand,
+                                 extra=tam, paleta=a.paleta)
+        con_qa(f"transición dissolve {f}", v, rc, txt, seg)
         # captions animados sobre una toma limpia (sin texto quemado que pisar)
         base = os.path.join(out, f"base_captions_{f}.mp4")
         if not video_ok(base):

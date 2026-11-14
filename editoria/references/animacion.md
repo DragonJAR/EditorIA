@@ -367,6 +367,12 @@ El movimiento de cámara convierte un layout plano en un espacio.
   mejor transición es la que **conecta contenido**: match cut por forma
   (círculo → botón → logo), por color, por movimiento (el objeto sale por la
   derecha y el siguiente entra con la misma velocidad desde la izquierda).
+- **Anti-flash en demos/catálogo:** si un corte seco salta luminancia
+  (captura clara, cuadro casi vacío→contenido, dens→clara), la entrante
+  lleva `"transicion": "dissolve"` (u otra fluida). Fuente única:
+  `render_plan.ENTRADA_ANTI_FLASH` + `transicion_demo` /
+  `aplicar_transiciones_demo`. No sustituye el idioma del pack en piezas
+  reales; solo evita el destello en muestras encadenadas.
 - Transiciones "de efecto" (mancha, glitch, zoom-blur) como máximo 1–2 por
   pieza, y motivadas por la historia. `render_plan.py` aplica el
   presupuesto automáticamente.

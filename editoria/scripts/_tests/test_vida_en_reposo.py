@@ -89,5 +89,45 @@ class TestVidaEnReposo(unittest.TestCase):
         self.assertLessEqual(q["quieto_max"], 1.0, q)
 
 
+class TestVidaEnQuietasLargas(unittest.TestCase):
+    """Quietudes con hold largo / riesgo BALANCE: micro-flota de grupo (no
+    genérica). Protege constancia — hermana de cadena/cartel — y lista."""
+
+    def setUp(self):
+        import render_plan as R
+        R.formato(1080, 1920)
+        R.aplicar_globales({"escenas": []})
+        R._ESCALA.clear()
+        self.R = R
+        self.ctx = R.Ctx()
+
+    def _max_diff_hold(self, tipo, t0s=(2.2, 2.8, 3.4, 4.0), dt=0.45):
+        """Varias fases: en el seno la derivada a veces es ~0 en 0.45 s."""
+        R = self.R
+        e = R.completar_escena(_muestra(tipo), 0)
+        best = 0.0
+        for t0 in t0s:
+            if t0 + dt >= e["to"] - 0.2:
+                continue
+            a = np.asarray(R.pintar(self.ctx, e, t0).convert("L"), np.float32)
+            b = np.asarray(R.pintar(self.ctx, e, t0 + dt).convert("L"), np.float32)
+            best = max(best, float(np.abs(a - b).mean()))
+        return best, e
+
+    def test_constancia_flota_en_hold(self):
+        cuerpo = open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8").read()
+        sc = cuerpo.split("def sc_constancia(", 1)[1].split("\ndef sc_", 1)[0]
+        self.assertIn("flota(", sc)
+        dif, _ = self._max_diff_hold("constancia")
+        self.assertGreater(dif, 0.05, dif)
+
+    def test_lista_flota_en_hold(self):
+        cuerpo = open(os.path.join(SCRIPTS, "render_plan.py"), encoding="utf-8").read()
+        sc = cuerpo.split("def sc_lista(", 1)[1].split("\ndef sc_", 1)[0]
+        self.assertIn("flota(", sc)
+        dif, _ = self._max_diff_hold("lista")
+        self.assertGreater(dif, 0.04, dif)
+
+
 if __name__ == "__main__":
     unittest.main()
