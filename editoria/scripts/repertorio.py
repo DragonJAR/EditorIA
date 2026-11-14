@@ -48,6 +48,7 @@ DATOS = os.path.join(BASE, "data", "repertorio.json")
 DATOS_EFECTOS = os.path.join(BASE, "data", "efectos_talking_head.json")
 DATOS_GESTOS = os.path.join(BASE, "data", "motion_ui.json")
 DATOS_CAPTIONS = os.path.join(BASE, "data", "captions_identidades.json")
+DATOS_MOTORES_EXT = os.path.join(BASE, "data", "motores_externos.json")
 
 # Motores internos (metadato). El agente no los elige como menú.
 MOTOR_ESCENA = "escena"       # render_plan.SCENES
@@ -80,6 +81,28 @@ def _cargar_captions():
 
 def _tecnicas(datos):
     return list((datos or {}).get("tecnicas") or [])
+
+
+def _ids_motores_externos():
+    """Ids clone-on-demand (manim / handraw-estilo / pintura-cpu). Fuente única."""
+    if not os.path.isfile(DATOS_MOTORES_EXT):
+        return set()
+    with open(DATOS_MOTORES_EXT, encoding="utf-8") as fh:
+        return {m["id"] for m in (json.load(fh).get("motores") or []) if m.get("id")}
+
+
+def _producir_tecnica(fila):
+    """Cómo producir una técnica: clone-on-demand antepone la receta CLI.
+
+    El JSON guarda el doc (`references/…`); para manim/handraw/pintura el
+    agente necesita el comando de clonado ANTES del doc (una superficie).
+    """
+    doc = str((fila or {}).get("producir") or "").strip()
+    tid = (fila or {}).get("id")
+    if tid in _ids_motores_externos():
+        receta = f"python scripts/motores_externos.py receta --id {tid}"
+        return f"{receta} · {doc}" if doc else receta
+    return doc
 
 
 def _perillas(*trozos):
@@ -135,7 +158,7 @@ def _fila_tecnica(fila, intencion=None):
         "no_usar": str(fila.get("no_usar") or "").strip(),
         "pedido": fila.get("pedido", ""),
         "perillas": _perillas(fila.get("perillas")),
-        "producir": fila.get("producir", ""),
+        "producir": _producir_tecnica(fila),
         "aliases": fila.get("aliases", []),
         "keywords": fila.get("keywords", []),
         "intenciones": list(fila.get("intenciones") or []),
@@ -374,7 +397,7 @@ def demo_de(opcion):
       via='caption' → caption.py sobre base con contenido
       via='grade'   → grade.py (moody)
 
-    DRY: una sola tabla; el catálogo 125 y la galería no inventan demos.
+    DRY: una sola tabla; el catálogo 128 y la galería no inventan demos.
     Nunca devuelve ficha vacía — toda opción tiene cuerpo en el centro óptico.
     """
     if isinstance(opcion, str):
@@ -695,9 +718,22 @@ def validar(datos=None, tipos=None, efectos=None, gestos=None, captions=None):
         for inten in ints:
             if inten not in ids:
                 malos.append(f"tecnica '{tid}': intención desconocida '{inten}'")
-        ruta = str(t.get("producir") or "").split("·", 1)[0].strip()
-        if not ruta.startswith("references/") or not os.path.isfile(os.path.join(skill, ruta)):
-            malos.append(f"tecnica '{tid}': producir no es un doc real ({ruta})")
+        # JSON guarda el doc; `_producir_tecnica` antepone la receta clone-on-demand
+        prod = _producir_tecnica(t)
+        doc = prod.split("·")[-1].strip() if "·" in prod else prod
+        if not doc.startswith("references/") or not os.path.isfile(os.path.join(skill, doc)):
+            malos.append(f"tecnica '{tid}': producir no es un doc real ({doc})")
+        if tid in _ids_motores_externos() and "motores_externos.py receta" not in prod:
+            malos.append(f"tecnica '{tid}': clone-on-demand sin receta motores_externos")
+
+    # cada motor externo del JSON debe existir como técnica del repertorio
+    for mid in sorted(_ids_motores_externos()):
+        if mid not in tec_ids:
+            malos.append(f"motor externo '{mid}' sin técnica en repertorio.json")
+    # demos de técnicas apuntan a escenas reales del motor
+    for tid, tipo in _DEMO_TECNICA.items():
+        if tid in tec_ids and tipo not in tipos:
+            malos.append(f"_DEMO_TECNICA['{tid}']='{tipo}' no está en SCENES")
 
     # colisiones de id entre capas (rompería resolver)
     capas = (tipos, fx_ids, g_ids, cap_ids, tec_ids)

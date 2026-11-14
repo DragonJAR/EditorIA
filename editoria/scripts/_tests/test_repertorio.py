@@ -276,12 +276,18 @@ class TestEleccionDeAnimaciones(unittest.TestCase):
     repertorio y del catálogo generado, no de una copia en el test.
     """
 
-    SELECTOR = ("canvas", "hand-draw", "remotion", "hyperframes", "3d", "diagrama")
+    SELECTOR = (
+        "canvas", "hand-draw", "remotion", "hyperframes", "3d", "diagrama",
+        "manim", "handraw-estilo", "pintura-cpu",
+    )
     ALIAS = {
         "p5": "canvas",
         "acuarela": "canvas",
         "trazo": "hand-draw",
         "diagramas": "diagrama",
+        "manimce": "manim",
+        "handraw": "handraw-estilo",
+        "inkpaint": "pintura-cpu",
     }
 
     def test_cada_opcion_dice_cuando_cuando_no_y_como_pedirla(self):
@@ -310,11 +316,14 @@ class TestEleccionDeAnimaciones(unittest.TestCase):
             r = REP.resolver(nombre)
             self.assertIsNotNone(r, nombre)
             self.assertEqual(r["motor"], REP.MOTOR_TECNICA, nombre)
-            ruta = r["producir"].split("·", 1)[0].strip()
+            # doc = último trozo tras · (receta clone-on-demand · references/…)
+            ruta = r["producir"].split("·")[-1].strip()
             self.assertTrue(
                 os.path.isfile(os.path.join(os.path.dirname(SCRIPTS), ruta)),
                 ruta,
             )
+            if nombre in ("manim", "handraw-estilo", "pintura-cpu"):
+                self.assertIn("motores_externos.py receta", r["producir"], nombre)
         for alias, canon in self.ALIAS.items():
             self.assertEqual(REP.resolver(alias)["id"], canon)
         self.assertEqual(REP.resolver("camino")["motor"], REP.MOTOR_ESCENA)

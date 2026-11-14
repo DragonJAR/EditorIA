@@ -289,19 +289,21 @@ el motor. Orden:
 5. **Si `motor=caption`**: `captions_identidades.py receta` (rail →
    `caption.py`; HF/matte → on-demand). Cadena:
    `references/flujo-talking-head.md`. No menú de skills HF/Reelsmaker.
-6. **Gesto de resorte en plan**: rol `MOVIMIENTO` (`titular`, `bloque`,
+6. **Si `motor=tecnica`**: misma superficie (`canvas`, `hand-draw`,
+   `remotion`, `hyperframes`, `3d`, `diagrama`, `manim`, `handraw-estilo`,
+   `pintura-cpu`). `resolver --id` dice el doc; manim/handraw/pintura
+   anteponen `motores_externos.py receta --id …` (clone-on-demand). Detalle:
+   `animacion.md` §0 / `motores-externos.md`. No abras un menú paralelo.
+7. **Gesto de resorte en plan**: rol `MOVIMIENTO` (`titular`, `bloque`,
    `elemento`, `suave`, `pop`, `lento` — `animacion.md` §3b). No inventes
    stiffness/damping.
-7. **Look**: brand pack / `direccion_arte.py`; markup `*clave*` / `~caja~` /
+8. **Look**: brand pack / `direccion_arte.py`; markup `*clave*` / `~caja~` /
    `^caja^`.
-8. **Globales ≠ opciones**: `cabecera`, `grano`, `camara` van en la raíz del
+9. **Globales ≠ opciones**: `cabecera`, `grano`, `camara` van en la raíz del
    plan (`plan-video.md`).
-9. **Si ninguna opción del catálogo sirve**: selector de oficio en
-   `animacion.md` §0 (canvas, HandDraw, Remotion, HyperFrames, 3D, híbrido,
-   diagramas, Manim, handraw-estilo, pintura-cpu) y declara la capacidad si
-   falta (`capacidades.md`). Clone-on-demand: `motores_externos.py`. No abras
-   un segundo catálogo.
-10. **Verifica barato**: preview del motor elegido + `auditar_plan.py` /
+10. **Si ninguna opción del catálogo sirve**: amplía el repertorio (no un
+    segundo menú) y declara la capacidad si falta (`capacidades.md`).
+11. **Verifica barato**: preview del motor elegido + `auditar_plan.py` /
    `medir_animacion.py` + puerta.
 
 ## 3. Receta de movimiento por escena

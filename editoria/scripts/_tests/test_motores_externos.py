@@ -28,8 +28,11 @@ class TestMotoresExternos(unittest.TestCase):
             self.assertIn(mid, ids)
             res = REP.resolver(mid)
             self.assertEqual(res["motor"], "tecnica")
-            self.assertTrue(res["producir"].startswith("references/"))
-            doc = os.path.join(os.path.dirname(SCRIPTS), res["producir"])
+            self.assertIn("motores_externos.py receta", res["producir"])
+            self.assertIn(f"--id {mid}", res["producir"])
+            doc_rel = res["producir"].split("·")[-1].strip()
+            self.assertTrue(doc_rel.startswith("references/"))
+            doc = os.path.join(os.path.dirname(SCRIPTS), doc_rel)
             with open(doc, encoding="utf-8") as fh:
                 cuerpo = fh.read()
             self.assertIn("motores_externos.py receta", cuerpo)
