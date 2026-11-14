@@ -7970,7 +7970,8 @@ def _sin_markup_en_items(e):
             e[k]=[{c:(texto_plano(x[c]) if c in CAMPOS_TEXTO_ITEM and isinstance(x[c],str) else x[c])
                    for c in x} for x in v]
 
-COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz"}
+# `siguiente`: meta de hilo (dramaturgia.md / auditar_plan); no lo pinta el motor.
+COMUNES={"tipo","from","to","at","transicion","transicionX","transicionY","respira","voz","siguiente"}
 # Campos cuyo valor es un TOKEN que el motor interpreta (color, canal, quién
 # habla, ruta, separador, archivo), no copy que el espectador lee. Una lista:
 # quien estresa el copy (validate_skill, copy x2) recorre solo el texto.
