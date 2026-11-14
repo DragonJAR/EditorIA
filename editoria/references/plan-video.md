@@ -177,6 +177,12 @@ instante y lo mezcla con la voz y la música (la música se baja bajo la voz).
   intención queda ni usada ni declarada (`intencion-olvidada`): lo no
   usado queda explícito, no olvidado. Sin las claves, plan heredado y el
   auditor no inventa el aviso.
+- **Hilo (gancho + motivo para la siguiente)**: el contrato de guion está
+  en `references/dramaturgia.md`. En el plan: (1) la primera escena
+  (t≈0) es de la familia `gancho`; (2) cada escena **excepto la última**
+  declara `"siguiente": "…"` — una línea con el motivo para seguir, no
+  copy en pantalla. El auditor avisa `sin-gancho` y
+  `sin-motivo-siguiente` (silenciables con `"tells_ok"`).
 
 ## Render
 
@@ -257,4 +263,4 @@ Ver `scripts/render_plan.py` para el renderizador de referencia.
 
 ---
 
-→ Canónico: `references/plan-video.md` · Dominio: plan · Vecinos: `references/mapa.md`, `references/escenas.md`, `references/reglas-tecnicas.md`
+→ Canónico: `references/plan-video.md` · Dominio: plan · Vecinos: `references/mapa.md`, `references/escenas.md`, `references/dramaturgia.md`, `references/reglas-tecnicas.md`

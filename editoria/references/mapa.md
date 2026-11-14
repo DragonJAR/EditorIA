@@ -40,8 +40,9 @@ contradigan.
 
 - **"quiero CREAR un video"** → Step 1-5 de `SKILL.md` (entorno, memoria del
   proyecto, plan, render, audio, puerta) → `formatos.md` (qué formato) →
-  `principios.md` (la idea) → `copy.md` (el texto) → `intencion-escena.md` (qué
-  escena) → `plan-video.md` (el schema) → `qa-entrega.md` (la puerta).
+  `principios.md` (la idea) → `dramaturgia.md` (gancho + hilo) → `copy.md`
+  (el texto) → `intencion-escena.md` (qué escena) → `plan-video.md` (el
+  schema) → `qa-entrega.md` (la puerta).
 - **"quiero EDITAR un video que ya tengo"** → Step 6 o 7 de `SKILL.md` →
   `video-real.md` (el oficio de la edicion) → si es talking-head vertical a
   entrega: `flujo-talking-head.md` (corte→captions→motion→master→publicar) →
@@ -115,7 +116,7 @@ escribir es un tapón).
 | `mapa.md` | este índice | indice |
 | `glosario.md` | el vocabulario de la skill: qué es cada palabra propia | vocabulario |
 | `principios.md` | los principios permanentes (3 pilares, el gusto, la marca) | estructura |
-| `dramaturgia.md` | el arco: marco, tensión, giro, resonancia | estructura |
+| `dramaturgia.md` | gancho + hilo + retención: plantillas de arco, motivo para la siguiente, anti-planitud | estructura |
 | `direccion.md` | el listón medido, los 10 patrones, la dirección de energía | estructura |
 | `direccion-de-arte.md` | la dirección de arte: la idea del sujeto, las direcciones repartidas, el registro de tells | estructura |
 | `metodo-direccion.md` | del brief a la entrega: referente, tres estructuras, tratamiento, sonido, cierre y entrega, cambiar un estilo sin romperlo | estructura |

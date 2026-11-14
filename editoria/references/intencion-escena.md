@@ -34,7 +34,9 @@ solo desde esta lista ni desde `demo_plan.json`.
 ### "Quiero una apertura que enganche"
 `apertura` — gancho en dos tiempos: `texto1` entra (150 px), `texto2` lo
 sustituye (124 px) con `at.cambio`. La mancha crece desde un punto. Es la
-escena de la primera frase de la pieza, no un titular generico.
+escena de la primera frase de la pieza, no un titular generico. Qué debe
+hacer el gancho en el guion (promesa, 0–3 s, puente `siguiente`):
+`references/dramaturgia.md` — no se elige el tipo sin ese contrato.
 
 ### "Quiero señalar un dato dentro de una captura"
 `callout` — elipse que se dibuja sobre el punto exacto + etiqueta con placa.

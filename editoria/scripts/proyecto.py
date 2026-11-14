@@ -67,7 +67,7 @@ corrige la implementación._
   2.
   3.
 - **Premisa y experiencia del espectador**:
-- **Arco**: gancho (primeros 3 s) → desarrollo → giro/payoff → CTA. Cierre que hace eco del arranque
+- **Arco** (plantilla UNA de `references/dramaturgia.md`): gancho (0–3 s) → beats con motivo para la siguiente → payoff → CTA. Cierre que cumple la promesa del gancho; cada escena del plan llevará `siguiente` excepto la última
 - **Momento nativo** (lo que solo este medio puede hacer; va en el pico emocional):
 - **Ritmo y trabajo de cada pasaje** (mapa de señales: en qué pulso cae cada corte, acción clave y subtítulo):
 - **Sistemas visuales**: A-roll, B-roll, subtítulos, tipografía, gráficas, efectos

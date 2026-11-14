@@ -34,6 +34,11 @@ llamada a la accion): **el orden de la lista es el orden del video**.
 
 Para una pieza de 20 segundos: cuatro o cinco afirmaciones, una por escena.
 
+Despues de la lista, el **hilo**: cada afirmacion (salvo la ultima) deja un
+motivo para la siguiente — en el plan, campo `siguiente` por escena. Sin ese
+puente el video es un inventario. Contrato y checklist:
+`references/dramaturgia.md` §§2–5.
+
 ## 2. La aritmética del texto
 
 El motor encoge, no reescribe: si el titular no cabe, baja de 4 en 4 px
@@ -188,4 +193,4 @@ escondida en el render.
 
 ---
 
-→ Canónico: `references/copy.md` · Dominio: copy · Vecinos: `references/principios.md`, `references/share-copy.md`, `references/intencion-escena.md`
+→ Canónico: `references/copy.md` · Dominio: copy · Vecinos: `references/principios.md`, `references/dramaturgia.md`, `references/share-copy.md`, `references/intencion-escena.md`

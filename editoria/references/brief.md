@@ -97,7 +97,9 @@ El plano tiene dos versiones y ninguna sustituye a la otra: la humana va
 antes, porque el plan dice CUÁNDO y el storyboard dice QUÉ PASA Y POR QUÉ. Un
 plan de doce escenas sin storyboard son doce clips: cada uno bien hecho y,
 juntos, sin hilo. El hilo se decide antes de dibujar y la columna "cómo se
-sale" no es decorativa: es el corte y la `transicion` del plan.
+sale" no es decorativa: es el corte y la `transicion` del plan. El contrato
+del gancho, el motivo para la siguiente y las plantillas de arco:
+`references/dramaturgia.md` (campo `siguiente` en cada escena del plan).
 
 ## Un brief mínimo (escena `pasos`)
 

@@ -9,10 +9,15 @@ opcional al entrar. Tiempos `at` en segundos absolutos del video.
 Fondo que nace de un punto, crece y se encoge con el cambio de titular, más
 objetos flotantes + titular cinético en dos fases (`texto1` → `texto2` en
 `at.cambio`). Palabras con tiempos `at.p1/p2`.
+- **Oficio del gancho (guion)**: qué debe atrapar en 0–3 s, la promesa y el
+  puente a la escena siguiente — no el layout — viven en
+  `references/dramaturgia.md`. Esta escena es el golpe de titular de la
+  familia `gancho` (`repertorio.json`); no es un párrafo ni un índice.
 - **El fondo es la MARCA**: si el pack trae isotipo, se dibuja su silueta en el
   color de la marca (con su resplandor difuso); sin isotipo, cae al blob
   orgánico de siempre. El gesto no depende de que la marca tenga isotipo.
-- Params: `texto1[]`, `texto2[]`, `at{cambio, p1[], p2[]}`
+- Params: `texto1[]`, `texto2[]`, `at{cambio, p1[], p2[]}`; opcional de
+  hilo: `siguiente` (motivo para la siguiente escena; ver `dramaturgia.md`)
 
 ## 2. `canales` — "todos tus canales, un lugar"
 Marca grande al centro que sube y se encoge; tarjetas de canal que entran volando

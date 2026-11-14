@@ -186,19 +186,24 @@ De `/brag`: la estructura puede pasar QA técnico y aun así fallar como pieza.
 Verificar con el plan en mano:
 
 1. **Hook primero**: el hook se planeó antes que el resto y cae en los primeros
-   2 s. Sin hook deliberado, no hay video.
-2. **Piso de lectura**: cada texto legible cumple el piso de `ritmo.md`
+   2–3 s. Sin hook deliberado, no hay video. Familia `gancho` en t≈0
+   (`dramaturgia.md` §2); el auditor avisa `sin-gancho`.
+2. **Hilo / motivo para la siguiente**: cada escena (salvo la última) declara
+   `siguiente` y responde al puente de la anterior; el cierre paga la
+   promesa del gancho (`dramaturgia.md` §§4–5). Auditor:
+   `sin-motivo-siguiente`.
+3. **Piso de lectura**: cada texto legible cumple el piso de `ritmo.md`
    (0.8 s etiqueta, 0.3 s/palabra). Ninguna escena carga más texto del que su
    duración permite.
-3. **Beat locks**: 1–3 momentos mayores enganchados a strong cues (±0.15 s),
+4. **Beat locks**: 1–3 momentos mayores enganchados a strong cues (±0.15 s),
    marcados `// beat-lock`; eventos secuenciales en la grilla (±0.10 s),
    marcados `// beat-grid`. O timing natural justificado por legibilidad.
-4. **Grounding**: cada afirmación (nombres, cifras, claims) rastreada a la
+5. **Grounding**: cada afirmación (nombres, cifras, claims) rastreada a la
    fuente; lo inventado es solo oficio (tono, chistes, transiciones).
-5. **Poster**: `scripts/poster_frame.py` — frame asentado más fuerte extraído
+6. **Poster**: `scripts/poster_frame.py` — frame asentado más fuerte extraído
    y horneado como frame 0 (`*_poster.jpg` junto al mp4).
-6. **Share copy**: `share-copy.txt` escrito con la plantilla de `share-copy.md`.
-7. **En mute se entiende** (ya en Quality bar): re-verificar con el gate creativo.
+7. **Share copy**: `share-copy.txt` escrito con la plantilla de `share-copy.md`.
+8. **En mute se entiende** (ya en Quality bar): re-verificar con el gate creativo.
 
 ## Protocolo Gauntlet (revisión independiente)
 

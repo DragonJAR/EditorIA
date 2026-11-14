@@ -521,6 +521,11 @@ hold, 1.5s return).
 
 ## Hooks y retención
 
+Craft de feed (triple hook, open loops, arcos de retención en pantalla). Las
+**reglas de guion** — gancho deliberado, motivo para la siguiente, plantillas
+de arco, anti-planitud narrativa — son canónicas en
+`references/dramaturgia.md`; aquí no se duplican.
+
 - **Hook triple (0–3s)**: visual + verbal + texto simultáneos, la misma promesa.
   El texto del hook en pantalla desde el frame 1 (85% en mute). Nunca fade-in
   lento ni "hola chicos".

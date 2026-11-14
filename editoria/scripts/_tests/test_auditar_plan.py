@@ -87,6 +87,74 @@ class TestCadenciaYRepertorio(unittest.TestCase):
         self.assertFalse(self._avisos(plan, "poco-repertorio"))
 
 
+class TestGanchoHilo(unittest.TestCase):
+    """Gancho al abrir + motivo para la siguiente (dramaturgia.md)."""
+
+    def _avisos(self, plan, codigo):
+        return [h for h in AP.auditar_tells(plan) if h.get("codigo") == codigo]
+
+    def test_apertura_con_siguiente_no_avisa(self):
+        plan = {
+            "escenas": [
+                {"tipo": "apertura", "from": 0, "to": 3, "texto1": ["A"],
+                 "texto2": ["B"], "siguiente": "falta la cifra"},
+                {"tipo": "stats", "from": 3, "to": 8, "titulo": "Dato",
+                 "siguiente": "falta el cierre"},
+                {"tipo": "final", "from": 8, "to": 12, "titulo": "Listo"},
+            ]
+        }
+        self.assertFalse(self._avisos(plan, "sin-gancho"))
+        self.assertFalse(self._avisos(plan, "sin-motivo-siguiente"))
+
+    def test_abrir_sin_familia_gancho_avisa(self):
+        plan = {
+            "escenas": [
+                {"tipo": "stats", "from": 0, "to": 4, "titulo": "Dato",
+                 "siguiente": "sigue"},
+                {"tipo": "final", "from": 4, "to": 7, "titulo": "Fin"},
+            ]
+        }
+        self.assertTrue(self._avisos(plan, "sin-gancho"))
+
+    def test_primera_escena_tarde_avisa(self):
+        plan = {
+            "escenas": [
+                {"tipo": "apertura", "from": 1.2, "to": 4, "texto1": ["A"],
+                 "texto2": ["B"], "siguiente": "sigue"},
+                {"tipo": "final", "from": 4, "to": 7, "titulo": "Fin"},
+            ]
+        }
+        self.assertTrue(self._avisos(plan, "sin-gancho"))
+
+    def test_falta_siguiente_avisa(self):
+        plan = {
+            "escenas": [
+                {"tipo": "apertura", "from": 0, "to": 3, "texto1": ["A"],
+                 "texto2": ["B"]},
+                {"tipo": "final", "from": 3, "to": 6, "titulo": "Fin"},
+            ]
+        }
+        self.assertTrue(self._avisos(plan, "sin-motivo-siguiente"))
+
+    def test_tells_ok_silencia(self):
+        plan = {
+            "tells_ok": ["sin-gancho", "sin-motivo-siguiente"],
+            "escenas": [
+                {"tipo": "stats", "from": 0, "to": 4, "titulo": "Dato"},
+                {"tipo": "final", "from": 4, "to": 7, "titulo": "Fin"},
+            ]
+        }
+        self.assertFalse(self._avisos(plan, "sin-gancho"))
+        self.assertFalse(self._avisos(plan, "sin-motivo-siguiente"))
+
+    def test_una_sola_escena_no_pide_siguiente(self):
+        plan = {"escenas": [
+            {"tipo": "apertura", "from": 0, "to": 3, "texto1": ["A"], "texto2": ["B"]}
+        ]}
+        self.assertFalse(self._avisos(plan, "sin-motivo-siguiente"))
+        self.assertFalse(self._avisos(plan, "sin-gancho"))
+
+
 class TestCredenciales(unittest.TestCase):
     """Una credencial en el plan se publica con la pieza."""
 

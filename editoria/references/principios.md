@@ -121,6 +121,8 @@ imagen, la escena no está lista.
 
 - **El hook es todo.** Los primeros 2 segundos deciden si alguien sigue viendo.
   El hook se planea antes que todo lo demás — es la primera decisión del guion.
+  Contrato completo (gancho 0–3 s, motivo para la siguiente, plantillas de
+  arco, anti-planitud): `references/dramaturgia.md`.
 - **Cada frame postable.** Cualquier frame congelado debería valer la pena
   compartirlo. Nada de frames de relleno.
 - **Línea de grounding.** Lo que el video *afirma* (nombres, cifras, capacidades,

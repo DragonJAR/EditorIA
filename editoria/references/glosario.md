@@ -71,9 +71,11 @@ un parametro del plan, esta es su definicion.
 | **movimiento signature** | el gesto propio de la pieza, el que la hace reconocible | `references/principios.md` |
 | **firma de estilo / signature features** | lo que hace reconocible un lenguaje MG a primera vista; se juzga, no se diluye | `references/estilos-codigo.md` |
 | **un protagonista por plano** | en cada plano, un solo elemento se mueve: si dos se mueven, uno sobra | `references/principios.md` |
-| **arco dramatico** | la estructura del relato: marco, tension, giro, resonancia | `references/dramaturgia.md` |
-| **hook** | los primeros segundos: lo que obliga a seguir mirando | `references/dramaturgia.md` |
-| **payoff** | la revelacion que paga la tension del arco | `references/dramaturgia.md` |
+| **arco dramatico** | la estructura del relato (plantillas en `dramaturgia.md`) | `references/dramaturgia.md` |
+| **hook / gancho** | los primeros 0–3 s: lo que obliga a seguir mirando | `references/dramaturgia.md` |
+| **hilo conductor** | el viaje continuo: cada escena deja motivo para la siguiente | `references/dramaturgia.md` |
+| **siguiente** | campo del plan: motivo para la escena que sigue (no es copy en pantalla) | `references/dramaturgia.md` |
+| **payoff** | la revelacion que paga la tension del arco / la promesa del gancho | `references/dramaturgia.md` |
 
 ## 4. La marca
 

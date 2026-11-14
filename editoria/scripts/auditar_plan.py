@@ -13,9 +13,11 @@ tiempo real (medido con audio real), y un margen fijo menor que ese error
 rechazaba planes cuya narración cabía de verdad.
 Además detecta «tells» de pieza generada (jerga de marketing, emoji como
 icono, placeholders, prueba social sin fuente, titulares largos, la misma
-escena tres veces, cadencia de metrónomo...): siempre AVISO, nunca ERROR,
-porque una excepción deliberada es legítima. Se silencian con `"tells_ok":
-["codigo"]` en el plan o con --sin-tells (references/direccion-de-arte.md).
+escena tres veces, cadencia de metrónomo, ausencia de gancho al abrir,
+escenas sin `siguiente`/motivo para la siguiente...): siempre AVISO, nunca
+ERROR, porque una excepción deliberada es legítima. Se silencian con
+`"tells_ok": ["codigo"]` en el plan o con --sin-tells
+(references/direccion-de-arte.md; gancho+hilo: references/dramaturgia.md).
 Reporta cada hallazgo con su timestamp. Solo stdlib.
 """
 import argparse, json, os, re, statistics, sys
@@ -733,6 +735,37 @@ def auditar_tells(plan, anteriores=None):
                     "texto de las escenas largas y reparte el aire (ritmo.md)")
             else:
                 add("cadencia-uniforme", 0.0, f"las {len(durs)} escenas duran casi lo mismo (CV {cv:.2f} < {CV_MIN_CADENCIA}): se lee como metrónomo (ritmo.md); varía las duraciones o decláralo en \"tells_ok\": [\"cadencia-uniforme\"] si es deliberado")
+
+    # Gancho + hilo (references/dramaturgia.md): la primera escena cubre el
+    # arranque y es de la familia `gancho`; cada escena no final declara
+    # `siguiente` (motivo para seguir). Siempre AVISO; se silencia con
+    # tells_ok — mismo patrón que el resto de tells de oficio.
+    if ordenadas:
+        i0, e0 = ordenadas[0]
+        t0 = _t_num(e0.get("from"))
+        tipo0 = e0.get("tipo") or "?"
+        fam_gancho = list(REP.familias().get("gancho") or [])
+        if t0 is not None and t0 > 0.5:
+            add("sin-gancho", t0,
+                f"la primera escena ({tipo0}) empieza en t={t0:.2f}s (> 0.5): "
+                "el gancho tiene que cubrir el arranque (0–3 s). "
+                "references/dramaturgia.md §2; o \"tells_ok\": [\"sin-gancho\"]")
+        elif tipo0 not in fam_gancho:
+            add("sin-gancho", t0 or 0.0,
+                f"escena {i0} ({tipo0}) abre la pieza pero no es de la familia "
+                f"gancho ({'/'.join(fam_gancho)}): el hook se planea primero "
+                "(dramaturgia.md; repertorio.py sugerir --intenciones gancho,…). "
+                "Si el corte no abre nada, \"tells_ok\": [\"sin-gancho\"]")
+        if len(ordenadas) >= 2:
+            for k, (i, e) in enumerate(ordenadas):
+                if k == len(ordenadas) - 1:
+                    continue
+                puente = e.get("siguiente")
+                if not (isinstance(puente, str) and puente.strip()):
+                    add("sin-motivo-siguiente", _t_num(e.get("from")) or 0.0,
+                        f"escena {i} ({e.get('tipo', '?')}): falta `siguiente` "
+                        "(motivo para la siguiente; una línea, no copy en pantalla). "
+                        "dramaturgia.md §4; o \"tells_ok\": [\"sin-motivo-siguiente\"]")
     return out
 
 def _aviso_caption_central(plan, caption_position):

@@ -73,10 +73,11 @@ encadena.
 
 1. **El momento**: de un video largo se eligen los momentos que se
    sostienen solos (`references/scoring-shorts.md`); de una pieza nueva,
-   el gancho se planea primero (`references/principios.md`).
-2. **El gancho (0–3 s)**: triple — visual, verbal y texto a la vez, la
-   misma promesa, sin fade-in (`references/tecnicas-video.md`, «Hooks y
-   retención»). El arco que sigue: setup → cuerpo por beats → payoff →
+   el gancho se planea primero (`references/dramaturgia.md`;
+   `principios.md` lo resume).
+2. **El gancho (0–3 s)**: contrato de guion en `dramaturgia.md`; craft
+   triple (visual + verbal + texto) en `tecnicas-video.md` «Hooks y
+   retención». El arco que sigue: setup → cuerpo por beats → payoff →
    CTA que cumple exactamente lo que el gancho prometió (message-match,
    `references/modos-rapidos.md`).
 3. **Subtítulos quemados**: la mayoría del feed se ve en silencio.
